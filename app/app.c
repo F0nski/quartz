@@ -27,7 +27,11 @@ void app_ui_init(void)
     ui_init(&project);
 }
 
-void app_frame(void) { ui_frame(); }
+void app_frame(void)
+{
+    audio_prepare();                /* after boot and after a model or poly change: the engines, outside the render */
+    ui_frame();
+}
 void app_input_only(void) { ui_input(); }
 void app_say(const char *a, const char *b) { (void)a; (void)b; }
 

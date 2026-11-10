@@ -1,0 +1,37 @@
+# Models changed on the four tracks while playing: the engines are built outside the render, the voices stay sane
+wait 600
+tap SEQ
+key 0 down
+key 0 up
+turn ALGO 1
+key 0 down
+key 0 up
+turn ALGO 1
+key 0 down
+key 0 up
+turn ALGO 1
+key 0 down
+key 0 up
+tap PLAY
+wait 600
+expect active >0
+tap EDIT
+turn SELECT 1
+turn K1 12
+wait 50
+turn ALGO -1
+turn K1 12
+wait 50
+turn ALGO -1
+turn K1 5
+wait 50
+turn ALGO -1
+turn K1 -3
+expect model 5
+wait 2500
+expect playing 1
+expect active >0
+expect active <7
+tap PLAY
+wait 3000
+expect active 0

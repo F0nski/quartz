@@ -24,12 +24,12 @@ uint32_t plat_xruns(void) { return xruns; }
 uint32_t plat_cpu2_stack(void) { return cpu2_stack; }
 
 /* doubles: the voices, every call logged */
-typedef struct { char op; int v; float a; unsigned n; int core; } call;
+typedef struct { char op; int v; float a; unsigned n; int core, render; } call;
 static call LOG[4096];
-static int NLOG;
+static int NLOG, in_render;         /* in_render: the call came from app_render, not the main loop */
 static int silent[PQ_VOICES];
 static float amp = 0.01f;           /* voice v renders amp * (v + 1) */
-static void logc(char op, int v, float a, unsigned n) { LOG[NLOG++] = (call){ op, v, a, n, on_core2 }; }
+static void logc(char op, int v, float a, unsigned n) { LOG[NLOG++] = (call){ op, v, a, n, on_core2, in_render }; }
 void pq_init(void) { logc('i', -1, 0, 0); }
 void pq_set_engine(int v, int model) { logc('e', v, (float)model, 0); }
 void pq_set_patch(int v, float h, float t, float m, float d, float g) { (void)h; (void)t; (void)m; (void)d; (void)g; logc('p', v, 0, 0); }
@@ -59,7 +59,7 @@ static void setup(void)
     NLOG = 0;
 }
 
-static void block(uint32_t n) { app_render(LR, n, 4096); }
+static void block(uint32_t n) { in_render = 1; app_render(LR, n, 4096); in_render = 0; }
 
 static int count(char op, int v)
 {
@@ -366,6 +366,149 @@ static void panic_silences(void)
     assert(LR[0] != 0 && count('r', 0) == 1);
 }
 
+static int render_switches(void)
+{
+    int c = 0;
+    for (int i = 0; i < NLOG; i++) c += LOG[i].op == 'e' && LOG[i].render;
+    return c;
+}
+
+static int preps(void)
+{
+    int c = 0;
+    for (int v = 0; v < Q_VOICES; v++) c += pool.v[v].state == V_PREP;
+    return c;
+}
+
+/* the main loop's frames, each followed by a block */
+static void frames(int k)
+{
+    while (k--) {
+        audio_prepare();
+        block(256);
+    }
+}
+
+static void boot_prepared_play_switches_nothing(void)
+{
+    setup();
+    for (int t = 0; t < Q_TRACKS; t++) {
+        P.sound[t].model = 20;
+        P.pat[t].steps[0].on = 1;
+    }
+    frames(12);
+    int prepared = 0, n[2] = {0, 0};
+    for (int i = 0; i < NLOG; i++) prepared += LOG[i].op == 'e' && !LOG[i].render && LOG[i].a == 20.0f;
+    assert(prepared == 4 && render_switches() == 0 && preps() == 0);   /* poly 1 x 4 tracks */
+    for (int v = 0; v < Q_VOICES; v++) n[v / 3] += pool.v[v].model == 20 && pool.v[v].state == V_FREE;
+    assert(n[0] == 2 && n[1] == 2);     /* two on each core */
+    NLOG = 0;
+    audio_play(1);
+    block(256);
+    assert(render_switches() == 0);
+    int on = 0;
+    for (int i = 0; i < NLOG; i++) on += LOG[i].op == 'n';
+    assert(on == 4);
+}
+
+static void model_change_while_playing_one_switch_per_block(void)
+{
+    setup();
+    for (int t = 0; t < Q_TRACKS; t++) {
+        P.pat[t].div = DIV_32;
+        for (int k = 0; k < 16; k++) P.pat[t].steps[k].on = 1;
+    }
+    frames(12);
+    audio_play(1);
+    frames(20);
+    for (int t = 0; t < Q_TRACKS; t++) {
+        P.sound[t].model = (uint8_t)(13 + t);
+        audio_track_model(t);
+    }
+    for (int k = 0; k < 200; k++) {
+        NLOG = 0;
+        frames(1);
+        assert(render_switches() <= 1);
+    }
+    NLOG = 0;
+    frames(100);
+    assert(render_switches() == 0);     /* the engines are in place */
+    for (int t = 0; t < Q_TRACKS; t++) {
+        int n = 0;
+        for (int v = 0; v < Q_VOICES; v++) n += pool.v[v].model == 13 + t;
+        assert(n >= 1);
+    }
+    assert(preps() == 0);
+}
+
+/* six note-ons each needing an engine switch: (track, note) in the order they start */
+static const int SIX[6][2] = {{0, 60}, {1, 60}, {2, 60}, {3, 60}, {0, 62}, {1, 62}};
+
+static void started(int *track, int *note)
+{
+    *track = *note = -1;
+    for (int i = 0; i < NLOG; i++)
+        if (LOG[i].op == 'n') {
+            assert(*track < 0);     /* one note-on per block */
+            *track = pool.v[LOG[i].v].track;
+            *note = (int)LOG[i].a;
+        }
+}
+
+static void switches_spread_over_blocks(void)
+{
+    for (int cancel = 0; cancel < 2; cancel++) {
+        int exp[6][2], ne = 0;
+        for (int i = 0; i < 6; i++)
+            if (!cancel || i != 2) { exp[ne][0] = SIX[i][0]; exp[ne][1] = SIX[i][1]; ne++; }
+        setup();
+        for (int t = 0; t < Q_TRACKS; t++) P.sound[t].model = 20;
+        six_notes();
+        for (int k = 0; k < 7; k++) {
+            if (cancel && k == 1)
+                audio_live_note(2, 60, 0);  /* a note-off for a deferred note cancels it */
+            NLOG = 0;
+            block(256);
+            int t, n;
+            started(&t, &n);
+            if (k < ne)
+                assert(render_switches() == 1 && t == exp[k][0] && n == exp[k][1]);
+            else
+                assert(render_switches() == 0 && t < 0);
+            for (int c = 0; c < NLOG; c++) assert(LOG[c].op != 'f');
+        }
+        assert(audio_load().active == (cancel ? 5u : 6u) && track_on(2) == !cancel);
+    }
+}
+
+static void prep_hand_off(void)
+{
+    setup();
+    P.sound[0].model = 20;
+    audio_prepare();
+    assert(preps() == 0 && NLOG == 0);  /* asked: the render answers at its next block */
+    block(256);
+    int s = -1;
+    for (int v = 0; v < Q_VOICES; v++) if (pool.v[v].state == V_PREP) s = v;
+    assert(s >= 0 && preps() == 1 && NLOG == 0);
+    for (int t = 1; t < Q_TRACKS; t++) audio_live_note(t, 60, 1);
+    block(256);
+    assert(count('r', s) == 0 && count('n', s) == 0 && count('p', s) == 0 && count('e', s) == 0);
+    assert(audio_load().active == 3);   /* V_PREP is not a voice playing */
+    NLOG = 0;
+    audio_prepare();                    /* the engine built in the main loop, then handed back */
+    assert(NLOG == 1 && LOG[0].op == 'e' && LOG[0].v == s && LOG[0].a == 20.0f && !LOG[0].render);
+    assert(pool.v[s].state == V_PREP);
+    block(256);
+    assert(pool.v[s].state == V_FREE && pool.v[s].model == 20);
+    frames(4);
+    assert(preps() == 0);
+    NLOG = 0;
+    audio_live_note(0, 60, 1);
+    block(256);
+    assert(count('n', s) == 1 && render_switches() == 0);
+}
+
 int main(void)
 {
     splits_block_at_events();
@@ -382,6 +525,10 @@ int main(void)
     live_notes_reach_voices();
     slot_engine_follows_track();
     panic_silences();
+    boot_prepared_play_switches_nothing();
+    model_change_while_playing_one_switch_per_block();
+    switches_spread_over_blocks();
+    prep_hand_off();
     puts("audio_test ok");
     return 0;
 }

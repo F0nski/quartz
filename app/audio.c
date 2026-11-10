@@ -8,18 +8,27 @@
 #include "dsp/pq.h"
 
 #define CMD_N 64                    /* a power of two */
-#define OFF_ROOM 32                 /* kept for note-offs: one per held key (27), the render drains the ring each block */
+#define OFF_ROOM 32                 /* kept for note-offs, one per held key (27), and the preparation's request and
+                                     * hand-back (2): the render drains the ring each block */
 #define EV_MAX 40                   /* 4 tracks x 2 steps x on+off per block at 240 BPM in 1/32, with room */
+#define LATER_N 16                  /* note-ons waiting for an engine switch: beyond, a note-on is dropped */
+#define PREP_WAIT (-2)              /* prep_slot: asked, the render has not answered */
 #define BUDGET_TICKS(n) ((n) * 544u)   /* n frames at 44117.6 Hz, in 24 MHz ticks */
 #define LOAD_TICKS (24u * 1000000u)    /* the load is averaged over this much budget: 1 s */
 
-enum { CMD_NOTE, CMD_PLAY, CMD_MODEL };
+enum { CMD_NOTE, CMD_PLAY, CMD_MODEL, CMD_PREP_REQ, CMD_PREP_DONE };   /* PREP_REQ: note = model; DONE: track = slot */
 typedef struct { uint8_t kind, track, note, on; } q_cmd;
 
 static q_project *prj;
 static q_seq seq;
 static q_voices pool;
 static uint8_t fading[Q_VOICES];    /* a model change: faded out over this block, then freed */
+/* one engine switch per block in the render: the note-ons needing another wait here, in order */
+typedef struct { uint8_t track, note, vel; } q_later;
+static q_later later[LATER_N];
+static int n_later, switched;
+static volatile int prep_slot;      /* render -> main loop: the V_PREP slot, -1 none, PREP_WAIT */
+static int prep_model;              /* the main loop's own: the model it asked for */
 static volatile int playing;
 static volatile int muted;
 
@@ -39,7 +48,7 @@ static volatile uint32_t pct1, pct2;
 static void push(uint8_t kind, int track, int note, int on)
 {
     uint32_t w = cmd_w, used = w - cmd_r;
-    if (used == CMD_N || (used >= CMD_N - OFF_ROOM && !(kind == CMD_NOTE && !on)))
+    if (used == CMD_N || (used >= CMD_N - OFF_ROOM && !(kind == CMD_NOTE && !on) && kind < CMD_PREP_REQ))
         return;                     /* full: the UI cannot send 32 commands within a block; a note-off still fits */
     cmd[w % CMD_N] = (q_cmd){ kind, (uint8_t)track, (uint8_t)note, (uint8_t)on };
     __asm__ volatile("" ::: "memory");   /* the ring's publish barrier (fm1-base RING_PUBLISH) */
@@ -55,6 +64,8 @@ void audio_setup(q_project *p)
     for (int v = 0; v < Q_VOICES; v++)
         pool.v[v].model = 8;        /* pq_init's model */
     __builtin_memset(fading, 0, sizeof fading);
+    n_later = 0;
+    prep_slot = -1;
     out_gain = 0;
     playing = 0;
     muted = 0;
@@ -76,12 +87,57 @@ void audio_unmute(void) { muted = 0; }
 int audio_playing(void) { return playing; }
 int audio_pos(int track) { return seq_pos(&seq, track); }
 
+static int sounding(int v) { return pool.v[v].state == V_ON || pool.v[v].state == V_RELEASED; }
+
 q_load audio_load(void)
 {
     q_load l = { pct1, pct2, plat_xruns(), 0, plat_cpu2_on(), plat_cpu2_stack() };
     for (int v = 0; v < Q_VOICES; v++)
-        l.active += pool.v[v].state != V_FREE;
+        l.active += (uint32_t)sounding(v);
     return l;
+}
+
+/* A free slot whose engine is spare (no track wants that many of its model) when `model` lacks one, else -1.
+ * The tracks want poly slots each on their model; the slots holding it, free or playing, count, V_PREP not.
+ * Called by the render and, reading the pool as it stands, by the main loop: the render's answer is the one. */
+static int spare_slot(int model)
+{
+    static const uint8_t ORDER[Q_VOICES] = {0, 3, 1, 4, 2, 5};   /* the cores in turn */
+    int8_t want[24] = {0}, have[24] = {0};
+    for (int t = 0; t < Q_TRACKS; t++)
+        want[prj->sound[t].model] += (int8_t)prj->sound[t].poly;
+    for (int v = 0; v < Q_VOICES; v++)
+        if (pool.v[v].state != V_PREP && pool.v[v].model >= 0)
+            have[pool.v[v].model]++;
+    if (have[model] >= want[model])
+        return -1;
+    for (int k = 0; k < Q_VOICES; k++) {
+        int v = ORDER[k], m = pool.v[v].model;
+        if (pool.v[v].state == V_FREE && (m < 0 || have[m] > want[m]))
+            return v;
+    }
+    return -1;
+}
+
+/* One engine per call, outside the render: the render marks a spare slot V_PREP (neither rendered nor touched
+ * by it, nor by core 2, which renders only the slots it is handed), this builds the engine, the render frees it. */
+void audio_prepare(void)
+{
+    int s = prep_slot;
+    if (s == PREP_WAIT)
+        return;
+    if (s >= 0) {
+        pq_set_engine(s, prep_model);
+        push(CMD_PREP_DONE, s, prep_model, 0);
+        prep_slot = -1;
+    }
+    for (int t = 0; t < Q_TRACKS; t++)
+        if (spare_slot(prj->sound[t].model) >= 0) {
+            prep_model = prj->sound[t].model;
+            prep_slot = PREP_WAIT;  /* before the request: push publishes both */
+            push(CMD_PREP_REQ, 0, prep_model, 0);
+            return;
+        }
 }
 
 static void set_patch(int v, const q_sound *s)
@@ -97,25 +153,67 @@ static void note_on(int track, int note, int vel)
     if (pool.v[v].model != s->model) {
         pq_set_engine(v, s->model);
         pool.v[v].model = (int8_t)s->model;
+        switched = 1;
     }
     set_patch(v, s);
     pq_note_on(v, (float)(note + s->tune), vel / 127.0f);
 }
 
-static void note_off(int track, int note)
+static int needs_switch(int track)
 {
+    const q_sound *s = &prj->sound[track];
+    return pool.v[voices_pick(&pool, track, s->poly, s->model)].model != s->model;
+}
+
+static int waits(int track)
+{
+    for (int i = 0; i < n_later; i++)
+        if (later[i].track == track)
+            return 1;
+    return 0;
+}
+
+/* A note-on needing a switch once this block made one waits for the next block, and the track's next note-ons
+ * wait behind it, in order. A note-off for a waiting note-on cancels it; the others go to the voices. */
+static void event(int track, int note, int vel, int on)
+{
+    if (on) {
+        if (waits(track) || (switched && needs_switch(track))) {
+            if (n_later < LATER_N)
+                later[n_later++] = (q_later){ (uint8_t)track, (uint8_t)note, (uint8_t)vel };
+        } else {
+            note_on(track, note, vel);
+        }
+        return;
+    }
+    for (int i = 0; i < n_later; i++)
+        if (later[i].track == track && later[i].note == note) {
+            for (n_later--; i < n_later; i++)
+                later[i] = later[i + 1];
+            return;
+        }
     int v = voices_note_off(&pool, track, note);
     if (v >= 0)
         pq_note_off(v);
 }
 
-static void apply(const q_event *e)
+/* the waiting note-ons, at the block's start: in order, a track's stopping at its first that still waits */
+static void start_later(void)
 {
-    if (e->on)
-        note_on(e->track, e->note, e->vel);
-    else
-        note_off(e->track, e->note);
+    int n = 0, held = 0;
+    for (int i = 0; i < n_later; i++) {
+        q_later e = later[i];
+        if (!(held >> e.track & 1) && !(switched && needs_switch(e.track))) {
+            note_on(e.track, e.note, e.vel);
+        } else {
+            held |= 1 << e.track;
+            later[n++] = e;
+        }
+    }
+    n_later = n;
 }
+
+static void apply(const q_event *e) { event(e->track, e->note, e->vel, e->on); }
 
 static void commands(void)
 {
@@ -124,16 +222,29 @@ static void commands(void)
         q_cmd c = cmd[cmd_r % CMD_N];
         cmd_r++;
         if (c.kind == CMD_NOTE) {
-            if (c.on)
-                note_on(c.track, c.note, 100);
-            else
-                note_off(c.track, c.note);
+            event(c.track, c.note, 100, c.on);
         } else if (c.kind == CMD_MODEL) {
+            int n = 0;
             for (int v = 0; v < Q_VOICES; v++)   /* released, no longer V_ON: no note-off nor note-on lands on them */
-                if (pool.v[v].state != V_FREE && pool.v[v].track == c.track) {
+                if (sounding(v) && pool.v[v].track == c.track) {
                     pool.v[v].state = V_RELEASED;
                     fading[v] = 1;
                 }
+            for (int i = 0; i < n_later; i++)    /* its waiting note-ons would have been faded out too */
+                if (later[i].track != c.track)
+                    later[n++] = later[i];
+            n_later = n;
+        } else if (c.kind == CMD_PREP_REQ) {
+            int v = spare_slot(c.note);
+            if (v >= 0) {
+                pool.v[v].state = V_PREP;
+                pool.v[v].model = -1;
+            }
+            __asm__ volatile("" ::: "memory");   /* the slot's state before the main loop reads its index */
+            prep_slot = v;
+        } else if (c.kind == CMD_PREP_DONE) {
+            pool.v[c.track].state = V_FREE;
+            pool.v[c.track].model = (int8_t)c.note;
         } else {
             q_event off[Q_TRACKS];        /* a start while playing: the sounding steps' note-offs first */
             int n;
@@ -150,7 +261,7 @@ static void commands(void)
 static void render_voices(int from, float *out, float *tmp)
 {
     for (int v = from; v < from + 3; v++) {
-        if (pool.v[v].state == V_FREE)
+        if (!sounding(v))
             continue;
         float g = gain[v], dg = 0;
         if (fading[v]) {            /* down to 0 at the block's end */
@@ -177,7 +288,7 @@ static void render_segment(void)
     uint32_t tw;
     int two = 0, r = 0, need2 = 0;
     for (int v = 0; v < Q_VOICES; v++)
-        if (pool.v[v].state != V_FREE) {
+        if (sounding(v)) {
             gain[v] = prj->sound[pool.v[v].track].level / 127.0f * 0.25f;
             need2 |= v >= 3;
         }
@@ -209,10 +320,12 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
     }
     inv_n = 1.0f / (float)n;
     dg = (target - g) * inv_n;      /* MASTER ramped across the block: no zipper noise */
+    switched = 0;
+    start_later();
     commands();
     ne = seq_block(&seq, prj, n, ev, EV_MAX);
     for (int v = 0; v < Q_VOICES; v++)
-        if (pool.v[v].state != V_FREE)
+        if (sounding(v))
             set_patch(v, &prj->sound[pool.v[v].track]);   /* the knobs reach the held notes */
     __builtin_memset(mix1, 0, n * sizeof *mix1);
     __builtin_memset(mix2, 0, n * sizeof *mix2);
