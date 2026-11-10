@@ -6,13 +6,53 @@ void project_defaults(q_project *p)
     __builtin_memset(p, 0, sizeof *p);
     p->version = Q_VERSION;
     p->tempo = 120;
+    p->swing = 50;
+    p->mode = 1;                    /* MAJOR */
+    p->quant = 2;
+    for (int i = 0; i < Q_SONG; i++) p->song[i].reps = 1;   /* 1..16: what the load's clamp would make of 0 */
     for (int i = 0; i < Q_TRACKS; i++) {
         q_sound *s = &p->sound[i];
         s->model = 8; s->poly = 1; s->level = 100;
         s->harm = s->timb = s->morph = s->decay = 64;
-        q_pattern *pt = &p->pat[i];
-        pt->len = 16; pt->div = DIV_16;
-        for (int k = 0; k < Q_STEPS; k++) { pt->steps[k].note = 60; pt->steps[k].vel = 100; }
+        for (int n = 0; n < Q_PATTERNS; n++) {
+            q_pattern *pt = &p->pat[i][n];
+            pt->len = 16; pt->div = DIV_16; pt->path = PATH_FWD;
+            pt->xlen = pt->ylen = 4; pt->ydiv = DIV_4;
+            for (int k = 0; k < Q_STEPS; k++) {
+                q_step *st = &pt->steps[k];
+                st->note[0] = 60; st->vel = 100; st->len = 4; st->prob = 20;
+            }
+        }
+    }
+}
+
+int lock_find(const q_pattern *pt, int step, int param)
+{
+    for (int i = 0; i < pt->nlocks; i++)
+        if (pt->locks[i].step == step && pt->locks[i].param == param) return i;
+    return -1;
+}
+
+/* The render reads nlocks and the entries concurrently: an entry is complete before nlocks counts it. */
+int lock_set(q_pattern *pt, int step, int param, int value)
+{
+    int i = lock_find(pt, step, param);
+    if (i >= 0) { pt->locks[i].value = (uint8_t)value; return 0; }
+    if (pt->nlocks >= Q_LOCKS) return -1;
+    pt->locks[pt->nlocks] = (q_lock){ (uint8_t)step, (uint8_t)param, (uint8_t)value };
+    __atomic_thread_fence(__ATOMIC_RELEASE);
+    pt->nlocks++;
+    return 0;
+}
+
+/* Swap the last entry in, then shrink: the render may read a lock twice for a moment, never half of one. */
+void lock_clear_step(q_pattern *pt, int step)
+{
+    for (int i = 0; i < pt->nlocks;) {
+        if (pt->locks[i].step != step) { i++; continue; }
+        pt->locks[i] = pt->locks[pt->nlocks - 1];
+        __atomic_thread_fence(__ATOMIC_RELEASE);
+        pt->nlocks--;
     }
 }
 
@@ -66,7 +106,7 @@ int seq_block(q_seq *s, const q_project *p, uint32_t nframes, q_event *out, int 
 
     for (int t = 0; t < Q_TRACKS; t++) {
         q_seq_track *k = &s->t[t];
-        const q_pattern *pt = &p->pat[t];
+        const q_pattern *pt = &p->pat[t][p->pattern[t]];
 
         /* the step in progress keeps its duration: carry the fractional start of the next step into the new
            denominator, rounded up like a start frame (r * den' < 2^32 for tempo <= 240) */
@@ -91,12 +131,12 @@ int seq_block(q_seq *s, const q_project *p, uint32_t nframes, q_event *out, int 
             } else if (start < end) {
                 k->cur = k->cur + 1 >= pt->len ? 0 : k->cur + 1;
                 const q_step *st = &pt->steps[k->cur];
-                if (st->on) {
+                if (st->flags & SF_ON) {
                     /* half a step on, over 2 x den so that an odd num stays exact */
                     uint32_t r = 2 * k->next_r + k->num;
-                    emit(out, &n, max, start, s->now, t, st->note, st->vel, 1);
+                    emit(out, &n, max, start, s->now, t, st->note[0], st->vel, 1);
                     k->playing = 1;
-                    k->note = st->note;
+                    k->note = st->note[0];
                     k->off_at = k->next_i + r / (2 * k->den) + (r % (2 * k->den) > 0);
                 }
                 k->next_r += k->num;

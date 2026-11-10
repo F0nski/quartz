@@ -72,8 +72,8 @@ static void splits_block_at_events(void)
 {
     setup();
     P.tempo = 120;
-    P.pat[0].div = DIV_32;
-    P.pat[0].steps[0].on = P.pat[0].steps[1].on = 1;
+    P.pat[0][0].div = DIV_32;
+    P.pat[0][0].steps[0].flags = P.pat[0][0].steps[1].flags = SF_ON;
     /* step 1 starts at frame spf: blocks before it so that it falls at offset 100 of a 256-frame block */
     uint32_t num, den;
     seq_step_ratio(120, DIV_32, &num, &den);
@@ -174,8 +174,8 @@ static void play_while_playing_restarts(void)
 {
     setup();
     P.sound[0].poly = 4;
-    P.pat[0].div = DIV_1;           /* one step: 2 s */
-    P.pat[0].steps[0].on = 1;
+    P.pat[0][0].div = DIV_1;           /* one step: 2 s */
+    P.pat[0][0].steps[0].flags = SF_ON;
     audio_play(1);
     block(256);
     assert(track_on(0) == 1);
@@ -394,7 +394,7 @@ static void boot_prepared_play_switches_nothing(void)
     setup();
     for (int t = 0; t < Q_TRACKS; t++) {
         P.sound[t].model = 20;
-        P.pat[t].steps[0].on = 1;
+        P.pat[t][0].steps[0].flags = SF_ON;
     }
     frames(12);
     int prepared = 0, n[2] = {0, 0};
@@ -415,8 +415,8 @@ static void model_change_while_playing_one_switch_per_block(void)
 {
     setup();
     for (int t = 0; t < Q_TRACKS; t++) {
-        P.pat[t].div = DIV_32;
-        for (int k = 0; k < 16; k++) P.pat[t].steps[k].on = 1;
+        P.pat[t][0].div = DIV_32;
+        for (int k = 0; k < 16; k++) P.pat[t][0].steps[k].flags = SF_ON;
     }
     frames(12);
     audio_play(1);

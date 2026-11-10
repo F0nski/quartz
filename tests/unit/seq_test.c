@@ -17,7 +17,7 @@ static uint64_t T;
 static void setup(void)
 {
     project_defaults(&P);
-    for (int i = 0; i < 16; i++) P.pat[0].steps[i].on = 1;
+    for (int i = 0; i < 16; i++) P.pat[0][0].steps[i].flags = SF_ON;
     memset(&S, 0, sizeof S);
     NEV = 0; T = 0;
     seq_start(&S);
@@ -76,8 +76,8 @@ static void steps_land_on_exact_frames(void)
 static void polyrhythm(void)
 {
     setup();
-    P.pat[1].len = 12; P.pat[1].div = DIV_8T;
-    for (int i = 0; i < 12; i++) P.pat[1].steps[i].on = 1;
+    P.pat[1][0].len = 12; P.pat[1][0].div = DIV_8T;
+    for (int i = 0; i < 12; i++) P.pat[1][0].steps[i].flags = SF_ON;
     run(400);
     int64_t loop = (int64_t)ceil_div(2 * 750000, 17);   /* 2 s at 750000/17 Hz */
     assert(nth(0, 1, 16) == loop);
@@ -95,7 +95,7 @@ static void length_shrink_wraps(void)
     setup();
     while (seq_pos(&S, 0) != 9) run(1);
     assert(nth(0, 1, 9) >= 0 && nth(0, 1, 10) < 0);     /* steps 0..9 have started */
-    P.pat[0].len = 4;
+    P.pat[0][0].len = 4;
     while (seq_pos(&S, 0) == 9) run(1);
     assert(seq_pos(&S, 0) == 0);
     assert(nth(0, 1, 10) == (int64_t)ceil_div(10 * (uint64_t)N16, D16));   /* step 10 of the grid is the wrap to step 0 */
@@ -124,7 +124,7 @@ static void tempo_changes_keep_tracks_aligned(void)
 {
     static const int tempi[] = { 77, 133, 61, 240, 119, 40, 120 };
     setup();
-    for (int i = 0; i < 16; i++) P.pat[1].steps[i].on = 1;
+    for (int i = 0; i < 16; i++) P.pat[1][0].steps[i].flags = SF_ON;
     for (unsigned c = 0; c < sizeof tempi / sizeof *tempi; c++) {
         run(37);
         P.tempo = (uint16_t)tempi[c];
@@ -144,7 +144,7 @@ static void division_change_mid_play(void)
     uint32_t n8, d8;
     setup();
     while (seq_pos(&S, 0) != 3) run(1);
-    P.pat[0].div = DIV_8;
+    P.pat[0][0].div = DIV_8;
     run(120);
     seq_step_ratio(120, DIV_8, &n8, &d8);
     int64_t s4 = nth(0, 1, 4), s5 = nth(0, 1, 5);
@@ -169,9 +169,9 @@ static void stop_releases_notes(void)
 static void events_sorted(void)
 {
     setup();
-    P.pat[1].div = DIV_32;
-    for (int i = 0; i < 16; i++) P.pat[1].steps[i].on = 1;
-    for (int i = 0; i < 16; i++) P.pat[2].steps[i].on = 1;     /* tracks 0 and 2 start together at every step */
+    P.pat[1][0].div = DIV_32;
+    for (int i = 0; i < 16; i++) P.pat[1][0].steps[i].flags = SF_ON;
+    for (int i = 0; i < 16; i++) P.pat[2][0].steps[i].flags = SF_ON;     /* tracks 0 and 2 start together at every step */
     run(64);                        /* run() asserts offsets are < BLK and increasing */
     assert(NEV > 15);
 
@@ -197,6 +197,47 @@ static void events_sorted(void)
     }
 }
 
+static void lock_set_find_clear(void)
+{
+    q_pattern *pt = &P.pat[0][0];
+    project_defaults(&P);
+    assert(lock_set(pt, 3, LK_HARM, 10) == 0);
+    assert(lock_set(pt, 3, LK_TUNE, 200) == 0);
+    assert(lock_set(pt, 7, LK_HARM, 20) == 0);
+    assert(pt->nlocks == 3);
+    assert(lock_find(pt, 3, LK_HARM) >= 0 && pt->locks[lock_find(pt, 3, LK_HARM)].value == 10);
+    assert(pt->locks[lock_find(pt, 3, LK_TUNE)].value == 200);
+    assert(pt->locks[lock_find(pt, 7, LK_HARM)].value == 20);
+    assert(lock_find(pt, 7, LK_TIMB) == -1 && lock_find(pt, 4, LK_HARM) == -1);
+    lock_clear_step(pt, 3);
+    assert(pt->nlocks == 1);
+    assert(lock_find(pt, 3, LK_HARM) == -1 && lock_find(pt, 3, LK_TUNE) == -1);
+    assert(pt->locks[lock_find(pt, 7, LK_HARM)].value == 20);
+    lock_clear_step(pt, 9);                                     /* nothing there */
+    assert(pt->nlocks == 1);
+}
+
+static void lock_set_overwrites(void)
+{
+    q_pattern *pt = &P.pat[0][0];
+    project_defaults(&P);
+    lock_set(pt, 5, LK_MORPH, 1);
+    assert(lock_set(pt, 5, LK_MORPH, 99) == 0);
+    assert(pt->nlocks == 1 && pt->locks[lock_find(pt, 5, LK_MORPH)].value == 99);
+}
+
+static void lock_full_refused(void)
+{
+    q_pattern *pt = &P.pat[0][0];
+    project_defaults(&P);
+    for (int i = 0; i < Q_LOCKS; i++) assert(lock_set(pt, i / LK_N, i % LK_N, i) == 0);
+    assert(pt->nlocks == Q_LOCKS);
+    assert(lock_set(pt, 60, LK_HARM, 1) == -1);
+    assert(pt->nlocks == Q_LOCKS);
+    for (int i = 0; i < Q_LOCKS; i++) assert(pt->locks[lock_find(pt, i / LK_N, i % LK_N)].value == i);
+    assert(lock_set(pt, 0, LK_HARM, 77) == 0);                  /* an overwrite still works when full */
+}
+
 int main(void)
 {
     step_frames_values();
@@ -208,6 +249,9 @@ int main(void)
     division_change_mid_play();
     stop_releases_notes();
     events_sorted();
+    lock_set_find_clear();
+    lock_set_overwrites();
+    lock_full_refused();
     puts("seq_test ok");
     return 0;
 }

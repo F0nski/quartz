@@ -9,7 +9,7 @@
 #include "ui.c"
 
 static uint8_t booted;
-static q_project project;
+static q_project project PLAT_POOL;   /* too big for the core's RAM: the 336 KB pool */
 
 void app_init(void)
 {

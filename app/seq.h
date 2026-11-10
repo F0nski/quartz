@@ -28,6 +28,9 @@ void seq_stop(q_seq *s, q_event *out, int *n);              /* note-offs of soun
 /* Events of the next nframes, sorted by offset. Events past max are dropped: max must be at least
    2 * Q_TRACKS (a note-off and a note-on per track) as long as a block is shorter than the shortest step. */
 int seq_block(q_seq *s, const q_project *p, uint32_t nframes, q_event *out, int max);
+int  lock_find(const q_pattern *pt, int step, int param);              /* index, -1 none */
+int  lock_set(q_pattern *pt, int step, int param, int value);          /* 0; -1 full (nothing written) */
+void lock_clear_step(q_pattern *pt, int step);                         /* the main loop writes; the render reads */
 int seq_pos(const q_seq *s, int track);                     /* step in progress, -1 when stopped */
 
 #endif

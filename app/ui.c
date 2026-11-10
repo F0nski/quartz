@@ -66,7 +66,7 @@ static int page_id(void) { return DOMAIN_PAGES[ui.domain][ui.page[ui.domain]]; }
 static int knob_get(int pid, int k)
 {
     const q_sound *s = &ui.p->sound[ui.track];
-    const q_pattern *t = &ui.p->pat[ui.track];
+    const q_pattern *t = &ui.p->pat[ui.track][ui.p->pattern[ui.track]];
     switch (pid * 4 + k) {
     case P_ENGINE * 4: return s->harm;
     case P_ENGINE * 4 + 1: return s->timb;
@@ -86,7 +86,7 @@ static int knob_get(int pid, int k)
 static void knob_set(int pid, int k, int v)
 {
     q_sound *s = &ui.p->sound[ui.track];
-    q_pattern *t = &ui.p->pat[ui.track];
+    q_pattern *t = &ui.p->pat[ui.track][ui.p->pattern[ui.track]];
     switch (pid * 4 + k) {
     case P_ENGINE * 4: s->harm = (uint8_t)v; break;
     case P_ENGINE * 4 + 1: s->timb = (uint8_t)v; break;
@@ -155,18 +155,18 @@ static void button(int b)
 
 static void key_down(int k)
 {
-    q_pattern *t = &ui.p->pat[ui.track];
+    q_pattern *t = &ui.p->pat[ui.track][ui.p->pattern[ui.track]];
     int note = 53 + k + 12 * ui.octave, w;
     if (ui.domain == D_SEQ) {           /* the white keys are the page's 16 steps */
         for (w = 0; w < 16; w++)
             if (WHITE[w] == k) {
                 q_step *s = &t->steps[ui.spage * 16 + w];
-                if (!s->on) {
-                    s->note = ui.last_note[ui.track];
+                if (!(s->flags & SF_ON)) {
+                    s->note[0] = ui.last_note[ui.track];
                     s->vel = 100;
                 }
                 __asm__ volatile("" ::: "memory");   /* note and vel before on: the render never reads half a step */
-                s->on = !s->on;
+                s->flags ^= SF_ON;
                 ui.dirty = 1;
             }
         return;
@@ -177,10 +177,10 @@ static void key_down(int k)
     ui.last_note[ui.track] = (uint8_t)note;
     if (ui.rec) {                       /* step entry: the note at the cursor, then the next step */
         q_step *s = &t->steps[ui.cursor - 1];
-        s->note = (uint8_t)note;
+        s->note[0] = (uint8_t)note;
         s->vel = 100;
         __asm__ volatile("" ::: "memory");   /* (as above) */
-        s->on = 1;
+        s->flags |= SF_ON;
         ui.cursor = ui.cursor % t->len + 1;
         ui.dirty = 1;
     }
@@ -213,7 +213,7 @@ void ui_input(void)
     n = DOMAIN_N[d];
     if ((e = plat_enc(EN_ALGO)) != 0) {
         ui.track = clamp(ui.track + e, 0, Q_TRACKS - 1);
-        if (ui.cursor > ui.p->pat[ui.track].len)       /* LEN is per track: same rule as when it shrinks */
+        if (ui.cursor > ui.p->pat[ui.track][ui.p->pattern[ui.track]].len)       /* LEN is per track: same rule as when it shrinks */
             ui.cursor = 1;
     }
     if ((e = plat_enc(EN_SELECT)) != 0)
@@ -226,7 +226,7 @@ void ui_input(void)
 
 static void lights(void)
 {
-    const q_pattern *t = &ui.p->pat[ui.track];
+    const q_pattern *t = &ui.p->pat[ui.track][ui.p->pattern[ui.track]];
     uint32_t btn = 1u << DOMAIN_BTN[ui.domain], keys = 0;
     int i, pos = audio_pos(ui.track);
     if (audio_playing())
@@ -235,7 +235,7 @@ static void lights(void)
         btn |= 1u << B_REC;
     if (ui.domain == D_SEQ)
         for (i = 0; i < 16; i++)
-            if (t->steps[ui.spage * 16 + i].on || ui.spage * 16 + i == pos)
+            if (t->steps[ui.spage * 16 + i].flags & SF_ON || ui.spage * 16 + i == pos)
                 keys |= 1u << WHITE[i];
     plat_leds(btn, keys);
 }
@@ -279,7 +279,7 @@ static void knob_text(int pid, int k, int v, char *b)
 
 static void view_now(q_view *v)
 {
-    const q_pattern *t = &ui.p->pat[ui.track];
+    const q_pattern *t = &ui.p->pat[ui.track][ui.p->pattern[ui.track]];
     int pid = page_id(), k;
     __builtin_memset(v, 0, sizeof *v);  /* the padding too: views are compared whole */
     v->head.track = (int8_t)ui.track;
@@ -361,15 +361,15 @@ static void draw_scene(const q_view *v, int32_t oy)
             int s = v->scene.spage * 16 + i;
             int32_t x = 5 + 29 * (i % 8), y = oy + (i < 8 ? 22 : 89);
             const q_step *st = &v->scene.st[i];
-            uint16_t c = s == v->scene.pos ? PINK : s >= v->scene.len ? C_LINE : st->on ? C_HI : C_DIM;
+            uint16_t c = s == v->scene.pos ? PINK : s >= v->scene.len ? C_LINE : st->flags & SF_ON ? C_HI : C_DIM;
             if (s == v->scene.cursor - 1) {
                 cv_rect(x, y, 26, 54, C_WHITE);
                 cv_rect(x + 2, y + 2, 22, 50, c);
             } else {
                 cv_rect(x, y, 26, 54, c);
             }
-            if (st->on) {
-                note_name(st->note, t);
+            if (st->flags & SF_ON) {
+                note_name(st->note[0], t);
                 cv_text(x + (26 - text_w(&FONT_T, t)) / 2, y + 38, &FONT_T, t, C_BLACK);
             }
         }
@@ -464,12 +464,12 @@ void ui_frame(void)
 int ui_expect(const char *what, int *got)
 {
     const q_sound *s = &ui.p->sound[ui.track];
-    const q_pattern *t = &ui.p->pat[ui.track];
+    const q_pattern *t = &ui.p->pat[ui.track][ui.p->pattern[ui.track]];
     if (!strncmp(what, "stepon_", 7) || !strncmp(what, "stepnote_", 9)) {
         int n = atoi(strchr(what, '_') + 1);
         if (n < 1 || n > Q_STEPS)
             return 0;
-        *got = what[4] == 'o' ? t->steps[n - 1].on : t->steps[n - 1].note;
+        *got = what[4] == 'o' ? t->steps[n - 1].flags & SF_ON : t->steps[n - 1].note[0];
     } else if (!strcmp(what, "domain")) *got = ui.domain;
     else if (!strcmp(what, "page")) *got = ui.page[ui.domain] + 1;
     else if (!strcmp(what, "track")) *got = ui.track + 1;
