@@ -282,6 +282,12 @@ turn K2 1
 expect locks 128
 expect msg_locks_full 1
 key 0 up
+expect stepon_1 1
+# a refused lock is still an edit: the release does not toggle the lit step
+key 2 down
+turn K3 1
+key 2 up
+expect stepon_2 1
 # a lock already there still changes when the table is full
 key 0 down
 turn K1 1

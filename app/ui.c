@@ -265,12 +265,13 @@ static void lock_turn(int k, int d)
     if (!d || param < 0)
         return;
     v = clamp(lock_value(t, param, &locked) + d, PAGE[pid].min[k], PAGE[pid].max[k]);
+    ui.edited = 1;                      /* a knob turned on a held step is an edit, the lock fitting or not */
     if (lock_set(t, ui.held - 1, param, v)) {
         ui.locks_until = plat_ms() + MSG_MS;
         return;
     }
     step_on(&t->steps[ui.held - 1]);
-    ui.edited = ui.dirty = 1;
+    ui.dirty = 1;
 }
 
 static void pattern_set(int n)
