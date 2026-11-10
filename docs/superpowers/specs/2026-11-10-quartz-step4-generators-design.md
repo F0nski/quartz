@@ -50,15 +50,19 @@ Les fichiers Mutable gardent leur en-tête d'origine (GPL-3.0 pour Grids, MIT po
 
 ### 3.1 Pages SEQ
 
-| Source | Page 1 | Page 2 | Page 3 |
-|---|---|---|---|
-| STEP | pas, LEN, DIV, PATH, SOURCE | XY si PATH = XY | — |
-| GRIDS | DIV, VOICE\*, NOTE\*, SOURCE | X, Y, CHAOS | DENS 1, DENS 2, DENS 3 |
-| MARBLES | DIV, T OUT\*, NOTE\*, SOURCE | MODE, BIAS, JITTER, LEN | SPREAD, X BIAS, STEPS, DÉJÀ VU |
+| Source | Page 1 | Page 2 | Page 3 | Page 4 |
+|---|---|---|---|---|
+| STEP | pas, LEN, DIV, PATH, SOURCE | XY si PATH = XY | — | — |
+| GRIDS | DIV, VOICE\*, NOTE\*, SOURCE | X, Y, CHAOS | DENS 1, DENS 2, DENS 3 | — |
+| MARBLES | DIV, T OUT\*, LEN, SOURCE | T : MODE, BIAS, JITTER, DÉJÀ VU | X\* : SPREAD, X BIAS, STEPS | NOTES\* : NOTE, RANGE |
 
-\* masqués sur une piste KIT. SOURCE est toujours K4 de la page 1 : on change de source par le même encodeur.
+\* masqués sur une piste KIT (les pages X et NOTES aussi : un KIT n'utilise pas la section X). SOURCE est toujours
+K4 de la page 1 : on change de source par le même encodeur.
 Plages : X, Y, CHAOS, DENS, BIAS, JITTER, SPREAD, X BIAS, STEPS, DÉJÀ VU 0..127 ; VOICE et T OUT 1..3 ;
-NOTE 0..127 ; MODE 0..6 ; LEN 1..16.
+NOTE 0..127 ; MODE 0..6 ; LEN 1..16 ; RANGE 1..4 octaves.
+
+MARBLES sur une piste synthé est le seul cas à 4 pages ; la limite de la spec globale (section 8) passe à quatre
+pages au plus par domaine.
 
 Sur une piste générative, la page 1 n'affiche pas de pas ; le pied montre les 4 réglages. Dans SEQ, les blanches
 ne servent plus à éditer des pas ; elles jouent la piste.
@@ -80,9 +84,14 @@ ne servent plus à éditer des pas ; elles jouent la piste.
 - Section T, évaluée une fois par pas : t2 part à chaque pas (l'horloge), t1 et t3 selon MODE (les 7 modèles de
   Marbles : COMPLEMENTARY BERNOULLI, CLUSTERS, DRUMS, INDEPENDENT BERNOULLI, DIVIDER, THREE STATES, MARKOV) et BIAS.
   JITTER tire un micro-timing jusqu'à ±11/24 de pas.
-- Section X : une valeur 0..1 par déclenchement, répartie selon SPREAD et X BIAS ; la note est NOTE + valeur × 24
-  demi-tons, quantifiée dans la gamme du projet. STEPS bas : toutes les notes de la gamme ; en montant, il ne garde
-  que les degrés les plus forts (dans l'ordre 1, 5, 3, 7, 2, 4, 6) jusqu'à la seule tonique.
+- Section X : une valeur 0..1 par déclenchement, répartie selon SPREAD et X BIAS ; la note est NOTE + valeur ×
+  RANGE × 12 demi-tons, quantifiée dans les **notes permises**.
+- Notes permises : 12 notes de l'octave, propres au pattern. Par défaut, celles de la gamme du projet (et elles la
+  suivent tant qu'aucune n'a été changée). Sur la page NOTES, une touche (blanche ou noire) active ou coupe sa note,
+  quelle que soit l'octave ; la dernière note permise ne se coupe pas. La page montre les 12 notes et celles
+  permises.
+- STEPS bas : toutes les notes permises ; en montant, il ne garde que les plus fortes, par intervalle depuis la
+  tonique du projet dans l'ordre 0, 7, 4, 3, 10, 11, 2, 5, 9, 8, 1, 6, jusqu'à une seule.
 - DÉJÀ VU, commun à T et X, comme le potentiomètre de Marbles : 0 hasard neuf à chaque pas, au milieu boucle figée
   de LEN pas, au-delà permutations de la boucle.
 - Sur un KIT, t1, t2, t3 jouent les pads 1, 2, 3. Sur une piste synthé, seule la sortie T OUT joue, à la note de X.
@@ -93,7 +102,7 @@ ne servent plus à éditer des pas ; elles jouent la piste.
 
 | Fichier | Changement |
 |---|---|
-| `project.h` | `q_pattern.src` et les réglages du générateur (un `union` GRIDS / MARBLES, ~12 octets) ; `q_pad` et `q_project.kit[4][16]` ; modèle `M_KIT 24` ; `Q_VERSION 3` |
+| `project.h` | `q_pattern.src` et les réglages du générateur (un `union` GRIDS / MARBLES, ~14 octets, dont le masque des notes permises de MARBLES) ; `q_pad` et `q_project.kit[4][16]` ; modèle `M_KIT 24` ; `Q_VERSION 3` |
 | `gen.c`, `gen.h` (nouveaux, module `gen` de la spec) | état par piste ; `gen_step()` remplit un `q_step` pour le rang k du pattern ; carte Grids dans `gen_grids_map.h` |
 | `seq.c` | au lieu de lire `pt->steps`, un pattern génératif demande son pas à `gen_step` puis passe par `plan_notes` ; longueur de boucle selon la source |
 | `audio.c` | KIT : la note d'une voix est le pad, ses réglages viennent du pad ; note-on avec le moteur du pad et poly 1 ; `wanted` et `spare_slot` comptent les moteurs des pads |
@@ -106,10 +115,10 @@ Le projet passe de ~31,4 à ~32 Ko et tient dans les 9 chunks (34,5 Ko).
 
 - Unitaires (PC) : Grids à CHAOS 0 suit la carte (cases de coin et interpolation) ; DENS 0 ne joue rien, DENS 127
   joue tout pas non nul de la carte ; Marbles à DÉJÀ VU au milieu rejoue la même boucle de LEN pas ; ses notes
-  restent dans la gamme ; dates exactes des pas d'une piste générative avec swing ; changement STEP ↔ GRIDS au bout
+  restent dans les notes permises et dans RANGE ; dates exactes des pas d'une piste générative avec swing ; changement STEP ↔ GRIDS au bout
   de la boucle ; KIT : CH coupe OH, BD et SN sonnent ensemble, 3 voix au plus ; sauvegarde et rechargement à
   l'identique (src, réglages, pads).
-- Simulateur : pages SEQ selon la source, pages PAD/KIT, édition pad tenu, pas KIT, REC ignoré sur GRIDS.
+- Simulateur : pages SEQ selon la source, notes permises sur la page NOTES, pages PAD/KIT, édition pad tenu, pas KIT, REC ignoré sur GRIDS.
 - Appareil : pire cas KIT + GRIDS + 3 voix lourdes sans bloc perdu ; CPU relevée dans `docs/cpu.md`.
 
 ## 8. Hors périmètre

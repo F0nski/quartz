@@ -154,7 +154,7 @@ dans une croche ou une noire.
   chaos ; accents. Sur un KIT, les 3 voix jouent les pads 1, 2 et 3. Sur une piste synthé, une des 3 voix
   (au choix) déclenche une note fixe réglée sur la page source.
 - **MARBLES** : section T (rythmes aléatoires, 3 sorties t1–t3) et section X (notes aléatoires
-  quantifiées dans la gamme : SPREAD, BIAS, STEPS), DÉJÀ VU et longueur de boucle 1–16. Sur un KIT,
+  quantifiées dans des notes permises, la gamme par défaut : SPREAD, BIAS, STEPS, RANGE), DÉJÀ VU et longueur de boucle 1–16. Sur un KIT,
   t1–t3 jouent les pads 1, 2 et 3 ; sur une piste synthé, une sortie T au choix joue la note de X.
 - Les deux suivent l'horloge et la division du pattern. Détail : `2026-11-10-quartz-step4-generators-design.md`.
 
@@ -192,7 +192,7 @@ Clavier :
 
 ## 8. Navigation
 
-- Un bouton = un domaine, trois pages au plus, aucun sous-menu.
+- Un bouton = un domaine, quatre pages au plus, aucun sous-menu.
 - Une page qu'un moteur n'utilise pas est masquée.
 - ALGORITHM choisit toujours la piste, PRESET parcourt toujours ce qui est affiché.
 - Maintenir un bouton de domaine pose sa couche sur les touches ; le relâcher la retire.
