@@ -1,0 +1,5 @@
+.tools/
+app/build/
+app/libc_include
+app/web/
+firmware.json

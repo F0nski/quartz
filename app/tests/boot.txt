@@ -1,0 +1,3 @@
+wait 600
+expect booted 1
+shot boot.png

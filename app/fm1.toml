@@ -1,0 +1,15 @@
+# QUARTZ build settings (tools/build.py from ../base)
+name = "QUARTZ"
+id_prefix = "FM-1_98"
+usb_manufacturer = "fm1-base"
+usb_product = "QUARTZ FM-1"
+include = ["third_party", "dsp"]
+device_include = ["dsp/cxx"]
+o2 = ["dsp/*.cc", "third_party/plaits/**/*.cc", "third_party/stmlib/**/*.cc"]
+o2_cflags = ["-idirafter", "app/libc_include", "-std=gnu++11", "-fno-exceptions", "-fno-rtti", "-fno-threadsafe-statics", "-fno-math-errno"]
+vendored = ["third_party/"]
+cpu2 = true
+cpu2_fallback = true
+ble = false
+words = "words.tsv"
+device_libs = ["libm.a", "libcompiler_rt.a"]

@@ -1,0 +1,4 @@
+#ifndef SPIKE_CXX_CMATH
+#define SPIKE_CXX_CMATH
+#include <math.h>
+#endif
