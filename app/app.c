@@ -1,15 +1,19 @@
-/* QUARTZ: a black screen with the name, and silence. Part of the unity build (device/unity.c, host/plat_host.c),
- * after the platform: gfx.c is in scope. */
+/* QUARTZ: a black screen with the name; the render is audio.c. Part of the unity build (device/unity.c,
+ * host/plat_host.c), after the platform: gfx.c is in scope. The app's own .c files are included here. */
+#include "project.h"
+#include "audio.h"
+#include "seq.c"
+#include "voices.c"
+#include "audio.c"
+
 static uint8_t booted;
+static q_project project;
 
-void app_init(void) { booted = 1; }
-
-void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
+void app_init(void)
 {
-    uint32_t i;
-    (void)master_q12;
-    for (i = 0; i < 2u * n; i++)
-        lr[i] = 0;
+    project_defaults(&project);
+    audio_setup(&project);
+    booted = 1;
 }
 
 void app_panic(void) {}

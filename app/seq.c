@@ -1,10 +1,9 @@
-#include <math.h>
-#include <string.h>
+/* No libc headers: the device builds the app's C freestanding, so the compiler's builtins stand in. */
 #include "seq.h"
 
 void project_defaults(q_project *p)
 {
-    memset(p, 0, sizeof *p);
+    __builtin_memset(p, 0, sizeof *p);
     p->version = 1;
     p->tempo = 120;
     for (int i = 0; i < Q_TRACKS; i++) {
@@ -26,7 +25,7 @@ double seq_step_frames(int tempo, int div)
 void seq_start(q_seq *s)
 {
     uint64_t now = s->now;
-    memset(s, 0, sizeof *s);
+    __builtin_memset(s, 0, sizeof *s);
     s->now = now;
     s->running = 1;
     for (int t = 0; t < Q_TRACKS; t++) {
@@ -88,10 +87,10 @@ int seq_block(q_seq *s, const q_project *p, uint32_t nframes, q_event *out, int 
                     emit(out, &n, max, start, s->now, t, st->note, st->vel, 1);
                     k->playing = 1;
                     k->note = st->note;
-                    k->off_at = (uint64_t)ceil(k->anchor_f + (double)(k->n - k->anchor_n + 0.5) * spf);
+                    k->off_at = (uint64_t)__builtin_ceil(k->anchor_f + (double)(k->n - k->anchor_n + 0.5) * spf);
                 }
                 k->n++;
-                k->next_start = (uint64_t)ceil(k->anchor_f + (double)(k->n - k->anchor_n) * spf);
+                k->next_start = (uint64_t)__builtin_ceil(k->anchor_f + (double)(k->n - k->anchor_n) * spf);
             } else {
                 break;
             }

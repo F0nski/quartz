@@ -1,9 +1,9 @@
-#include <string.h>
+/* No libc headers: the device builds the app's C freestanding, so the compiler's builtins stand in. */
 #include "voices.h"
 
 void voices_init(q_voices *p)
 {
-    memset(p, 0, sizeof *p);
+    __builtin_memset(p, 0, sizeof *p);
     for (int i = 0; i < Q_VOICES; i++) p->v[i].track = -1;
 }
 
