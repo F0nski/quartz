@@ -30,10 +30,15 @@ static call LOG[4096];
 static int NLOG, in_render;         /* in_render: the call came from app_render, not the main loop */
 static int silent[PQ_VOICES];
 static float amp = 0.01f;           /* voice v renders amp * (v + 1) */
+static float patch[PQ_VOICES][5];   /* the last pq_set_patch of each voice */
 static void logc(char op, int v, float a, unsigned n) { LOG[NLOG++] = (call){ op, v, a, n, on_core2, in_render }; }
 void pq_init(void) { logc('i', -1, 0, 0); }
 void pq_set_engine(int v, int model) { logc('e', v, (float)model, 0); }
-void pq_set_patch(int v, float h, float t, float m, float d, float g) { (void)t; (void)m; (void)d; (void)g; logc('p', v, h, 0); }
+void pq_set_patch(int v, float h, float t, float m, float d, float g)
+{
+    patch[v][0] = h; patch[v][1] = t; patch[v][2] = m; patch[v][3] = d; patch[v][4] = g;
+    logc('p', v, h, 0);
+}
 void pq_glide_to(int v, float note) { logc('g', v, note, 0); }
 void pq_note_on(int v, float note, float vel) { (void)vel; logc('n', v, note, 0); }
 void pq_note_off(int v) { logc('f', v, 0, 0); }
@@ -855,6 +860,130 @@ static void legato_while_tied_note_waits(void)
     assert(track_on(0) == 0);
 }
 
+/* a KIT on track 0, its three engines built by the main loop */
+static void kit_setup(void)
+{
+    setup();
+    P.sound[0].model = M_KIT;
+    frames(12);
+    NLOG = 0;
+}
+
+static void kit_choke_same_engine(void)
+{
+    kit_setup();
+    audio_live_note(0, KIT_NOTE + 2, 1);   /* CH */
+    block(256);
+    int v = track_slot(0);
+    assert(v >= 0 && pool.v[v].model == 23 && count('n', v) == 1);
+    audio_live_note(0, KIT_NOTE + 3, 1);   /* OH cuts it */
+    block(256);
+    assert(track_slot(0) == v && count('n', v) == 2 && track_on(0) == 1);
+    assert(pool.v[v].note == KIT_NOTE + 3 && pool.v[v].state == V_ON);
+}
+
+static void kit_three_engines_together(void)
+{
+    kit_setup();
+    for (int p = 0; p < 3; p++) audio_live_note(0, KIT_NOTE + p, 1);   /* BD SN CH */
+    block(256);
+    assert(render_switches() == 0 && track_on(0) == 3);
+    int seen = 0;
+    for (int v = 0; v < Q_VOICES; v++)
+        if (pool.v[v].state == V_ON) {
+            assert(pool.v[v].model == 21 + pool.v[v].note - KIT_NOTE && count('n', v) == 1);
+            seen |= 1 << (pool.v[v].model - 21);
+        }
+    assert(seen == 7);
+}
+
+static void kit_pad_patch(void)
+{
+    kit_setup();
+    audio_live_note(0, 60, 1);             /* no pad: ignored */
+    block(256);
+    assert(track_on(0) == 0 && count('n', track_slot(0)) == 0);
+    P.sound[0].level = 127;
+    audio_live_note(0, KIT_NOTE + 4, 1);   /* RIM: SN, tune 12, harm 100, timb 100, decay 10, level 90 */
+    block(256);
+    int v = track_slot(0);
+    assert(v >= 0 && pool.v[v].model == 22);
+    assert(patch[v][0] == 100 / 127.0f && patch[v][1] == 100 / 127.0f && patch[v][2] == 10 / 127.0f);
+    assert(patch[v][3] == 0.5f && patch[v][4] == 0.0f);
+    for (int i = 0; i < NLOG; i++) if (LOG[i].op == 'n') assert(LOG[i].a == 48.0f + 12.0f);
+    assert(count('n', v) == 1);
+    block(256);
+    int32_t g = (int32_t)(0.01f * (float)(v + 1) * (90 / 127.0f * 0.25f) * 8388607.0f);
+    assert(LR[0] - g <= 1 && g - LR[0] <= 1);
+}
+
+static void kit_engine_change_while_sounding(void)
+{
+    kit_setup();
+    audio_live_note(0, KIT_NOTE, 1);       /* BD */
+    block(256);
+    int v = track_slot(0);
+    assert(v >= 0 && pool.v[v].model == 21);
+    P.kit[0][0].engine = PAD_SN;
+    for (int k = 0; k < 4; k++) frames(1);
+    audio_live_note(0, KIT_NOTE, 1);
+    block(256);
+    block(256);
+    int w = -1;
+    for (int u = 0; u < Q_VOICES; u++)
+        if (pool.v[u].state == V_ON && pool.v[u].model == 22) w = u;
+    assert(w >= 0 && w != v && pool.v[w].note == KIT_NOTE);
+    audio_live_note(0, KIT_NOTE, 0);
+    audio_live_note(0, KIT_NOTE, 0);
+    block(256);
+    assert(track_on(0) == 0);
+    int n = 0, f = 0;
+    for (int i = 0; i < NLOG; i++) { n += LOG[i].op == 'n'; f += LOG[i].op == 'f'; }
+    assert(n == 2 && f == 2);
+}
+
+static void kit_prepares_its_engines(void)
+{
+    setup();
+    P.sound[0].model = M_KIT;
+    P.pat[0][0].steps[0].flags = SF_ON;
+    P.pat[0][0].steps[0].note[0] = KIT_NOTE;
+    P.pat[0][0].steps[0].note[1] = KIT_NOTE + 1;
+    P.pat[0][0].steps[0].note[2] = KIT_NOTE + 2;
+    frames(12);
+    int prepared[3] = {0, 0, 0};
+    for (int i = 0; i < NLOG; i++)
+        if (LOG[i].op == 'e' && !LOG[i].render && LOG[i].a >= 21.0f && LOG[i].a <= 23.0f) prepared[(int)LOG[i].a - 21]++;
+    assert(prepared[0] == 1 && prepared[1] == 1 && prepared[2] == 1 && render_switches() == 0 && preps() == 0);
+    for (int v = 0; v < Q_VOICES; v++) assert(pool.v[v].model != M_KIT);
+    NLOG = 0;
+    audio_play(1);
+    block(256);
+    assert(render_switches() == 0 && track_on(0) == 3);
+}
+
+/* a slide from BD to SN: no glide, SN struck, BD's voice released though its note-off is gone */
+static void kit_legato_strikes(void)
+{
+    kit_setup();
+    P.pat[0][0].steps[0].flags = SF_ON | SF_SLIDE;
+    P.pat[0][0].steps[0].note[0] = KIT_NOTE;
+    P.pat[0][0].steps[1].flags = SF_ON;
+    P.pat[0][0].steps[1].note[0] = KIT_NOTE + 1;
+    audio_play(1);
+    until(0, spf16(120) + 256);
+    int g = 0, n = 0;
+    for (int i = 0; i < NLOG; i++) { g += LOG[i].op == 'g'; n += LOG[i].op == 'n'; }
+    assert(g == 0 && n == 2 && track_on(0) == 1);
+    int v = track_slot(0);
+    for (int u = 0; u < Q_VOICES; u++)
+        if (pool.v[u].state == V_ON) v = u;
+    assert(pool.v[v].model == 22 && pool.v[v].note == KIT_NOTE + 1);
+    audio_play(0);
+    block(256);
+    assert(track_on(0) == 0);
+}
+
 int main(void)
 {
     splits_block_at_events();
@@ -889,6 +1018,12 @@ int main(void)
     step_note_not_recorded();
     stop_flushes_held_rec();
     scene_reported_once();
+    kit_choke_same_engine();
+    kit_three_engines_together();
+    kit_pad_patch();
+    kit_engine_change_while_sounding();
+    kit_prepares_its_engines();
+    kit_legato_strikes();
     puts("audio_test ok");
     return 0;
 }

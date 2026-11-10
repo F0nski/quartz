@@ -20,6 +20,7 @@
 #define CLICK_AMP 0.3f
 #define CLICK_DECAY 0.99849003f        /* per frame: a 15 ms time constant */
 #define CLICK_END (CLICK_AMP * 1e-4f)  /* ~140 ms on */
+#define KIT_MODEL 21                /* PAD_BD's Plaits engine; PAD_SN's and PAD_HH's follow */
 
 /* SCENE: note = scene; PREP_REQ: note = model; DONE: track = slot, note = model */
 enum { CMD_NOTE, CMD_PLAY, CMD_MODEL, CMD_SCENE, CMD_PREP_REQ, CMD_PREP_DONE };
@@ -40,6 +41,7 @@ static volatile int muted;
 static volatile int recording;      /* audio_rec */
 /* the step's p-locks each voice plays (bit LK_* of mask), taken at its note-on */
 static uint8_t lk_mask[Q_VOICES], lk_val[Q_VOICES][LK_N];
+static int8_t vpad[Q_VOICES];       /* the KIT pad each voice plays, -1 none: taken at its note-on */
 static float clk_c, clk_s, clk_cw, clk_sw, clk_env;   /* the click: a phasor turning by (clk_cw, clk_sw) a frame */
 /* live notes held while recording; now: the render's clock, since audio_setup */
 typedef struct { uint8_t on, track, note, pat, step; int8_t micro; uint32_t t0; } q_held;
@@ -90,6 +92,7 @@ void audio_setup(q_project *p)
         pool.v[v].model = 8;        /* pq_init's model */
     __builtin_memset(fading, 0, sizeof fading);
     __builtin_memset(lk_mask, 0, sizeof lk_mask);
+    __builtin_memset(vpad, -1, sizeof vpad);
     __builtin_memset(held, 0, sizeof held);
     clk_env = 0;
     now = 0;
@@ -153,6 +156,25 @@ q_load audio_load(void)
     return l;
 }
 
+/* the engines track t plays on (bit m: model m): a KIT's pads' engines, else its model */
+static uint32_t models(int t)
+{
+    if (prj->sound[t].model != M_KIT)
+        return 1u << prj->sound[t].model;
+    uint32_t w = 0;
+    for (int p = 0; p < Q_PADS; p++)
+        w |= 1u << (KIT_MODEL + prj->kit[t][p].engine);
+    return w;
+}
+
+/* a KIT has one voice per engine: a pad cuts the one sounding on its engine (CH cuts OH) */
+static int note_poly(int t) { return prj->sound[t].model == M_KIT ? 1 : prj->sound[t].poly; }
+
+static int note_model(int t, int note)
+{
+    return prj->sound[t].model == M_KIT ? KIT_MODEL + prj->kit[t][note - KIT_NOTE].engine : prj->sound[t].model;
+}
+
 /* A free slot whose engine is spare (no track wants that many of its model) when `model` lacks one, else -1.
  * The tracks want poly slots each on their model; the slots holding it, free or playing, count, V_PREP not.
  * Called by the render and, reading the pool as it stands, by the main loop: the render's answer is the one. */
@@ -160,8 +182,12 @@ static int spare_slot(int model)
 {
     static const uint8_t ORDER[Q_VOICES] = {0, 3, 1, 4, 2, 5};   /* the cores in turn */
     int8_t want[24] = {0}, have[24] = {0};
-    for (int t = 0; t < Q_TRACKS; t++)
-        want[prj->sound[t].model] += (int8_t)prj->sound[t].poly;
+    for (int t = 0; t < Q_TRACKS; t++) {
+        uint32_t w = models(t);
+        for (int m = 0; m < 24; m++)
+            if (w >> m & 1)
+                want[m] += (int8_t)note_poly(t);
+    }
     for (int v = 0; v < Q_VOICES; v++)
         if (pool.v[v].state != V_PREP && pool.v[v].model >= 0)
             have[pool.v[v].model]++;
@@ -187,14 +213,17 @@ void audio_prepare(void)
         push(CMD_PREP_DONE, s, prep_model, 0);
         prep_slot = -1;
     }
-    for (int t = 0; t < Q_TRACKS; t++)
-        if (spare_slot(prj->sound[t].model) >= 0) {
-            prep_model = prj->sound[t].model;
-            prep_slot = PREP_WAIT;  /* before the request: push publishes both */
-            if (!push(CMD_PREP_REQ, 0, prep_model, 0))
-                prep_slot = -1;     /* the ring full: asked again next frame */
-            return;
-        }
+    for (int t = 0; t < Q_TRACKS; t++) {
+        uint32_t w = models(t);
+        for (int m = 0; m < 24; m++)
+            if (w >> m & 1 && spare_slot(m) >= 0) {
+                prep_model = m;
+                prep_slot = PREP_WAIT;  /* before the request: push publishes both */
+                if (!push(CMD_PREP_REQ, 0, prep_model, 0))
+                    prep_slot = -1;     /* the ring full: asked again next frame */
+                return;
+            }
+    }
 }
 
 /* the voice's lock for q_sound field k, else the track's value */
@@ -216,8 +245,14 @@ static void take_locks(int v, int track, int pat, int step)
     }
 }
 
+/* a KIT's voice: its pad's, no locks; the pad's decay is Plaits' drum decay (morph) */
 static void set_patch(int v, const q_sound *s)
 {
+    if (vpad[v] >= 0) {
+        const q_pad *pd = &prj->kit[pool.v[v].track][vpad[v]];
+        pq_set_patch(v, pd->harm / 127.0f, pd->timb / 127.0f, pd->decay / 127.0f, 0.5f, 0);
+        return;
+    }
     pq_set_patch(v, param(v, LK_HARM, s->harm) / 127.0f, param(v, LK_TIMB, s->timb) / 127.0f,
                  param(v, LK_MORPH, s->morph) / 127.0f, param(v, LK_DECAY, s->decay) / 127.0f,
                  param(v, LK_GLIDE, s->glide) / 127.0f);
@@ -227,30 +262,31 @@ static uint32_t wanted(void)
 {
     uint32_t w = 0;
     for (int t = 0; t < Q_TRACKS; t++)
-        w |= 1u << prj->sound[t].model;
+        w |= models(t);
     return w;
 }
 
-static int needs_switch(int track)
+static int needs_switch(int track, int note)
 {
-    const q_sound *s = &prj->sound[track];
-    return pool.v[voices_pick(&pool, track, s->poly, s->model, wanted())].model != s->model;
+    int m = note_model(track, note);
+    return pool.v[voices_pick(&pool, track, note_poly(track), m, wanted())].model != m;
 }
 
-/* step -1: the keyboard's, no locks */
+/* step -1: the keyboard's, no locks. A KIT's pad sounds at 48 + its tune */
 static void note_on(int track, int note, int vel, int pat, int step)
 {
     const q_sound *s = &prj->sound[track];
-    int sw = needs_switch(track);
-    int v = voices_note_on(&pool, track, note, s->poly, s->model, wanted());
+    int m = note_model(track, note), sw = needs_switch(track, note), kit = s->model == M_KIT;
+    int v = voices_note_on(&pool, track, note, note_poly(track), m, wanted());
     fading[v] = 0;                  /* (a fading slot taken: the new note at full level) */
     if (sw) {
-        pq_set_engine(v, s->model);
+        pq_set_engine(v, m);
         switched = 1;
     }
-    take_locks(v, track, pat, step);
+    vpad[v] = (int8_t)(kit ? note - KIT_NOTE : -1);
+    take_locks(v, track, pat, kit ? -1 : step);
     set_patch(v, s);
-    pq_note_on(v, (float)(note + tune(v, s)), vel / 127.0f);
+    pq_note_on(v, (float)(kit ? 48 + prj->kit[track][vpad[v]].tune + s->tune : note + tune(v, s)), vel / 127.0f);
 }
 
 static int waits(int track)
@@ -265,8 +301,10 @@ static int waits(int track)
  * wait behind it, in order. A note-off for a waiting note-on cancels it; the others go to the voices. */
 static void event(int track, int note, int vel, int on, int pat, int step)
 {
+    if (prj->sound[track].model == M_KIT && (note < KIT_NOTE || note >= KIT_NOTE + Q_PADS))
+        return;                     /* no pad */
     if (on) {
-        if (waits(track) || (switched && needs_switch(track))) {
+        if (waits(track) || (switched && needs_switch(track, note))) {
             if (n_later < LATER_N)
                 later[n_later++] = (q_later){ (uint8_t)track, (uint8_t)note, (uint8_t)vel, (uint8_t)pat, (int8_t)step };
         } else {
@@ -291,7 +329,7 @@ static void start_later(void)
     int n = 0, held = 0;
     for (int i = 0; i < n_later; i++) {
         q_later e = later[i];
-        if (!(held >> e.track & 1) && !(switched && needs_switch(e.track))) {
+        if (!(held >> e.track & 1) && !(switched && needs_switch(e.track, e.note))) {
             note_on(e.track, e.note, e.vel, e.pat, e.step);
         } else {
             held |= 1 << e.track;
@@ -342,10 +380,16 @@ static int legato(const q_event *e)
 
 static void apply(const q_event *e)
 {
-    if (e->track == Q_CLICK_TRACK)
+    if (e->track == Q_CLICK_TRACK) {
         click_start(e->note);
-    else if (!(e->on && (e->flags & EV_LEGATO) && legato(e)))
+    } else if (e->on && (e->flags & EV_LEGATO) && prj->sound[e->track].model == M_KIT) {
+        /* a pad does not glide (a retargeted voice could stay on another pad's engine): the tied note, whose
+         * note-off is gone, ends, and the new one strikes */
+        event(e->track, e->from, 0, 0, e->pat, e->step);
+        event(e->track, e->note, e->vel, 1, e->pat, e->step);
+    } else if (!(e->on && (e->flags & EV_LEGATO) && legato(e))) {
         event(e->track, e->note, e->vel, e->on, e->pat, e->step);
+    }
 }
 
 /* a held note recorded, its length in eighths of a step, at the tempo and div playing */
@@ -469,6 +513,8 @@ static void render_segment(void)
     for (int v = 0; v < Q_VOICES; v++)
         if (sounding(v)) {
             gain[v] = prj->sound[pool.v[v].track].level / 127.0f * 0.25f;
+            if (vpad[v] >= 0)
+                gain[v] *= prj->kit[pool.v[v].track][vpad[v]].level / 127.0f;
             need2 |= v >= 3;
         }
     if (need2)                      /* no empty job for the second core */
