@@ -211,8 +211,11 @@ void ui_input(void)
     ui.keys = keys;
     d = ui.domain;                      /* after the buttons: SELECT turns the page of the domain just picked */
     n = DOMAIN_N[d];
-    if ((e = plat_enc(EN_ALGO)) != 0)
+    if ((e = plat_enc(EN_ALGO)) != 0) {
         ui.track = clamp(ui.track + e, 0, Q_TRACKS - 1);
+        if (ui.cursor > ui.p->pat[ui.track].len)       /* LEN is per track: same rule as when it shrinks */
+            ui.cursor = 1;
+    }
     if ((e = plat_enc(EN_SELECT)) != 0)
         ui.page[d] = ((ui.page[d] + e) % n + n) % n;
     if ((e = plat_enc(EN_PRESET)) != 0 && ui.domain == D_EDIT)

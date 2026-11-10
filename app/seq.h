@@ -8,7 +8,7 @@ typedef struct { uint32_t offset; uint8_t track, note, vel, on; } q_event;
 typedef struct {
     int cur;                    /* step in progress, -1 before the first one */
     uint64_t next_i;            /* the next step starts at next_i + next_r / den frames: frame next_i + (next_r > 0) */
-    uint32_t next_r;            /* 0 <= next_r < den */
+    uint32_t next_r;            /* 0 <= next_r <= den: = den only right after a re-anchor, < den after an advance */
     uint32_t num, den;          /* frames per step, num / den, for tempo and div below */
     int tempo, div;             /* tempo 0 = none yet */
     int playing;                /* a note-on is awaiting its note-off */

@@ -34,3 +34,25 @@ tap SEQ
 spin K1 -13
 expect len 3
 expect cursor 1
+# The cursor follows LEN of the track just selected: track 2 has LEN 4, the cursor sat at 6 on track 1
+turn ALGO 1
+spin K1 -12
+expect len 4
+turn ALGO -1
+spin K1 13
+expect len 16
+expect track 1
+tap EDIT
+key 7 down
+key 7 up
+key 7 down
+key 7 up
+key 7 down
+key 7 up
+key 7 down
+key 7 up
+key 7 down
+key 7 up
+expect cursor 6
+turn ALGO 1
+expect cursor 1
