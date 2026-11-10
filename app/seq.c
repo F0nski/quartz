@@ -170,6 +170,51 @@ static void untie(q_seq *s, int t)
     queue_push(q, (uint64_t)at, 0, queue_take(q, i).e);
 }
 
+/* A scene starts the track over at bar b: step 0 of the scene's pattern, both clocks at b. The note-ons queued for b
+   or later go (their note-offs are not queued yet); a tie the kept note-ons leave pending ends at b, unless a kept
+   legato note-on ends it, so no later step looks for a held note-off that is gone. */
+static void reanchor(q_seq *s, const q_project *p, int t, const q_clock *b)
+{
+    const q_scene *sc = &p->scene[s->launch];
+    q_seq_track *tr = &s->t[t];
+    q_queue *q = &s->q[t];
+    uint64_t at = (uint64_t)date(b, 0);
+    int tied = -1, legato = -1, held = -1;
+    for (int i = 0; i < q->n;) {
+        const q_queued *e = &q->e[i];
+        if (e->e.on && e->at >= at) {
+            queue_take(q, i);
+            q->ons--;
+            continue;
+        }
+        if (e->e.on && e->gate == TIED) tied = i;
+        if (e->e.on && (e->e.flags & EV_LEGATO)) legato = i;
+        if (e->at == HELD) held = i;
+        i++;
+    }
+    if (tied >= 0 && tied >= legato) q->e[tied].gate = (uint32_t)(at - q->e[tied].at);
+    else if (legato < 0 && held >= 0) queue_push(q, at, 0, queue_take(q, held).e);
+    if (tr->planned) {                  /* that step does not begin */
+        tr->h[1] = tr->h[0];
+        tr->h[0].step = -1;
+    }
+    tr->x = tr->y = *b;
+    tr->planned = tr->pp = tr->loops = tr->tie = tr->anchor = 0;
+    tr->k = tr->row = -1;
+    tr->pat = tr->want = sc->pat[t];
+    tr->path = p->pat[t][tr->pat].path;
+    s->mute = (s->mute & ~(1 << t)) | (sc->mute & 1 << t);
+}
+
+/* a launch pending: entry its song entry (-1 by hand), bar -1 the next bar, fixed at the next block */
+static void pend(q_seq *s, int scene, int entry, int bar)
+{
+    s->launch = scene;
+    s->lentry = entry;
+    s->bar = bar;
+    for (int t = 0; t < Q_TRACKS; t++) s->t[t].anchor = 1;
+}
+
 void seq_start(q_seq *s, const q_project *p, int count_in)
 {
     uint64_t now = s->now;
@@ -180,19 +225,33 @@ void seq_start(q_seq *s, const q_project *p, int count_in)
     s->rng = (uint32_t)now | 1;         /* xorshift: never 0 */
     s->count = 4 * count_in;
     s->beat = a;
+    s->mute = s->seen_mute = p->mute;
+    s->launch = s->entry = -1;
     clock_set(&a, p->tempo, DIV_1);     /* a bar's den divides every div's: the anchor carries exactly */
     if (count_in) clock_next(&a);
     for (int t = 0; t < Q_TRACKS; t++) {
         q_seq_track *tr = &s->t[t];
         tr->x = tr->y = a;
         tr->k = tr->row = -1;
-        tr->pat = p->pattern[t];
+        tr->pat = tr->want = tr->seen = p->pattern[t];
         tr->path = p->pat[t][tr->pat].path;
         tr->h[0].step = tr->h[1].step = -1;
     }
+    if (p->song_on && p->nsong) pend(s, p->song[0].scene, 0, count_in);
 }
 
 void seq_click(q_seq *s, int on) { s->click = on; }
+
+void seq_launch(q_seq *s, int scene) { pend(s, scene, -1, -1); }
+
+int seq_scene_started(q_seq *s)
+{
+    int n = s->started - 1;
+    s->started = 0;
+    return n;
+}
+
+int seq_song_entry(const q_seq *s) { return s->running ? s->entry : -1; }
 
 void seq_stop(q_seq *s, q_event *out, int *n)
 {
@@ -338,14 +397,16 @@ static void plan_notes(q_seq *s, const q_project *p, int t, const q_step *st, in
 }
 
 /* Plans the track's steps due before end. A step's duration is fixed when it begins (its start falls in a block),
-   as in a plain grid: a tempo change while it is only planned reaches it. */
-static void plan(q_seq *s, const q_project *p, int t, uint64_t end)
+   as in a plain grid: a tempo change while it is only planned reaches it. b: the bar a scene starts at, 0 none; the
+   track starts over there once its next step would start at b or later. */
+static void plan(q_seq *s, const q_project *p, int t, uint64_t end, const q_clock *b)
 {
     q_seq_track *tr = &s->t[t];
     for (;;) {
+        if (b && tr->anchor && not_after(b, &tr->x)) reanchor(s, p, t, b);
         const q_pattern *pt = &p->pat[t][tr->pat];
         int wrap = !tr->planned && tr->k + 1 >= (tr->path == PATH_XY ? pt->xlen : pt->len);
-        if (wrap) pt = &p->pat[t][p->pattern[t]];
+        if (wrap) pt = &p->pat[t][tr->want];
         clock_set(&tr->x, p->tempo, pt->div);
         if (tr->planned) {
             if (date(&tr->x, 0) >= (int64_t)end) return;
@@ -355,9 +416,9 @@ static void plan(q_seq *s, const q_project *p, int t, uint64_t end)
         }
         if (!due(&tr->x, end)) return;
         if (wrap) {                     /* the pattern and its path are taken at the wrap */
-            if (p->pattern[t] != tr->pat || pt->path != tr->path) tr->pp = 0;
-            tr->loops = p->pattern[t] != tr->pat ? 0 : tr->loops + 1;
-            tr->pat = p->pattern[t];
+            if (tr->want != tr->pat || pt->path != tr->path) tr->pp = 0;
+            tr->loops = tr->want != tr->pat ? 0 : tr->loops + 1;
+            tr->pat = tr->want;
             tr->path = pt->path;
             tr->k = 0;
         } else {
@@ -375,7 +436,7 @@ static void plan(q_seq *s, const q_project *p, int t, uint64_t end)
         tr->h[1] = (q_planned){ step, tr->pat, tr->k, tr->x };
         /* a muted step still decides: it counts for PRE (and draws its probability) */
         const q_step *st = &pt->steps[step];
-        if ((st->flags & SF_ON) && decide(s, tr, st) && !(p->mute >> t & 1)) plan_notes(s, p, t, st, step);
+        if ((st->flags & SF_ON) && decide(s, tr, st) && !(s->mute >> t & 1)) plan_notes(s, p, t, st, step);
         else if (tr->tie) untie(s, t);
         tr->planned = 1;
     }
@@ -391,15 +452,45 @@ int seq_block(q_seq *s, const q_project *p, uint32_t nframes, q_event *out, int 
 {
     int n = 0;
     uint64_t end = s->now + nframes;
+    q_clock bar = s->beat;
     if (!s->running) return 0;
 
+    for (int t = 0; t < Q_TRACKS; t++)
+        if (p->pattern[t] != s->t[t].seen) s->t[t].want = s->t[t].seen = p->pattern[t];
+    if (p->mute != s->seen_mute) s->mute = s->seen_mute = p->mute;
     clock_set(&s->beat, p->tempo, DIV_4);
+    if (s->launch >= 0) {               /* the launch's bar: not before the tracks start */
+        if (s->bar < 0) s->bar = (s->beats + 3) / 4 > s->count / 4 ? (s->beats + 3) / 4 : s->count / 4;
+        uint64_t r = s->beat.next_r + (uint64_t)s->beat.num * (uint32_t)(4 * s->bar - s->beats);
+        bar = s->beat;
+        bar.next_i += r / bar.den;
+        bar.next_r = (uint32_t)(r % bar.den);
+    }
     for (int64_t b; (b = date(&s->beat, 0)) < (int64_t)end; s->beats++, clock_next(&s->beat))
         if (s->click || s->beats < s->count)
             queue_push_on(&s->q[Q_CLICK_TRACK], (uint64_t)b, 0,
                     (q_event){ 0, Q_CLICK_TRACK, (uint8_t)(s->beats % 4 == 0), 100, 1, 0, 0, 0 });
     for (int t = 0; t < Q_TRACKS; t++)
-        plan(s, p, t, end);
+        plan(s, p, t, end, s->launch >= 0 && p->scene[s->launch].used ? &bar : 0);
+    /* the launch has begun (every track has started over): reported, then the song's next entry. An entry lasts
+       reps x its longest pattern, in whole bars. */
+    if (s->launch >= 0 && date(&bar, 0) < (int64_t)end) {
+        static const uint8_t u[DIV_N] = { 3, 4, 6, 8, 12, 16, 24, 48, 96 };    /* 24ths of a beat a step */
+        const q_scene *sc = &p->scene[s->launch];
+        if (sc->used) s->started = s->launch + 1;
+        s->entry = s->lentry;
+        s->launch = -1;
+        if (s->entry >= 0 && p->song_on && p->nsong) {
+            int m = 0, e = (s->entry + 1) % p->nsong;
+            for (int t = 0; t < Q_TRACKS; t++) {
+                const q_pattern *pt = &p->pat[t][sc->pat[t]];
+                if (pt->len * u[pt->div] > m) m = pt->len * u[pt->div];
+            }
+            pend(s, p->song[e].scene, e, s->bar + p->song[s->entry].reps * ((m + 95) / 96));
+        } else {
+            s->entry = -1;
+        }
+    }
 
     /* the queues' heads by date, the lower track first at a date */
     for (;;) {

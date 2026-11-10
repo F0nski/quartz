@@ -24,12 +24,17 @@ typedef struct {
     int k, row, pp;             /* rank in the pass; XY row; ping-pong phase */
     int pat, path;              /* taken at the wrap */
     int loops, pre, tie;        /* passes of the pattern; PRE's result; the last step planned tied a note */
+    int want, seen;             /* the pattern asked, taken at the wrap; p->pattern[t] last seen: a change asks */
+    int anchor;                 /* to start over at the pending launch's bar */
     q_planned h[2];             /* the last two steps planned, [1] the newest */
 } q_seq_track;
 typedef struct {
     int running, click, beats, count;   /* beats since the start; count: beats of count-in */
     uint32_t rng;
     uint64_t now;                   /* absolute frame of the next block */
+    int mute, seen_mute;            /* the mutes played; p->mute last seen: a change applies at once */
+    int launch, lentry, bar;        /* scene pending, -1 none; its song entry, -1 by hand; its bar, -1 the next */
+    int entry, started;             /* the song entry playing, -1 none; the scene launched + 1, 0 none */
     q_clock beat;
     q_seq_track t[Q_TRACKS];
     q_queue q[Q_TRACKS + 1];        /* [Q_CLICK_TRACK]: the clicks */
@@ -37,8 +42,12 @@ typedef struct {
 
 /* frames per step as num / den, exact: the FM-1's rate is 750000/17 Hz */
 void seq_step_ratio(int tempo, int div, uint32_t *num, uint32_t *den);
-void seq_start(q_seq *s, const q_project *p, int count_in);   /* count_in: the tracks start one bar later */
+/* count_in: the tracks start one bar later; song mode (song_on, nsong > 0) launches entry 0 then */
+void seq_start(q_seq *s, const q_project *p, int count_in);
 void seq_click(q_seq *s, int on);                             /* metronome events while on (and during a count-in) */
+void seq_launch(q_seq *s, int scene);                         /* at the next bar while running; by hand ends the song */
+int  seq_scene_started(q_seq *s);                             /* the scene launched since the last call, -1 none */
+int  seq_song_entry(const q_seq *s);                          /* the song entry playing, -1 when not in song mode */
 void seq_stop(q_seq *s, q_event *out, int *n);                /* out holds Q_TRACKS * SEQ_QUEUE */
 /* Events of the next nframes, sorted by offset; what does not fit in max stays queued for the next block. */
 int  seq_block(q_seq *s, const q_project *p, uint32_t nframes, q_event *out, int max);

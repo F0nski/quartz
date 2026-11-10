@@ -775,6 +775,177 @@ static void events_carry_step(void)
         if (!EV[i].e.on && EV[i].e.note == 81) { assert((int64_t)EV[i].at == at16(6, 0)); break; }
 }
 
+/* every step of the pattern on, playing note */
+static void fill(int t, int n, int note)
+{
+    for (int i = 0; i < Q_STEPS; i++) {
+        P.pat[t][n].steps[i].flags = SF_ON;
+        P.pat[t][n].steps[i].note[0] = (uint8_t)note;
+    }
+}
+
+/* the first note-on of a track at or after frame f, -1 none */
+static int first_on(int track, int64_t f)
+{
+    for (int i = 0; i < NEV; i++)
+        if (EV[i].e.track == track && EV[i].e.on && (int64_t)EV[i].at >= f) return i;
+    return -1;
+}
+
+static void scene_launch_at_next_bar(void)
+{
+    static const uint8_t pat[Q_TRACKS] = { 1, 2, 3, 1 };
+    int64_t b = at16(16, 0);                                    /* bar 1: ceil(2 x 750000/17) */
+    setup();
+    assert(b == (int64_t)ceil_div(2 * 750000, 17));
+    for (int t = 0; t < Q_TRACKS; t++) {
+        fill(t, 0, 60);
+        fill(t, pat[t], 70 + t);
+    }
+    P.scene[2] = (q_scene){ 1, 8, { 1, 2, 3, 1 } };             /* track 3 muted */
+    P.mute = 6;                                                 /* tracks 1 and 2 muted before */
+    while (seq_pos(&S, 0) != 5) run(1);
+    seq_launch(&S, 2);
+    while (T + BLK <= (uint64_t)b) {
+        run(1);
+        assert(seq_scene_started(&S) == -1);
+    }
+    run(1);
+    assert(seq_scene_started(&S) == 2 && seq_scene_started(&S) == -1);
+    run(100);
+    for (int t = 0; t < 3; t++) {
+        int i = first_on(t, b);
+        assert(i >= 0 && (int64_t)EV[i].at == b && EV[i].e.pat == pat[t] && EV[i].e.step == 0);
+        assert(EV[i].e.note == 70 + t && seq_pattern(&S, t) == pat[t]);
+    }
+    assert(first_on(1, 0) == first_on(1, b) && first_on(2, 0) == first_on(2, b));     /* muted before */
+    assert(first_on(3, 0) >= 0 && first_on(3, b) < 0);                                 /* muted from b */
+    for (int i = 0; i < NEV; i++) assert(!EV[i].e.on || (int64_t)EV[i].at < b || EV[i].e.pat != 0);
+}
+
+static void scene_launch_keeps_offs(void)
+{
+    int64_t b = at16(16, 0);
+    setup();
+    for (int t = 0; t < 2; t++) {
+        P.pat[t][0].len = 32;
+        for (int i = 0; i < Q_STEPS; i++) P.pat[t][0].steps[i].flags = 0;
+    }
+    q_step *st = P.pat[0][0].steps;
+    st[12] = (q_step){ { 50 }, 100, 64, 20, 0, SF_ON, 0 };      /* 8 steps: ends at step 20 */
+    st[15] = (q_step){ { 51 }, 100, 1, 20, 0, SF_ON | 3 << 3, 11 };     /* ratchet 4: the last at 16 + 5/24 */
+    st[16] = (q_step){ { 52 }, 100, 4, 20, 0, SF_ON, 0 };       /* planned before the launch */
+    st = P.pat[1][0].steps;
+    st[15] = (q_step){ { 40 }, 100, 4, 20, 0, SF_ON | SF_SLIDE, 0 };   /* tied into step 16, which goes */
+    st[16] = (q_step){ { 41 }, 100, 4, 20, 0, SF_ON, 0 };
+    P.pat[0][1].steps[0] = (q_step){ { 53 }, 100, 4, 20, 0, SF_ON, 0 };
+    P.scene[1] = (q_scene){ 1, 0, { 1, 1, 0, 0 } };             /* track 1's pattern 1: no step on */
+    run_to((uint64_t)at16(15, 3000));                           /* step 16 is planned */
+    seq_launch(&S, 1);
+    run_to((uint64_t)at16(24, 0));
+    int ons[128] = { 0 }, offs[128] = { 0 };
+    for (int i = 0; i < NEV; i++) EV[i].e.on ? ons[EV[i].e.note]++ : offs[EV[i].e.note]++;
+    assert(ons[50] == 1 && offs[50] == 1);
+    for (int i = 0; i < NEV; i++) if (!EV[i].e.on && EV[i].e.note == 50) assert((int64_t)EV[i].at == at16(12, 38400));
+    assert(ons[51] == 3 && offs[51] == 3);
+    for (int j = 0; j < 3; j++) assert(nth(0, 1, 1 + j) == at16(15, 2200 + 1200 * j));
+    assert(ons[52] == 0 && offs[52] == 0 && ons[41] == 0);
+    assert(ons[53] == 1 && nth(0, 1, 4) == b);
+    assert(ons[40] == 1 && offs[40] == 1 && nth(1, 1, 0) == at16(15, 0) && nth(1, 0, 0) == b);
+    assert(S.t[1].tie == 0 && S.q[0].n + S.q[1].n == 0 && S.q[0].ons + S.q[1].ons == 0);
+}
+
+/* track 0 plays pattern 1 from b on, and track 1 nothing */
+static void scene_holds(int64_t b)
+{
+    for (int i = 0; i < NEV; i++) {
+        if (!EV[i].e.on || (int64_t)EV[i].at < b) continue;
+        assert(EV[i].e.track == 0 && EV[i].e.pat == 1);
+    }
+}
+
+static void scene_then_project_copy_is_no_request(void)
+{
+    int64_t b = at16(16, 0);
+    setup();
+    fill(0, 1, 62);
+    fill(1, 0, 40);
+    P.scene[3] = (q_scene){ 1, 2, { 1, 0, 0, 0 } };
+    while (seq_pos(&S, 0) != 5) run(1);
+    seq_launch(&S, 3);
+    run_to((uint64_t)at16(40, 0));                              /* past the scene pattern's wrap, not yet copied */
+    assert(seq_scene_started(&S) == 3);
+    scene_holds(b);
+    P.pattern[0] = 1;                                           /* the main loop copies the scene */
+    P.mute = 2;
+    run_to((uint64_t)at16(72, 0));
+    scene_holds(b);
+    assert(first_on(0, at16(64, 0)) >= 0);
+    P.mute = 0;                                                 /* a change still is a request */
+    run_to((uint64_t)at16(80, 0));
+    assert(first_on(1, at16(73, 0)) >= 0);
+}
+
+static void song_advances_and_loops(void)
+{
+    int seen[8], n = 0;
+    setup();
+    assert(seq_song_entry(&S) == -1);
+    fill(0, 0, 60);
+    fill(0, 1, 62);
+    P.pat[0][1].len = 24;                                       /* 2 bars */
+    P.scene[0] = (q_scene){ 1, 0, { 0, 0, 0, 0 } };
+    P.scene[1] = (q_scene){ 1, 0, { 1, 0, 0, 0 } };
+    P.song[0] = (q_entry){ 0, 2 };
+    P.song[1] = (q_entry){ 1, 1 };
+    P.nsong = 2;
+    P.song_on = 1;
+    seq_start(&S, &P, 0);
+    run(1);
+    assert(seq_scene_started(&S) == 0 && seq_song_entry(&S) == 0);
+    seen[n++] = 0;
+    while (T < (uint64_t)at16(88, 0)) {
+        run(1);
+        int e = seq_song_entry(&S), sc = seq_scene_started(&S);
+        if (e != seen[n - 1]) {
+            seen[n++] = e;
+            assert(sc == P.song[e].scene);
+            assert((int64_t)T - BLK <= at16(e ? 32 : 64, 0) && at16(e ? 32 : 64, 0) < (int64_t)T);
+        } else {
+            assert(sc == -1);
+        }
+    }
+    assert(n == 3 && seen[1] == 1 && seen[2] == 0);
+    static const int at[][3] = { { 0, 0, 0 }, { 16, 0, 0 }, { 32, 1, 0 }, { 56, 1, 0 }, { 63, 1, 7 }, { 64, 0, 0 } };
+    for (unsigned c = 0; c < sizeof at / sizeof *at; c++) {
+        int i = first_on(0, at16(at[c][0], 0));
+        assert((int64_t)EV[i].at == at16(at[c][0], 0) && EV[i].e.pat == at[c][1] && EV[i].e.step == at[c][2]);
+    }
+}
+
+static void song_with_count_in(void)
+{
+    int64_t b = at16(16, 0);
+    setup();
+    fill(0, 1, 62);
+    P.scene[0] = (q_scene){ 1, 0, { 1, 0, 0, 0 } };
+    P.song[0] = (q_entry){ 0, 1 };
+    P.nsong = 1;
+    P.song_on = 1;
+    seq_start(&S, &P, 1);
+    while (T + BLK <= (uint64_t)b) {
+        run(1);
+        assert(seq_song_entry(&S) == -1 && seq_scene_started(&S) == -1);
+    }
+    run(1);
+    assert(seq_song_entry(&S) == 0 && seq_scene_started(&S) == 0);
+    run_to((uint64_t)at16(40, 0));
+    int i = first_on(0, 0);
+    assert((int64_t)EV[i].at == b && EV[i].e.pat == 1 && EV[i].e.step == 0);
+    i = first_on(0, at16(32, 0));                               /* one bar an entry: entry 0 again at bar 2 */
+    assert((int64_t)EV[i].at == at16(32, 0) && EV[i].e.step == 0 && seq_song_entry(&S) == 0);
+}
+
 /* random attributes and changes: every note-on gets one note-off (or a legato that replaces it), in order */
 static uint32_t R = 12345;
 static uint32_t rnd(void) { R ^= R << 13; R ^= R >> 17; R ^= R << 5; return R; }
@@ -802,9 +973,17 @@ static void every_on_gets_its_off(void)
                 st->micro = (int8_t)((int)(rnd() % 23) - 11);
             }
         }
+    for (int i = 0; i < Q_SCENES; i++) {                        /* one in four unused */
+        P.scene[i] = (q_scene){ (uint8_t)(rnd() % 4 != 0), (uint8_t)(rnd() % 16), { 0 } };
+        for (int t = 0; t < Q_TRACKS; t++) P.scene[i].pat[t] = (uint8_t)(rnd() % Q_PATTERNS);
+    }
+    for (int i = 0; i < Q_SONG; i++) P.song[i] = (q_entry){ (uint8_t)(rnd() % Q_SCENES), 1 };
+    P.nsong = 3;
+    P.song_on = 1;
+    int launches = 0, started = 0, entry = -1, entries = 0;
     memset(&S, 0, sizeof S);
     seq_start(&S, &P, 0);
-    for (int b = 0; b < 2000; b++) {
+    for (int b = 0; b < 20000; b++) {
         uint32_t r = rnd() % 64;
         int t = (int)(rnd() % Q_TRACKS);
         q_pattern *pt = &P.pat[t][rnd() % Q_PATTERNS];
@@ -813,6 +992,18 @@ static void every_on_gets_its_off(void)
         if (r == 2) P.tempo = (uint16_t)(40 + rnd() % 201);
         if (r == 3) P.mute = (uint8_t)(rnd() % 16);
         if (r == 5) P.swing = (uint8_t)(50 + rnd() % 26);
+        if (r == 6) { seq_launch(&S, (int)(rnd() % Q_SCENES)); launches++; }
+        if (r == 8 && seq_song_entry(&S) < 0) {                 /* the song again, from the start */
+            int n;
+            seq_stop(&S, out, &n);
+            for (int i = 0; i < n; i++) assert(c[out[i].track][out[i].note]-- > 0);
+            for (int t2 = 0; t2 < Q_TRACKS; t2++) {
+                int sum = 0;
+                for (int k = 0; k < 128; k++) { assert(c[t2][k] >= 0); sum += c[t2][k]; }
+                assert(sum == legatos[t2]);                     /* a legato's tied note had no note-off */
+            }
+            seq_start(&S, &P, (int)(rnd() % 2));
+        }
         if (r == 4) {
             pt->path = (uint8_t)(rnd() % PATH_N);
             pt->xlen = (uint8_t)(1 + rnd() % 4);
@@ -821,6 +1012,10 @@ static void every_on_gets_its_off(void)
         }
         q_event ev[64];
         int n = seq_block(&S, &P, 1 + rnd() % 512, ev, 2 + (int)(rnd() % 63));
+        started += seq_scene_started(&S) >= 0;
+        int e = seq_song_entry(&S);
+        entries += e >= 0 && e != entry;
+        entry = e;
         for (int i = 0; i < n; i++) {
             q_event *e = &ev[i];
             if (e->track == Q_CLICK_TRACK) continue;
@@ -837,6 +1032,16 @@ static void every_on_gets_its_off(void)
                 held += S.q[t2].e[i].at == HELD;
             }
             assert(held <= 1);
+            /* the tie chain: each queued legato replaces the one tie pending before it, a tied note-on is pending
+               after it; the tie left pending is the track's */
+            int pending = held;
+            for (int i = 0; i < S.q[t2].n; i++) {
+                const q_queued *e = &S.q[t2].e[i];
+                if (!e->e.on) continue;
+                if (e->e.flags & EV_LEGATO) { assert(pending); pending = 0; }
+                if (e->gate == TIED) { assert(!pending); pending = 1; }
+            }
+            assert(pending == S.t[t2].tie);
         }
     }
     int n;
@@ -848,6 +1053,7 @@ static void every_on_gets_its_off(void)
         assert(sum == legatos[t]);
     }
     assert(ons > 400 && ties > 0 && legatos[0] + legatos[1] + legatos[2] + legatos[3] > 10);
+    assert(launches > 100 && started > 30 && entries > 30);
 }
 
 static void lock_set_find_clear(void)
@@ -930,6 +1136,11 @@ int main(void)
     slide_ties_to_next();
     stop_during_tie_releases();
     events_carry_step();
+    scene_launch_at_next_bar();
+    scene_launch_keeps_offs();
+    scene_then_project_copy_is_no_request();
+    song_advances_and_loops();
+    song_with_count_in();
     every_on_gets_its_off();
     lock_set_find_clear();
     lock_set_overwrites();
