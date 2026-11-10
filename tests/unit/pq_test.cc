@@ -106,6 +106,50 @@ static void glide_slides_between_notes(void)
     assert(now > 125.0f && now < 137.0f);
 }
 
+static double sum_sq;
+static void add_squares(const float *b, unsigned n)
+{
+    for (unsigned i = 0; i < n; i++) sum_sq += (double)b[i] * b[i];
+}
+
+static float rms(int v, unsigned n)
+{
+    sum_sq = 0.0;
+    render(v, n, add_squares);
+    return (float)sqrt(sum_sq / n);
+}
+
+// glide_to: a new pitch on the held note, no trigger. Glide 1 is the project's glide byte 1 (1/127): with the
+// full glide (a 0.5 s time constant) a note is not within 1 % after 0.6 s.
+static void glide_to_keeps_envelope(void)
+{
+    const unsigned ms20 = (unsigned)(kRate * 0.02f);
+    pq_init();
+    pq_set_engine(0, 8);
+    pq_set_patch(0, 0.5f, 0.5f, 0.5f, 0.1f, 1.0f / 127.0f);
+    pq_note_on(0, 48.0f, 1.0f);
+    render(0, (unsigned)(kRate * 0.5f));
+    float before = rms(0, ms20);
+    pq_glide_to(0, 60.0f);
+    float after = rms(0, ms20);
+    render(0, (unsigned)(kRate * 0.58f));       // 0.6 s after glide_to: on the new note from there on
+    float f = frequency(0, 0.5f);
+    printf("  glide_to: rms %.4f then %.4f, then %.1f Hz\n", before, after, f);
+    assert(before > 0.01f && after <= 1.2f * before);
+    assert(f > 261.63f * 0.99f && f < 261.63f * 1.01f);
+
+    // the VA's level follows the gate, a retrigger would not show: a bass drum's decay would start over
+    pq_set_engine(4, 21);
+    pq_set_patch(4, 0.5f, 0.5f, 0.5f, 0.1f, 1.0f / 127.0f);
+    pq_note_on(4, 48.0f, 1.0f);
+    render(4, (unsigned)(kRate * 0.5f));
+    before = rms(4, ms20);
+    pq_glide_to(4, 60.0f);
+    after = rms(4, ms20);
+    printf("  glide_to, bass drum: rms %.5f then %.5f\n", before, after);
+    assert(after <= 1.2f * before);
+}
+
 static void release_goes_silent(void)
 {
     pq_init();
@@ -153,6 +197,7 @@ int main(void)
     all_models_sound();
     engine_switch_while_sounding();
     glide_slides_between_notes();
+    glide_to_keeps_envelope();
     release_goes_silent();
     off_on_between_renders_retriggers();
     voice_bytes_reported();

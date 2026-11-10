@@ -17,6 +17,7 @@ void voices_init(q_voices *p);
 int  voices_pick(const q_voices *p, int track, int poly, int model, uint32_t wanted);  /* what voices_note_on takes */
 int  voices_note_on(q_voices *p, int track, int note, int poly, int model, uint32_t wanted);
 int  voices_note_off(q_voices *p, int track, int note);            /* released slot, -1 if none */
+int  voices_retarget(q_voices *p, int track, int note);            /* the track's newest V_ON slot takes note, -1 none */
 void voices_free(q_voices *p, int slot);                           /* the renderer reports silence */
 void voices_release_track(q_voices *p, int track);                 /* all its slots -> V_FREE */
 

@@ -32,7 +32,8 @@ static float amp = 0.01f;           /* voice v renders amp * (v + 1) */
 static void logc(char op, int v, float a, unsigned n) { LOG[NLOG++] = (call){ op, v, a, n, on_core2, in_render }; }
 void pq_init(void) { logc('i', -1, 0, 0); }
 void pq_set_engine(int v, int model) { logc('e', v, (float)model, 0); }
-void pq_set_patch(int v, float h, float t, float m, float d, float g) { (void)h; (void)t; (void)m; (void)d; (void)g; logc('p', v, 0, 0); }
+void pq_set_patch(int v, float h, float t, float m, float d, float g) { (void)t; (void)m; (void)d; (void)g; logc('p', v, h, 0); }
+void pq_glide_to(int v, float note) { logc('g', v, note, 0); }
 void pq_note_on(int v, float note, float vel) { (void)vel; logc('n', v, note, 0); }
 void pq_note_off(int v) { logc('f', v, 0, 0); }
 void pq_render(int v, float *out, unsigned n)
@@ -50,6 +51,7 @@ static int32_t LR[2 * APP_BLOCK];
 static void setup(void)
 {
     project_defaults(&P);
+    audio_rec(0);
     cpu2_mode = 1;
     cpu2_runs = 0;
     tick_step = 10;
@@ -552,6 +554,221 @@ static void mono_model_change_keeps_its_fade(void)
     assert(pool.v[v0].state == V_FREE);
 }
 
+static int track_slot(int t)
+{
+    for (int v = 0; v < Q_VOICES; v++) if (pool.v[v].track == t && pool.v[v].state != V_FREE) return v;
+    return -1;
+}
+
+/* the last harm voice v was set to */
+static float last_harm(int v)
+{
+    float h = -1;
+    for (int i = 0; i < NLOG; i++) if (LOG[i].op == 'p' && LOG[i].v == v) h = LOG[i].a;
+    return h;
+}
+
+/* blocks of 256 until the one holding frame f has begun: returns the frames rendered */
+static uint32_t until(uint32_t at, uint32_t f)
+{
+    while (at + 256 <= f) { block(256); at += 256; }
+    return at;
+}
+
+static uint32_t spf16(int tempo)
+{
+    uint32_t num, den;
+    seq_step_ratio(tempo, DIV_16, &num, &den);
+    return (num + den - 1) / den;
+}
+
+static void lock_reaches_its_voice(void)
+{
+    setup();
+    P.pat[0][0].steps[0].flags = SF_ON;
+    lock_set(&P.pat[0][0], 0, LK_HARM, 127);
+    audio_live_note(1, 60, 1);
+    audio_play(1);
+    block(256);
+    NLOG = 0;
+    block(256);
+    int v0 = track_slot(0), v1 = track_slot(1);
+    assert(v0 >= 0 && v1 >= 0 && v0 != v1);
+    assert(last_harm(v0) == 1.0f && last_harm(v1) == 64 / 127.0f);
+}
+
+static void lock_ends_with_note(void)
+{
+    setup();
+    P.pat[0][0].steps[0].flags = P.pat[0][0].steps[1].flags = SF_ON;
+    lock_set(&P.pat[0][0], 0, LK_HARM, 127);
+    audio_play(1);
+    until(0, spf16(120) + 256);
+    NLOG = 0;
+    block(256);
+    assert(audio_pos(0) == 1 && count('n', track_slot(0)) == 0);   /* step 1 started a block before */
+    assert(last_harm(track_slot(0)) == 64 / 127.0f);
+}
+
+static void legato_glides_without_retrigger(void)
+{
+    setup();
+    P.pat[0][0].steps[0].flags = SF_ON | SF_SLIDE;
+    P.pat[0][0].steps[1].flags = SF_ON;
+    P.pat[0][0].steps[1].note[0] = 62;
+    P.sound[0].tune = 2;
+    audio_play(1);
+    until(0, 2 * spf16(120));
+    int n = 0, g = 0, f = 0;
+    for (int i = 0; i < NLOG; i++) {
+        if (LOG[i].op == 'n') { assert(LOG[i].a == 62.0f && !g); n++; }
+        if (LOG[i].op == 'g') { assert(LOG[i].a == 64.0f && !f); g++; }
+        f += LOG[i].op == 'f';
+    }
+    assert(n == 1 && g == 1 && f == 1);     /* 62's note-off, half a step in */
+    assert(track_on(0) == 0);
+}
+
+static int32_t OUT[3 * 88236];
+
+/* blocks of 256 until frame `frames`, the left channel kept in OUT */
+static void record(uint32_t frames)
+{
+    for (uint32_t at = 0; at < frames; at += 256) {
+        block(256);
+        for (int i = 0; i < 256; i++) OUT[at + i] = LR[2 * i];
+    }
+}
+
+static int ups(uint32_t from, uint32_t n)
+{
+    int c = 0;
+    for (uint32_t i = from + 1; i < from + n; i++) c += OUT[i - 1] < 0 && OUT[i] >= 0;
+    return c;
+}
+
+static void click_on_beats(void)
+{
+    setup();
+    P.click = 1;
+    audio_rec(1);
+    audio_play(1);
+    record(5 * 22060);
+    uint32_t num, den;
+    seq_step_ratio(120, DIV_4, &num, &den);
+    for (uint32_t k = 0; k < 5; k++) {
+        uint32_t b = (uint32_t)(((uint64_t)k * num + den - 1) / den);
+        int on = 0;
+        for (uint32_t i = b; i < b + 8; i++) on |= OUT[i] != 0;
+        assert(on);
+        for (uint32_t i = b + 8820; i < b + 22000 && i < 5 * 22060; i++) assert(OUT[i] == 0);   /* 0.2 s on */
+        if (k) for (uint32_t i = b - 200; i < b; i++) assert(OUT[i] == 0);
+        assert(ups(b, 232) == (k % 4 ? 5 : 10));    /* 5.2 ms: 1 kHz, 2 kHz on the bar */
+    }
+    setup();                        /* not armed: no metronome */
+    P.click = 1;
+    audio_play(1);
+    record(22060);
+    for (int i = 0; i < 22060; i++) assert(OUT[i] == 0);
+}
+
+static void count_in_then_play(void)
+{
+    uint32_t num, den;
+    seq_step_ratio(120, DIV_1, &num, &den);
+    uint32_t bar = (num + den - 1) / den;
+    for (int c = 0; c < 2; c++) {
+        setup();
+        P.click = c ? 2 : 3;        /* COUNT alone: the count-in clicks all the same */
+        P.pat[0][0].steps[0].flags = SF_ON;
+        amp = 0;
+        audio_rec(1);
+        audio_play(1);
+        int first = -1;
+        for (uint32_t k = 0; k <= bar / 256; k++) {
+            NLOG = 0;
+            block(256);
+            for (int i = 0; i < 256; i++) OUT[k * 256 + i] = LR[2 * i];
+            if (count('n', track_slot(0)) && first < 0) first = (int)k;
+            if (k < bar / 256) assert(audio_pos(0) == -1);
+        }
+        assert(first == (int)(bar / 256));
+        for (uint32_t b = 0; b < 4; b++) assert(OUT[b * bar / 4 + 4] != 0);
+    }
+    setup();                        /* not armed: no count-in */
+    P.click = 3;
+    P.pat[0][0].steps[0].flags = SF_ON;
+    audio_play(1);
+    block(256);
+    assert(count('n', track_slot(0)) == 1);
+}
+
+static void overdub_records_step(void)
+{
+    for (int q = 0; q < 2; q++) {
+        setup();
+        P.tempo = 60;
+        P.quant = q ? 2 : 0;
+        audio_rec(1);
+        audio_play(1);
+        uint32_t spf = spf16(60), on = 4 * spf + spf / 3;
+        uint32_t at = until(0, on);
+        audio_live_note(0, 60, 1);
+        block(256);
+        at = until(at + 256, on + spf);
+        q_rec r;
+        assert(!audio_take_rec(&r));
+        audio_live_note(0, 60, 0);
+        block(256);
+        assert(audio_take_rec(&r));
+        assert(r.track == 0 && r.pat == 0 && r.step == 4 && r.note == 60 && r.vel == 100 && r.len == 8);
+        assert(r.micro == (q ? 0 : 8));
+        assert(!audio_take_rec(&r));
+    }
+}
+
+static void stop_flushes_held_rec(void)
+{
+    setup();
+    P.tempo = 60;
+    audio_rec(1);
+    audio_play(1);
+    uint32_t spf = spf16(60);
+    uint32_t at = until(0, 4 * spf);
+    audio_live_note(1, 64, 1);
+    block(256);
+    until(at + 256, at + spf / 2);
+    audio_play(0);
+    block(256);
+    q_rec r;
+    assert(audio_take_rec(&r));
+    assert(r.track == 1 && r.step == 4 && r.note == 64 && r.len == 4);
+    audio_live_note(1, 64, 0);
+    block(256);
+    assert(!audio_take_rec(&r));
+}
+
+static void scene_reported_once(void)
+{
+    uint32_t num, den;
+    seq_step_ratio(120, DIV_1, &num, &den);
+    uint32_t bar = (num + den - 1) / den;
+    setup();
+    P.scene[1].used = 1;
+    P.scene[1].pat[0] = 2;
+    audio_play(1);
+    block(256);
+    audio_scene(1);
+    assert(audio_scene_started() == -1);
+    uint32_t at = until(256, bar);
+    assert(audio_scene_started() == -1 && audio_pattern(0) == 0);
+    block(256);
+    assert(audio_scene_started() == 1 && audio_scene_started() == -1);
+    assert(audio_pattern(0) == 2 && audio_song_entry() == -1);
+    until(at + 256, 3 * bar);
+    assert(audio_scene_started() == -1);
+}
+
 int main(void)
 {
     splits_block_at_events();
@@ -574,6 +791,14 @@ int main(void)
     prep_hand_off();
     full_queue_keeps_the_hand_off();
     mono_model_change_keeps_its_fade();
+    lock_reaches_its_voice();
+    lock_ends_with_note();
+    legato_glides_without_retrigger();
+    click_on_beats();
+    count_in_then_play();
+    overdub_records_step();
+    stop_flushes_held_rec();
+    scene_reported_once();
     puts("audio_test ok");
     return 0;
 }

@@ -1,5 +1,5 @@
 /* The render: per block, the main loop's commands, the sequencer's events, then the voices segment by segment
- * between the events' offsets. Voices 0..2 render on core 1, 3..5 on core 2 (or on core 1 when it is off or gives a
+ * between the events' offsets, the metronome's click over them. Voices 0..2 render on core 1, 3..5 on core 2 (or on core 1 when it is off or gives a
  * job up). pq's calls for a voice never overlap its render: core 1 applies a segment's events before handing over. */
 #include "app.h"
 #include "audio.h"
@@ -12,11 +12,17 @@
                                      * render drains the ring each block. The last place is the hand-back's (push) */
 #define EV_MAX 64                   /* more stays in the sequencer's queues for the next block */
 #define LATER_N 16                  /* note-ons waiting for an engine switch: beyond, a note-on is dropped */
+#define HELD_N 8                    /* live notes held, followed for the overdub */
+#define REC_N 32                    /* recorded notes waiting for the main loop, a power of two */
 #define PREP_WAIT (-2)              /* prep_slot: asked, the render has not answered */
 #define BUDGET_TICKS(n) ((n) * 544u)   /* n frames at 44117.6 Hz, in 24 MHz ticks */
 #define LOAD_TICKS (24u * 1000000u)    /* the load is averaged over this much budget: 1 s */
+#define CLICK_AMP 0.3f
+#define CLICK_DECAY 0.99849003f        /* per frame: a 15 ms time constant */
+#define CLICK_END (CLICK_AMP * 1e-4f)  /* ~140 ms on */
 
-enum { CMD_NOTE, CMD_PLAY, CMD_MODEL, CMD_PREP_REQ, CMD_PREP_DONE };   /* PREP_REQ: note = model; DONE: track = slot, note = model */
+/* SCENE: note = scene; PREP_REQ: note = model; DONE: track = slot, note = model */
+enum { CMD_NOTE, CMD_PLAY, CMD_MODEL, CMD_SCENE, CMD_PREP_REQ, CMD_PREP_DONE };
 typedef struct { uint8_t kind, track, note, on; } q_cmd;
 
 static q_project *prj;
@@ -24,17 +30,31 @@ static q_seq seq;
 static q_voices pool;
 static uint8_t fading[Q_VOICES];    /* a model change: faded out over this block, then freed */
 /* one engine switch per block in the render: the note-ons needing another wait here, in order */
-typedef struct { uint8_t track, note, vel; } q_later;
+typedef struct { uint8_t track, note, vel, pat; int8_t step; } q_later;   /* step -1: the keyboard's */
 static q_later later[LATER_N];
 static int n_later, switched;
 static volatile int prep_slot;      /* render -> main loop: the V_PREP slot, -1 none, PREP_WAIT */
 static int prep_model;              /* the main loop's own: the model it asked for */
 static volatile int playing;
 static volatile int muted;
+static volatile int recording;      /* audio_rec */
+/* the step's p-locks each voice plays (bit LK_* of mask), taken at its note-on */
+static uint8_t lk_mask[Q_VOICES], lk_val[Q_VOICES][LK_N];
+static float clk_c, clk_s, clk_cw, clk_sw, clk_env;   /* the click: a phasor turning by (clk_cw, clk_sw) a frame */
+/* live notes held while recording; now: the render's clock, since audio_setup */
+typedef struct { uint8_t on, track, note, pat, step; int8_t micro; uint32_t t0; } q_held;
+static q_held held[HELD_N];
+static uint32_t now;
 
 /* main loop -> render, one producer and one consumer, both on core 1 (the main loop and the audio interrupt) */
 static q_cmd cmd[CMD_N];
 static volatile uint32_t cmd_w, cmd_r;
+/* render -> main loop, one producer and one consumer: the recorded notes; the scene started, one place (a
+ * scene started while the last is unread is not reported) */
+static q_rec rec[REC_N];
+static volatile uint32_t rec_w, rec_r;
+static volatile int scene_v;
+static volatile uint32_t scene_w, scene_r;
 
 static float mix1[APP_BLOCK], mix2[APP_BLOCK], tmp1[APP_BLOCK], tmp2[APP_BLOCK];
 static float gain[Q_VOICES];
@@ -69,6 +89,12 @@ void audio_setup(q_project *p)
     for (int v = 0; v < Q_VOICES; v++)
         pool.v[v].model = 8;        /* pq_init's model */
     __builtin_memset(fading, 0, sizeof fading);
+    __builtin_memset(lk_mask, 0, sizeof lk_mask);
+    __builtin_memset(held, 0, sizeof held);
+    clk_env = 0;
+    now = 0;
+    recording = 0;
+    rec_w = rec_r = scene_w = scene_r = 0;
     n_later = 0;
     prep_slot = -1;
     out_gain = 0;
@@ -91,6 +117,31 @@ void audio_mute(void) { muted = 1; }
 void audio_unmute(void) { muted = 0; }
 int audio_playing(void) { return playing; }
 int audio_pos(int track) { return seq_pos(&seq, track); }
+int audio_pattern(int track) { return seq_pattern(&seq, track); }
+int audio_song_entry(void) { return seq_song_entry(&seq); }
+void audio_rec(int on) { recording = on; }
+void audio_scene(int scene) { push(CMD_SCENE, 0, scene, 0); }
+
+int audio_take_rec(q_rec *r)
+{
+    uint32_t i = rec_r;
+    if (i == rec_w)
+        return 0;
+    __asm__ volatile("" ::: "memory");   /* the note after its index */
+    *r = rec[i % REC_N];
+    __asm__ volatile("" ::: "memory");   /* copied before the render may write its place again */
+    rec_r = i + 1;
+    return 1;
+}
+
+int audio_scene_started(void)
+{
+    if (scene_r == scene_w)
+        return -1;
+    int s = scene_v;                /* (volatile: read before the place is given back) */
+    scene_r++;
+    return s;
+}
 
 static int sounding(int v) { return pool.v[v].state == V_ON || pool.v[v].state == V_RELEASED; }
 
@@ -146,9 +197,30 @@ void audio_prepare(void)
         }
 }
 
+/* the voice's lock for q_sound field k, else the track's value */
+static int param(int v, int k, int track_value) { return lk_mask[v] >> k & 1 ? lk_val[v][k] : track_value; }
+static int tune(int v, const q_sound *s) { return lk_mask[v] >> LK_TUNE & 1 ? (int8_t)lk_val[v][LK_TUNE] : s->tune; }
+
+static void take_locks(int v, int track, int pat, int step)
+{
+    const q_pattern *pt = &prj->pat[track][pat];
+    lk_mask[v] = 0;
+    if (step < 0)
+        return;
+    for (int k = 0; k < LK_N; k++) {
+        int i = lock_find(pt, step, k);
+        if (i >= 0) {
+            lk_mask[v] |= (uint8_t)(1 << k);
+            lk_val[v][k] = pt->locks[i].value;
+        }
+    }
+}
+
 static void set_patch(int v, const q_sound *s)
 {
-    pq_set_patch(v, s->harm / 127.0f, s->timb / 127.0f, s->morph / 127.0f, s->decay / 127.0f, s->glide / 127.0f);
+    pq_set_patch(v, param(v, LK_HARM, s->harm) / 127.0f, param(v, LK_TIMB, s->timb) / 127.0f,
+                 param(v, LK_MORPH, s->morph) / 127.0f, param(v, LK_DECAY, s->decay) / 127.0f,
+                 param(v, LK_GLIDE, s->glide) / 127.0f);
 }
 
 static uint32_t wanted(void)
@@ -165,7 +237,8 @@ static int needs_switch(int track)
     return pool.v[voices_pick(&pool, track, s->poly, s->model, wanted())].model != s->model;
 }
 
-static void note_on(int track, int note, int vel)
+/* step -1: the keyboard's, no locks */
+static void note_on(int track, int note, int vel, int pat, int step)
 {
     const q_sound *s = &prj->sound[track];
     int sw = needs_switch(track);
@@ -175,8 +248,9 @@ static void note_on(int track, int note, int vel)
         pq_set_engine(v, s->model);
         switched = 1;
     }
+    take_locks(v, track, pat, step);
     set_patch(v, s);
-    pq_note_on(v, (float)(note + s->tune), vel / 127.0f);
+    pq_note_on(v, (float)(note + tune(v, s)), vel / 127.0f);
 }
 
 static int waits(int track)
@@ -189,14 +263,14 @@ static int waits(int track)
 
 /* A note-on needing a switch once this block made one waits for the next block, and the track's next note-ons
  * wait behind it, in order. A note-off for a waiting note-on cancels it; the others go to the voices. */
-static void event(int track, int note, int vel, int on)
+static void event(int track, int note, int vel, int on, int pat, int step)
 {
     if (on) {
         if (waits(track) || (switched && needs_switch(track))) {
             if (n_later < LATER_N)
-                later[n_later++] = (q_later){ (uint8_t)track, (uint8_t)note, (uint8_t)vel };
+                later[n_later++] = (q_later){ (uint8_t)track, (uint8_t)note, (uint8_t)vel, (uint8_t)pat, (int8_t)step };
         } else {
-            note_on(track, note, vel);
+            note_on(track, note, vel, pat, step);
         }
         return;
     }
@@ -218,7 +292,7 @@ static void start_later(void)
     for (int i = 0; i < n_later; i++) {
         q_later e = later[i];
         if (!(held >> e.track & 1) && !(switched && needs_switch(e.track))) {
-            note_on(e.track, e.note, e.vel);
+            note_on(e.track, e.note, e.vel, e.pat, e.step);
         } else {
             held |= 1 << e.track;
             later[n++] = e;
@@ -227,7 +301,79 @@ static void start_later(void)
     n_later = n;
 }
 
-static void apply(const q_event *e) { event(e->track, e->note, e->vel, e->on); }
+static void click_start(int bar)
+{
+    clk_c = 1;
+    clk_s = 0;
+    clk_cw = bar ? 0.95970726f : 0.98987556f;   /* cos, sin of 2 kHz, 1 kHz a frame */
+    clk_sw = bar ? 0.28100173f : 0.14193790f;
+    clk_env = CLICK_AMP;
+}
+
+static void click_render(float *out, uint32_t n)
+{
+    for (uint32_t i = 0; i < n && clk_env > CLICK_END; i++) {
+        float c = clk_c * clk_cw - clk_s * clk_sw;
+        out[i] += clk_env * clk_s;
+        clk_s = clk_s * clk_cw + clk_c * clk_sw;
+        clk_c = c;
+        clk_env *= CLICK_DECAY;
+    }
+}
+
+/* A legato note-on: the track's held note takes its pitch (and its step's locks) without a new attack; with none
+ * held, or a note-on of the track waiting for an engine, a plain note-on */
+static void apply(const q_event *e)
+{
+    int v;
+    if (e->track == Q_CLICK_TRACK) {
+        click_start(e->note);
+    } else if (e->on && (e->flags & EV_LEGATO) && !waits(e->track) &&
+               (v = voices_retarget(&pool, e->track, e->note)) >= 0) {
+        const q_sound *s = &prj->sound[e->track];
+        take_locks(v, e->track, e->pat, e->step);
+        set_patch(v, s);
+        pq_glide_to(v, (float)(e->note + tune(v, s)));
+    } else {
+        event(e->track, e->note, e->vel, e->on, e->pat, e->step);
+    }
+}
+
+/* a held note recorded, its length in eighths of a step, at the tempo and div playing */
+static void rec_send(const q_held *h)
+{
+    uint32_t num, den, w = rec_w;
+    seq_step_ratio(prj->tempo, prj->pat[h->track][h->pat].div, &num, &den);
+    int len = (int)((float)(now - h->t0) * 8.0f * (float)den / (float)num + 0.5f);
+    if (w - rec_r == REC_N)
+        return;                     /* full: the note is lost */
+    rec[w % REC_N] = (q_rec){ h->track, h->pat, h->step, h->note, 100, (uint8_t)(len < 1 ? 1 : len > 64 ? 64 : len),
+                              (int8_t)seq_quantize(h->micro, prj->quant) };
+    __asm__ volatile("" ::: "memory");   /* the ring's publish barrier */
+    rec_w = w + 1;
+}
+
+/* a live note while recording: held from its nearest step (none while stopped or counting in) to its note-off */
+static void rec_note(int track, int note, int on)
+{
+    int micro, step;
+    for (int i = 0; i < HELD_N; i++)
+        if (held[i].on && held[i].track == track && held[i].note == note) {
+            if (!on) {
+                rec_send(&held[i]);
+                held[i].on = 0;
+            }
+            return;
+        }
+    if (!on || !recording || (step = seq_locate(&seq, prj, track, &micro)) < 0)
+        return;
+    for (int i = 0; i < HELD_N; i++)
+        if (!held[i].on) {
+            held[i] = (q_held){ 1, (uint8_t)track, (uint8_t)note, (uint8_t)seq_pattern(&seq, track), (uint8_t)step,
+                                (int8_t)micro, now };
+            return;
+        }
+}
 
 static void commands(void)
 {
@@ -236,7 +382,8 @@ static void commands(void)
         q_cmd c = cmd[cmd_r % CMD_N];
         cmd_r++;
         if (c.kind == CMD_NOTE) {
-            event(c.track, c.note, 100, c.on);
+            rec_note(c.track, c.note, c.on);
+            event(c.track, c.note, 100, c.on, 0, -1);
         } else if (c.kind == CMD_MODEL) {
             int n = 0;
             for (int v = 0; v < Q_VOICES; v++)   /* released, no longer V_ON: no note-off nor note-on lands on them */
@@ -248,6 +395,8 @@ static void commands(void)
                 if (later[i].track != c.track)
                     later[n++] = later[i];
             n_later = n;
+        } else if (c.kind == CMD_SCENE) {
+            seq_launch(&seq, c.note);
         } else if (c.kind == CMD_PREP_REQ) {
             int v = spare_slot(c.note);
             if (v >= 0) {
@@ -263,11 +412,16 @@ static void commands(void)
             static q_event off[Q_TRACKS * SEQ_QUEUE];   /* a start while playing: the sounding notes' offs first;
                                                          * static: 3 KB off the render's stack */
             int n;
+            for (int i = 0; i < HELD_N; i++)   /* the notes still held: recorded as long as they were */
+                if (held[i].on) {
+                    rec_send(&held[i]);
+                    held[i].on = 0;
+                }
             seq_stop(&seq, off, &n);
             for (int i = 0; i < n; i++)
                 apply(&off[i]);
             if (c.on)
-                seq_start(&seq, prj, 0);
+                seq_start(&seq, prj, recording && (prj->click & 2));
         }
     }
 }
@@ -338,7 +492,14 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
     switched = 0;
     start_later();
     commands();
+    seq_click(&seq, recording && (prj->click & 1));
     ne = seq_block(&seq, prj, n, ev, EV_MAX);
+    int sc = seq_scene_started(&seq);
+    if (sc >= 0 && scene_w == scene_r) {
+        scene_v = sc;
+        __asm__ volatile("" ::: "memory");
+        scene_w++;
+    }
     for (int v = 0; v < Q_VOICES; v++)
         if (sounding(v))
             set_patch(v, &prj->sound[pool.v[v].track]);   /* the knobs reach the held notes */
@@ -350,6 +511,7 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
         seg_pos = pos;
         seg_len = (ei < ne ? ev[ei].offset : n) - pos;
         render_segment();
+        click_render(mix1 + seg_pos, seg_len);
         pos += seg_len;
     }
     for (int v = 0; v < Q_VOICES; v++)
@@ -365,6 +527,7 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
         lr[2 * i + 1] = s;
     }
     out_gain = target;
+    now += n;
 
     sum1 += plat_ticks24() - t0;
     sum_budget += BUDGET_TICKS(n);

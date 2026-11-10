@@ -6,10 +6,19 @@
 /* The render (audio.c): sequencer -> voice pool -> Plaits voices, 0..2 on core 1, 3..5 on core 2.
  * Everything but app_render is called from the main loop; commands reach the render at its next block. */
 typedef struct { uint32_t core1_pct, core2_pct, xruns, active; int cpu2; uint32_t cpu2_stack; } q_load;
+typedef struct { uint8_t track, pat, step, note, vel, len; int8_t micro; } q_rec;   /* a note overdubbed: q_step's */
 
 void audio_setup(q_project *p);                         /* app_init, before the audio starts (fm1-base has its own audio_init) */
 void audio_play(int on);                                /* the sounding steps get their note-offs; on 1: from step 0 */
 void audio_live_note(int track, int note, int on);      /* the keyboard, velocity 100; a note-off is never dropped */
+/* Overdub armed: the live notes while playing (count-in aside) are recorded, 8 held at most; the metronome per
+ * prj->click (METRO), and a count-in on play (COUNT) */
+void audio_rec(int on);
+int  audio_take_rec(q_rec *r);                          /* 1 and a recorded note, 0 none; beyond 32 waiting, lost */
+void audio_scene(int scene);                            /* while playing: at the next bar */
+int  audio_scene_started(void);                         /* the scene started since the last call, -1 none */
+int  audio_pattern(int track);                          /* the pattern playing */
+int  audio_song_entry(void);                            /* -1 when not in song mode */
 void audio_track_model(int track);                      /* after sound[track].model changed: its voices faded out
                                                          * over a block, then freed */
 /* Each frame: builds one free voice's engine for a track's model (poly per track) while the render leaves it be, so

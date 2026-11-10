@@ -72,6 +72,17 @@ int voices_note_off(q_voices *p, int track, int note)
     return best;
 }
 
+int voices_retarget(q_voices *p, int track, int note)
+{
+    int best = -1;
+    for (int i = 0; i < Q_VOICES; i++) {
+        q_vslot *s = &p->v[i];
+        if (s->state == V_ON && s->track == track && (best < 0 || s->age > p->v[best].age)) best = i;
+    }
+    if (best >= 0) p->v[best].note = (uint8_t)note;
+    return best;
+}
+
 void voices_free(q_voices *p, int slot)
 {
     p->v[slot].state = V_FREE;

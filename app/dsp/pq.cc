@@ -104,6 +104,8 @@ extern "C" void pq_note_off(int v) {
   slots[v]->mod.level = 0.0f;
 }
 
+extern "C" void pq_glide_to(int v, float note) { slots[v]->target = note; }
+
 extern "C" void pq_render(int v, float* out, unsigned n) {
   Slot& s = *slots[v];
   for (unsigned i = 0; i < n; ++i) {
