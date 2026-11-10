@@ -33,7 +33,7 @@ Les fichiers Mutable gardent leur en-tête d'origine (GPL-3.0 pour Grids, MIT po
 - **Pad tenu**, dans le domaine EDIT : K1–K4 règlent TUNE, HARM, TIMB, DECAY de ce pad, PRESET change son moteur.
   Le pad sonne à l'appui. Ailleurs qu'EDIT, une touche ne fait que jouer.
 - **Pas** : la note d'un pas KIT est un numéro de pad (0..15). Pas maintenu + blanche n : ajoute ou retire le pad n
-  (4 pads au plus par pas). Un appui simple sur un pas vide l'active avec le pad 1.
+  (4 pads au plus par pas). Un appui simple sur un pas vide l'active avec le dernier pad joué (pad 1 par défaut).
 - Les p-locks d'un pas KIT sont hors périmètre : la page des p-locks est étendue à l'étape 3.
 
 ## 3. Source par pattern
@@ -74,7 +74,7 @@ ne servent plus à éditer des pas ; elles jouent la piste.
   chaque boucle selon CHAOS, accents.
 - Sur un KIT, les voix 1, 2, 3 jouent les pads 1, 2, 3. Sur une piste synthé, seule la voix VOICE joue, à la note
   NOTE.
-- Vélocité : 127 sur un accent, 90 sinon.
+- Vélocité : 95, et 127 pour une voix accentuée (l'accent de chaque voix est le sien).
 - Hors périmètre : les modes euclidien et séquenceur de bandes de Grids, son horloge propre (swing de Grids).
 
 ## 5. MARBLES
@@ -102,14 +102,14 @@ ne servent plus à éditer des pas ; elles jouent la piste.
 
 | Fichier | Changement |
 |---|---|
-| `project.h` | `q_pattern.src` et les réglages du générateur (un `union` GRIDS / MARBLES, ~14 octets, dont le masque des notes permises de MARBLES) ; `q_pad` et `q_project.kit[4][16]` ; modèle `M_KIT 24` ; `Q_VERSION 3` |
+| `project.h` | `q_pattern.src` et les réglages des deux générateurs (~21 octets, gardés quand on change de source, dont le masque des notes permises de MARBLES) ; `q_pad` et `q_project.kit[4][16]` ; modèle `M_KIT 24` ; `Q_VERSION 3` |
 | `gen.c`, `gen.h` (nouveaux, module `gen` de la spec) | état par piste ; `gen_step()` remplit un `q_step` pour le rang k du pattern ; carte Grids dans `gen_grids_map.h` |
 | `seq.c` | au lieu de lire `pt->steps`, un pattern génératif demande son pas à `gen_step` puis passe par `plan_notes` ; longueur de boucle selon la source |
 | `audio.c` | KIT : la note d'une voix est le pad, ses réglages viennent du pad ; note-on avec le moteur du pad et poly 1 ; `wanted` et `spare_slot` comptent les moteurs des pads |
 | `ui.c` | pages SEQ par source, pages PAD et KIT, pad tenu + K / PRESET, pas KIT, REC limité à STEP |
 | `store.c` | bornes des nouveaux champs ; une sauvegarde v2 redonne le projet par défaut (pas de migration) |
 
-Le projet passe de ~31,4 à ~32 Ko et tient dans les 9 chunks (34,5 Ko).
+Le projet passe de ~31,4 à ~32,5 Ko et tient dans les 9 chunks (34,5 Ko).
 
 ## 7. Tests
 
