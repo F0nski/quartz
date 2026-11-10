@@ -9,15 +9,17 @@
 static uint8_t mem[PLAT_STORE_MAX];
 static int mem_len = -1;
 static int saves;
+static int load_fails;
 static int playing;
 int audio_playing(void) { return playing; }
 int plat_store_size(uint32_t obj) { assert(obj == OBJ_PROJECT); return mem_len; }
 int plat_store_load(uint32_t obj, void *dst, uint32_t max)
 {
     assert(obj == OBJ_PROJECT);
-    if (mem_len < 0 || (uint32_t)mem_len > max) return -1;
-    memcpy(dst, mem, (size_t)mem_len);
-    return mem_len;
+    if (mem_len < 0 || load_fails) return -1;
+    uint32_t n = (uint32_t)mem_len > max ? max : (uint32_t)mem_len;   /* as storage.c: cut to fit */
+    memcpy(dst, mem, n);
+    return (int)n;
 }
 int plat_store_save(uint32_t obj, const void *src, uint32_t len)
 {
@@ -48,6 +50,7 @@ static void store_rejects_bad_object(void)
     project_defaults(&d);
     project_defaults(&a);
     a.tempo = 97;
+    assert(a.version == Q_VERSION);
     store_save(&a);
     int good = mem_len;
 
@@ -59,8 +62,17 @@ static void store_rejects_bad_object(void)
     memset(&b, 0xAA, sizeof b);
     assert(store_load(&b) == -1 && !memcmp(&b, &d, sizeof d));
 
-    mem_len = good;                                 /* version 2 */
-    mem[0] = 2;
+    mem_len = good + 10;                            /* longer */
+    memset(&b, 0xAA, sizeof b);
+    assert(store_load(&b) == -1 && !memcmp(&b, &d, sizeof d));
+
+    mem_len = good;                                 /* the size right, the load failing */
+    load_fails = 1;
+    memset(&b, 0xAA, sizeof b);
+    assert(store_load(&b) == -1 && !memcmp(&b, &d, sizeof d));
+    load_fails = 0;
+
+    mem[0] = Q_VERSION + 1;                         /* another version */
     memset(&b, 0xAA, sizeof b);
     assert(store_load(&b) == -1 && !memcmp(&b, &d, sizeof d));
 }

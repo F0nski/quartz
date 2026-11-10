@@ -4,7 +4,7 @@
 void project_defaults(q_project *p)
 {
     __builtin_memset(p, 0, sizeof *p);
-    p->version = 1;
+    p->version = Q_VERSION;
     p->tempo = 120;
     for (int i = 0; i < Q_TRACKS; i++) {
         q_sound *s = &p->sound[i];

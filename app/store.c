@@ -32,9 +32,9 @@ static void clamp_project(q_project *p)
 
 int store_load(q_project *p)
 {
-    if (plat_store_size(OBJ_PROJECT) == (int)sizeof *p) {
+    if (plat_store_size(OBJ_PROJECT) == (int)sizeof *p) {   /* (plat_store_load cuts a longer object to fit) */
         q_project t;
-        if (plat_store_load(OBJ_PROJECT, &t, sizeof t) == (int)sizeof t && t.version == 1) {
+        if (plat_store_load(OBJ_PROJECT, &t, sizeof t) >= 0 && t.version == Q_VERSION) {
             clamp_project(&t);
             *p = t;
             return 0;
