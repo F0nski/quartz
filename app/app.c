@@ -2,6 +2,7 @@
  * host/plat_host.c), after the platform: gfx.c is in scope. The app's own .c files are included here. */
 #include "project.h"
 #include "audio.h"
+#include "gen.c"
 #include "seq.c"
 #include "voices.c"
 #include "audio.c"

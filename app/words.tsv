@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: GPL-3.0-or-later
 # The words for a screen reader (fm1-reader): the text on the screen <TAB> what to say.
 # url: https://github.com/f0nski/quartz/words/
 QUARTZ	quartz

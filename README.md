@@ -14,3 +14,8 @@ A groovebox firmware for the M-VAVE FM-1, built on [fm1-base](https://github.com
 files in `.tools/sdk` (from the `amitv87/fw-AC79_AIoT_SDK` mirror, tag `AC79NN_SDK_V1.2.1_2023-12-13`);
 `JIELI_TOOLCHAIN` and `AC79_SDK` override both. It applies `patches/fm1-base-device-libs.patch` to `base/`
 (links libm and compiler-rt for the C++ DSP).
+
+## License
+
+QUARTZ is GPL-3.0-or-later (`LICENSE`). It includes Mutable Instruments Grids (GPL-3.0, the drum map in
+`app/third_party/grids/`), Plaits and Marbles (MIT) and builds on fm1-base (MPL-2.0).
