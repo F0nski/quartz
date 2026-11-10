@@ -65,16 +65,22 @@ int seq_block(q_seq *s, const q_project *p, uint32_t nframes, q_event *out, int 
     if (!s->running) return 0;
 
     for (int t = 0; t < Q_TRACKS; t++) {
-        __typeof__(s->t[0]) *k = &s->t[t];
+        q_seq_track *k = &s->t[t];
         const q_pattern *pt = &p->pat[t];
 
-        /* the step in progress keeps its duration: re-anchor on the (whole) frame the next one starts at */
+        /* the step in progress keeps its duration: carry the fractional start of the next step into the new
+           denominator, rounded up like a start frame (r * den' < 2^32 for tempo <= 240) */
         if (p->tempo != k->tempo || pt->div != k->div) {
-            k->next_i += k->next_r > 0;
-            k->next_r = 0;
+            uint32_t num, den;
+            seq_step_ratio(p->tempo, pt->div, &num, &den);
+            if (k->den) {
+                uint32_t r = k->next_r * den;
+                k->next_r = r / k->den + (r % k->den > 0);
+            }
             k->tempo = p->tempo;
             k->div = pt->div;
-            seq_step_ratio(k->tempo, k->div, &k->num, &k->den);
+            k->num = num;
+            k->den = den;
         }
 
         for (;;) {

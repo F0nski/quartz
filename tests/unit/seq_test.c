@@ -84,28 +84,73 @@ static void polyrhythm(void)
     assert(nth(1, 1, 12) == loop);
 }
 
+/* ceil(k * n1 / d1 + n2 / d2): step k starts at n1 / d1 frames each, the one after lasts n2 / d2 */
+static int64_t ceil_then(uint32_t k, uint32_t n1, uint32_t d1, uint32_t n2, uint32_t d2)
+{
+    return (int64_t)ceil_div((uint64_t)k * n1 * d2 + (uint64_t)n2 * d1, (uint64_t)d1 * d2);
+}
+
 static void length_shrink_wraps(void)
 {
     setup();
     while (seq_pos(&S, 0) != 9) run(1);
+    assert(nth(0, 1, 9) >= 0 && nth(0, 1, 10) < 0);     /* steps 0..9 have started */
     P.pat[0].len = 4;
-    int64_t before = nth(0, 1, 10);
-    assert(before < 0);
     while (seq_pos(&S, 0) == 9) run(1);
     assert(seq_pos(&S, 0) == 0);
+    assert(nth(0, 1, 10) == (int64_t)ceil_div(10 * (uint64_t)N16, D16));   /* step 10 of the grid is the wrap to step 0 */
 }
 
 static void tempo_change_keeps_grid(void)
 {
+    static const int tempi[] = { 60, 77, 133, 200 };
+    for (int pos = 1; pos < 14; pos++)
+        for (unsigned c = 0; c < sizeof tempi / sizeof *tempi; c++) {
+            setup();
+            while (seq_pos(&S, 0) != pos) run(1);
+            P.tempo = (uint16_t)tempi[c];
+            run(160);
+            int64_t s1 = nth(0, 1, pos + 1), s2 = nth(0, 1, pos + 2);
+            uint32_t n, d;
+            seq_step_ratio(tempi[c], DIV_16, &n, &d);
+            assert(s1 == (int64_t)ceil_div((uint64_t)(pos + 1) * N16, D16));
+            /* the fractional start of the next step is carried, so the one after is exact, not up to a frame later */
+            assert(s2 == ceil_then(pos + 1, N16, D16, n, d));
+        }
+}
+
+/* two tracks with the same step length stay on identical sample starts through several tempo changes */
+static void tempo_changes_keep_tracks_aligned(void)
+{
+    static const int tempi[] = { 77, 133, 61, 240, 119, 40, 120 };
+    setup();
+    for (int i = 0; i < 16; i++) P.pat[1].steps[i].on = 1;
+    for (unsigned c = 0; c < sizeof tempi / sizeof *tempi; c++) {
+        run(37);
+        P.tempo = (uint16_t)tempi[c];
+    }
+    run(600);
+    int k = 0;
+    for (; nth(0, 1, k) >= 0; k++) {
+        assert(nth(0, 1, k) == nth(1, 1, k));
+        assert(nth(0, 0, k) == nth(1, 0, k));
+    }
+    assert(k > 30);
+}
+
+/* the step in progress keeps its duration across a division change, the next one uses the new division */
+static void division_change_mid_play(void)
+{
+    uint32_t n8, d8;
     setup();
     while (seq_pos(&S, 0) != 3) run(1);
-    P.tempo = 60;
+    P.pat[0].div = DIV_8;
     run(120);
+    seq_step_ratio(120, DIV_8, &n8, &d8);
     int64_t s4 = nth(0, 1, 4), s5 = nth(0, 1, 5);
-    uint32_t n60, d60;
-    seq_step_ratio(60, DIV_16, &n60, &d60);
-    assert(s4 == (int64_t)ceil_div(4 * (uint64_t)N16, D16));
-    assert(s5 == s4 + (int64_t)ceil_div(n60, d60));
+    assert(s4 == (int64_t)ceil_div(4 * (uint64_t)N16, D16));        /* step 3 lasted a 16th */
+    assert(s5 == ceil_then(4, N16, D16, n8, d8));                   /* step 4 lasts an 8th */
+    assert(nth(0, 0, 4) == ceil_then(4, N16, D16, n8, 2 * d8));     /* and its note-off is at half of it */
 }
 
 static void stop_releases_notes(void)
@@ -126,8 +171,30 @@ static void events_sorted(void)
     setup();
     P.pat[1].div = DIV_32;
     for (int i = 0; i < 16; i++) P.pat[1].steps[i].on = 1;
+    for (int i = 0; i < 16; i++) P.pat[2].steps[i].on = 1;     /* tracks 0 and 2 start together at every step */
     run(64);                        /* run() asserts offsets are < BLK and increasing */
     assert(NEV > 15);
+
+    /* same-offset events keep the track order */
+    int same = 0;
+    for (int i = 1; i < NEV; i++)
+        if (EV[i].at == EV[i - 1].at) {
+            same++;
+            assert(EV[i].e.track >= EV[i - 1].e.track);
+        }
+    assert(same > 0);
+    /* per track: a note-off comes before the next note-on, never the reverse */
+    for (int t = 0; t < Q_TRACKS; t++) {
+        int sounding = 0;
+        uint64_t last = 0;
+        for (int i = 0; i < NEV; i++) {
+            if (EV[i].e.track != t) continue;
+            assert(EV[i].at >= last);
+            last = EV[i].at;
+            assert(EV[i].e.on != sounding);
+            sounding = EV[i].e.on;
+        }
+    }
 }
 
 int main(void)
@@ -137,6 +204,8 @@ int main(void)
     polyrhythm();
     length_shrink_wraps();
     tempo_change_keeps_grid();
+    tempo_changes_keep_tracks_aligned();
+    division_change_mid_play();
     stop_releases_notes();
     events_sorted();
     puts("seq_test ok");
