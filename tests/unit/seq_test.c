@@ -55,13 +55,14 @@ static void step_frames_values(void)
 static void steps_land_on_exact_frames(void)
 {
     setup();
-    run(64);
+    run(700);                       /* 2 full loops of the 16-step pattern */
     double spf = seq_step_frames(120, DIV_16);
-    for (int k = 0; k < 3; k++) {
+    int k = 0;
+    for (; nth(0, 1, k) >= 0 && nth(0, 0, k) >= 0; k++) {
         assert(nth(0, 1, k) == (int64_t)ceil(k * spf));
         assert(nth(0, 0, k) == (int64_t)ceil((k + 0.5) * spf));
     }
-    assert(nth(0, 1, 3) < 0);        /* step 3 starts after 64 blocks */
+    assert(k >= 32);
     assert(nth(1, 1, 0) < 0);
 }
 
@@ -93,10 +94,10 @@ static void tempo_change_keeps_grid(void)
     while (seq_pos(&S, 0) != 3) run(1);
     P.tempo = 60;
     run(120);
-    int64_t s3 = nth(0, 1, 3), s4 = nth(0, 1, 4), s5 = nth(0, 1, 5);
+    int64_t s4 = nth(0, 1, 4), s5 = nth(0, 1, 5);
     double a = seq_step_frames(120, DIV_16), b = seq_step_frames(60, DIV_16);
-    assert(llabs(s4 - (s3 + (int64_t)ceil(a))) <= 1);
-    assert(llabs(s5 - (s4 + (int64_t)ceil(b))) <= 1);
+    assert(s4 == (int64_t)ceil(4 * a));
+    assert(s5 == s4 + (int64_t)ceil(b));
 }
 
 static void stop_releases_notes(void)
