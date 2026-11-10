@@ -1,0 +1,53 @@
+# GRIDS: the SOURCE knob, its 3 pages, the keys that play, REC ignored
+wait 600
+tap SEQ
+turn K4 1
+expect src 1
+expect page 1
+wait 100
+shot grids_page1.png
+turn SELECT 1
+expect page 2
+turn K1 10
+expect gx 74
+turn SELECT 1
+expect page 3
+turn K1 -64
+expect gdens1 0
+turn SELECT 1
+expect page 1
+# SEQ held and a white key still picks the pattern
+press SEQ
+key 2 down
+key 2 up
+release SEQ
+expect pattern 2
+expect src 0
+press SEQ
+key 0 down
+key 0 up
+release SEQ
+expect pattern 1
+expect src 1
+# stopped, REC armed: no step entry
+tap REC
+key 7 down
+key 7 up
+expect stepon_1 0
+expect cursor 1
+# playing: the keys play, the overdub writes nothing (the note lands near rank 2: on steps 1-4 if it were written)
+tap PLAY
+wait 30
+key 0 down
+wait 60
+key 0 up
+wait 400
+expect overdub 1
+expect pos >-1
+expect stepon_1 0
+expect stepon_2 0
+expect stepon_3 0
+expect stepon_4 0
+shot grids_play.png
+tap PLAY
+expect rec 0

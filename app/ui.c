@@ -4,6 +4,7 @@
 #include "ui.h"
 #include "audio.h"
 #include "dsp/pq.h"
+#include "gen.h"
 
 #define MSG_MS 1500u
 #define HEAD_H 30
@@ -12,13 +13,15 @@
 #define PINK RGB(255, 47, 142)       /* notes playing only */
 
 enum { D_EDIT, D_SEQ, D_GLO, D_HOME, ND };
-enum { P_ENGINE, P_SOUND, P_STEPS, P_TEMPO, P_SCALE, P_CPU, P_XY, P_TRACKS, P_SONG };
+enum { P_ENGINE, P_SOUND, P_STEPS, P_TEMPO, P_SCALE, P_CPU, P_XY, P_TRACKS, P_SONG, P_GRIDS, P_MAP, P_DENS, P_MARBLES, P_T,
+       P_X, P_NOTES };
 /* what PRESET sets on a held step; the black keys 0..7 pick RATCHET .. MICRO, 8 is CLEAR */
 enum { A_VEL, A_RATCHET, A_PROB, A_COND, A_SLIDE, A_ACCENT, A_NOTE, A_LEN, A_MICRO, A_N };
 #define COND_N 40                    /* NONE, FIRST, !FIRST, PRE, !PRE, then A:B for B = 2..8, A = 1..B */
 
-static const uint8_t DOMAIN_PAGES[ND][3] = {{P_ENGINE, P_SOUND}, {P_STEPS, P_XY}, {P_TEMPO, P_SCALE, P_CPU}, {P_TRACKS, P_SONG}};
-static const uint8_t DOMAIN_N[ND] = {2, 1, 3, 2};      /* SEQ: 2 pages while PATH is XY (domain_n) */
+static const uint8_t DOMAIN_PAGES[ND][4] = {{P_ENGINE, P_SOUND}, {P_STEPS, P_XY}, {P_TEMPO, P_SCALE, P_CPU}, {P_TRACKS, P_SONG}};
+static const uint8_t DOMAIN_N[ND] = {2, 1, 3, 2};      /* SEQ: 2 pages while PATH is XY (pages) */
+static const uint8_t GEN_PAGES[2][4] = {{P_GRIDS, P_MAP, P_DENS}, {P_MARBLES, P_T, P_X, P_NOTES}};
 static const uint8_t DOMAIN_BTN[ND] = {B_EDIT, B_SEQ, B_GLO, B_HOME};
 static const char *const DOMAIN_NAME[ND] = {"EDIT", "SEQ", "GLO", "HOME"};
 
@@ -26,13 +29,20 @@ typedef struct { const char *name, *label[4]; int16_t min[4], max[4]; } q_page;
 static const q_page PAGE[] = {
     {"ENGINE", {"HARM", "TIMB", "MORPH", "DECAY"}, {0, 0, 0, 0}, {127, 127, 127, 127}},
     {"SOUND", {"MODEL", "TUNE", "GLIDE", "POLY"}, {0, -24, 0, 1}, {23, 24, 127, 4}},
-    {"STEPS", {"LEN", "DIV", "PATH"}, {1, 0, 0}, {Q_STEPS, DIV_N - 1, PATH_N - 1}},
+    {"STEPS", {"LEN", "DIV", "PATH", "SOURCE"}, {1, 0, 0, 0}, {Q_STEPS, DIV_N - 1, PATH_N - 1, SRC_N - 1}},
     {"TEMPO", {"TEMPO", "SWING"}, {40, 50}, {240, 75}},
     {"SCALE", {"TONIC", "MODE", "QUANT", "CLICK"}, {0, 0, 0, 0}, {11, 10, 2, 3}},
     {"CPU", {0}, {0}, {0}},
     {"XY", {"X LEN", "X DIV", "Y LEN", "Y DIV"}, {1, 0, 1, 0}, {4, DIV_N - 1, 4, DIV_N - 1}},
     {"TRACKS", {0}, {0}, {0}},
     {"SONG", {"ENTRY", "SCENE", "REPEAT", "MODE"}, {1, 1, 1, 0}, {Q_SONG, Q_SCENES, 16, 1}},
+    {"GRIDS", {"DIV", "VOICE", "NOTE", "SOURCE"}, {0, 1, 0, 0}, {DIV_N - 1, 3, 127, SRC_N - 1}},
+    {"MAP", {"X", "Y", "CHAOS"}, {0, 0, 0}, {127, 127, 127}},
+    {"DENS", {"DENS 1", "DENS 2", "DENS 3"}, {0, 0, 0}, {127, 127, 127}},
+    {"MARBLES", {"DIV", "T OUT", "LEN", "SOURCE"}, {0, 1, 1, 0}, {DIV_N - 1, 3, 16, SRC_N - 1}},
+    {"T", {"MODE", "BIAS", "JITTER", "DEJA VU"}, {0, 0, 0, 0}, {6, 127, 127, 127}},
+    {"X", {"SPREAD", "X BIAS", "STEPS"}, {0, 0, 0}, {127, 127, 127}},
+    {"NOTES", {"NOTE", "RANGE"}, {0, 1}, {127, 4}},
 };
 
 /* Plaits' registration order (pq.h) */
@@ -41,6 +51,7 @@ static const char *const MODEL_NAME[24] = {
     "VA", "WAVESHAPE", "2-OP FM", "GRAIN FORM", "ADDITIVE", "WAVETABLE", "CHORDS", "SPEECH",
     "SWARM", "NOISE", "PARTICLE", "STRING", "MODAL", "BASS DRUM", "SNARE", "HI-HAT"};
 static const char *const DIV_NAME[DIV_N] = {"1/32", "1/16T", "1/16", "1/8T", "1/8", "1/4T", "1/4", "1/2", "1/1"};
+static const char *const SRC_NAME[SRC_N] = {"STEP", "GRIDS", "MARBLES"};
 static const char *const PATH_NAME[PATH_N] = {"FWD", "REV", "PING-PONG", "SNAKE", "COLUMNS", "SPIRAL", "RANDOM", "XY"};
 static const char *const TONIC_NAME[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
 static const char *const MODE_NAME[11] = {"CHROM", "MAJOR", "MINOR", "DORIAN", "PHRYG", "LYDIAN", "MIXO", "LOCRIAN",
@@ -61,8 +72,9 @@ typedef struct {
     struct { int8_t track, domain, page, n, msg, pat, playing, scene; } head;   /* pat: P1..P8 asked; playing: the one playing when it differs, else 0 */
     struct { int8_t pid; uint8_t col, hide; int16_t v[4]; } foot;           /* col: the knobs shown in colour, the rest in grey (a lock page) */
     struct {
-        int8_t pid, spage, cursor, pos, len, path, held, attr, showpath, xlen, ylen;
+        int8_t pid, spage, cursor, pos, len, path, held, attr, showpath, xlen, ylen, src;   /* a generator: pos its rank, len its loop */
         uint16_t locks;                         /* the page's steps that have p-locks */
+        uint16_t notes;                         /* NOTES: the allowed pitch classes */
         q_step hst;                             /* the held step */
         int16_t v[4];
         uint8_t model;
@@ -88,8 +100,36 @@ static struct {
 } ui;
 
 static q_pattern *pat(void) { return &ui.p->pat[ui.track][ui.p->pattern[ui.track]]; }
-static int domain_n(int d) { return d == D_SEQ && pat()->path == PATH_XY ? 2 : DOMAIN_N[d]; }
-static int page_id(void) { return DOMAIN_PAGES[ui.domain][ui.page[ui.domain]]; }
+static int kit(void) { return ui.p->sound[ui.track].model == M_KIT; }
+
+/* the domain's pages: their number, their ids in out (4 always written: a page index not yet brought back in range
+   still names a page) */
+static int pages(int d, uint8_t *out)
+{
+    const q_pattern *t = pat();
+    if (d == D_SEQ && t->src != SRC_STEP) {
+        __builtin_memcpy(out, GEN_PAGES[t->src - 1], 4);
+        return t->src == SRC_GRIDS ? 3 : kit() ? 2 : 4;     /* a KIT has no X section */
+    }
+    __builtin_memcpy(out, DOMAIN_PAGES[d], 4);
+    return d == D_SEQ && t->path == PATH_XY ? 2 : DOMAIN_N[d];
+}
+
+static int domain_n(int d)
+{
+    uint8_t id[4];
+    return pages(d, id);
+}
+
+static int page_id(void)
+{
+    uint8_t id[4];
+    pages(ui.domain, id);
+    return id[ui.page[ui.domain]];
+}
+
+/* a KIT plays the generators' 3 voices on its pads: no voice, note nor T output to pick */
+static int knob_hidden(int pid, int k) { return kit() && ((pid == P_GRIDS && (k == 1 || k == 2)) || (pid == P_MARBLES && k == 1)); }
 
 static int knob_get(int pid, int k)
 {
@@ -107,6 +147,30 @@ static int knob_get(int pid, int k)
     case P_STEPS * 4: return t->len;
     case P_STEPS * 4 + 1: return t->div;
     case P_STEPS * 4 + 2: return t->path;
+    case P_STEPS * 4 + 3:
+    case P_GRIDS * 4 + 3:
+    case P_MARBLES * 4 + 3: return t->src;
+    case P_GRIDS * 4:
+    case P_MARBLES * 4: return t->div;
+    case P_GRIDS * 4 + 1: return t->grids.voice;
+    case P_GRIDS * 4 + 2: return t->grids.note;
+    case P_MAP * 4: return t->grids.x;
+    case P_MAP * 4 + 1: return t->grids.y;
+    case P_MAP * 4 + 2: return t->grids.chaos;
+    case P_DENS * 4:
+    case P_DENS * 4 + 1:
+    case P_DENS * 4 + 2: return t->grids.dens[k];
+    case P_MARBLES * 4 + 1: return t->marbles.tout;
+    case P_MARBLES * 4 + 2: return t->marbles.len;
+    case P_T * 4: return t->marbles.mode;
+    case P_T * 4 + 1: return t->marbles.bias;
+    case P_T * 4 + 2: return t->marbles.jitter;
+    case P_T * 4 + 3: return t->marbles.dejavu;
+    case P_X * 4: return t->marbles.spread;
+    case P_X * 4 + 1: return t->marbles.xbias;
+    case P_X * 4 + 2: return t->marbles.steps;
+    case P_NOTES * 4: return t->marbles.note;
+    case P_NOTES * 4 + 1: return t->marbles.range;
     case P_TEMPO * 4: return ui.p->tempo;
     case P_TEMPO * 4 + 1: return ui.p->swing;
     case P_SCALE * 4: return ui.p->tonic;
@@ -143,11 +207,35 @@ static void knob_set(int pid, int k, int v)
         if (ui.cursor > v)              /* step entry past the end: back to step 1 */
             ui.cursor = 1;
         break;
-    case P_STEPS * 4 + 1: t->div = (uint8_t)v; break;
+    case P_STEPS * 4 + 1:
+    case P_GRIDS * 4:
+    case P_MARBLES * 4: t->div = (uint8_t)v; break;
     case P_STEPS * 4 + 2:
         t->path = (uint8_t)v;
         ui.path_until = plat_ms() + MSG_MS;     /* the path is drawn while it is being chosen */
         break;
+    case P_STEPS * 4 + 3:               /* the steps and the generators' settings stay */
+    case P_GRIDS * 4 + 3:
+    case P_MARBLES * 4 + 3: t->src = (uint8_t)v; break;
+    case P_GRIDS * 4 + 1: t->grids.voice = (uint8_t)v; break;
+    case P_GRIDS * 4 + 2: t->grids.note = (uint8_t)v; break;
+    case P_MAP * 4: t->grids.x = (uint8_t)v; break;
+    case P_MAP * 4 + 1: t->grids.y = (uint8_t)v; break;
+    case P_MAP * 4 + 2: t->grids.chaos = (uint8_t)v; break;
+    case P_DENS * 4:
+    case P_DENS * 4 + 1:
+    case P_DENS * 4 + 2: t->grids.dens[k] = (uint8_t)v; break;
+    case P_MARBLES * 4 + 1: t->marbles.tout = (uint8_t)v; break;
+    case P_MARBLES * 4 + 2: t->marbles.len = (uint8_t)v; break;
+    case P_T * 4: t->marbles.mode = (uint8_t)v; break;
+    case P_T * 4 + 1: t->marbles.bias = (uint8_t)v; break;
+    case P_T * 4 + 2: t->marbles.jitter = (uint8_t)v; break;
+    case P_T * 4 + 3: t->marbles.dejavu = (uint8_t)v; break;
+    case P_X * 4: t->marbles.spread = (uint8_t)v; break;
+    case P_X * 4 + 1: t->marbles.xbias = (uint8_t)v; break;
+    case P_X * 4 + 2: t->marbles.steps = (uint8_t)v; break;
+    case P_NOTES * 4: t->marbles.note = (uint8_t)v; break;
+    case P_NOTES * 4 + 1: t->marbles.range = (uint8_t)v; break;
     case P_TEMPO * 4: ui.p->tempo = (uint16_t)v; break;
     case P_TEMPO * 4 + 1: ui.p->swing = (uint8_t)v; break;
     case P_SCALE * 4: ui.p->tonic = (uint8_t)v; break;
@@ -170,7 +258,7 @@ static void knob_turn(int pid, int k, int d)
 {
     const q_page *pg = &PAGE[pid];
     int v;
-    if (!d || !pg->label[k])
+    if (!d || !pg->label[k] || knob_hidden(pid, k))
         return;
     if (pid == P_SONG && k < 3 && !ui.entry)    /* no entries: nothing to edit */
         return;
@@ -323,6 +411,8 @@ static void rec_write(const q_rec *r)
 {
     q_step *s = &ui.p->pat[r->track][r->pat].steps[r->step];
     int i, poly = ui.p->sound[r->track].poly;
+    if (ui.p->pat[r->track][r->pat].src != SRC_STEP)    /* a generator's: played, not written */
+        return;
     if (!(s->flags & SF_ON)) {
         __builtin_memset(s, 0, sizeof *s);
         s->note[0] = r->note;
@@ -352,7 +442,7 @@ static void rec_lock(int pid, int k)
 {
     q_pattern *t = pat();
     int pos = audio_pos(ui.track), param = pid == P_ENGINE ? k : pid == P_SOUND && k > 0 && k < 3 ? LK_TUNE + k - 1 : -1;
-    if (param < 0 || pos < 0 || audio_pattern(ui.track) != ui.p->pattern[ui.track] || !(t->steps[pos].flags & SF_ON))
+    if (param < 0 || pos < 0 || t->src != SRC_STEP || audio_pattern(ui.track) != ui.p->pattern[ui.track] || !(t->steps[pos].flags & SF_ON))
         return;
     if (lock_set(t, pos, param, (uint8_t)knob_get(pid, k)))
         ui.locks_until = plat_ms() + MSG_MS;
@@ -426,6 +516,19 @@ static void home_key(int w)
     }
 }
 
+/* NOTES: a pitch class in or out of the allowed notes, the last one kept. Both bytes come from the new mask: between
+   the two writes the render may see a mix for a block, never a 0 it was not meant to (0 is the scale) */
+static void notes_toggle(int c)
+{
+    q_pattern *t = pat();
+    int m = gen_allowed(ui.p, t) ^ 1 << c;
+    if (!m)
+        return;
+    t->marbles.notes[1] = (uint8_t)(m >> 8);
+    t->marbles.notes[0] = (uint8_t)m;
+    ui.dirty = 1;
+}
+
 static void key_down(int k)
 {
     q_pattern *t = pat();
@@ -445,7 +548,12 @@ static void key_down(int k)
         }
         return;
     }
-    if (ui.domain == D_SEQ) {           /* the white keys are the page's 16 steps */
+    if (ui.domain == D_SEQ && t->src != SRC_STEP && !ui.seqdown) {     /* a generator: the keys play the track */
+        if (page_id() == P_NOTES) {
+            notes_toggle(note % 12);
+            return;
+        }
+    } else if (ui.domain == D_SEQ) {    /* the white keys are the page's 16 steps */
         if (w < 16 && ui.seqdown) {     /* SEQ held: the white keys 1..8 are the patterns */
             if (w < Q_PATTERNS)
                 pattern_set(w);
@@ -478,7 +586,7 @@ static void key_down(int k)
         if (ui.nwrote < ui.p->sound[ui.track].poly)
             s->note[ui.nwrote++] = (uint8_t)note;
         step_on(s);
-    } else if (ui.rec && !audio_playing()) {    /* step entry: the note at the cursor, then the next step; playing, the render records */
+    } else if (ui.rec && !audio_playing() && t->src == SRC_STEP) {    /* step entry: the note at the cursor, then the next step; playing, the render records */
         s = &t->steps[ui.cursor - 1];
         s->note[0] = (uint8_t)note;
         s->vel = 100;
@@ -593,7 +701,7 @@ static void lights(void)
             keys |= (uint32_t)(!(ui.p->mute >> i & 1u)) << WHITE[i];
         for (i = 0; i < Q_SCENES; i++)
             keys |= (uint32_t)ui.p->scene[i].used << WHITE[8 + i];
-    } else if (ui.domain == D_SEQ)
+    } else if (ui.domain == D_SEQ && t->src == SRC_STEP)     /* a generator's keys play: no steps to show */
         for (i = 0; i < 16; i++)
             if (t->steps[ui.spage * 16 + i].flags & SF_ON || ui.spage * 16 + i == pos)
                 keys |= 1u << WHITE[i];
@@ -637,7 +745,16 @@ static void knob_text(int pid, int k, int v, char *b)
         while ((*b++ = *s++) != 0) {}
         return;
     }
-    if ((pid == P_STEPS && k > 0) || (pid == P_XY && k & 1)) {
+    if (k == 3 && (pid == P_STEPS || pid == P_GRIDS || pid == P_MARBLES)) {
+        const char *s = SRC_NAME[v];
+        while ((*b++ = *s++) != 0) {}
+        return;
+    }
+    if ((pid == P_GRIDS && k == 2) || (pid == P_NOTES && !k)) {
+        note_name(v, b);
+        return;
+    }
+    if ((pid == P_STEPS && k > 0) || (pid == P_XY && k & 1) || ((pid == P_GRIDS || pid == P_MARBLES) && !k)) {
         const char *s = pid == P_STEPS && k == 2 ? PATH_NAME[v] : DIV_NAME[v];
         while ((*b++ = *s++) != 0) {}
         return;
@@ -713,9 +830,12 @@ static void view_now(q_view *v)
     v->foot.pid = (int8_t)fpid;
     v->scene.pid = (int8_t)pid;
     v->foot.col = 15;
-    for (k = 0; k < 4; k++)
+    for (k = 0; k < 4; k++) {
         if (PAGE[fpid].label[k])
             v->foot.v[k] = (int16_t)knob_get(fpid, k);
+        if (knob_hidden(fpid, k))
+            v->foot.hide |= (uint8_t)(1u << k);
+    }
     if (ui.held)                        /* the lock page: the locked values in colour, the track's in grey */
         for (v->foot.col = 0, k = 0; k < 4; k++) {
             if (lock_param(k) < 0) {
@@ -745,6 +865,12 @@ static void view_now(q_view *v)
         v->scene.pos = (int8_t)audio_pos(ui.track);
         v->scene.len = (int8_t)t->len;
         __builtin_memcpy(v->scene.st, &t->steps[ui.spage * 16], sizeof v->scene.st);
+    } else if (pid >= P_GRIDS) {        /* a generator: its rank, when the pattern shown is the one playing */
+        v->scene.src = (int8_t)t->src;
+        v->scene.len = (int8_t)gen_loop(t);
+        v->scene.pos = (int8_t)(audio_pattern(ui.track) == ui.p->pattern[ui.track] ? audio_pos(ui.track) : -1);
+        if (pid == P_NOTES)
+            v->scene.notes = gen_allowed(ui.p, t);
     } else if (pid == P_TRACKS) {
         for (k = 0; k < Q_TRACKS; k++) {
             v->scene.tr[k].model = ui.p->sound[k].model;
@@ -884,6 +1010,35 @@ static void draw_scene(const q_view *v, int32_t oy)
             cv_rect(33 + 58 * (first % 4) - 4, oy + 34 + 37 * (first / 4) - 4, 9, 9, KCOL[3]);
         }
         break;
+    case P_GRIDS:
+    case P_MAP:
+    case P_DENS:
+    case P_MARBLES:
+    case P_T:
+    case P_X:
+    case P_NOTES:
+        cv_text(10, oy + 8, &FONT_M, SRC_NAME[v->scene.src], C_WHITE);
+        t[0] = '-', t[1] = 0;
+        if (v->scene.pos >= 0)
+            int_text(v->scene.pos + 1, t);
+        for (i = 0; t[i]; i++) {}
+        t[i++] = '/';
+        int_text(v->scene.len, t + i);
+        if (v->scene.pid != P_NOTES) {
+            cv_text((240 - text_w(&FONT_L, t)) / 2, oy + 52, &FONT_L, t, C_WHITE);
+            cv_rect(10, oy + 120, 220, 4, C_LINE);
+            if (v->scene.pos >= 0)
+                cv_rect(10, oy + 120, 220 * (v->scene.pos + 1) / v->scene.len, 4, PINK);
+            break;
+        }
+        cv_text(230 - text_w(&FONT_S, t), oy + 12, &FONT_S, t, C_GRAY);
+        for (i = 0; i < 12; i++) {      /* an octave's keys: the sharps above the naturals */
+            int sharp = 0x54A >> i & 1, n = i < 5 ? i / 2 : (i + 1) / 2 - sharp, on = v->scene.notes >> i & 1;
+            int32_t x = 9 + 32 * n + 16 * sharp, y = oy + (sharp ? 50 : 104);
+            cv_rect(x, y, 30, 48, on ? C_HI : C_LINE);
+            cv_text(x + (30 - text_w(&FONT_S, TONIC_NAME[i])) / 2, y + 16, &FONT_S, TONIC_NAME[i], on ? C_BLACK : C_GRAY);
+        }
+        break;
     case P_TRACKS:
         for (i = 0; i < Q_TRACKS; i++) {
             const q_trow *r = &v->scene.tr[i];
@@ -968,7 +1123,10 @@ static void draw_foot(const q_view *v)
             continue;
         cv_text(x, 5, &FONT_XS, pg->label[k], c);
         knob_text(v->foot.pid, k, v->foot.v[k], t);
-        cv_text(x, 20, &FONT_B, t, c);
+        if (text_w(&FONT_B, t) <= 54)
+            cv_text(x, 20, &FONT_B, t, c);
+        else                            /* a long name keeps to its column */
+            cv_text(x, 24, text_w(&FONT_S, t) <= 54 ? &FONT_S : &FONT_XS, t, c);
         cv_rect(x, 39, 48, 2, C_LINE);
         cv_rect(x, 39, 48 * (v->foot.v[k] - pg->min[k]) / (pg->max[k] - pg->min[k]), 2, c);
     }
@@ -1090,6 +1248,12 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "dirty")) *got = ui.dirty;
     else if (!strcmp(what, "msg_stop_to_save")) *got = plat_ms() < ui.msg_until;
     else if (!strcmp(what, "active")) *got = (int)audio_load().active;
+    else if (!strcmp(what, "src")) *got = t->src;
+    else if (!strcmp(what, "gx")) *got = t->grids.x;
+    else if (!strcmp(what, "gdens1")) *got = t->grids.dens[0];
+    else if (!strcmp(what, "mlen")) *got = t->marbles.len;
+    else if (!strcmp(what, "mnotes")) *got = t->marbles.notes[0] | t->marbles.notes[1] << 8;
+    else if (!strcmp(what, "mdejavu")) *got = t->marbles.dejavu;
     else
         return 0;
     return 1;

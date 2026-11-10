@@ -154,3 +154,25 @@ MIN PENTA	minor pentatonic
 METRO	metronome
 COUNT	count in
 BOTH	both
+SOURCE	source
+STEP	step
+GRIDS	grids
+MARBLES	marbles
+VOICE	voice
+MAP	map
+CHAOS	chaos
+DENS	density
+DENS 1	density 1
+DENS 2	density 2
+DENS 3	density 3
+T OUT	T output
+T	T section
+BIAS	bias
+JITTER	jitter
+DEJA VU	deja vu
+SPREAD	spread
+X BIAS	x bias
+NOTES	notes
+RANGE	range
+X	X
+Y	Y

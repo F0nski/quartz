@@ -1,0 +1,53 @@
+# MARBLES: 4 pages, the allowed notes, and back to STEP with its steps kept
+wait 600
+tap SEQ
+key 0 down
+key 0 up
+expect stepon_1 1
+turn K4 2
+expect src 2
+turn K3 4
+expect mlen 12
+wait 100
+shot marbles_page1.png
+turn SELECT 1
+expect page 2
+turn K4 64
+expect mdejavu 64
+turn SELECT 2
+expect page 4
+expect mnotes 0
+# D off: C major without D
+key 9 down
+key 9 up
+expect mnotes 2737
+key 9 down
+key 9 up
+expect mnotes 2741
+key 9 down
+key 9 up
+wait 100
+shot marbles_notes.png
+# C, E, F, G, A, B off one by one: B, the last, stays
+key 7 down
+key 7 up
+key 11 down
+key 11 up
+key 0 down
+key 0 up
+key 2 down
+key 2 up
+key 4 down
+key 4 up
+key 6 down
+key 6 up
+expect mnotes 2048
+# a black key: C# in
+key 8 down
+key 8 up
+expect mnotes 2050
+turn SELECT 1
+expect page 1
+turn K4 -2
+expect src 0
+expect stepon_1 1
