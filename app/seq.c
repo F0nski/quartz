@@ -520,7 +520,7 @@ int seq_block(q_seq *s, const q_project *p, uint32_t nframes, q_event *out, int 
             int m = 0, e = (s->entry + 1) % p->nsong;
             for (int t = 0; t < Q_TRACKS; t++) {
                 const q_pattern *pt = &p->pat[t][sc->pat[t]];
-                int n = loop_len(&s->t[t], pt) * u[pt->div];
+                int n = (pt->src == SRC_STEP ? pt->len : gen_loop(pt)) * u[pt->div];
                 if (n > m) m = n;
             }
             pend(s, p->song[e].scene, e, s->bar + p->song[s->entry].reps * ((m + 95) / 96));

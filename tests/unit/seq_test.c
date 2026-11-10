@@ -1193,6 +1193,27 @@ static void song_entry_counts_loop(void)
     assert(starts == 2);
 }
 
+/* a STEP pattern's entry counts its len, XY included */
+static void song_entry_counts_xy_len(void)
+{
+    int starts = 0;
+    setup();
+    P.pat[0][1].path = PATH_XY;
+    P.pat[0][1].len = 32;
+    P.pat[0][1].xlen = 2;
+    P.scene[0] = (q_scene){ 1, 0, { 1, 0, 0, 0 } };
+    P.song[0] = (q_entry){ 0, 1 };
+    P.nsong = 1;
+    P.song_on = 1;
+    seq_start(&S, &P, 0);
+    while (T < (uint64_t)at16(40, 0)) {
+        run(1);
+        if (seq_scene_started(&S) < 0) continue;
+        if (starts++ == 1) assert((int64_t)T - BLK <= at16(32, 0) && at16(32, 0) < (int64_t)T);   /* 2 bars */
+    }
+    assert(starts == 2);
+}
+
 static void lock_set_find_clear(void)
 {
     q_pattern *pt = &P.pat[0][0];
@@ -1286,6 +1307,7 @@ int main(void)
     muted_generator_advances();
     source_change_mid_play();
     song_entry_counts_loop();
+    song_entry_counts_xy_len();
     lock_set_find_clear();
     lock_set_overwrites();
     lock_full_refused();
