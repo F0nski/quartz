@@ -72,14 +72,14 @@ int voices_note_off(q_voices *p, int track, int note)
     return best;
 }
 
-int voices_retarget(q_voices *p, int track, int note)
+int voices_retarget(q_voices *p, int track, int from, int to)
 {
-    int best = -1;
+    int best = -1;      /* the oldest match, as voices_note_off */
     for (int i = 0; i < Q_VOICES; i++) {
         q_vslot *s = &p->v[i];
-        if (s->state == V_ON && s->track == track && (best < 0 || s->age > p->v[best].age)) best = i;
+        if (s->state == V_ON && s->track == track && s->note == from && (best < 0 || s->age < p->v[best].age)) best = i;
     }
-    if (best >= 0) p->v[best].note = (uint8_t)note;
+    if (best >= 0) p->v[best].note = (uint8_t)to;
     return best;
 }
 

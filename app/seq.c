@@ -386,7 +386,7 @@ static void plan_notes(q_seq *s, const q_project *p, int t, const q_step *st, in
             int64_t a = (tr->tie || tie) && on < from ? from : on;
             if (queue_push_on(q, (uint64_t)a, tie ? TIED : off > a ? (uint32_t)(off - a) : 0,
                     (q_event){ 0, (uint8_t)t, st->note[i], (uint8_t)vel, 1, (uint8_t)tr->pat, (uint8_t)step,
-                               (uint8_t)(tr->tie ? EV_LEGATO : 0) })) {
+                               (uint8_t)(tr->tie ? EV_LEGATO : 0), 0 })) {
                 tr->tie = 0;
                 hold |= tie;
             }
@@ -469,7 +469,7 @@ int seq_block(q_seq *s, const q_project *p, uint32_t nframes, q_event *out, int 
     for (int64_t b; (b = date(&s->beat, 0)) < (int64_t)end; s->beats++, clock_next(&s->beat))
         if (s->click || s->beats < s->count)
             queue_push_on(&s->q[Q_CLICK_TRACK], (uint64_t)b, 0,
-                    (q_event){ 0, Q_CLICK_TRACK, (uint8_t)(s->beats % 4 == 0), 100, 1, 0, 0, 0 });
+                    (q_event){ 0, Q_CLICK_TRACK, (uint8_t)(s->beats % 4 == 0), 100, 1, 0, 0, 0, 0 });
     for (int t = 0; t < Q_TRACKS; t++)
         plan(s, p, t, end, s->launch >= 0 && p->scene[s->launch].used ? &bar : 0);
     /* the launch has begun (every track has started over): reported, then the song's next entry. An entry lasts
@@ -509,17 +509,18 @@ int seq_block(q_seq *s, const q_project *p, uint32_t nframes, q_event *out, int 
             emit(out, &n, s->now, &o);
         }
         queue_take(q, 0);
+        if (e.e.on && (e.e.flags & EV_LEGATO)) {   /* it replaces the tied note, which has begun: no note-off for
+                                                      that one */
+            int i = 0;
+            while (q->e[i].at != HELD) i++;
+            e.e.from = queue_take(q, i).e.note;
+        }
         emit(out, &n, s->now, &e);
         if (e.e.on) {
             q->ons--;
-            if (e.e.flags & EV_LEGATO) {    /* it replaces the tied note, which has begun: no note-off for that one */
-                int i = 0;
-                while (q->e[i].at != HELD) i++;
-                queue_take(q, i);
-            }
             if (e.e.track != Q_CLICK_TRACK)
                 queue_push(q, e.gate == TIED ? HELD : e.at + e.gate, 0,
-                        (q_event){ 0, e.e.track, e.e.note, 0, 0, e.e.pat, e.e.step, 0 });
+                        (q_event){ 0, e.e.track, e.e.note, 0, 0, e.e.pat, e.e.step, 0, 0 });
         }
     }
     s->now = end;

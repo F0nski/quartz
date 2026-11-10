@@ -174,15 +174,14 @@ static void own_counts_only_the_tracks_model(void)
     assert(voices_note_on(&V, 0, 64, 1, 20, 0) == b);   /* on its model: retriggered */
 }
 
-static void retarget_takes_newest_on(void)
+static void retarget_takes_the_from_note(void)
 {
     voices_init(&V);
     int a = voices_note_on(&V, 0, 60, 3, 0, 0);
     int b = voices_note_on(&V, 0, 64, 3, 0, 0);
-    int c = voices_note_on(&V, 0, 67, 3, 0, 0);
-    voices_note_on(&V, 1, 50, 1, 0, 0);         /* another track's, newer */
-    voices_note_off(&V, 0, 67);                 /* released: not V_ON */
-    assert(voices_retarget(&V, 0, 72) == b);
+    int c = voices_note_on(&V, 0, 67, 3, 0, 0);     /* newer, held */
+    voices_note_on(&V, 1, 64, 1, 0, 0);             /* another track's, same note */
+    assert(voices_retarget(&V, 0, 64, 72) == b);
     assert(V.v[b].note == 72 && V.v[b].state == V_ON && V.v[a].note == 60 && V.v[c].note == 67);
     assert(voices_note_off(&V, 0, 72) == b);
 }
@@ -190,11 +189,12 @@ static void retarget_takes_newest_on(void)
 static void retarget_none_without_on(void)
 {
     voices_init(&V);
-    assert(voices_retarget(&V, 0, 60) == -1);
-    int a = voices_note_on(&V, 0, 60, 1, 0, 0);
-    voices_note_off(&V, 0, 60);
+    assert(voices_retarget(&V, 0, 60, 62) == -1);
+    int a = voices_note_on(&V, 0, 60, 2, 0, 0);
+    voices_note_off(&V, 0, 60);                     /* released: not V_ON */
     voices_note_on(&V, 1, 60, 1, 0, 0);
-    assert(voices_retarget(&V, 0, 62) == -1 && V.v[a].note == 60);
+    int b = voices_note_on(&V, 0, 64, 2, 0, 0);     /* the track's, another note */
+    assert(voices_retarget(&V, 0, 60, 62) == -1 && V.v[a].note == 60 && V.v[b].note == 64);
 }
 
 int main(void)
@@ -213,7 +213,7 @@ int main(void)
     prep_never_allocated();
     unwanted_free_slot_before_another_tracks();
     own_counts_only_the_tracks_model();
-    retarget_takes_newest_on();
+    retarget_takes_the_from_note();
     retarget_none_without_on();
     puts("voices ok");
     return 0;

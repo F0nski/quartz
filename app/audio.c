@@ -321,22 +321,31 @@ static void click_render(float *out, uint32_t n)
     }
 }
 
-/* A legato note-on: the track's held note takes its pitch (and its step's locks) without a new attack; with none
- * held, or a note-on of the track waiting for an engine, a plain note-on */
+/* A legato note-on replaces the tied note, whose note-off is gone: the tied note still waiting for an engine becomes
+ * it; the tied note's voice takes its pitch (and its step's locks) without a new attack. 0: neither, a plain note-on */
+static int legato(const q_event *e)
+{
+    for (int i = n_later - 1; i >= 0; i--)
+        if (later[i].track == e->track && later[i].note == e->from) {
+            later[i] = (q_later){ e->track, e->note, e->vel, e->pat, (int8_t)e->step };
+            return 1;
+        }
+    int v = voices_retarget(&pool, e->track, e->from, e->note);
+    if (v < 0)
+        return 0;
+    const q_sound *s = &prj->sound[e->track];
+    take_locks(v, e->track, e->pat, e->step);
+    set_patch(v, s);
+    pq_glide_to(v, (float)(e->note + tune(v, s)));
+    return 1;
+}
+
 static void apply(const q_event *e)
 {
-    int v;
-    if (e->track == Q_CLICK_TRACK) {
+    if (e->track == Q_CLICK_TRACK)
         click_start(e->note);
-    } else if (e->on && (e->flags & EV_LEGATO) && !waits(e->track) &&
-               (v = voices_retarget(&pool, e->track, e->note)) >= 0) {
-        const q_sound *s = &prj->sound[e->track];
-        take_locks(v, e->track, e->pat, e->step);
-        set_patch(v, s);
-        pq_glide_to(v, (float)(e->note + tune(v, s)));
-    } else {
+    else if (!(e->on && (e->flags & EV_LEGATO) && legato(e)))
         event(e->track, e->note, e->vel, e->on, e->pat, e->step);
-    }
 }
 
 /* a held note recorded, its length in eighths of a step, at the tempo and div playing */

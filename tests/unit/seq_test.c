@@ -709,6 +709,7 @@ static void slide_ties_to_next(void)
     assert(NEV == 3);
     assert(EV[0].e.on && EV[0].e.note == 60 && EV[0].e.flags == 0 && EV[0].at == 0);
     assert(EV[1].e.on && EV[1].e.note == 64 && EV[1].e.flags == EV_LEGATO && (int64_t)EV[1].at == at16(1, 0));
+    assert(EV[0].e.from == 0 && EV[1].e.from == 60);   /* the legato carries the tied note */
     assert(!EV[2].e.on && EV[2].e.note == 64 && (int64_t)EV[2].at == at16(1, 2400));
     setup();
     only_step(0, 0);
@@ -729,7 +730,8 @@ static void slide_ties_to_next(void)
     P.pat[0][0].steps[4].flags = 0;
     run(100);                                                   /* to just past step 4's start */
     assert(NEV == 5);
-    for (int i = 0; i < 4; i++) assert(EV[i].e.on && EV[i].e.note == 60 + i && EV[i].e.flags == (i ? EV_LEGATO : 0));
+    for (int i = 0; i < 4; i++) assert(EV[i].e.on && EV[i].e.note == 60 + i && EV[i].e.flags == (i ? EV_LEGATO : 0) &&
+                                         EV[i].e.from == (i ? 59 + i : 0));
     assert(!EV[4].e.on && EV[4].e.note == 63 && (int64_t)EV[4].at == at16(4, 0));
 }
 

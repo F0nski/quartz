@@ -769,6 +769,52 @@ static void scene_reported_once(void)
     assert(audio_scene_started() == -1);
 }
 
+static void legato_beside_a_live_note(void)
+{
+    setup();
+    P.sound[0].poly = 2;
+    P.pat[0][0].steps[0].flags = SF_ON | SF_SLIDE;
+    P.pat[0][0].steps[1].flags = SF_ON;
+    P.pat[0][0].steps[1].note[0] = 62;
+    audio_play(1);
+    block(256);
+    audio_live_note(0, 50, 1);          /* newer than the tied note, on the same track */
+    until(256, 2 * spf16(120));
+    audio_live_note(0, 50, 0);
+    audio_play(0);
+    block(256);
+    assert(track_on(0) == 0);           /* no voice left without its note-off */
+}
+
+static void legato_while_tied_note_waits(void)
+{
+    setup();
+    P.tempo = 240;
+    P.sound[0].model = 20;
+    P.sound[0].poly = 2;
+    for (int t = 1; t < Q_TRACKS; t++) P.sound[t].model = (uint8_t)(12 + t);
+    P.pat[0][0].div = DIV_32;
+    P.pat[0][0].steps[0].flags = SF_ON | SF_SLIDE;
+    P.pat[0][0].steps[1].flags = SF_ON;
+    P.pat[0][0].steps[1].note[0] = 62;
+    P.pat[0][0].steps[1].micro = -11;   /* at frame 747: the tied note still waits behind three switches */
+    for (int t = 1; t < Q_TRACKS; t++) audio_live_note(t, 60, 1);
+    audio_play(1);
+    block(256);
+    block(256);
+    block(256);
+    assert(track_on(0) == 0 && n_later == 1 && later[0].track == 0 && later[0].note == 62);
+    NLOG = 0;
+    for (int k = 0; k < 20; k++) block(256);
+    int n = 0;
+    for (int i = 0; i < NLOG; i++)
+        if (LOG[i].op == 'n' && pool.v[LOG[i].v].track == 0) { assert(LOG[i].a == 62.0f); n++; }
+    assert(n == 1);
+    audio_play(0);
+    block(256);
+    assert(track_on(0) == 0);
+}
+
 int main(void)
 {
     splits_block_at_events();
@@ -794,6 +840,8 @@ int main(void)
     lock_reaches_its_voice();
     lock_ends_with_note();
     legato_glides_without_retrigger();
+    legato_beside_a_live_note();
+    legato_while_tied_note_waits();
     click_on_beats();
     count_in_then_play();
     overdub_records_step();
