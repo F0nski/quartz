@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+#include "gen.c"
 #include "seq.c"
 #include "voices.c"
 #include "dsp/pq.h"

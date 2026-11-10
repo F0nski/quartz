@@ -122,7 +122,7 @@ static void chaos_perturbs_at_loop_start(void)
     assert(changed_at_zero >= 2);
 }
 
-static void loop_len(void)
+static void loop_lengths(void)
 {
     q_pattern *pt = setup(M_KIT);
     assert(gen_loop(pt) == 32);
@@ -318,7 +318,7 @@ int main(void)
     interpolates();
     synth_voice_note();
     chaos_perturbs_at_loop_start();
-    loop_len();
+    loop_lengths();
     marbles_dejavu_mid_loops();
     marbles_dejavu0_varies();
     marbles_notes_in_allowed();

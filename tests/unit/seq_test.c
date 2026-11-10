@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include "gen.c"
 #include "seq.c"
 
 #define BLK 256
@@ -1058,6 +1059,140 @@ static void every_on_gets_its_off(void)
     assert(launches > 100 && started > 30 && entries > 30);
 }
 
+/* track 0's pattern 0 a GRIDS pattern, every density full */
+static void grids_setup(void)
+{
+    setup();
+    q_pattern *pt = &P.pat[0][0];
+    pt->src = SRC_GRIDS;
+    for (int i = 0; i < 3; i++) pt->grids.dens[i] = 127;
+}
+
+static void grids_steps_on_grid(void)
+{
+    grids_setup();
+    P.swing = 60;
+    run_to((uint64_t)at16(70, 0));
+    int ons = 0, loop = 0, last = -1;
+    for (int i = 0; i < NEV; i++) {
+        if (!EV[i].e.on) continue;
+        int k = EV[i].e.step;
+        if (k <= last) loop++;
+        last = k;
+        assert(k < 32 && (int64_t)EV[i].at == at16(32 * loop + k, k & 1 ? 960 : 0));
+        ons++;
+    }
+    assert(loop == 2 && ons > 30);
+}
+
+static void grids_accent_velocity(void)
+{
+    int mixed = 0, ons = 0;
+    grids_setup();
+    P.sound[0].model = M_KIT;
+    run_to((uint64_t)at16(32, 0));
+    for (int k = 0; k < 32; k++) {
+        int acc = 0, plain = 0;
+        for (int i = 0; i < NEV; i++) {
+            if (!EV[i].e.on || EV[i].e.step != k) continue;
+            int v = EV[i].e.note - KIT_NOTE, level = grids_read(k, v, grids_u8(64), grids_u8(64));
+            assert(EV[i].e.vel == (level > 192 ? 127 : 95));
+            level > 192 ? acc++ : plain++;
+            ons++;
+        }
+        mixed += acc && plain;
+    }
+    assert(mixed && ons > 40);
+}
+
+static void generator_pattern_change_at_loop_end(void)
+{
+    setup();
+    P.pat[0][1].src = SRC_GRIDS;
+    run_to((uint64_t)at16(3, 0));
+    P.pattern[0] = 1;
+    run_to((uint64_t)at16(16, 0) - 1);
+    assert(seq_pattern(&S, 0) == 0 && seq_pos(&S, 0) == 15);
+    run_to((uint64_t)at16(16, 0));
+    assert(seq_pattern(&S, 0) == 1 && seq_pos(&S, 0) == 0);
+    run_to((uint64_t)at16(19, 0));
+    P.pattern[0] = 0;
+    run_to((uint64_t)at16(48, 0) - 1);
+    assert(seq_pattern(&S, 0) == 1 && seq_pos(&S, 0) == 31);
+    run_to((uint64_t)at16(48, 0));
+    assert(seq_pattern(&S, 0) == 0 && seq_pos(&S, 0) == 0);
+}
+
+static void marbles_len_sets_loop(void)
+{
+    setup();
+    P.pat[0][0].src = SRC_MARBLES;
+    P.pat[0][0].marbles.len = 5;
+    for (int k = 0; k < 21; k++) {
+        run_to((uint64_t)at16(k, 0) + 1);
+        assert(seq_pos(&S, 0) == k % 5);
+    }
+}
+
+static void muted_generator_advances(void)
+{
+    int want[3], n = 0;
+    grids_setup();
+    P.sound[0].model = M_KIT;
+    P.mute = 1;
+    run_to((uint64_t)at16(15, 0));                              /* steps 0..15 planned muted */
+    P.mute = 0;
+    run_to((uint64_t)at16(16, 1));
+    for (int i = 0; i < 3; i++)
+        if (grids_read(16, i, grids_u8(64), grids_u8(64)) > 0) want[n++] = KIT_NOTE + i;
+    assert(n > 0 && NEV == n);
+    for (int i = 0; i < n; i++)
+        assert(EV[i].e.on && EV[i].e.step == 16 && EV[i].e.note == want[i] && (int64_t)EV[i].at == at16(16, 0));
+}
+
+static void source_change_mid_play(void)
+{
+    static int c[128];
+    q_event out[Q_TRACKS * SEQ_QUEUE];
+    int n, gen = 0;
+    setup();
+    memset(c, 0, sizeof c);
+    run_to((uint64_t)at16(10, 0));
+    P.pat[0][0].src = SRC_MARBLES;
+    P.pat[0][0].marbles.len = 3;
+    P.pat[0][0].marbles.tout = 2;                               /* a note every step */
+    run_to((uint64_t)at16(11, 0));
+    assert(seq_pos(&S, 0) == 0);
+    run_to((uint64_t)at16(20, 0) + 1);
+    assert(seq_pos(&S, 0) == 0);
+    for (int i = 0; i < NEV; i++) {
+        if (EV[i].e.on) { c[EV[i].e.note]++; gen += (int64_t)EV[i].at >= at16(11, 0); }
+        else assert(c[EV[i].e.note]-- > 0);
+    }
+    seq_stop(&S, out, &n);
+    for (int i = 0; i < n; i++) assert(c[out[i].note]-- > 0);
+    for (int k = 0; k < 128; k++) assert(c[k] == 0);
+    assert(gen >= 9);
+}
+
+static void song_entry_counts_loop(void)
+{
+    int starts = 0;
+    setup();
+    P.pat[0][1].src = SRC_GRIDS;
+    P.scene[0] = (q_scene){ 1, 0, { 1, 0, 0, 0 } };
+    P.song[0] = (q_entry){ 0, 1 };
+    P.nsong = 1;
+    P.song_on = 1;
+    seq_start(&S, &P, 0);
+    while (T < (uint64_t)at16(40, 0)) {
+        run(1);
+        if (seq_scene_started(&S) < 0) continue;
+        if (starts++ == 1) assert((int64_t)T - BLK <= at16(32, 0) && at16(32, 0) < (int64_t)T);   /* 2 bars */
+    }
+    assert(starts == 2);
+}
+
 static void lock_set_find_clear(void)
 {
     q_pattern *pt = &P.pat[0][0];
@@ -1144,6 +1279,13 @@ int main(void)
     song_advances_and_loops();
     song_with_count_in();
     every_on_gets_its_off();
+    grids_steps_on_grid();
+    grids_accent_velocity();
+    generator_pattern_change_at_loop_end();
+    marbles_len_sets_loop();
+    muted_generator_advances();
+    source_change_mid_play();
+    song_entry_counts_loop();
     lock_set_find_clear();
     lock_set_overwrites();
     lock_full_refused();

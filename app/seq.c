@@ -219,6 +219,7 @@ static void reanchor(q_seq *s, const q_project *p, int t, const q_clock *b)
     tr->k = tr->row = -1;
     tr->pat = tr->want = sc->pat[t];
     tr->path = p->pat[t][tr->pat].path;
+    gen_reset(&s->g[t], &s->rng);
     s->mute = (s->mute & ~(1 << t)) | (sc->mute & 1 << t);
 }
 
@@ -252,6 +253,7 @@ void seq_start(q_seq *s, const q_project *p, int count_in)
         tr->pat = tr->want = tr->seen = p->pattern[t];
         tr->path = p->pat[t][tr->pat].path;
         tr->h[0].step = tr->h[1].step = -1;
+        gen_reset(&s->g[t], &s->rng);
     }
     if (p->song_on && p->nsong) pend(s, p->song[0].scene, 0, count_in);
 }
@@ -342,6 +344,13 @@ static uint32_t seq_rand(q_seq *s)
     return s->rng;
 }
 
+/* a pass of the pattern, in steps */
+static int loop_len(const q_seq_track *tr, const q_pattern *pt)
+{
+    if (pt->src != SRC_STEP) return gen_loop(pt);
+    return tr->path == PATH_XY ? pt->xlen : pt->len;
+}
+
 /* the step the track's rank plays */
 static int step_at(q_seq *s, q_seq_track *tr, const q_pattern *pt)
 {
@@ -385,20 +394,21 @@ static int decide(q_seq *s, q_seq_track *tr, const q_step *st)
 /* A tie pending from the step before: the first note-on queued is its legato. A slide ties the first note of the
    last repetition. A legato or tied note-on comes no earlier than the last one queued, so they leave the queue in
    the order planned (micro-timing can otherwise put a step's notes before the step before's) and a legato removes
-   the note-off of the note it replaces. */
-static void plan_notes(q_seq *s, const q_project *p, int t, const q_step *st, int step)
+   the note-off of the note it replaces. acc: the accented note slots (bit i: note[i]), on top of SF_ACCENT's all. */
+static void plan_notes(q_seq *s, const q_project *p, int t, const q_step *st, int step, int acc)
 {
     q_seq_track *tr = &s->t[t];
     q_queue *q = &s->q[t];
     int r = STEP_RATCHET(st), g = r > 1 && st->len > 8 ? 8 : st->len, hold = 0;
-    int vel = st->flags & SF_ACCENT ? st->vel + 32 : st->vel;
     int64_t f = 200 * st->micro + (tr->k & 1 ? 96 * (p->swing - 50) : 0), from = tie_date(q);
-    if (vel > 127) vel = 127;
+    if (st->flags & SF_ACCENT) acc = 15;
     for (int j = 0; j < r; j++) {
         int64_t on = date(&tr->x, f + 4800 * j / r), off = date(&tr->x, f + 4800 * j / r + 600 * g / r);
         if (on < (int64_t)s->now) on = (int64_t)s->now;     /* dated before this block: at its start */
         for (int i = 0; i < 4; i++) {
             if (!st->note[i]) continue;
+            int vel = acc >> i & 1 ? st->vel + 32 : st->vel;
+            if (vel > 127) vel = 127;
             int tie = (st->flags & SF_SLIDE) && j == r - 1 && !hold;
             int64_t a = (tr->tie || tie) && on < from ? from : on;
             if (queue_push_on(q, (uint64_t)a, tie ? TIED : off > a ? (uint32_t)(off - a) : 0,
@@ -422,7 +432,7 @@ static void plan(q_seq *s, const q_project *p, int t, uint64_t end, const q_cloc
     for (;;) {
         if (b && tr->anchor && not_after(b, &tr->x)) reanchor(s, p, t, b);
         const q_pattern *pt = &p->pat[t][tr->pat];
-        int wrap = !tr->planned && tr->k + 1 >= (tr->path == PATH_XY ? pt->xlen : pt->len);
+        int wrap = !tr->planned && tr->k + 1 >= loop_len(tr, pt);
         if (wrap) pt = &p->pat[t][tr->want];
         clock_set(&tr->x, p->tempo, pt->div);
         if (tr->planned) {
@@ -434,6 +444,7 @@ static void plan(q_seq *s, const q_project *p, int t, uint64_t end, const q_cloc
         if (!due(&tr->x, end)) return;
         if (wrap) {                     /* the pattern and its path are taken at the wrap */
             if (tr->want != tr->pat || pt->path != tr->path) tr->pp = 0;
+            if (tr->want != tr->pat) gen_reset(&s->g[t], &s->rng);
             tr->loops = tr->want != tr->pat ? 0 : tr->loops + 1;
             tr->pat = tr->want;
             tr->path = pt->path;
@@ -447,13 +458,20 @@ static void plan(q_seq *s, const q_project *p, int t, uint64_t end, const q_cloc
             tr->row = (tr->row + 1) % pt->ylen;
             clock_next(&tr->y);
         }
-        int step = step_at(s, tr, pt);
+        int gen = pt->src != SRC_STEP, step = gen ? tr->k : step_at(s, tr, pt), acc = 0;
         tr->pp++;
         tr->h[0] = tr->h[1];
         tr->h[1] = (q_planned){ step, tr->pat, tr->k, tr->x };
-        /* a muted step still decides: it counts for PRE (and draws its probability) */
+        /* a muted step still decides: it counts for PRE (and draws its probability); a generator still computes its
+           step, so its state moves on. A generator's step has no condition nor probability. */
+        q_step g;
         const q_step *st = &pt->steps[step];
-        if ((st->flags & SF_ON) && decide(s, tr, st) && !(s->mute >> t & 1)) plan_notes(s, p, t, st, step);
+        if (gen) {
+            acc = gen_step(&s->g[t], p, t, pt, tr->k, &s->rng, &g);
+            st = &g;
+        }
+        if ((st->flags & SF_ON) && (gen || decide(s, tr, st)) && !(s->mute >> t & 1))
+            plan_notes(s, p, t, st, step, acc);
         else if (tr->tie) untie(s, t);
         tr->planned = 1;
     }
@@ -502,7 +520,8 @@ int seq_block(q_seq *s, const q_project *p, uint32_t nframes, q_event *out, int 
             int m = 0, e = (s->entry + 1) % p->nsong;
             for (int t = 0; t < Q_TRACKS; t++) {
                 const q_pattern *pt = &p->pat[t][sc->pat[t]];
-                if (pt->len * u[pt->div] > m) m = pt->len * u[pt->div];
+                int n = loop_len(&s->t[t], pt) * u[pt->div];
+                if (n > m) m = n;
             }
             pend(s, p->song[e].scene, e, s->bar + p->song[s->entry].reps * ((m + 95) / 96));
         } else {

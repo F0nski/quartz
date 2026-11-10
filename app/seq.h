@@ -1,6 +1,7 @@
 #ifndef QUARTZ_SEQ_H
 #define QUARTZ_SEQ_H
 #include "project.h"
+#include "gen.h"
 
 #define Q_CLICK_TRACK Q_TRACKS          /* q_event.track of a metronome click: note 1 on a bar's first beat */
 #define SEQ_QUEUE 64                    /* per track */
@@ -38,6 +39,7 @@ typedef struct {
     int entry, started;             /* the song entry playing, -1 none; the scene launched + 1, 0 none */
     q_clock beat;
     q_seq_track t[Q_TRACKS];
+    q_gen g[Q_TRACKS];              /* a generator pattern's state, per track */
     q_queue q[Q_TRACKS + 1];        /* [Q_CLICK_TRACK]: the clicks */
 } q_seq;
 
