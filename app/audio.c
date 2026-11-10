@@ -365,7 +365,7 @@ static void rec_send(const q_held *h)
 /* a live note while recording: held from its nearest step (none while stopped or counting in) to its note-off */
 static void rec_note(int track, int note, int on)
 {
-    int micro, step;
+    int micro, pat, step;
     for (int i = 0; i < HELD_N; i++)
         if (held[i].on && held[i].track == track && held[i].note == note) {
             if (!on) {
@@ -374,11 +374,11 @@ static void rec_note(int track, int note, int on)
             }
             return;
         }
-    if (!on || !recording || (step = seq_locate(&seq, prj, track, &micro)) < 0)
+    if (!on || !recording || (step = seq_locate(&seq, prj, track, &micro, &pat)) < 0)
         return;
     for (int i = 0; i < HELD_N; i++)
         if (!held[i].on) {
-            held[i] = (q_held){ 1, (uint8_t)track, (uint8_t)note, (uint8_t)seq_pattern(&seq, track), (uint8_t)step,
+            held[i] = (q_held){ 1, (uint8_t)track, (uint8_t)note, (uint8_t)pat, (uint8_t)step,
                                 (int8_t)micro, now };
             return;
         }

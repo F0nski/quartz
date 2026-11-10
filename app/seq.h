@@ -57,7 +57,8 @@ int  lock_set(q_pattern *pt, int step, int param, int value);          /* 0; -1 
 void lock_clear_step(q_pattern *pt, int step);                         /* the main loop writes; the render reads */
 int  seq_pos(const q_seq *s, int track);                      /* step whose grid span holds the block's start; -1 stopped or counting in */
 int  seq_pattern(const q_seq *s, int track);                  /* the pattern playing */
-int  seq_locate(const q_seq *s, const q_project *p, int track, int *micro);  /* nearest step to the block's start, micro -11..11; -1 if none */
+/* the nearest step to the block's start, -1 if none; micro -11..11, pat its pattern (the next one's, past a wrap) */
+int  seq_locate(const q_seq *s, const q_project *p, int track, int *micro, int *pat);
 int  seq_quantize(int micro, int quant);                      /* quant 0 OFF, 1 50 %, 2 100 %: micro scaled by 1, 1/2, 0, rounded toward 0 */
 
 #endif

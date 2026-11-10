@@ -567,16 +567,16 @@ static void click_follows_flag(void)
 
 static void locate_and_quantize(void)
 {
-    int m;
+    int m, pat;
     setup();
     run_to((uint64_t)at16(3, 1600));
-    assert(seq_locate(&S, &P, 0, &m) == 3 && m == 8);
+    assert(seq_locate(&S, &P, 0, &m, &pat) == 3 && m == 8 && pat == 0);
     run_to((uint64_t)at16(3, 3200));
-    assert(seq_locate(&S, &P, 0, &m) == 4 && m == -8);
+    assert(seq_locate(&S, &P, 0, &m, &pat) == 4 && m == -8);
     assert(seq_quantize(8, 0) == 8 && seq_quantize(8, 1) == 4 && seq_quantize(-7, 1) == -3 && seq_quantize(8, 2) == 0);
     q_event out[Q_TRACKS * SEQ_QUEUE]; int n;
     seq_stop(&S, out, &n);
-    assert(seq_locate(&S, &P, 0, &m) == -1);
+    assert(seq_locate(&S, &P, 0, &m, &pat) == -1);
 }
 
 /* the passes (loops) in which step k of a pattern of len 1/16 steps played, over n passes */

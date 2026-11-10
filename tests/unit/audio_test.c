@@ -727,6 +727,28 @@ static void overdub_records_step(void)
     }
 }
 
+/* a quarter step before the wrap to pattern 1: its step 0 is the nearest, in pattern 1 */
+static void overdub_early_at_pattern_change(void)
+{
+    setup();
+    P.tempo = 60;
+    P.quant = 0;
+    audio_rec(1);
+    audio_play(1);
+    block(256);
+    P.pattern[0] = 1;
+    uint32_t spf = spf16(60), on = 16 * spf - spf / 4;
+    uint32_t at = until(256, on);
+    audio_live_note(0, 60, 1);
+    block(256);
+    until(at + 256, on + spf / 2);
+    audio_live_note(0, 60, 0);
+    block(256);
+    q_rec r;
+    assert(audio_take_rec(&r));
+    assert(r.pat == 1 && r.step == 0 && r.micro < 0);
+}
+
 static void stop_flushes_held_rec(void)
 {
     setup();
@@ -845,6 +867,7 @@ int main(void)
     click_on_beats();
     count_in_then_play();
     overdub_records_step();
+    overdub_early_at_pattern_change();
     stop_flushes_held_rec();
     scene_reported_once();
     puts("audio_test ok");

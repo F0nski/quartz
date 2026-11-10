@@ -298,7 +298,7 @@ static int64_t swung(const q_planned *h, const q_project *p)
 
 /* The next step is planned before the block's start passes halfway to it, except exactly halfway between two
    unswung starts: that one block gets the current step at micro 11. */
-int seq_locate(const q_seq *s, const q_project *p, int track, int *micro)
+int seq_locate(const q_seq *s, const q_project *p, int track, int *micro, int *pat)
 {
     const q_seq_track *tr = &s->t[track];
     const q_planned *c = current(s, track);
@@ -308,6 +308,7 @@ int seq_locate(const q_seq *s, const q_project *p, int track, int *micro)
     int64_t d = mul64(mul64(now - swung(c, p), 24), c->c.den), num = c->c.num;
     int m = (int)((2 * d + (d < 0 ? -num : num)) / (2 * num));
     *micro = m < -11 ? -11 : m > 11 ? 11 : m;
+    *pat = c->pat;
     return c->step;
 }
 
