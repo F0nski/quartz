@@ -87,21 +87,23 @@ touche est tenue. Avec REC armé et PLAY, ils sont enregistrés dans les pattern
 9 BITCRUSH · 10 DOWNSAMPLE · 11 GATE 1/16 · 12 AUTO-PAN · 13 DELAY THROW · 14 REVERB FREEZE ·
 15 RING MOD · 16 KILL LOWS.
 
-Les LOOP utilisent un tampon stéréo de 0,37 s ; une boucle plus longue que le tampon est divisée par
-deux jusqu'à y tenir.
+Les LOOP utilisent un tampon stéréo de 0,37 s échantillonné à 22 kHz ; une boucle plus longue que le tampon
+est divisée par deux jusqu'à y tenir.
 
 ### 4.5 Budget mémoire du pool (336 Ko)
 
 | Poste | Taille |
 |---|---|
-| 6 voix (un modèle chacune) | ≤ 96 Ko (≤ 16 Ko par voix, mesuré à l'étape 1) |
+| 6 voix (un modèle chacune : 16 Ko de tampon, dont PARTICLE, STRING et SPEECH ont besoin, et l'objet voix) | 127 Ko (mesuré) |
+| Tampon de l'écran (une bande de 240×83) | 39 Ko |
+| Projet chargé (patterns, scènes, chanson) | 33 Ko |
 | Reverb | 32 Ko |
-| Delay (stéréo, 16 bits, échantillonné à 22 kHz : 0,74 s) | 64 Ko |
-| Tampon des LOOP | 64 Ko |
-| Patterns du projet chargé | 32 Ko |
-| Marge | ≥ 48 Ko |
+| Delay (stéréo, 16 bits, échantillonné à 22 kHz : 0,5 s) | 43 Ko |
+| Tampon des LOOP (stéréo, 16 bits, 22 kHz : 0,37 s) | 32 Ko |
+| Marge | ≈ 29 Ko |
 
-Si la mesure de l'étape 1 dépasse 16 Ko par voix, la durée du delay est réduite avant le reste.
+Si un poste manque de place, la durée du delay est réduite avant le reste : la plupart des usages tiennent
+dans une croche ou une noire.
 
 ## 5. Séquenceur
 
