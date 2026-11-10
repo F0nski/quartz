@@ -14,7 +14,8 @@ typedef struct {
     uint32_t num, den;          /* frames per step, num / den, for tempo and div below */
     int tempo, div;             /* tempo 0 = none yet */
 } q_clock;
-typedef struct { uint64_t at; uint32_t gate; q_event e; } q_queued;      /* gate: a note-on's note-off, frames after */
+/* gate: a note-on's note-off, frames after; a tied note-on's note-off waits in the queue at the end of time */
+typedef struct { uint64_t at; uint32_t gate; q_event e; } q_queued;
 typedef struct { int n, ons; q_queued e[SEQ_QUEUE]; } q_queue;           /* by date, offs before ons at a date */
 typedef struct { int step, pat, rank; q_clock c; } q_planned;            /* a step and its clock when planned */
 typedef struct {
@@ -22,6 +23,7 @@ typedef struct {
     int planned;                /* the step at x is planned */
     int k, row, pp;             /* rank in the pass; XY row; ping-pong phase */
     int pat, path;              /* taken at the wrap */
+    int loops, pre, tie;        /* passes of the pattern; PRE's result; the last step planned tied a note */
     q_planned h[2];             /* the last two steps planned, [1] the newest */
 } q_seq_track;
 typedef struct {

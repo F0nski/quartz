@@ -579,6 +579,277 @@ static void locate_and_quantize(void)
     assert(seq_locate(&S, &P, 0, &m) == -1);
 }
 
+/* the passes (loops) in which step k of a pattern of len 1/16 steps played, over n passes */
+static int played_loops(int k, int len, int n, int *loops)
+{
+    int c = 0;
+    run_to((uint64_t)at16(len * n, 0));
+    for (int i = 0; i < NEV; i++)
+        if (EV[i].e.track == 0 && EV[i].e.on && EV[i].e.step == k) {
+            int64_t l = 0;
+            while (at16((int)(len * (l + 1)), 0) <= (int64_t)EV[i].at) l++;
+            loops[c++] = (int)l;
+        }
+    return c;
+}
+
+static void cond_ab(void)
+{
+    int l[16];
+    setup();
+    P.pat[0][0].len = 4;
+    only_step(0, 1);
+    P.pat[0][0].steps[1].cond = 2 | 4 << 4;
+    assert(played_loops(1, 4, 12, l) == 3 && l[0] == 1 && l[1] == 5 && l[2] == 9);
+    static const uint8_t bad[] = { 0 | 4 << 4, 5 | 4 << 4, 1 | 1 << 4, 1 | 9 << 4, 9 };
+    for (unsigned c = 0; c < sizeof bad; c++) {                 /* out of range: no condition */
+        setup();
+        P.pat[0][0].len = 4;
+        only_step(0, 1);
+        P.pat[0][0].steps[1].cond = bad[c];
+        assert(played_loops(1, 4, 6, l) == 6);
+    }
+}
+
+static void first_and_not_first(void)
+{
+    int l[16];
+    setup();
+    P.pat[0][0].len = 4;
+    only_step(0, 2);
+    P.pat[0][0].steps[2].cond = CD_FIRST;
+    assert(played_loops(2, 4, 6, l) == 1 && l[0] == 0);
+    setup();
+    P.pat[0][0].len = 4;
+    only_step(0, 2);
+    P.pat[0][0].steps[2].cond = CD_NFIRST;
+    assert(played_loops(2, 4, 6, l) == 5);
+    for (int i = 0; i < 5; i++) assert(l[i] == i + 1);
+}
+
+static void pre_follows_last_condition(void)
+{
+    int l1[16], l2[16];
+    setup();
+    q_pattern *pt = &P.pat[0][0];
+    pt->len = 3;
+    pt->steps[0].cond = 1 | 2 << 4;
+    pt->steps[1].cond = CD_PRE;
+    pt->steps[2].cond = CD_NPRE;
+    for (int k = 0; k < 3; k++) pt->steps[k].note[0] = (uint8_t)(60 + k);
+    int n1 = played_loops(1, 3, 8, l1), n2 = played_loops(2, 3, 8, l2);
+    assert(n1 == 4 && n2 == 4);
+    for (int i = 0; i < 4; i++) assert(l1[i] == 2 * i && l2[i] == 2 * i + 1);
+    setup();                                                    /* false at the start */
+    only_step(0, 0);
+    P.pat[0][0].steps[0].cond = CD_PRE;
+    run(200);
+    assert(nth(0, 1, 0) < 0);
+}
+
+static void probability_rates(void)
+{
+    static const int probs[] = { 10, 0, 20 };
+    uint32_t n32, d32;
+    seq_step_ratio(120, DIV_32, &n32, &d32);
+    for (int c = 0; c < 3; c++) {
+        setup();
+        P.pat[0][0].len = 1;
+        P.pat[0][0].div = DIV_32;
+        P.pat[0][0].steps[0].prob = (uint8_t)probs[c];
+        seq_start(&S, &P, 0);
+        run_to(ceil_div(1000 * (uint64_t)n32, d32));            /* steps 0..999 */
+        int ons = 0;
+        for (int i = 0; i < NEV; i++) ons += EV[i].e.on;
+        assert(c ? ons == (c == 2) * 1000 : ons >= 400 && ons <= 600);
+    }
+}
+
+static void mute_silences_but_advances(void)
+{
+    setup();
+    for (int i = 0; i < Q_STEPS; i++) P.pat[0][0].steps[i].note[0] = (uint8_t)(70 + i);
+    P.pat[0][0].steps[0].len = 64;                              /* 8 steps */
+    while (seq_pos(&S, 0) != 1) run(1);
+    P.mute = 1;
+    while (seq_pos(&S, 0) != 4) run(1);                        /* steps 2, 3, 4 planned muted */
+    P.mute = 0;
+    run(120);
+    int got[4];
+    played(0, 4, got);
+    assert(got[0] == 0 && got[1] == 1 && got[2] == 5 && got[3] == 6);
+    assert(nth(0, 1, 2) == at16(5, 0));
+    int off = 0;
+    for (int i = 0; i < NEV; i++)
+        if (!EV[i].e.on && EV[i].e.note == 70) { off++; assert((int64_t)EV[i].at == at16(0, 38400)); }
+    assert(off == 1);
+}
+
+static void accent_boosts_velocity(void)
+{
+    setup();
+    P.pat[0][0].steps[0].flags |= SF_ACCENT;
+    P.pat[0][0].steps[1].flags |= SF_ACCENT;
+    P.pat[0][0].steps[1].vel = 60;
+    P.pat[0][0].steps[2].vel = 60;
+    run(60);
+    int v[3] = { 0 }, k = 0;
+    for (int i = 0; i < NEV && k < 3; i++) if (EV[i].e.on) v[k++] = EV[i].e.vel;
+    assert(v[0] == 127 && v[1] == 92 && v[2] == 60);
+}
+
+static void slide_ties_to_next(void)
+{
+    setup();
+    only_step(0, 0);
+    P.pat[0][0].steps[0].flags |= SF_SLIDE;
+    P.pat[0][0].steps[1].flags = SF_ON;
+    P.pat[0][0].steps[1].note[0] = 64;
+    run(40);                                                    /* steps 0..1 and the start of 2 */
+    assert(NEV == 3);
+    assert(EV[0].e.on && EV[0].e.note == 60 && EV[0].e.flags == 0 && EV[0].at == 0);
+    assert(EV[1].e.on && EV[1].e.note == 64 && EV[1].e.flags == EV_LEGATO && (int64_t)EV[1].at == at16(1, 0));
+    assert(!EV[2].e.on && EV[2].e.note == 64 && (int64_t)EV[2].at == at16(1, 2400));
+    setup();
+    only_step(0, 0);
+    P.pat[0][0].steps[0].flags |= SF_SLIDE;
+    run(40);
+    assert(NEV == 2 && !EV[1].e.on && EV[1].e.note == 60 && (int64_t)EV[1].at == at16(1, 0));
+    setup();                                                    /* a muted next step releases too */
+    P.pat[0][0].steps[0].flags |= SF_SLIDE;
+    while (seq_pos(&S, 0) != 0) run(1);
+    P.mute = 1;
+    run(40);
+    assert(NEV == 2 && !EV[1].e.on && EV[1].e.note == 60 && (int64_t)EV[1].at == at16(1, 0));
+    setup();                                                    /* a chain of slides: one off, at the end */
+    for (int i = 0; i < 4; i++) {
+        P.pat[0][0].steps[i].flags |= SF_SLIDE;
+        P.pat[0][0].steps[i].note[0] = (uint8_t)(60 + i);
+    }
+    P.pat[0][0].steps[4].flags = 0;
+    run(100);                                                   /* to just past step 4's start */
+    assert(NEV == 5);
+    for (int i = 0; i < 4; i++) assert(EV[i].e.on && EV[i].e.note == 60 + i && EV[i].e.flags == (i ? EV_LEGATO : 0));
+    assert(!EV[4].e.on && EV[4].e.note == 63 && (int64_t)EV[4].at == at16(4, 0));
+}
+
+static void stop_during_tie_releases(void)
+{
+    setup();
+    only_step(0, 0);
+    P.pat[0][0].steps[0].flags |= SF_SLIDE;
+    P.pat[0][0].steps[0].note[0] = 50;
+    run(12);                                                    /* past step 0's gate, before step 1 */
+    assert(NEV == 1);
+    q_event out[Q_TRACKS * SEQ_QUEUE]; int n;
+    seq_stop(&S, out, &n);
+    assert(n == 1 && !out[0].on && out[0].note == 50 && out[0].step == 0);
+}
+
+static void events_carry_step(void)
+{
+    setup();
+    for (int n = 0; n < 2; n++) {
+        q_pattern *pt = &P.pat[0][n];
+        pt->len = 4;
+        for (int k = 0; k < 4; k++) {
+            pt->steps[k].flags = SF_ON;
+            pt->steps[k].note[0] = (uint8_t)(60 + 20 * n + k);
+        }
+    }
+    P.pat[0][0].steps[3].flags |= SF_SLIDE;                     /* tied into pattern 1's step 0 */
+    P.pat[0][1].steps[1].flags |= SF_SLIDE;                     /* released at step 2's start */
+    P.pat[0][1].steps[2].flags = 0;
+    while (seq_pos(&S, 0) != 2) run(1);
+    P.pattern[0] = 1;
+    run(300);
+    int legato = 0, ons = 0, offs = 0;
+    for (int i = 0; i < NEV; i++) {
+        int n = EV[i].e.note >= 80;
+        assert(EV[i].e.pat == n && EV[i].e.step == EV[i].e.note - 60 - 20 * n);
+        if (EV[i].e.flags & EV_LEGATO) { legato++; assert(EV[i].e.pat == 1 && EV[i].e.step == 0); }
+        EV[i].e.on ? ons++ : offs++;
+    }
+    assert(legato == 1 && ons > 10 && offs > 10);
+    for (int i = 0; i < NEV; i++)                               /* the first pass of pattern 1 is ranks 4..7 */
+        if (!EV[i].e.on && EV[i].e.note == 81) { assert((int64_t)EV[i].at == at16(6, 0)); break; }
+}
+
+/* random attributes and changes: every note-on gets one note-off (or a legato that replaces it), in order */
+static uint32_t R = 12345;
+static uint32_t rnd(void) { R ^= R << 13; R ^= R >> 17; R ^= R << 5; return R; }
+
+static void every_on_gets_its_off(void)
+{
+    static int c[Q_TRACKS][128];
+    int legatos[Q_TRACKS] = { 0 }, ons = 0, ties = 0;
+    q_event out[Q_TRACKS * SEQ_QUEUE];
+    project_defaults(&P);
+    memset(c, 0, sizeof c);
+    for (int t = 0; t < Q_TRACKS; t++)
+        for (int n = 0; n < Q_PATTERNS; n++) {
+            q_pattern *pt = &P.pat[t][n];
+            pt->len = (uint8_t)(1 + rnd() % 64);
+            pt->div = (uint8_t)(rnd() % 5);                     /* 1/32 to 1/8: enough steps in the run */
+            for (int k = 0; k < Q_STEPS; k++) {
+                q_step *st = &pt->steps[k];
+                for (int i = 0; i < 4; i++) st->note[i] = (uint8_t)(rnd() % 3 ? 60 + rnd() % 6 : 0);
+                st->vel = (uint8_t)(1 + rnd() % 127);
+                st->len = (uint8_t)(1 + rnd() % 64);
+                st->prob = (uint8_t)(rnd() % 2 ? 20 : rnd() % 22);
+                st->cond = (uint8_t)(rnd() % 2 ? CD_NONE : rnd());
+                st->flags = (uint8_t)(rnd() % 32 | (rnd() % 4 ? SF_ON : 0));
+                st->micro = (int8_t)((int)(rnd() % 23) - 11);
+            }
+        }
+    memset(&S, 0, sizeof S);
+    seq_start(&S, &P, 0);
+    for (int b = 0; b < 2000; b++) {
+        uint32_t r = rnd() % 64;
+        int t = (int)(rnd() % Q_TRACKS);
+        q_pattern *pt = &P.pat[t][rnd() % Q_PATTERNS];
+        if (r == 0) P.pattern[t] = (uint8_t)(rnd() % Q_PATTERNS);
+        if (r == 1) pt->len = (uint8_t)(1 + rnd() % 64);
+        if (r == 2) P.tempo = (uint16_t)(40 + rnd() % 201);
+        if (r == 3) P.mute = (uint8_t)(rnd() % 16);
+        if (r == 5) P.swing = (uint8_t)(50 + rnd() % 26);
+        if (r == 4) {
+            pt->path = (uint8_t)(rnd() % PATH_N);
+            pt->xlen = (uint8_t)(1 + rnd() % 4);
+            pt->ylen = (uint8_t)(1 + rnd() % 4);
+            pt->ydiv = (uint8_t)(rnd() % DIV_N);
+        }
+        q_event ev[64];
+        int n = seq_block(&S, &P, 1 + rnd() % 512, ev, 2 + (int)(rnd() % 63));
+        for (int i = 0; i < n; i++) {
+            q_event *e = &ev[i];
+            if (e->track == Q_CLICK_TRACK) continue;
+            int sum = 0;
+            for (int k = 0; k < 128; k++) sum += c[e->track][k];
+            if (e->on && (e->flags & EV_LEGATO)) { assert(sum > legatos[e->track]); legatos[e->track]++; }
+            if (e->on) { c[e->track][e->note]++; ons++; }
+            else assert(c[e->track][e->note]-- > 0);
+        }
+        for (int t2 = 0; t2 < Q_TRACKS; t2++) {
+            int held = 0;
+            for (int i = 0; i < S.q[t2].n; i++) {
+                ties += S.q[t2].e[i].e.on && S.q[t2].e[i].gate == TIED;
+                held += S.q[t2].e[i].at == HELD;
+            }
+            assert(held <= 1);
+        }
+    }
+    int n;
+    seq_stop(&S, out, &n);
+    for (int i = 0; i < n; i++) assert(c[out[i].track][out[i].note]-- > 0);
+    for (int t = 0; t < Q_TRACKS; t++) {
+        int sum = 0;
+        for (int k = 0; k < 128; k++) { assert(c[t][k] >= 0); sum += c[t][k]; }
+        assert(sum == legatos[t]);
+    }
+    assert(ons > 400 && ties > 0 && legatos[0] + legatos[1] + legatos[2] + legatos[3] > 10);
+}
+
 static void lock_set_find_clear(void)
 {
     q_pattern *pt = &P.pat[0][0];
@@ -650,6 +921,16 @@ int main(void)
     count_in_delays_tracks();
     click_follows_flag();
     locate_and_quantize();
+    cond_ab();
+    first_and_not_first();
+    pre_follows_last_condition();
+    probability_rates();
+    mute_silences_but_advances();
+    accent_boosts_velocity();
+    slide_ties_to_next();
+    stop_during_tie_releases();
+    events_carry_step();
+    every_on_gets_its_off();
     lock_set_find_clear();
     lock_set_overwrites();
     lock_full_refused();

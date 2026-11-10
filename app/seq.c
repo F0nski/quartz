@@ -125,12 +125,49 @@ static q_queued queue_take(q_queue *q, int i)
 }
 
 /* A queued note-on also holds a place for its note-off: n + ons never passes SEQ_QUEUE, so a note-off always
-   finds room and a note-on that would not is dropped. */
-static void queue_push_on(q_queue *q, uint64_t at, uint32_t gate, q_event e)
+   finds room and a note-on that would not is dropped (0). */
+static int queue_push_on(q_queue *q, uint64_t at, uint32_t gate, q_event e)
 {
-    if (q->n + q->ons + 2 > SEQ_QUEUE) return;
+    if (q->n + q->ons + 2 > SEQ_QUEUE) return 0;
     queue_push(q, at, gate, e);
     q->ons++;
+    return 1;
+}
+
+#define TIED UINT32_MAX     /* q_queued.gate of a tied note-on */
+#define HELD UINT64_MAX     /* q_queued.at of a tied note's note-off: it leaves at a legato, an untie or seq_stop */
+
+/* the pending tie's note-on if still queued, -1 if it has begun: ties leave in the order planned, so the last */
+static int tied_on(const q_queue *q)
+{
+    int t = -1;
+    for (int i = 0; i < q->n; i++)
+        if (q->e[i].e.on && q->e[i].gate == TIED) t = i;
+    return t;
+}
+
+/* the date of the last queued tied or legato note-on, 0 none */
+static int64_t tie_date(const q_queue *q)
+{
+    int64_t d = 0;
+    for (int i = 0; i < q->n; i++)
+        if (q->e[i].e.on && (q->e[i].gate == TIED || (q->e[i].e.flags & EV_LEGATO))) d = (int64_t)q->e[i].at;
+    return d;
+}
+
+/* the step at the track's x plays no note to replace the tied one: that one ends at the step's grid start */
+static void untie(q_seq *s, int t)
+{
+    q_queue *q = &s->q[t];
+    int64_t at = date(&s->t[t].x, 0);
+    int i = tied_on(q);
+    s->t[t].tie = 0;
+    if (i >= 0) {
+        q->e[i].gate = at > (int64_t)q->e[i].at ? (uint32_t)(at - (int64_t)q->e[i].at) : 0;
+        return;
+    }
+    for (i = 0; q->e[i].at != HELD; i++) {}
+    queue_push(q, (uint64_t)at, 0, queue_take(q, i).e);
 }
 
 void seq_start(q_seq *s, const q_project *p, int count_in)
@@ -221,6 +258,14 @@ static const uint8_t PATHS[4][16] = {
     { 0, 1, 2, 3, 7, 11, 15, 14, 13, 12, 8, 4, 5, 6, 10, 9 },      /* SPIRAL */
 };
 
+static uint32_t seq_rand(q_seq *s)
+{
+    s->rng ^= s->rng << 13;
+    s->rng ^= s->rng >> 17;
+    s->rng ^= s->rng << 5;
+    return s->rng;
+}
+
 /* the step the track's rank plays */
 static int step_at(q_seq *s, q_seq_track *tr, const q_pattern *pt)
 {
@@ -232,12 +277,7 @@ static int step_at(q_seq *s, q_seq_track *tr, const q_pattern *pt)
         k = len > 1 ? tr->pp % (2 * len - 2) : 0;
         if (k >= len) k = 2 * len - 2 - k;
         break;
-    case PATH_RANDOM:
-        s->rng ^= s->rng << 13;
-        s->rng ^= s->rng >> 17;
-        s->rng ^= s->rng << 5;
-        k = (int)(s->rng % (uint32_t)len);
-        break;
+    case PATH_RANDOM: k = (int)(seq_rand(s) % (uint32_t)len); break;
     case PATH_SNAKE: m = 1; break;
     case PATH_COLUMNS: m = 2; break;
     case PATH_SPIRAL: m = 3; break;
@@ -245,20 +285,56 @@ static int step_at(q_seq *s, q_seq_track *tr, const q_pattern *pt)
     return 16 * (k / 16) + PATHS[m][k % 16];
 }
 
+/* The step's condition, then its probability: whether it plays. A step with a condition of its own or a
+   probability sets PRE. */
+static int decide(q_seq *s, q_seq_track *tr, const q_step *st)
+{
+    int c = st->cond, a = c & 15, b = c >> 4, own = 1, ok;
+    if (c == CD_PRE || c == CD_NPRE) {
+        ok = tr->pre == (c == CD_PRE);
+        own = 0;
+    } else if (c == CD_FIRST || c == CD_NFIRST) {
+        ok = (tr->loops == 0) == (c == CD_FIRST);
+    } else if (b >= 2 && b <= 8 && a >= 1 && a <= b) {
+        ok = tr->loops % b == a - 1;
+    } else {                            /* NONE, or a byte out of range: no condition */
+        ok = 1;
+        own = st->prob < 20;
+    }
+    if (ok && st->prob < 20) ok = st->prob && seq_rand(s) % 20 < st->prob;
+    if (own) tr->pre = ok;
+    return ok;
+}
+
+/* A tie pending from the step before: the first note-on queued is its legato. A slide ties the first note of the
+   last repetition. A legato or tied note-on comes no earlier than the last one queued, so they leave the queue in
+   the order planned (micro-timing can otherwise put a step's notes before the step before's) and a legato removes
+   the note-off of the note it replaces. */
 static void plan_notes(q_seq *s, const q_project *p, int t, const q_step *st, int step)
 {
     q_seq_track *tr = &s->t[t];
-    int r = STEP_RATCHET(st), g = r > 1 && st->len > 8 ? 8 : st->len;
-    int64_t f = 200 * st->micro + (tr->k & 1 ? 96 * (p->swing - 50) : 0);
+    q_queue *q = &s->q[t];
+    int r = STEP_RATCHET(st), g = r > 1 && st->len > 8 ? 8 : st->len, hold = 0;
+    int vel = st->flags & SF_ACCENT ? st->vel + 32 : st->vel;
+    int64_t f = 200 * st->micro + (tr->k & 1 ? 96 * (p->swing - 50) : 0), from = tie_date(q);
+    if (vel > 127) vel = 127;
     for (int j = 0; j < r; j++) {
         int64_t on = date(&tr->x, f + 4800 * j / r), off = date(&tr->x, f + 4800 * j / r + 600 * g / r);
         if (on < (int64_t)s->now) on = (int64_t)s->now;     /* dated before this block: at its start */
-        if (off < on) off = on;
-        for (int i = 0; i < 4; i++)
-            if (st->note[i])
-                queue_push_on(&s->q[t], (uint64_t)on, (uint32_t)(off - on),
-                        (q_event){ 0, (uint8_t)t, st->note[i], st->vel, 1, (uint8_t)tr->pat, (uint8_t)step, 0 });
+        for (int i = 0; i < 4; i++) {
+            if (!st->note[i]) continue;
+            int tie = (st->flags & SF_SLIDE) && j == r - 1 && !hold;
+            int64_t a = (tr->tie || tie) && on < from ? from : on;
+            if (queue_push_on(q, (uint64_t)a, tie ? TIED : off > a ? (uint32_t)(off - a) : 0,
+                    (q_event){ 0, (uint8_t)t, st->note[i], (uint8_t)vel, 1, (uint8_t)tr->pat, (uint8_t)step,
+                               (uint8_t)(tr->tie ? EV_LEGATO : 0) })) {
+                tr->tie = 0;
+                hold |= tie;
+            }
+        }
+        if (tr->tie) untie(s, t);       /* no note-on to replace it: before this step ties one of its own */
     }
+    tr->tie = hold;
 }
 
 /* Plans the track's steps due before end. A step's duration is fixed when it begins (its start falls in a block),
@@ -280,6 +356,7 @@ static void plan(q_seq *s, const q_project *p, int t, uint64_t end)
         if (!due(&tr->x, end)) return;
         if (wrap) {                     /* the pattern and its path are taken at the wrap */
             if (p->pattern[t] != tr->pat || pt->path != tr->path) tr->pp = 0;
+            tr->loops = p->pattern[t] != tr->pat ? 0 : tr->loops + 1;
             tr->pat = p->pattern[t];
             tr->path = pt->path;
             tr->k = 0;
@@ -296,7 +373,10 @@ static void plan(q_seq *s, const q_project *p, int t, uint64_t end)
         tr->pp++;
         tr->h[0] = tr->h[1];
         tr->h[1] = (q_planned){ step, tr->pat, tr->k, tr->x };
-        if (pt->steps[step].flags & SF_ON) plan_notes(s, p, t, &pt->steps[step], step);
+        /* a muted step still decides: it counts for PRE (and draws its probability) */
+        const q_step *st = &pt->steps[step];
+        if ((st->flags & SF_ON) && decide(s, tr, st) && !(p->mute >> t & 1)) plan_notes(s, p, t, st, step);
+        else if (tr->tie) untie(s, t);
         tr->planned = 1;
     }
 }
@@ -330,7 +410,7 @@ int seq_block(q_seq *s, const q_project *p, uint32_t nframes, q_event *out, int 
         q_queued e = q->e[0];
         int off = -1;                   /* a later note-off of the same note comes just before the note-on */
         for (int i = 1; e.e.on && off < 0 && i < q->n; i++)
-            if (!q->e[i].e.on && q->e[i].e.note == e.e.note) off = i;
+            if (!q->e[i].e.on && q->e[i].e.note == e.e.note && q->e[i].at != HELD) off = i;
         if (n + 1 + (off >= 0) > max) break;
         if (off >= 0) {
             q_queued o = queue_take(q, off);
@@ -341,8 +421,14 @@ int seq_block(q_seq *s, const q_project *p, uint32_t nframes, q_event *out, int 
         emit(out, &n, s->now, &e);
         if (e.e.on) {
             q->ons--;
+            if (e.e.flags & EV_LEGATO) {    /* it replaces the tied note, which has begun: no note-off for that one */
+                int i = 0;
+                while (q->e[i].at != HELD) i++;
+                queue_take(q, i);
+            }
             if (e.e.track != Q_CLICK_TRACK)
-                queue_push(q, e.at + e.gate, 0, (q_event){ 0, e.e.track, e.e.note, 0, 0, e.e.pat, e.e.step, 0 });
+                queue_push(q, e.gate == TIED ? HELD : e.at + e.gate, 0,
+                        (q_event){ 0, e.e.track, e.e.note, 0, 0, e.e.pat, e.e.step, 0 });
         }
     }
     s->now = end;
