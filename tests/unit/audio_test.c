@@ -772,6 +772,23 @@ static void step_note_not_recorded(void)
     assert(!audio_take_rec(&r));
 }
 
+/* a note pressed on a generator pattern is not held for REC: turned STEP before its release, nothing is written */
+static void generator_note_not_recorded(void)
+{
+    setup();
+    P.pat[0][0].src = SRC_GRIDS;
+    audio_rec(1);
+    audio_play(1);
+    until(0, 4 * spf16(120));
+    audio_live_note(0, 60, 1);
+    block(256);
+    P.pat[0][0].src = SRC_STEP;
+    audio_live_note(0, 60, 0);
+    block(256);
+    q_rec r;
+    assert(!audio_take_rec(&r));
+}
+
 static void stop_flushes_held_rec(void)
 {
     setup();
@@ -1041,6 +1058,7 @@ int main(void)
     overdub_records_step();
     overdub_early_at_pattern_change();
     step_note_not_recorded();
+    generator_note_not_recorded();
     stop_flushes_held_rec();
     scene_reported_once();
     kit_choke_same_engine();

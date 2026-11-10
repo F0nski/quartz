@@ -14,6 +14,14 @@ turn SELECT 1
 expect page 2
 turn K4 64
 expect mdejavu 64
+turn K1 1
+expect mmode 1
+wait 100
+shot marbles_t.png
+turn K1 1
+wait 100
+shot marbles_t2.png
+turn K1 -2
 turn SELECT 2
 expect page 4
 expect mnotes 0

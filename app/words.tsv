@@ -176,3 +176,10 @@ NOTES	notes
 RANGE	range
 X	X
 Y	Y
+C.BERN	complementary bernoulli
+CLUSTERS	clusters
+I.BERN	independent bernoulli
+DIVIDER	divider
+3 STATES	three states
+MARKOV	markov
+DRUMS	drums

@@ -52,6 +52,8 @@ static const char *const MODEL_NAME[24] = {
     "SWARM", "NOISE", "PARTICLE", "STRING", "MODAL", "BASS DRUM", "SNARE", "HI-HAT"};
 static const char *const DIV_NAME[DIV_N] = {"1/32", "1/16T", "1/16", "1/8T", "1/8", "1/4T", "1/4", "1/2", "1/1"};
 static const char *const SRC_NAME[SRC_N] = {"STEP", "GRIDS", "MARBLES"};
+/* Marbles' T models, its TGeneratorModel order (gen.c) */
+static const char *const T_MODE_NAME[7] = {"C.BERN", "CLUSTERS", "DRUMS", "I.BERN", "DIVIDER", "3 STATES", "MARKOV"};
 static const char *const PATH_NAME[PATH_N] = {"FWD", "REV", "PING-PONG", "SNAKE", "COLUMNS", "SPIRAL", "RANDOM", "XY"};
 static const char *const TONIC_NAME[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
 static const char *const MODE_NAME[11] = {"CHROM", "MAJOR", "MINOR", "DORIAN", "PHRYG", "LYDIAN", "MIXO", "LOCRIAN",
@@ -745,8 +747,8 @@ static void knob_text(int pid, int k, int v, char *b)
         while ((*b++ = *s++) != 0) {}
         return;
     }
-    if (k == 3 && (pid == P_STEPS || pid == P_GRIDS || pid == P_MARBLES)) {
-        const char *s = SRC_NAME[v];
+    if ((k == 3 && (pid == P_STEPS || pid == P_GRIDS || pid == P_MARBLES)) || (pid == P_T && !k)) {
+        const char *s = pid == P_T ? T_MODE_NAME[v] : SRC_NAME[v];
         while ((*b++ = *s++) != 0) {}
         return;
     }
@@ -1254,6 +1256,7 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "mlen")) *got = t->marbles.len;
     else if (!strcmp(what, "mnotes")) *got = t->marbles.notes[0] | t->marbles.notes[1] << 8;
     else if (!strcmp(what, "mdejavu")) *got = t->marbles.dejavu;
+    else if (!strcmp(what, "mmode")) *got = t->marbles.mode;
     else
         return 0;
     return 1;
