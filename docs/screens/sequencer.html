@@ -1,0 +1,696 @@
+<title>QUARTZ Sequencer Screens</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+/* Layout: a header, then a wrapping grid of live 240x240 screens with their legend underneath. */
+:root {
+  --bg: #efedf5; --fg: #1c1830; --muted: #5d5873; --line: #d9d5e6; --device: #151320; --hot: #d4247a;
+  --display: "Chakra Petch", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --line: #2a2440; --device: #000; --hot: #ff4fa8; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --line: #2a2440; --device: #000; --hot: #ff4fa8; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 48px }
+main { max-width: 1040px; margin: 0 auto; display: grid; gap: 24px }
+h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; line-height: 1.1; margin: 0; text-transform: uppercase; letter-spacing: .02em; text-wrap: balance }
+h1 em { font-style: normal; color: var(--hot) }
+.lead { color: var(--muted); max-width: 66ch; margin: 8px 0 0 }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 20px }
+figure { margin: 0; display: grid; gap: 8px; align-content: start; min-width: 0 }
+canvas { width: 100%; max-width: 100%; aspect-ratio: 1; background: #000; border: 12px solid var(--device); border-radius: 16px; box-sizing: border-box }
+h2 { font-family: var(--display); font-size: 1.1rem; margin: 0; text-transform: uppercase; letter-spacing: .04em }
+.tag { font-family: var(--display); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--hot) }
+figcaption p { margin: 2px 0 0; font-size: .88rem; color: var(--muted) }
+.foot { font-size: .88rem; color: var(--muted); max-width: 70ch }
+</style>
+
+<main>
+  <header>
+    <h1>Le séquenceur, <em>en ronds</em></h1>
+    <p class="lead">Des grilles de ronds, vus de face. Chaque rond est une pierre taillée à 12 pans, vue de dessus, comme les volumes des scènes de synthé : des facettes en aplats de trois tons autour d'une table plate, lumière en haut à gauche. Les arcs sont taillés aussi. Une note qui joue passe en rose et lâche une onde. Le même pattern tourne partout : 14 pas, do mineur, 120 BPM.</p>
+  </header>
+
+  <h2>Sens de lecture</h2>
+  <p class="lead">Le même plateau, lu dans un autre ordre. Le chemin est tracé au sol et le viseur le suit. Le sens se règle par pattern, sur la page SEQ.</p>
+  <div class="grid">
+    <figure><canvas id="p_snake" width="240" height="240"></canvas><figcaption><span class="tag">path</span><h2>Snake</h2><p>Une rangée à l'endroit, la suivante à l'envers.</p></figcaption></figure>
+    <figure><canvas id="p_cols" width="240" height="240"></canvas><figcaption><span class="tag">path</span><h2>Colonnes</h2><p>De haut en bas, colonne par colonne : on lit la grille en travers.</p></figcaption></figure>
+    <figure><canvas id="p_spiral" width="240" height="240"></canvas><figcaption><span class="tag">path</span><h2>Spirale</h2><p>Le tour du bord, puis le centre.</p></figcaption></figure>
+    <figure><canvas id="p_rene" width="240" height="240"></canvas><figcaption><span class="tag">path</span><h2>Deux horloges</h2><p>Dans l'esprit de René : X avance à chaque pas, Y tous les 3 pas. La boucle fait 12 pas et ne visite que certaines cases. Changer la division de Y change le motif.</p></figcaption></figure>
+  </div>
+
+  <h2>Blocs × Rez</h2>
+  <div class="grid">
+    <figure><canvas id="rez44" width="240" height="240"></canvas><figcaption><span class="tag">H2</span><h2>Plateau 4×4</h2><p>Les blocs de H sur un plateau en fil de fer, sous un horizon en lignes de fuite. Un viseur verrouille le pas qui joue. Le bloc saute en rose, une onde carrée court sur le sol et des éclats s'envolent. À chaque temps, le plateau pulse.</p></figcaption></figure>
+    <figure><canvas id="rez28" width="240" height="240"></canvas><figcaption><span class="tag">H3</span><h2>Piste 2×8</h2><p>Le même monde, en deux rangées de 8 comme les touches : les pas 1 à 8 au fond, 9 à 16 devant. Les blocs sont plus fins, la grille se lit comme le clavier.</p></figcaption></figure>
+    <figure><canvas id="rezheld" width="240" height="240"></canvas><figcaption><span class="tag">H2</span><h2>Pas tenu</h2><p>Le plateau se range à gauche, le bloc tenu se soulève en orange et les autres s'éteignent. Ses attributs s'affichent à droite.</p></figcaption></figure>
+  </div>
+
+  <h2>Nouvelles pistes</h2>
+  <div class="grid">
+    <figure><canvas id="vec" width="240" height="240"></canvas><figcaption><span class="tag">G</span><h2>Vecteur</h2><p>Du fil de fer et des aplats d'un seul ton, sans relief. Chaque pas est un hexagone tracé au trait. Un pas actif se remplit, d'autant plus que la note est forte. Le pas qui joue s'allume en rose entre deux crochets.</p></figcaption></figure>
+    <figure><canvas id="iso" width="240" height="240"></canvas><figcaption><span class="tag">H</span><h2>Blocs</h2><p>La grille 4×4 posée en vue isométrique : chaque pas est un bloc low poly, comme les volumes des synthés, plus haut quand la note est forte. Pas de perspective, donc la grille reste droite. La note est écrite sur le dessus.</p></figcaption></figure>
+    <figure><canvas id="lock" width="240" height="240"></canvas><figcaption><span class="tag">I</span><h2>Cibles</h2><p>Une idée tirée de Rez : chaque pas est un losange-cible, et un viseur saute de cible en cible avec le tempo. Une note jouée verrouille sa cible, qui éclate en quatre éclats roses.</p></figcaption></figure>
+  </div>
+
+  <h2>Le round des ronds</h2>
+  <div class="grid">
+    <figure><canvas id="padsLite" width="240" height="240"></canvas><figcaption><span class="tag">E2</span><h2>Matrice épurée</h2><p>Le rond, sa note, un arc fin pour la vélocité. Un seul point orange dit « ce pas a autre chose » : ratchet, probabilité, condition, p-lock ou slide. On le tient pour voir le détail. Un trait vert seulement pour une note plus longue qu'un pas.</p></figcaption></figure>
+    <figure><canvas id="padsBare" width="240" height="240"></canvas><figcaption><span class="tag">E3</span><h2>Matrice nue</h2><p>Une bille dont la taille donne la vélocité, et sa note. Rien d'autre tant qu'on ne tient pas le pas. Un pas éteint n'est qu'un point.</p></figcaption></figure>
+    <figure><canvas id="pads2" width="240" height="240"></canvas><figcaption><span class="tag">E</span><h2>Matrice complète</h2><p>La version d'avant, pour comparer.</p></figcaption></figure>
+  </div>
+
+  <h2>Les autres grilles de ronds</h2>
+  <div class="grid">
+    <figure><canvas id="dots" width="240" height="240"></canvas><figcaption><span class="tag">D</span><h2>Grille de points</h2><p>16 colonnes, une ligne par degré de la gamme, un point discret à chaque case. Une note est une bille sur sa ligne, d'autant plus grosse qu'elle est forte. Les petits points qui la suivent donnent sa durée. La colonne qui joue s'allume.</p></figcaption></figure>
+    <figure><canvas id="pads" width="240" height="240"></canvas><figcaption><span class="tag">E</span><h2>Matrice 4×4</h2><p>Les 16 pas en 16 gros ronds qui portent leur note. L'arc bleu autour donne la vélocité, le trait vert dessous la durée. Les points dans le rond comptent les ratchets, l'arc en tirets montre la probabilité, le point orange signale les p-locks.</p></figcaption></figure>
+    <figure><canvas id="lanes" width="240" height="240"></canvas><figcaption><span class="tag">F</span><h2>Quatre pistes</h2><p>La piste éditée en grand, les trois autres en petit, chacune avec sa longueur et sa division. On voit les polyrythmes tourner : 16 pas en 1/16, 12 pas en 1/8T, 7 pas en 1/16.</p></figcaption></figure>
+    <figure><canvas id="heldr" width="240" height="240"></canvas><figcaption><span class="tag">commun</span><h2>Pas tenu</h2><p>Le pas en grande bille avec sa note, l'arc de vélocité et le trait de durée. À droite, ses attributs : celui que règle PRESET est surligné.</p></figcaption></figure>
+  </div>
+
+  <h2>Le round précédent</h2>
+  <div class="grid">
+    <figure><canvas id="tiles" width="240" height="240"></canvas><figcaption><span class="tag">A</span><h2>Tuiles</h2><p>Deux rangées de 8 tuiles, comme les touches. La tuile porte sa note. Dessous, une barre verte pour la durée. Dedans : la vélocité en bas, les ratchets en traits, la probabilité ou la condition en petit, un coin orange pour les p-locks.</p></figcaption></figure>
+    <figure><canvas id="bars" width="240" height="240"></canvas><figcaption><span class="tag">B</span><h2>Colonnes</h2><p>Les 16 pas sur une seule ligne, dans l'ordre des 16 blanches. La hauteur de la colonne donne la vélocité, avec la note écrite dessous. Une ligne de signes en bas pour ratchet, probabilité et condition.</p></figcaption></figure>
+    <figure><canvas id="roll" width="240" height="240"></canvas><figcaption><span class="tag">C</span><h2>Grille de notes</h2><p>Un piano-roll : une ligne par degré de la gamme (do mineur ici), les notes en barres taillées, longues comme leur durée. La colonne du pas joué s'éclaire. Les vélocités sont en bas.</p></figcaption></figure>
+    <figure><canvas id="held" width="240" height="240"></canvas><figcaption><span class="tag">commun</span><h2>Pas tenu</h2><p>Le même écran pour les trois. À gauche, le pas en grand. À droite, ses attributs, avec celui que règle PRESET surligné. Le pied montre les p-locks : valeur lockée en couleur, valeur de la piste en gris.</p></figcaption></figure>
+  </div>
+
+  <p class="foot">En rose : ce qui joue, et seulement ça. Les pas au-delà de la longueur disparaissent, et un repère orange marque la fin de la boucle.</p>
+</main>
+
+<script>
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+/* flat tones: [lit, base, shade] */
+const K = [["#8fb4ff", "#3a6dff", "#1c3590"], ["#8ff5c8", "#22d58e", "#0f6d48"], ["#ffffff", "#c9c3e4", "#6f6890"], ["#ffc196", "#ff7a2e", "#a3410c"]];
+const HOT = ["#ffb8dc", "#ff2f8e", "#8a1050"];
+const PIT = ["#120d26", "#1a1433", "#2a2348"];          /* a recessed socket: shade on top, lit below */
+const BAR = "#06041a", UI = "#8b84a8", TXT = "#f4f1ff", OFF = "#221a3a", BG = "#0c0820";
+const font = (px, w = 700) => `${w} ${px}px "Chakra Petch", sans-serif`;
+const poly = (c, pts, fill) => { c.fillStyle = fill; c.beginPath(); pts.forEach(([x, y]) => c.lineTo(x, y)); c.closePath(); c.fill(); };
+const text = (c, s, x, y, px, col, align = "left", w = 700) => { c.font = font(px, w); c.fillStyle = col; c.textAlign = align; c.textBaseline = "middle"; c.fillText(s, x, y); c.textAlign = "left"; };
+
+/* ---- the pattern: 14 steps, C minor ---- */
+const NAMES = { 0: "C", 2: "D", 3: "Eb", 5: "F", 7: "G", 8: "Ab", 10: "Bb" };
+const nname = n => NAMES[n % 12] + (Math.floor(n / 12) - 1);
+const LEN = 14, SPS = 0.125;
+const S = (n, o = {}) => ({ on: 1, n, v: 100, l: 4, r: 1, p: 100, c: "", s: 0, a: 0, k: 0, ...o });
+const PAT = [S(48, { v: 112, a: 1 }), { on: 0 }, S(51, { v: 80, l: 2, r: 2 }), { on: 0 }, S(55, { l: 12, s: 1, k: 2 }),
+  S(58, { v: 90 }), { on: 0 }, S(60, { v: 70, p: 50 }), S(48, { v: 124, a: 1 }), { on: 0 }, S(53, { v: 85, r: 4 }),
+  S(55, { v: 60, l: 2, c: "1:2" }), S(56, { l: 20, k: 1 }), S(58, { v: 76, p: 75 }), { on: 0 }, { on: 0 }];
+function play(t) {
+  const abs = t / SPS, loop = Math.floor(abs / LEN), ph = abs - loop * LEN, cur = Math.floor(ph), fr = ph - cur, st = PAT[cur];
+  let sounds = !!st.on;
+  if (st.c === "1:2") sounds = loop % 2 === 0;
+  if (st.on && st.p < 100) sounds = ((loop * 7 + cur * 3) % 10) < st.p / 10;
+  const e = sounds ? Math.exp(-((fr * (st.r || 1)) % 1) * 4) : 0;
+  return { loop, cur, sounds, hit: e > 0.4 };
+}
+
+/* a chamfered tile cut in facets: top and left lit, right and bottom in shade, the face in the base tone */
+function tile(c, x, y, w, h, cut, T, b = 3) {
+  const O = [[x + cut, y], [x + w - cut, y], [x + w, y + cut], [x + w, y + h - cut], [x + w - cut, y + h], [x + cut, y + h], [x, y + h - cut], [x, y + cut]];
+  const ci = Math.max(0, cut - b * 0.4);
+  const I = [[x + b + ci, y + b], [x + w - b - ci, y + b], [x + w - b, y + b + ci], [x + w - b, y + h - b - ci], [x + w - b - ci, y + h - b], [x + b + ci, y + h - b], [x + b, y + h - b - ci], [x + b, y + b + ci]];
+  const FT = [0, 0, 2, 2, 2, 1, 0, 0];
+  for (let i = 0; i < 8; i++) { const j = (i + 1) % 8; poly(c, [O[i], O[j], I[j], I[i]], T[FT[i]]); }
+  poly(c, I, T[1]);
+  return I;
+}
+
+function header(c, name, sub, right, hit) {
+  c.fillStyle = BAR; c.fillRect(0, 0, 240, 30);
+  poly(c, [[8, 7], [30, 7], [34, 11], [34, 23], [12, 23], [8, 19]], hit ? HOT[1] : K[1][1]);
+  text(c, "2", 17, 15.5, 13, BAR);
+  text(c, name, 42, 15.5, 15, TXT);
+  c.font = font(15); const w = c.measureText(name).width;
+  text(c, sub, 50 + w, 15.5, 12, K[3][1]);
+  text(c, right, 232, 15.5, 10, UI, "right", 500);
+}
+function footer(c, knobs) {
+  c.fillStyle = BAR; c.fillRect(0, 196, 240, 44);
+  knobs.forEach((k, i) => {
+    const [label, val, v, active] = k, x = 8 + i * 58, segs = 7, on = Math.round(v * segs);
+    for (let s = 0; s < segs; s++) poly(c, [[x + s * 5, 214], [x + s * 5 + 4, 204], [x + s * 5 + 7, 204], [x + s * 5 + 3, 214]], s < on ? (active ? K[i][1] : "#4a4466") : OFF);
+    text(c, val, x + 52, 210, 11, active ? TXT : UI, "right");
+    text(c, label, x, 228, 9, active ? K[i][0] : UI, "left", 500);
+  });
+}
+const PLAY_FOOT = [["LEN", "14", 14 / 64, 1], ["DIV", "1/16", 2 / 8, 1], ["PATTERN", "P1", 1 / 8, 1], ["SWING", "54%", 0.16, 1]];
+const frameUi = (c, P) => { header(c, "SEQ", "P1>P3", "1-16", P.hit); footer(c, PLAY_FOOT); };
+const band = c => { c.fillStyle = BG; c.fillRect(0, 30, 240, 166); };
+const tonesOf = (i, P, st) => !st.on ? PIT : i === P.cur && P.hit ? HOT : K[2];
+
+/* ===================== A. TILES ===================== */
+function tiles(c, t) {
+  const P = play(t);
+  band(c);
+  for (let i = 0; i < 16; i++) {
+    const st = PAT[i], x = 4 + (i % 8) * 29, y = i < 8 ? 38 : 114, w = 27, h = 54;
+    if (i >= LEN) { c.fillStyle = "#1a1433"; c.fillRect(x + w / 2 - 1, y + h / 2 - 1, 3, 3); continue; }
+    const T = tonesOf(i, P, st), I = tile(c, x, y, w, h, 6, T);
+    if (i === P.cur && !P.hit) { c.strokeStyle = TXT; c.lineWidth = 1; c.beginPath(); I.forEach(([a, b]) => c.lineTo(a + .5, b + .5)); c.closePath(); c.stroke(); }
+    if (!st.on) continue;
+    const ink = T === HOT ? "#3a0620" : BAR;
+    text(c, NAMES[st.n % 12], x + w / 2, y + 16, 12, ink, "center");
+    text(c, String(Math.floor(st.n / 12) - 1), x + w / 2, y + 27, 9, ink, "center", 500);
+    /* velocity: a strip along the face's foot */
+    c.fillStyle = T[2]; c.fillRect(x + 5, y + h - 9, w - 10, 3);
+    c.fillStyle = ink; c.fillRect(x + 5, y + h - 9, Math.round((w - 10) * st.v / 127), 3);
+    /* ratchets as ticks, else a probability or a condition */
+    if (st.r > 1) for (let k = 0; k < st.r; k++) { c.fillStyle = ink; c.fillRect(x + 7 + k * 4, y + 35, 2, 6); }
+    else if (st.c) text(c, st.c, x + w / 2, y + 38, 8, ink, "center");
+    else if (st.p < 100) text(c, st.p + "%", x + w / 2, y + 38, 8, ink, "center");
+    if (st.k) poly(c, [[x + w - 7, y], [x + w, y], [x + w, y + 7]], K[3][1]);
+    if (st.a) poly(c, [[x + w / 2 - 5, y - 1], [x + w / 2 + 5, y - 1], [x + w / 2, y + 3]], ink);
+    /* duration under the tile (to the row's end at most), slide as a chevron toward the next */
+    const L = Math.min(st.l / 8 * 29, (8 - i % 8) * 29) - 2;
+    poly(c, [[x + 1, y + h + 3], [x + 1 + L, y + h + 3], [x + L - 1, y + h + 6], [x + 1, y + h + 6]], K[1][1]);
+    if (st.s) poly(c, [[x + w, y + h / 2 - 4], [x + w + 2, y + h / 2], [x + w, y + h / 2 + 4]], K[1][0]);
+  }
+  /* the loop's end */
+  const ex = 4 + (LEN % 8) * 29 - 2, ey = LEN < 8 ? 38 : 114;
+  poly(c, [[ex, ey - 2], [ex + 2, ey - 2], [ex + 2, ey + 58], [ex, ey + 58]], K[3][1]);
+  frameUi(c, P);
+}
+
+/* ===================== B. COLUMNS ===================== */
+const colH = st => 18 + Math.round(st.v / 127 * 88);
+function bars(c, t) {
+  const P = play(t);
+  band(c);
+  const base = 146, pitch = 14.6, w = 12;
+  c.fillStyle = "#140f2a"; c.fillRect(0, base + 1, 240, 2);
+  for (let i = 0; i < LEN; i++) {
+    const st = PAT[i], xx = Math.round(3 + i * pitch);
+    if (i === P.cur) { c.fillStyle = "#1a1336"; c.fillRect(xx - 1, 34, w + 2, 160); }
+    if (!st.on) { tile(c, xx, base - 8, w, 8, 2, PIT, 2); continue; }
+    const T = tonesOf(i, P, st), h = colH(st);
+    /* a column with a cut top; ratchets split it */
+    const r = st.r, gap = 3, sh = (h - gap * (r - 1)) / r;
+    for (let k = 0; k < r; k++) { const y1 = base - k * (sh + gap); tile(c, xx, Math.round(y1 - sh), w, Math.round(sh), k === r - 1 ? 4 : 1, T, 2); }
+    if (st.a) poly(c, [[xx + 2, base - h - 6], [xx + w - 2, base - h - 6], [xx + w / 2, base - h - 2]], T === HOT ? HOT[1] : K[2][0]);
+    if (st.k) poly(c, [[xx + w - 5, base - h], [xx + w, base - h], [xx + w, base - h + 5]], K[3][1]);
+    /* duration on the floor */
+    const L = st.l / 8 * pitch - 2;
+    poly(c, [[xx, base + 4], [xx + L, base + 4], [xx + L - 2, base + 7], [xx, base + 7]], K[1][1]);
+    if (st.s) { c.strokeStyle = K[1][0]; c.lineWidth = 2; c.beginPath(); c.moveTo(xx + w, base - h + 4); c.lineTo(xx + pitch, base - colH(PAT[i + 1]) + 4); c.stroke(); }
+    text(c, NAMES[st.n % 12], xx + w / 2, base + 17, 10, T === HOT ? HOT[1] : TXT, "center");
+    text(c, String(Math.floor(st.n / 12) - 1), xx + w / 2, base + 28, 9, UI, "center", 500);
+    const g = st.c || (st.p < 100 ? String(st.p) : "") || (st.r > 1 ? "x" + st.r : "");
+    if (g) text(c, g, xx + w / 2, base + 42, 8, K[3][0], "center");
+  }
+  const ex = Math.round(3 + LEN * pitch) - 2;
+  poly(c, [[ex, 36], [ex + 2, 36], [ex + 2, 194], [ex, 194]], K[3][1]);
+  frameUi(c, P);
+}
+
+/* ===================== C. NOTE GRID ===================== */
+const DEG = [48, 50, 51, 53, 55, 56, 58, 60];          /* C minor, C3..C4 */
+function roll(c, t) {
+  const P = play(t);
+  band(c);
+  const top = 36, rh = 15, gx = 26, cw = 13.4, rows = DEG.length;
+  const rowY = n => top + (rows - 1 - DEG.indexOf(n)) * rh;
+  for (let k = 0; k < rows; k++) {
+    const y = top + (rows - 1 - k) * rh, root = DEG[k] % 12 === 0;
+    c.fillStyle = root ? "#171131" : k % 2 ? "#110c26" : "#0e0a20"; c.fillRect(gx, y, 240 - gx, rh);
+    text(c, nname(DEG[k]), 22, y + rh / 2, 9, root ? TXT : UI, "right", 500);
+  }
+  for (let i = 0; i <= 16; i++) { c.fillStyle = i % 4 ? "#1a1433" : "#2a2150"; c.fillRect(Math.round(gx + i * cw), top, 1, rows * rh); }
+  const ex = Math.round(gx + LEN * cw);
+  c.fillStyle = "#08051a"; c.fillRect(ex, top, 240 - ex, rows * rh);
+  c.fillStyle = K[3][1]; c.fillRect(ex - 1, top - 2, 2, rows * rh + 4);
+  c.fillStyle = "#2a2150"; c.fillRect(Math.round(gx + P.cur * cw), top, Math.round(cw), rows * rh);
+  for (let i = 0; i < LEN; i++) {
+    const st = PAT[i];
+    if (!st.on) continue;
+    const T = tonesOf(i, P, st), x = Math.round(gx + i * cw) + 1, y = rowY(st.n) + 2, L = Math.max(6, Math.round(st.l / 8 * cw) - 2);
+    const r = st.r, seg = (L - (r - 1) * 2) / r, solid = st.p < 100 ? Math.round(L * st.p / 100) : L;
+    for (let k = 0; k < r; k++) {
+      const sx = Math.round(x + k * (seg + 2)), sw = Math.max(2, Math.round(seg));
+      if (sx + sw <= x + solid) tile(c, sx, y, sw, rh - 4, Math.min(3, sw / 2), T, 2);
+      else {
+        if (sx < x + solid) tile(c, sx, y, x + solid - sx, rh - 4, 2, T, 2);
+        c.strokeStyle = T[1]; c.lineWidth = 1; c.strokeRect(Math.max(sx, x + solid) + .5, y + .5, sx + sw - Math.max(sx, x + solid) - 1, rh - 5);
+      }
+    }
+    if (st.a) poly(c, [[x, y - 1], [x + 6, y - 1], [x, y + 5]], T === HOT ? HOT[0] : K[2][0]);
+    if (st.k) poly(c, [[x + L - 5, y + rh - 4], [x + L, y + rh - 4], [x + L, y + rh - 9]], K[3][1]);
+    if (st.s) { c.strokeStyle = K[1][0]; c.lineWidth = 2; c.beginPath(); c.moveTo(x + L, y + (rh - 4) / 2); c.lineTo(Math.round(gx + (i + 1) * cw) + 1, rowY(PAT[i + 1].n) + 2 + (rh - 4) / 2); c.stroke(); }
+    /* velocity and signs in the lane below */
+    const vh = Math.round(st.v / 127 * 16);
+    poly(c, [[x + 1, 192], [x + 10, 192], [x + 10, 192 - vh], [x + 1, 192 - vh]], T === HOT ? HOT[1] : K[0][1]);
+    const g = st.c || (st.p < 100 ? String(st.p) : "");
+    if (g) text(c, g, x + 5, 168, 7, K[3][0], "center");
+  }
+  frameUi(c, P);
+}
+
+/* ===================== HELD (shared) ===================== */
+const ATTR = [["NOTE", "G3"], ["VEL", "100"], ["LEN", "1 1/2"], ["MICRO", "0"], ["PROB", "100%"], ["COND", "-"], ["RATCHET", "x1"], ["SLIDE", "ON"], ["ACCENT", "OFF"]];
+const HELD_FOOT = [["HARM", "84", 84 / 127, 1], ["TIMB", "64", 64 / 127, 0], ["MORPH", "64", 64 / 127, 0], ["DECAY", "40", 40 / 127, 1]];
+function held(c, t) {
+  band(c);
+  tile(c, 12, 42, 96, 118, 16, K[3], 5);
+  text(c, "G", 60, 88, 44, BAR, "center");
+  text(c, "3", 60, 120, 20, BAR, "center");
+  c.fillStyle = K[3][2]; c.fillRect(26, 142, 68, 5); c.fillStyle = BAR; c.fillRect(26, 142, Math.round(68 * 100 / 127), 5);
+  poly(c, [[12, 166], [12 + 72, 166], [12 + 68, 172], [12, 172]], K[1][1]);
+  text(c, "STEP 5 / 16", 60, 184, 9, UI, "center", 500);
+  const sel = [1, 2, 4, 5][Math.floor(t / 1.4) % 4], x0 = 120, w = 114, rh = 17;
+  ATTR.forEach(([l, v], i) => {
+    const y = 38 + i * rh;
+    if (i === sel) poly(c, [[x0, y], [x0 + w, y], [x0 + w, y + rh - 2], [x0 + 6, y + rh - 2], [x0, y + rh - 8]], K[3][1]);
+    else { c.fillStyle = "#1a1433"; c.fillRect(x0, y + rh - 2, w, 1); }
+    text(c, l, x0 + 8, y + 8, 10, i === sel ? BAR : UI, "left", 500);
+    text(c, v, x0 + w - 6, y + 8, 12, i === sel ? BAR : TXT, "right");
+  });
+  header(c, "STEP 5", "G3", "ENGINE", false);
+  footer(c, HELD_FOOT);
+}
+
+/* ===================== ROUND DOTS ===================== */
+const TAU = Math.PI * 2;
+/* a cut stone seen from above, as the synth scenes' solids: a 12-sided rim of facets around a flat table, each
+   facet in one of three flat tones by where it faces (the light from the upper left), a thin wire over the cuts */
+function marble(c, x, y, r, T) {
+  const n = 12, ti = 0.62, L = [-0.7071, -0.7071];
+  const O = [], I = [];
+  for (let k = 0; k < n; k++) { const a = -Math.PI / 2 + (k + 0.5) * TAU / n; O.push([x + Math.cos(a) * r, y + Math.sin(a) * r]); I.push([x + Math.cos(a) * r * ti, y + Math.sin(a) * r * ti]); }
+  for (let k = 0; k < n; k++) {
+    const j = (k + 1) % n, a = -Math.PI / 2 + (k + 1) * TAU / n, d = Math.cos(a) * L[0] + Math.sin(a) * L[1];
+    poly(c, [O[k], O[j], I[j], I[k]], d > 0.35 ? T[0] : d > -0.35 ? T[1] : T[2]);
+  }
+  poly(c, I, T[1]);
+  if (r > 6) { c.strokeStyle = T[2]; c.lineWidth = 1; c.beginPath(); I.forEach(([a, b]) => c.lineTo(a, b)); c.closePath(); c.stroke(); }
+}
+/* rings and arcs in straight cuts, 12 to the turn like the stones: no curve anywhere */
+function ring(c, x, y, r, col, lw = 1, a0 = -Math.PI / 2, a1 = a0 + TAU) {
+  const step = TAU / 12, pts = [];
+  for (let a = a0; a < a1 - 1e-6; a = Math.min(a1, Math.floor((a - a0) / step + 1 + 1e-6) * step + a0)) pts.push(a);
+  pts.push(a1);
+  c.strokeStyle = col; c.lineWidth = lw; c.lineJoin = "miter"; c.beginPath();
+  pts.forEach(a => c.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r)); c.stroke();
+}
+const dot = (c, x, y, r, col) => { c.fillStyle = col; c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill(); };
+/* the wave a note lets go of: a pink ring that widens and thins */
+function wave(c, x, y, r0, t) {
+  const k = (t / SPS) % 1;
+  if (k < 0.6) ring(c, x, y, r0 + k * 18, k < 0.3 ? HOT[1] : HOT[2], 2 - k * 2);
+}
+
+/* D. a dot grid on the scale */
+function dots(c, t) {
+  const P = play(t);
+  band(c);
+  const top = 38, rh = 15, gx = 30, cw = 13.1, rows = DEG.length;
+  const cx = i => gx + i * cw + cw / 2, cy = n => top + (rows - 1 - DEG.indexOf(n)) * rh + rh / 2;
+  for (let k = 0; k < rows; k++) {
+    const root = DEG[k] % 12 === 0;
+    text(c, nname(DEG[k]), 25, top + (rows - 1 - k) * rh + rh / 2, 9, root ? TXT : UI, "right", 500);
+    for (let i = 0; i < 16; i++) {
+      const lit = i === P.cur, past = i >= LEN;
+      dot(c, cx(i), top + (rows - 1 - k) * rh + rh / 2, lit ? 1.6 : 1.1, past ? "#151030" : lit ? "#8b84a8" : i % 4 ? "#2a2348" : "#3d3466");
+    }
+  }
+  poly(c, [[gx + LEN * cw - 1, top], [gx + LEN * cw + 1, top], [gx + LEN * cw + 1, top + rows * rh], [gx + LEN * cw - 1, top + rows * rh]], K[3][1]);
+  for (let i = 0; i < LEN; i++) {
+    const st = PAT[i];
+    if (!st.on) continue;
+    const x = cx(i), y = cy(st.n), r = 3 + st.v / 127 * 3.4, hot = i === P.cur && P.hit, T = hot ? HOT : K[2];
+    /* duration: a trail of small dots, one per half step past the first */
+    for (let k = 1; k < st.l / 4; k++) dot(c, x + k * cw / 2, y, 1.4, K[1][1]);
+    if (st.s) { c.strokeStyle = K[1][0]; c.lineWidth = 1.5; c.beginPath(); c.moveTo(x, y); c.lineTo(cx(i + 1), cy(PAT[i + 1].n)); c.stroke(); }
+    if (st.p < 100) { ring(c, x, y, r - 0.5, T[1], 1.5); } else marble(c, x, y, r, T);
+    if (st.a) ring(c, x, y, r + 2, T[0], 1);
+    for (let k = 0; k < st.r - 1; k++) dot(c, x - 3 + k * 3, y + r + 3, 1, K[2][1]);
+    if (st.k) dot(c, x + r, y - r, 1.6, K[3][1]);
+    if (hot) wave(c, x, y, r, t);
+    const g = st.c || (st.p < 100 ? String(st.p) : "") || (st.r > 1 ? "x" + st.r : "");
+    if (g) text(c, g, x, 168, 7, K[3][0], "center");
+  }
+  for (const i of [0, 4, 8, 12]) text(c, String(i + 1), cx(i), 184, 8, i === Math.floor(P.cur / 4) * 4 ? TXT : UI, "center", 500);
+  frameUi(c, P);
+}
+
+/* E. a 4 x 4 of big round pads */
+function pads(c, t) {
+  const P = play(t);
+  band(c);
+  for (let i = 0; i < 16; i++) {
+    const st = PAT[i], x = 30 + (i % 4) * 60, y = 50 + Math.floor(i / 4) * 39, r = 14;
+    if (i >= LEN) { dot(c, x, y, 1.5, "#2a2348"); continue; }
+    if (!st.on) { ring(c, x, y, r - 1, i === P.cur ? UI : "#2a2348", 1.5); text(c, String(i + 1), x, y, 8, "#3d3466", "center", 500); continue; }
+    const hot = i === P.cur && P.hit, T = hot ? HOT : K[2], ink = hot ? "#3a0620" : BAR;
+    /* velocity: a blue arc from the top; probability: the arc in dashes, as many lit as the chance */
+    ring(c, x, y, r + 3, "#1e1840", 2);
+    if (st.p < 100) { const n = 10; for (let k = 0; k < n; k++) { const a = -Math.PI / 2 + k * TAU / n; ring(c, x, y, r + 3, k < st.p / 10 ? K[0][1] : "#2a2348", 2, a + 0.08, a + TAU / n - 0.08); } }
+    else ring(c, x, y, r + 3, K[0][1], 2, -Math.PI / 2, -Math.PI / 2 + TAU * st.v / 127);
+    marble(c, x, y, r, T);
+    if (i === P.cur && !hot) ring(c, x, y, r + 6, TXT, 1);
+    text(c, NAMES[st.n % 12], x, y - 2, 12, ink, "center");
+    text(c, st.c || String(Math.floor(st.n / 12) - 1), x, y + 8, 8, ink, "center", 500);
+    for (let k = 0; k < st.r && st.r > 1; k++) dot(c, x - 4.5 + k * 3, y - 11, 1.1, ink);
+    if (st.k) dot(c, x + 13, y - 13, 2.5, K[3][1]);
+    if (st.a) poly(c, [[x - 4, y - r - 7], [x + 4, y - r - 7], [x, y - r - 3]], T[0]);
+    /* duration: a green stroke under the pad, chevrons when it runs past the step */
+    const L = Math.min(st.l, 8) / 8 * 26;
+    c.fillStyle = K[1][1]; c.fillRect(x - 13, y + r + 5, L, 2);
+    for (let k = 0; k < Math.floor((st.l - 1) / 8); k++) poly(c, [[x + 16 + k * 4, y + r + 3], [x + 19 + k * 4, y + r + 6], [x + 16 + k * 4, y + r + 9]], K[1][0]);
+    if (st.s) poly(c, [[x + r + 6, y - 3], [x + r + 9, y], [x + r + 6, y + 3]], K[1][0]);
+    if (hot) wave(c, x, y, r, t);
+  }
+  frameUi(c, P);
+}
+
+/* F. the four tracks, the edited one large: each its own length and division */
+const TRK = [
+  { len: 16, sps: 0.125, on: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0], v: 110, col: K[0] },
+  { len: LEN, sps: SPS, col: K[1] },
+  { len: 12, sps: 1 / 6, on: [1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0], v: 80, col: K[2] },
+  { len: 7, sps: 0.125, on: [1, 1, 0, 1, 0, 1, 1], v: 95, col: K[3] }];
+function lanes(c, t) {
+  const P = play(t);
+  band(c);
+  const gx = 26, cw = 13.2, cx = i => gx + i * cw + cw / 2;
+  const small = [[0, 46], [2, 162], [3, 182]];
+  for (const [k, y] of small) {
+    const tr = TRK[k], cur = Math.floor(t / tr.sps) % tr.len, fr = (t / tr.sps) % 1;
+    poly(c, [[6, y - 6], [16, y - 6], [18, y - 4], [18, y + 6], [8, y + 6], [6, y + 4]], tr.col[1]);
+    text(c, String(k + 1), 12, y, 8, BAR, "center");
+    for (let i = 0; i < 16; i++) {
+      if (i >= tr.len) { dot(c, cx(i), y, 0.8, "#1a1433"); continue; }
+      const on = tr.on[i], hot = on && i === cur && fr < 0.4;
+      if (on) marble(c, cx(i), y, 3.6, hot ? HOT : tr.col); else dot(c, cx(i), y, 1.2, i === cur ? UI : "#2a2348");
+    }
+    poly(c, [[gx + tr.len * cw - 1, y - 6], [gx + tr.len * cw + 1, y - 6], [gx + tr.len * cw + 1, y + 6], [gx + tr.len * cw - 1, y + 6]], "#4a3a22");
+  }
+  /* the edited track, track 2 */
+  const y = 98;
+  poly(c, [[4, 62], [20, 62], [24, 66], [24, 140], [8, 140], [4, 136]], "#131030");
+  poly(c, [[6, y - 8], [18, y - 8], [20, y - 6], [20, y + 8], [8, y + 8], [6, y + 6]], P.hit ? HOT[1] : K[1][1]);
+  text(c, "2", 13, y, 10, BAR, "center");
+  c.fillStyle = "#140f2a"; c.fillRect(gx, 62, 240 - gx, 78);
+  for (let i = 0; i < 16; i++) {
+    const st = PAT[i], x = cx(i);
+    if (i === P.cur) { c.fillStyle = "#211a42"; c.fillRect(gx + i * cw, 62, cw, 78); }
+    if (i >= LEN) { dot(c, x, y, 1, "#1a1433"); continue; }
+    if (!st.on) { dot(c, x, y, 1.6, i % 4 ? "#2a2348" : "#3d3466"); continue; }
+    const hot = i === P.cur && P.hit, T = hot ? HOT : K[2], r = 3 + st.v / 127 * 2.6;
+    const yy = y + 20 - (st.n - 48) * 3.3;            /* the note lifts the marble a little */
+    c.fillStyle = "#2a2348"; c.fillRect(x - 0.5, yy, 1, y + 26 - yy);
+    marble(c, x, yy, r, T);
+    if (st.k) dot(c, x + r, yy - r, 1.5, K[3][1]);
+    if (hot) wave(c, x, yy, r, t);
+    text(c, NAMES[st.n % 12], x, 132, 8, hot ? HOT[1] : TXT, "center");
+  }
+  poly(c, [[gx + LEN * cw - 1, 62], [gx + LEN * cw + 1, 62], [gx + LEN * cw + 1, 140], [gx + LEN * cw - 1, 140]], K[3][1]);
+  frameUi(c, P);
+}
+
+function heldr(c, t) {
+  band(c);
+  const x = 60, y = 100, r = 40;
+  ring(c, x, y, r + 6, "#1e1840", 4);
+  ring(c, x, y, r + 6, K[0][1], 4, -Math.PI / 2, -Math.PI / 2 + TAU * 100 / 127);
+  marble(c, x, y, r, K[3]);
+  text(c, "G", x, y - 6, 36, BAR, "center");
+  text(c, "3", x, y + 22, 16, BAR, "center");
+  c.fillStyle = K[1][1]; c.fillRect(x - 40, y + 56, 60, 3);
+  poly(c, [[x + 24, y + 53], [x + 28, y + 57.5], [x + 24, y + 62]], K[1][0]);
+  text(c, "STEP 5 / 16", x, 184, 9, UI, "center", 500);
+  const sel = [1, 2, 4, 5][Math.floor(t / 1.4) % 4], x0 = 120, w = 114, rh = 17;
+  ATTR.forEach(([l, v], i) => {
+    const yy = 38 + i * rh;
+    if (i === sel) poly(c, [[x0, yy], [x0 + w, yy], [x0 + w, yy + rh - 2], [x0 + 6, yy + rh - 2], [x0, yy + rh - 8]], K[3][1]);
+    else { c.fillStyle = "#1a1433"; c.fillRect(x0, yy + rh - 2, w, 1); }
+    text(c, l, x0 + 8, yy + 8, 10, i === sel ? BAR : UI, "left", 500);
+    text(c, v, x0 + w - 6, yy + 8, 12, i === sel ? BAR : TXT, "right");
+  });
+  header(c, "STEP 5", "G3", "ENGINE", false);
+  footer(c, HELD_FOOT);
+}
+
+/* E2. the 4 x 4, cleaned: the note and a thin velocity arc; one orange mark says "this step has more" (ratchet,
+   probability, condition, p-lock, slide), a green stroke only for a note longer than its step */
+const extra = st => st.r > 1 || st.p < 100 || st.c || st.k || st.s;
+function padsLite(c, t) {
+  const P = play(t);
+  band(c);
+  for (let i = 0; i < 16; i++) {
+    const st = PAT[i], x = 30 + (i % 4) * 60, y = 50 + Math.floor(i / 4) * 39, r = 14;
+    if (i >= LEN) continue;
+    if (!st.on) { ring(c, x, y, r, i === P.cur ? UI : "#241d40", 1.5); continue; }
+    const hot = i === P.cur && P.hit, T = hot ? HOT : K[2];
+    ring(c, x, y, r + 3, K[0][1], 1.5, -Math.PI / 2, -Math.PI / 2 + TAU * st.v / 127);
+    marble(c, x, y, r, T);
+    if (i === P.cur && !hot) ring(c, x, y, r + 6, TXT, 1);
+    text(c, NAMES[st.n % 12], x, y + 1, 12, hot ? "#3a0620" : BAR, "center");
+    if (extra(st)) dot(c, x + 12, y - 12, 2.2, K[3][1]);
+    if (st.l > 8) { c.fillStyle = K[1][1]; c.fillRect(x - 8, y + r + 5, 16, 2); }
+    if (hot) wave(c, x, y, r, t);
+  }
+  frameUi(c, P);
+}
+
+/* E3. the 4 x 4, bare: a marble sized by velocity, its note; nothing else until the step is held */
+function padsBare(c, t) {
+  const P = play(t);
+  band(c);
+  for (let i = 0; i < 16; i++) {
+    const st = PAT[i], x = 30 + (i % 4) * 60, y = 50 + Math.floor(i / 4) * 39;
+    if (i >= LEN) continue;
+    if (!st.on) { dot(c, x, y, 2, i === P.cur ? TXT : "#2a2348"); continue; }
+    const hot = i === P.cur && P.hit, r = 8 + st.v / 127 * 8;
+    marble(c, x, y, r, hot ? HOT : K[2]);
+    if (i === P.cur && !hot) ring(c, x, y, r + 4, TXT, 1);
+    text(c, NAMES[st.n % 12], x, y + 1, r > 13 ? 12 : 10, hot ? "#3a0620" : BAR, "center");
+    if (hot) wave(c, x, y, r, t);
+  }
+  frameUi(c, P);
+}
+
+/* ===================== NEW TRACKS ===================== */
+const PX = i => 30 + (i % 4) * 60, PY = i => 50 + Math.floor(i / 4) * 39;
+const hexPts = (x, y, r) => Array.from({ length: 6 }, (_, k) => { const a = k * TAU / 6; return [x + Math.cos(a) * r, y + Math.sin(a) * r * 0.92]; });
+const stroke = (c, pts, col, lw = 1, close = true) => { c.strokeStyle = col; c.lineWidth = lw; c.lineJoin = "miter"; c.beginPath(); pts.forEach(([a, b]) => c.lineTo(a, b)); if (close) c.closePath(); c.stroke(); };
+
+/* G. vector: wire hexagons, a flat fill sized by velocity */
+function vec(c, t) {
+  const P = play(t);
+  band(c, "#08051a");
+  for (let i = 0; i < 16; i++) {
+    const st = PAT[i], x = PX(i), y = PY(i);
+    if (i >= LEN) { dot(c, x, y, 1, "#1e1840"); continue; }
+    const cur = i === P.cur, hot = cur && P.hit;
+    stroke(c, hexPts(x, y, 17), hot ? HOT[1] : cur ? TXT : st.on ? "#5b4a8c" : "#2a2348", hot ? 2 : 1);
+    if (!st.on) continue;
+    poly(c, hexPts(x, y, 7 + st.v / 127 * 8.5), hot ? HOT[1] : K[2][1]);
+    text(c, NAMES[st.n % 12], x, y + 1, 11, hot ? "#3a0620" : BAR, "center");
+    if (extra(st)) poly(c, [[x + 13, y - 15], [x + 18, y - 15], [x + 18, y - 10]], K[3][1]);
+    if (st.l > 8) { c.fillStyle = K[1][1]; c.fillRect(x - 8, y + 19, 16, 2); }
+    if (cur) { c.strokeStyle = hot ? HOT[1] : TXT; c.lineWidth = 1;
+      for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { c.beginPath(); c.moveTo(x + sx * 24, y + sy * 13); c.lineTo(x + sx * 24, y + sy * 18); c.lineTo(x + sx * 19, y + sy * 18); c.stroke(); } }
+  }
+  frameUi(c, P);
+}
+
+/* H. isometric blocks: three flat tones, the light from the upper left, drawn back to front */
+function iso(c, t) {
+  const P = play(t);
+  band(c);
+  const A = 24, B = 12, ox = 120, oy = 58;
+  const at = (gx, gy) => [ox + (gx - gy) * A, oy + (gx + gy) * B];
+  /* the floor's outline and cells */
+  for (let k = 0; k <= 4; k++) {
+    c.strokeStyle = "#2a2150"; c.lineWidth = 1;
+    let [a, b] = [at(k, 0), at(k, 4)]; c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke();
+    [a, b] = [at(0, k), at(4, k)]; c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke();
+  }
+  const order = [...Array(16).keys()].sort((p, q) => (p % 4 + Math.floor(p / 4)) - (q % 4 + Math.floor(q / 4)));
+  for (const i of order) {
+    const st = PAT[i], gx = i % 4, gy = Math.floor(i / 4), m = 0.14;
+    if (i >= LEN) continue;
+    const p0 = at(gx + m, gy + m), p1 = at(gx + 1 - m, gy + m), p2 = at(gx + 1 - m, gy + 1 - m), p3 = at(gx + m, gy + 1 - m);
+    const cur = i === P.cur, hot = cur && P.hit;
+    if (!st.on) { poly(c, [p0, p1, p2, p3], cur ? "#3d3466" : "#1a1433"); continue; }
+    const T = hot ? HOT : K[2], h = 6 + Math.round(st.v / 127 * 24) + (hot ? 4 : 0), up = ([x, y]) => [x, y - h];
+    poly(c, [p3, p2, up(p2), up(p3)], T[1]);          /* left face, toward the viewer's left */
+    poly(c, [p1, p2, up(p2), up(p1)], T[2]);          /* right face */
+    poly(c, [up(p0), up(p1), up(p2), up(p3)], T[0]);  /* top */
+    stroke(c, [up(p0), up(p1), up(p2), up(p3)], T[2], 1);
+    const [tx, ty] = up(at(gx + 0.5, gy + 0.5));
+    text(c, NAMES[st.n % 12], tx, ty, 10, hot ? "#3a0620" : BAR, "center");
+    if (extra(st)) { const q = up(p1); poly(c, [[q[0] - 6, q[1] - 1], [q[0], q[1] - 4], [q[0], q[1] + 2]], K[3][1]); }
+    if (cur && !hot) stroke(c, [up(p0), up(p1), up(p2), up(p3)], TXT, 1);
+  }
+  frameUi(c, P);
+}
+
+/* I. targets: flat diamonds, a lock-on sight that hops with the tempo, a locked target bursts in four shards */
+function lock(c, t) {
+  const P = play(t), abs = t / SPS, fr = abs % 1;
+  band(c, "#08051a");
+  /* faint scan lines, Rez-like */
+  c.fillStyle = "#0f0a24"; for (let y = 34; y < 196; y += 6) c.fillRect(0, y, 240, 1);
+  for (let i = 0; i < LEN; i++) {
+    const st = PAT[i], x = PX(i), y = PY(i);
+    if (!st.on) { poly(c, [[x, y - 3], [x + 3, y], [x, y + 3], [x - 3, y]], "#2a2348"); continue; }
+    const r = 9 + st.v / 127 * 7, hot = i === P.cur && P.hit, k = fr;
+    if (hot) {
+      const d = 2 + k * 14;
+      [[0, -1], [1, 0], [0, 1], [-1, 0]].forEach(([dx, dy], q) => {
+        const cx = x + dx * d * 0.7, cy = y + dy * d * 0.7, nx = [[0, -1], [1, 0], [0, 1], [-1, 0]][(q + 1) % 4];
+        poly(c, [[cx + dx * r * 0.2, cy + dy * r * 0.2], [cx + dx * r, cy + dy * r], [cx + nx[0] * r * 0.7 + dx * r * 0.3, cy + nx[1] * r * 0.7 + dy * r * 0.3]], q % 2 ? HOT[1] : HOT[0]);
+      });
+    } else {
+      poly(c, [[x, y - r], [x + r, y], [x, y + r], [x - r, y]], K[2][1]);
+      poly(c, [[x, y - r], [x + r, y], [x, y]], K[2][0]);
+      stroke(c, [[x, y - r], [x + r, y], [x, y + r], [x - r, y]], "#3a6dff", 1);
+      text(c, NAMES[st.n % 12], x, y + 1, 10, BAR, "center");
+    }
+    if (extra(st)) poly(c, [[x + r + 2, y - 2], [x + r + 6, y - 2], [x + r + 4, y + 2]], K[3][1]);
+  }
+  /* the sight glides to the next step during the last fifth of each step */
+  const nxt = (P.cur + 1) % LEN, e = Math.max(0, (fr - 0.8) / 0.2), sx = PX(P.cur) + (PX(nxt) - PX(P.cur)) * e, sy = PY(P.cur) + (PY(nxt) - PY(P.cur)) * e;
+  const s = P.hit ? 14 : 19, col = P.hit ? HOT[1] : K[1][0];
+  c.strokeStyle = col; c.lineWidth = 2;
+  for (const [ax, ay] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { c.beginPath(); c.moveTo(sx + ax * s, sy + ay * (s - 6)); c.lineTo(sx + ax * s, sy + ay * s); c.lineTo(sx + ax * (s - 6), sy + ay * s); c.stroke(); }
+  if (P.hit) text(c, "LOCK", sx, sy + s + 7, 7, HOT[0], "center");
+  frameUi(c, P);
+}
+
+/* ===================== BLOCKS x REZ ===================== */
+/* the backdrop: lines running out from a vanishing point and bands sliding toward the viewer, both faint */
+function horizon(c, t) {
+  band(c, "#07041a");
+  const vx = 120, vy = 34;
+  c.strokeStyle = "#160f36"; c.lineWidth = 1;
+  for (let k = -8; k <= 8; k++) { c.beginPath(); c.moveTo(vx, vy); c.lineTo(vx + k * 40, 196); c.stroke(); }
+  for (let k = 0; k < 6; k++) { const p = ((k + (t * 0.5) % 1) / 6) ** 2; const y = Math.round(vy + p * 162) + .5; c.beginPath(); c.moveTo(0, y); c.lineTo(240, y); c.stroke(); }
+  /* two wire cubes drifting high up */
+  [[28, 50, 0], [212, 46, 1]].forEach(([x, y, k]) => {
+    const a = t * 0.6 + k * 2, s = 7, p = [0, 1, 2, 3].map(q => [x + Math.cos(a + q * TAU / 4) * s, y + Math.sin(a + q * TAU / 4) * s * 0.5]);
+    stroke(c, p, "#2a1d55"); stroke(c, p.map(([u, w]) => [u, w - 9]), "#2a1d55");
+    p.forEach(([u, w]) => { c.beginPath(); c.moveTo(u, w); c.lineTo(u, w - 9); c.stroke(); });
+  });
+}
+/* o: cols, rows, A, B (half cell width and height on screen), ox, oy, hmax, held (step index or -1) */
+function plateau(c, t, o) {
+  const P = o.path ? playPath(t, o.path) : play(t), abs = t / SPS, fr = abs % 1, held = o.held ?? -1, N = o.len ?? LEN;
+  const at = (gx, gy) => [o.ox + (gx - gy) * o.A, o.oy + (gx + gy) * o.B];
+  const cell = i => [i % o.cols, Math.floor(i / o.cols)];
+  const beat = held < 0 ? Math.max(0, 1 - ((abs % 4) / 4) * 3) : 0;   /* the plateau's pulse on each beat */
+  /* floor: every cell's outline, brighter near the step that plays during a beat's pulse */
+  const [pcx, pcy] = cell(P.cur);
+  for (let i = 0; i < o.cols * o.rows; i++) {
+    const [gx, gy] = cell(i), d = Math.hypot(gx - pcx, gy - pcy);
+    const q = [at(gx, gy), at(gx + 1, gy), at(gx + 1, gy + 1), at(gx, gy + 1)];
+    poly(c, q, i >= N ? "#06031a" : "#0e0a26");
+    stroke(c, q, i >= N ? "#120c2c" : beat * Math.max(0, 1 - d / 3) > 0.25 ? "#5b2f8c" : "#2a1d55");
+  }
+  /* the loop's end: an orange edge after the last step */
+  if (N < o.cols * o.rows) { const [gx, gy] = cell(N); c.strokeStyle = K[3][1]; c.lineWidth = 2; c.beginPath(); c.moveTo(...at(gx, gy)); c.lineTo(...at(gx, gy + 1)); c.stroke(); }
+  /* the floor's square wave from a hit */
+  if (held < 0 && P.hit) {
+    const k = fr, g = 0.5 + k * 1.6;
+    stroke(c, [at(pcx + 0.5 - g, pcy + 0.5 - g), at(pcx + 0.5 + g, pcy + 0.5 - g), at(pcx + 0.5 + g, pcy + 0.5 + g), at(pcx + 0.5 - g, pcy + 0.5 + g)], k < 0.4 ? HOT[1] : HOT[2], 1.5);
+  }
+  const order = [...Array(o.cols * o.rows).keys()].sort((p, q) => { const [a, b] = cell(p), [e, f] = cell(q); return a + b - (e + f); });
+  for (const i of order) {
+    if (i >= N) continue;
+    const st = PAT[i], [gx, gy] = cell(i), m = o.m ?? 0.18, cur = held < 0 && i === P.cur, hot = cur && P.hit, isHeld = i === held;
+    const p0 = at(gx + m, gy + m), p1 = at(gx + 1 - m, gy + m), p2 = at(gx + 1 - m, gy + 1 - m), p3 = at(gx + m, gy + 1 - m);
+    if (!st.on) { poly(c, [p0, p1, p2, p3], cur ? "#2f2756" : "#16112f"); continue; }
+    /* a long note: a green strip on the floor toward the next cells */
+    if (st.l > 4) { const L = Math.min(st.l / 8, o.cols - gx - m); const a = at(gx + 0.5, gy + 0.62), b = at(gx + 0.5 + L, gy + 0.62), d = at(gx + 0.5 + L, gy + 0.72), e = at(gx + 0.5, gy + 0.72); poly(c, [a, b, d, e], held >= 0 && !isHeld ? "#1f3a33" : K[1][2]); }
+    const T = isHeld ? K[3] : held >= 0 ? DIMT : hot ? HOT : K[2];
+    const lift = isHeld ? 10 : hot ? Math.round(6 * (1 - fr)) : 0, h = 5 + Math.round(st.v / 127 * o.hmax);
+    const up = ([x, y]) => [x, y - h - lift], fl = ([x, y]) => [x, y - lift];
+    poly(c, [fl(p3), fl(p2), up(p2), up(p3)], T[1]);
+    poly(c, [fl(p1), fl(p2), up(p2), up(p1)], T[2]);
+    poly(c, [up(p0), up(p1), up(p2), up(p3)], T[0]);
+    stroke(c, [up(p0), up(p1), up(p2), up(p3)], T[2]);
+    const [tx, ty] = up(at(gx + 0.5, gy + 0.5));
+    text(c, NAMES[st.n % 12], tx, ty, o.fs ?? 10, hot ? "#3a0620" : BAR, "center");
+    if (extra(st)) { const q = up(p1); poly(c, [[q[0] - 6, q[1] - 1], [q[0], q[1] - 4], [q[0], q[1] + 2]], held >= 0 && !isHeld ? "#4a3a22" : K[3][1]); }
+    /* shards flying up from a hit */
+    if (hot) for (let s = 0; s < 3; s++) { const sx = tx + (s - 1) * 9, sy = ty - 6 - fr * 26 - s * 3; poly(c, [[sx, sy - 3], [sx + 3, sy + 1], [sx - 2, sy + 2]], s % 2 ? HOT[0] : HOT[1]); }
+  }
+  /* the reading path: a line through the cells in the order they play, an arrow on each hop */
+  if (o.path) {
+    const ctr = i => { const [gx, gy] = cell(i); return at(gx + 0.5, gy + 0.5); }, seen = new Set();
+    c.strokeStyle = "#8a6ad8"; c.lineWidth = 1;
+    o.path.forEach((s, k) => {
+      const e = o.path[(k + 1) % o.path.length], key = s + ">" + e;
+      if (seen.has(key) || s === e) return; seen.add(key);
+      const [ax, ay] = ctr(s), [bx, by] = ctr(e), mx = (ax + bx) / 2, my = (ay + by) / 2, an = Math.atan2(by - ay, bx - ax);
+      c.beginPath(); c.moveTo(ax, ay); c.lineTo(bx, by); c.stroke();
+      poly(c, [[mx + Math.cos(an) * 4, my + Math.sin(an) * 4], [mx + Math.cos(an + 2.4) * 4, my + Math.sin(an + 2.4) * 4], [mx + Math.cos(an - 2.4) * 4, my + Math.sin(an - 2.4) * 4]], "#b89cff");
+    });
+  }
+  /* the sight: diamond brackets locked on the playing cell */
+  if (held < 0) {
+    const g = P.hit ? 0.02 : 0.12, col = P.hit ? HOT[1] : K[1][0];
+    const cs = [at(pcx - g, pcy - g), at(pcx + 1 + g, pcy - g), at(pcx + 1 + g, pcy + 1 + g), at(pcx - g, pcy + 1 + g)];
+    c.strokeStyle = col; c.lineWidth = 2;
+    cs.forEach((p, k) => { const a = cs[(k + 3) % 4], b = cs[(k + 1) % 4], f = 0.3; c.beginPath(); c.moveTo(p[0] + (a[0] - p[0]) * f, p[1] + (a[1] - p[1]) * f); c.lineTo(...p); c.lineTo(p[0] + (b[0] - p[0]) * f, p[1] + (b[1] - p[1]) * f); c.stroke(); });
+    /* arcade read-out */
+    text(c, "STEP " + String(P.cur + 1).padStart(2, "0"), 8, 42, 9, P.hit ? HOT[1] : K[1][0], "left");
+    text(c, PAT[P.cur].on ? nname(PAT[P.cur].n) : "--", 232, 42, 12, P.hit ? HOT[1] : UI, "right");
+  }
+  return P;
+}
+const DIMT = ["#4a4466", "#332e4c", "#221d36"];
+function rez44(c, t) { horizon(c, t); const P = plateau(c, t, { cols: 4, rows: 4, A: 25, B: 12.5, ox: 120, oy: 64, hmax: 22 }); frameUi(c, P); }
+function rez28(c, t) { horizon(c, t); const P = plateau(c, t, { cols: 8, rows: 2, A: 20, B: 10, ox: 76, oy: 72, hmax: 18, m: 0.2, fs: 9 }); frameUi(c, P); }
+function rezheld(c, t) {
+  horizon(c, t);
+  plateau(c, t, { cols: 4, rows: 4, A: 16, B: 8, ox: 64, oy: 78, hmax: 16, held: 4, fs: 8 });
+  const sel = [1, 2, 4, 5][Math.floor(t / 1.4) % 4], x0 = 128, w = 106, rh = 17;
+  ATTR.forEach(([l, v], i) => {
+    const y = 38 + i * rh;
+    if (i === sel) poly(c, [[x0, y], [x0 + w, y], [x0 + w, y + rh - 2], [x0 + 6, y + rh - 2], [x0, y + rh - 8]], K[3][1]);
+    else { c.fillStyle = "#1a1433"; c.fillRect(x0, y + rh - 2, w, 1); }
+    text(c, l, x0 + 8, y + 8, 10, i === sel ? BAR : UI, "left", 500);
+    text(c, v, x0 + w - 6, y + 8, 12, i === sel ? BAR : TXT, "right");
+  });
+  text(c, "G3", 64, 176, 16, K[3][0], "center");
+  header(c, "STEP 5", "G3", "ENGINE", false);
+  footer(c, HELD_FOOT);
+}
+
+/* ===================== READING PATHS ===================== */
+function playPath(t, path) {
+  const abs = t / SPS, k = Math.floor(abs) % path.length, cur = path[k], fr = abs % 1, st = PAT[cur];
+  const e = st.on ? Math.exp(-((fr * (st.r || 1)) % 1) * 4) : 0;
+  return { cur, sounds: !!st.on, hit: e > 0.4 };
+}
+const G = (x, y) => y * 4 + x;
+const PATHS = {
+  snake: [0, 1, 2, 3, 7, 6, 5, 4, 8, 9, 10, 11, 15, 14, 13, 12],
+  cols: [0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15],
+  spiral: [0, 1, 2, 3, 7, 11, 15, 14, 13, 12, 8, 4, 5, 6, 10, 9],
+  /* Rene-style: X moves every step, Y every third: two clocks, a 12-step loop through the grid */
+  rene: Array.from({ length: 12 }, (_, n) => G(n % 4, Math.floor(n / 3) % 4))
+};
+const PATH_INFO = { snake: "SNK", cols: "COL", spiral: "SPI", rene: "X/Y" };
+function pathView(name) {
+  return (c, t) => {
+    horizon(c, t);
+    const P = plateau(c, t, { cols: 4, rows: 4, A: 25, B: 12.5, ox: 120, oy: 64, hmax: 7, len: 16, path: PATHS[name] });
+    header(c, "SEQ", "P1", "PATH", P.hit);
+    footer(c, [["LEN", "16", 16 / 64, 1], ["DIV", "1/16", 2 / 8, 1], ["PATH", PATH_INFO[name], 0.5, 1], name === "rene" ? ["Y DIV", "3/16", 0.4, 1] : ["SWING", "54%", 0.16, 1]]);
+  };
+}
+
+const views = [["p_snake", pathView("snake")], ["p_cols", pathView("cols")], ["p_spiral", pathView("spiral")], ["p_rene", pathView("rene")], ["rez44", rez44], ["rez28", rez28], ["rezheld", rezheld], ["vec", vec], ["iso", iso], ["lock", lock], ["padsLite", padsLite], ["padsBare", padsBare], ["pads2", pads], ["dots", dots], ["pads", pads], ["lanes", lanes], ["heldr", heldr], ["tiles", tiles], ["bars", bars], ["roll", roll], ["held", held]].map(([id, f]) => [document.getElementById(id).getContext("2d"), f]);
+const T0 = 0.58;                                   /* a still frame on the slide step, for reduced motion and thumbnails */
+function frame(t) { views.forEach(([c, f]) => f(c, t)); }
+frame(T0);
+function loop(ms) { frame(T0 + ms / 1000); requestAnimationFrame(loop); }
+document.fonts.ready.then(() => { frame(T0); if (!reduce) requestAnimationFrame(loop); });
+</script>

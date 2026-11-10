@@ -110,6 +110,15 @@ Si la mesure de l'étape 1 dépasse 16 Ko par voix, la durée du delay est rédu
 - Division propre : 1/32, 1/16T, 1/16, 1/8T, 1/8, 1/4T, 1/4, 1/2, 1/1. Pistes de longueurs et de
   divisions différentes = polyrythmes.
 - Changement de pattern : à la fin du pattern en cours.
+- Sens de lecture (PATH), par pattern. Les 16 pas d'une page forment une grille 4×4 (pas 1–4 en première rangée,
+  5–8 en deuxième…) lue dans un ordre : FWD par défaut (rangée par rangée, de gauche à droite), REV, PING-PONG,
+  SNAKE, COLONNES, SPIRALE, RANDOM. Le rang `k` joué (0 à LEN − 1) donne le pas `16 × ⌊k / 16⌋ + chemin[k mod 16]` ;
+  REV, PING-PONG et RANDOM agissent sur `k`. La touche n reste le pas n, LEN compte les pas joués, le swing suit
+  le rang joué.
+- PATH = XY, deux horloges (dans l'esprit du René de Make Noise) : sur la grille 4×4 de la première page, la
+  colonne X avance à la division de la piste et boucle sur X LEN (1–4) ; la rangée Y avance à sa propre division
+  (Y DIV) et boucle sur Y LEN (1–4). Le pas joué est la case (X, Y) ; une note part à chaque pas de X, Y ne fait
+  que changer de rangée. Deux divisions différentes donnent des motifs qui ne visitent qu'une partie des cases.
 
 ### 5.2 Par pas
 - Note (une à quatre si la piste est POLY ; pour un KIT, quels instruments jouent), vélocité 1–127.
@@ -215,6 +224,13 @@ scène ; chaque note déclenche un mouvement.
 | autres familles | une scène chacune | à concevoir à l'étape 5 |
 
 Les maquettes de référence sont dans `docs/screens/scenes.html` (à ouvrir dans un navigateur).
+
+Page SEQ (maquette H2 de `docs/screens/sequencer.html`) : les 16 pas de la page en plateau 4×4 isométrique de blocs
+low poly (hauteur = vélocité, note sur le dessus, un repère orange pour un pas qui a d'autres attributs), sur un sol
+en fil de fer sous un horizon en lignes de fuite. Un viseur verrouille le pas qui joue ; une note fait sauter son
+bloc en rose avec une onde au sol et des éclats. Le chemin de lecture se dessine au sol pendant le réglage de PATH.
+Pas tenu : le plateau se range à gauche, le bloc tenu se soulève en orange, ses attributs s'affichent à droite.
+Une page qui sert à éditer reste lisible d'abord : pas de perspective, une grille droite.
 
 ### 9.4 Rendu
 Un petit moteur 3D en aplats : rotation, tri des faces, triangles pleins, traits. Moins de 300 faces par
