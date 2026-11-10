@@ -7,9 +7,9 @@
 #define APP_SPLASH_RGB RGB(80, 160, 255)
 #define APP_BLOCK 256u                   /* frames per audio block: 5.8 ms at 44.1 kHz */
 
-/* the store: the panel calibration (the platform's) and its flash offset */
-enum { OBJ_PANEL, OBJ_NOBJ };
-#define APP_STORE_MAP {0xDC000u}
+/* the store: the panel calibration (the platform's) and the project, each at its flash offset (A/B sector pair) */
+enum { OBJ_PANEL, OBJ_PROJECT, OBJ_NOBJ };
+#define APP_STORE_MAP {0xDC000u, 0x97000u}
 
 void app_init(void);
 void app_render(int32_t *lr, uint32_t n, uint32_t master_q12);   /* audio interrupt: n stereo frames, 24-bit */

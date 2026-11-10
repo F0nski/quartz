@@ -16,5 +16,7 @@ typedef struct { uint8_t model, poly, glide, level; int8_t tune; uint8_t harm, t
 typedef struct { uint8_t version; uint16_t tempo; q_sound sound[Q_TRACKS]; q_pattern pat[Q_TRACKS]; } q_project;
 
 void project_defaults(q_project *p);
+int store_load(q_project *p);         /* 0 = loaded; else project_defaults and -1 */
+int store_save(const q_project *p);   /* 0 = ok; -1 = refused while playing; else plat_store_save's code */
 
 #endif

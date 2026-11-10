@@ -5,13 +5,14 @@
 #include "seq.c"
 #include "voices.c"
 #include "audio.c"
+#include "store.c"
 
 static uint8_t booted;
 static q_project project;
 
 void app_init(void)
 {
-    project_defaults(&project);
+    store_load(&project);
     audio_setup(&project);
     booted = 1;
 }
