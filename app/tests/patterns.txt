@@ -38,6 +38,20 @@ expect stepon_1 0
 turn PRESET 1
 expect stepon_1 1
 turn PRESET -1
+# a step held, then SEQ and a white key: the hold ends, its release toggles nothing in the new pattern
+key 0 down
+press SEQ
+key 4 down
+key 4 up
+release SEQ
+key 0 up
+expect pattern 3
+expect stepon_1 0
+press SEQ
+key 0 down
+key 0 up
+release SEQ
+expect pattern 1
 # playing: the asked pattern starts with the next pass
 tap PLAY
 press SEQ

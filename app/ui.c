@@ -361,6 +361,7 @@ static void rec_lock(int pid, int k)
 static void pattern_set(int n)
 {
     ui.p->pattern[ui.track] = (uint8_t)n;
+    ui.held = 0;                        /* the hold was another pattern's step: its release toggles nothing */
     if (ui.cursor > pat()->len)
         ui.cursor = 1;
     ui.dirty = 1;
