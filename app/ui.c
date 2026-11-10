@@ -123,7 +123,7 @@ static void button(int b)
             ui.domain = d;
     switch (b) {
     case B_PLAY:
-        audio_play(!audio_playing());   /* audio_play(1) while playing would leave its notes on */
+        audio_play(!audio_playing());
         ui.rec = 0;
         break;
     case B_REC:

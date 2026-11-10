@@ -13,7 +13,7 @@ void pq_set_engine(int v, int model);                 /* 0..23 in Plaits' regist
 void pq_set_patch(int v, float harm, float timb, float morph, float decay, float glide); /* 0..1 */
 void pq_note_on(int v, float note, float vel);        /* MIDI note (tune included), vel 0..1 */
 void pq_note_off(int v);
-void pq_render(int v, float *out, unsigned n);        /* adds n mono samples, about +-1 */
+void pq_render(int v, float *out, unsigned n);        /* adds n mono samples in [-1, 1): 16-bit frames, never NaN */
 int  pq_silent(int v);                                /* 1: released and under 1e-4 for 50 ms */
 unsigned pq_voice_bytes(void);                        /* bytes per voice (object + buffer) */
 #ifdef __cplusplus

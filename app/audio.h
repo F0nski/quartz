@@ -8,9 +8,10 @@
 typedef struct { uint32_t core1_pct, core2_pct, xruns, active; int cpu2; uint32_t cpu2_stack; } q_load;
 
 void audio_setup(q_project *p);                         /* app_init, before the audio starts (fm1-base has its own audio_init) */
-void audio_play(int on);                                /* on 0: the sounding steps get their note-offs */
-void audio_live_note(int track, int note, int on);      /* the keyboard, velocity 100 */
-void audio_track_model(int track);                      /* after sound[track].model changed: its voices freed */
+void audio_play(int on);                                /* the sounding steps get their note-offs; on 1: from step 0 */
+void audio_live_note(int track, int note, int on);      /* the keyboard, velocity 100; a note-off is never dropped */
+void audio_track_model(int track);                      /* after sound[track].model changed: its voices faded out
+                                                         * over a block, then freed */
 q_load audio_load(void);                                /* the cores' load over ~1 s, in % of the block's budget */
 void audio_mute(void);                                  /* app_panic: silence from the next block on, for good */
 int audio_playing(void);

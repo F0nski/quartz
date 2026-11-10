@@ -8,6 +8,7 @@
 #include "dsp/pq.h"
 
 #define CMD_N 64                    /* a power of two */
+#define OFF_ROOM 32                 /* kept for note-offs: one per held key (27), the render drains the ring each block */
 #define EV_MAX 40                   /* 4 tracks x 2 steps x on+off per block at 240 BPM in 1/32, with room */
 #define BUDGET_TICKS(n) ((n) * 544u)   /* n frames at 44117.6 Hz, in 24 MHz ticks */
 #define LOAD_TICKS (24u * 1000000u)    /* the load is averaged over this much budget: 1 s */
@@ -19,6 +20,7 @@ static q_project *prj;
 static q_seq seq;
 static q_voices pool;
 static uint8_t slot_model[Q_VOICES];
+static uint8_t fading[Q_VOICES];    /* a model change: faded out over this block, then freed */
 static volatile int playing;
 static volatile int muted;
 
@@ -28,6 +30,8 @@ static volatile uint32_t cmd_w, cmd_r;
 
 static float mix1[APP_BLOCK], mix2[APP_BLOCK], tmp1[APP_BLOCK], tmp2[APP_BLOCK];
 static float gain[Q_VOICES];
+static float inv_n;                 /* 1 / the block's frames: the fades */
+static float out_gain;              /* MASTER's gain at the end of the last block: ramped from there */
 static uint32_t seg_pos, seg_len;
 
 static uint32_t sum1, sum2, sum_budget;
@@ -35,9 +39,9 @@ static volatile uint32_t pct1, pct2;
 
 static void push(uint8_t kind, int track, int note, int on)
 {
-    uint32_t w = cmd_w;
-    if (w - cmd_r == CMD_N)
-        return;                     /* full: the UI cannot send 64 commands within a block */
+    uint32_t w = cmd_w, used = w - cmd_r;
+    if (used == CMD_N || (used >= CMD_N - OFF_ROOM && !(kind == CMD_NOTE && !on)))
+        return;                     /* full: the UI cannot send 32 commands within a block; a note-off still fits */
     cmd[w % CMD_N] = (q_cmd){ kind, (uint8_t)track, (uint8_t)note, (uint8_t)on };
     __asm__ volatile("" ::: "memory");   /* the ring's publish barrier (fm1-base RING_PUBLISH) */
     cmd_w = w + 1;
@@ -50,6 +54,8 @@ void audio_setup(q_project *p)
     voices_init(&pool);
     pq_init();
     __builtin_memset(slot_model, 8, sizeof slot_model);   /* pq_init's model */
+    __builtin_memset(fading, 0, sizeof fading);
+    out_gain = 0;
     playing = 0;
     muted = 0;
     cmd_w = cmd_r = 0;
@@ -86,6 +92,7 @@ static void note_on(int track, int note, int vel)
 {
     const q_sound *s = &prj->sound[track];
     int v = voices_note_on(&pool, track, note, s->poly);
+    fading[v] = 0;                  /* (a fading slot taken: the new note at full level) */
     if (slot_model[v] != s->model) {
         pq_set_engine(v, s->model);
         slot_model[v] = s->model;
@@ -121,15 +128,19 @@ static void commands(void)
             else
                 note_off(c.track, c.note);
         } else if (c.kind == CMD_MODEL) {
-            voices_release_track(&pool, c.track);
-        } else if (c.on) {
-            seq_start(&seq);
+            for (int v = 0; v < Q_VOICES; v++)   /* released, no longer V_ON: no note-off nor note-on lands on them */
+                if (pool.v[v].state != V_FREE && pool.v[v].track == c.track) {
+                    pool.v[v].state = V_RELEASED;
+                    fading[v] = 1;
+                }
         } else {
-            q_event off[Q_TRACKS];
+            q_event off[Q_TRACKS];        /* a start while playing: the sounding steps' note-offs first */
             int n;
             seq_stop(&seq, off, &n);
             for (int i = 0; i < n; i++)
                 apply(&off[i]);
+            if (c.on)
+                seq_start(&seq);
         }
     }
 }
@@ -140,10 +151,15 @@ static void render_voices(int from, float *out, float *tmp)
     for (int v = from; v < from + 3; v++) {
         if (pool.v[v].state == V_FREE)
             continue;
+        float g = gain[v], dg = 0;
+        if (fading[v]) {            /* down to 0 at the block's end */
+            dg = -g * inv_n;
+            g += dg * (float)seg_pos;
+        }
         __builtin_memset(tmp, 0, seg_len * sizeof *tmp);
         pq_render(v, tmp, seg_len);
-        for (uint32_t i = 0; i < seg_len; i++)
-            out[seg_pos + i] += tmp[i] * gain[v];
+        for (uint32_t i = 0; i < seg_len; i++, g += dg)
+            out[seg_pos + i] += tmp[i] * g;
     }
 }
 
@@ -158,17 +174,22 @@ static void job2(uint32_t arg)
 static void render_segment(void)
 {
     uint32_t tw;
-    int two, r = 0;
+    int two = 0, r = 0, need2 = 0;
     for (int v = 0; v < Q_VOICES; v++)
-        if (pool.v[v].state != V_FREE)
+        if (pool.v[v].state != V_FREE) {
             gain[v] = prj->sound[pool.v[v].track].level / 127.0f * 0.25f;
-    two = plat_cpu2_run(job2, 0);
+            need2 |= v >= 3;
+        }
+    if (need2)                      /* no empty job for the second core */
+        two = plat_cpu2_run(job2, 0);
     render_voices(0, mix1, tmp1);
     if (two) {
         tw = plat_ticks24();
         r = plat_cpu2_wait();
         sum1 -= plat_ticks24() - tw;   /* core 1 waiting is not its work */
     }
+    if (r < 0)                      /* given up: what it added to the segment goes */
+        __builtin_memset(mix2 + seg_pos, 0, seg_len * sizeof *mix2);
     if (!two || r < 0)
         render_voices(3, mix2, tmp2);  /* the second core's share, on this one */
 }
@@ -178,12 +199,15 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
     q_event ev[EV_MAX];
     uint32_t t0 = plat_ticks24(), pos = 0;
     int ne, ei = 0;
-    float out_gain = 8388607.0f * (float)master_q12 / 4096.0f;
+    float target = 8388607.0f * (float)master_q12 / 4096.0f, g = out_gain, dg;
 
     if (muted) {                    /* before an update rewrites the flash: nothing runs, nothing sounds */
         __builtin_memset(lr, 0, 2 * n * sizeof *lr);
+        out_gain = 0;               /* (unmuted: from silence) */
         return;
     }
+    inv_n = 1.0f / (float)n;
+    dg = (target - g) * inv_n;      /* MASTER ramped across the block: no zipper noise */
     commands();
     ne = seq_block(&seq, prj, n, ev, EV_MAX);
     for (int v = 0; v < Q_VOICES; v++)
@@ -200,14 +224,18 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
         pos += seg_len;
     }
     for (int v = 0; v < Q_VOICES; v++)
-        if (pool.v[v].state == V_RELEASED && pq_silent(v))
+        if (fading[v] || (pool.v[v].state == V_RELEASED && pq_silent(v))) {
             voices_free(&pool, v);
+            fading[v] = 0;
+        }
     for (uint32_t i = 0; i < n; i++) {
-        float x = (mix1[i] + mix2[i]) * out_gain;
+        g += dg;
+        float x = (mix1[i] + mix2[i]) * g;
         int32_t s = x > 8388607.0f ? 8388607 : x < -8388608.0f ? -8388608 : (int32_t)x;
         lr[2 * i] = s;
         lr[2 * i + 1] = s;
     }
+    out_gain = target;
 
     sum1 += plat_ticks24() - t0;
     sum_budget += BUDGET_TICKS(n);
