@@ -64,38 +64,247 @@ void seq_step_ratio(int tempo, int div, uint32_t *num, uint32_t *den)
     *den = 17u * (uint32_t)tempo * bden[div];
 }
 
-void seq_start(q_seq *s)
+/* The step at c keeps its start: carry the fractional start into the new denominator, rounded up like a start
+   frame (r * den' < 2^32 for tempo <= 240). */
+static void clock_set(q_clock *c, int tempo, int div)
+{
+    uint32_t num, den;
+    if (tempo == c->tempo && div == c->div) return;
+    seq_step_ratio(tempo, div, &num, &den);
+    if (c->den) {
+        uint32_t r = c->next_r * den;
+        c->next_r = r / c->den + (r % c->den > 0);
+    }
+    c->tempo = tempo;
+    c->div = div;
+    c->num = num;
+    c->den = den;
+}
+
+static void clock_next(q_clock *c)
+{
+    c->next_r += c->num;
+    c->next_i += c->next_r / c->den;
+    c->next_r %= c->den;
+}
+
+/* ceil(c's start + spf x f / 4800) in frames: f in 4800ths of a step keeps micro (200 per 24th), swing (96 per %)
+   and ratchets (4800 / r) whole */
+static int64_t date(const q_clock *c, int64_t f)
+{
+    int64_t x = (int64_t)c->next_r * 4800 + (int64_t)c->num * f, d = 4800 * (int64_t)c->den;
+    return (int64_t)c->next_i + (x >= 0 ? (x + d - 1) / d : -(-x / d));
+}
+
+/* the step at c is planned half a step ahead: its start minus half a step falls before end */
+static int due(const q_clock *c, uint64_t end)
+{
+    return ((int64_t)c->next_i - (int64_t)end) * 2 * c->den + 2 * (int64_t)c->next_r < (int64_t)c->num;
+}
+
+/* a's start <= b's, exactly */
+static int not_after(const q_clock *a, const q_clock *b)
+{
+    return ((int64_t)a->next_i - (int64_t)b->next_i) * a->den * b->den + (int64_t)a->next_r * b->den
+        <= (int64_t)b->next_r * a->den;
+}
+
+static void queue_push(q_queue *q, uint64_t at, uint32_t gate, q_event e)
+{
+    int i = q->n++;
+    for (; i > 0 && (q->e[i - 1].at > at || (q->e[i - 1].at == at && q->e[i - 1].e.on > e.on)); i--)
+        q->e[i] = q->e[i - 1];
+    q->e[i] = (q_queued){ at, gate, e };
+}
+
+static q_queued queue_take(q_queue *q, int i)
+{
+    q_queued e = q->e[i];
+    for (q->n--; i < q->n; i++) q->e[i] = q->e[i + 1];
+    return e;
+}
+
+/* A queued note-on also holds a place for its note-off: n + ons never passes SEQ_QUEUE, so a note-off always
+   finds room and a note-on that would not is dropped. */
+static void queue_push_on(q_queue *q, uint64_t at, uint32_t gate, q_event e)
+{
+    if (q->n + q->ons + 2 > SEQ_QUEUE) return;
+    queue_push(q, at, gate, e);
+    q->ons++;
+}
+
+void seq_start(q_seq *s, const q_project *p, int count_in)
 {
     uint64_t now = s->now;
+    q_clock a = { now, 0, 0, 0, 0, 0 };
     __builtin_memset(s, 0, sizeof *s);
     s->now = now;
     s->running = 1;
+    s->rng = (uint32_t)now | 1;         /* xorshift: never 0 */
+    s->count = 4 * count_in;
+    s->beat = a;
+    clock_set(&a, p->tempo, DIV_1);     /* a bar's den divides every div's: the anchor carries exactly */
+    if (count_in) clock_next(&a);
     for (int t = 0; t < Q_TRACKS; t++) {
-        s->t[t].cur = -1;
-        s->t[t].next_i = now;
+        q_seq_track *tr = &s->t[t];
+        tr->x = tr->y = a;
+        tr->k = tr->row = -1;
+        tr->pat = p->pattern[t];
+        tr->path = p->pat[t][tr->pat].path;
+        tr->h[0].step = tr->h[1].step = -1;
     }
 }
+
+void seq_click(q_seq *s, int on) { s->click = on; }
 
 void seq_stop(q_seq *s, q_event *out, int *n)
 {
     *n = 0;
-    for (int t = 0; t < Q_TRACKS; t++) {
-        if (s->t[t].playing)
-            out[(*n)++] = (q_event){ 0, (uint8_t)t, s->t[t].note, 0, 0 };
-        s->t[t].playing = 0;
+    for (int t = 0; t <= Q_TRACKS; t++) {
+        for (int i = 0; i < s->q[t].n; i++)
+            if (!s->q[t].e[i].e.on) {
+                out[*n] = s->q[t].e[i].e;
+                out[(*n)++].offset = 0;
+            }
+        s->q[t].n = s->q[t].ons = 0;
     }
     s->running = 0;
 }
 
-int seq_pos(const q_seq *s, int track)
+/* the last step planned whose grid start the block's start has reached, 0 none */
+static const q_planned *current(const q_seq *s, int track)
 {
-    if (!s->running) return -1;
-    return s->t[track].cur < 0 ? 0 : s->t[track].cur;
+    const q_seq_track *tr = &s->t[track];
+    if (!s->running || tr->h[1].step < 0) return 0;
+    if ((int64_t)s->now >= date(&tr->h[1].c, 0)) return &tr->h[1];
+    return tr->h[0].step < 0 ? 0 : &tr->h[0];
 }
 
-static void emit(q_event *out, int *n, int max, uint64_t at, uint64_t now, int t, uint8_t note, uint8_t vel, int on)
+int seq_pos(const q_seq *s, int track)
 {
-    if (*n < max) out[(*n)++] = (q_event){ (uint32_t)(at - now), (uint8_t)t, note, vel, (uint8_t)on };
+    const q_planned *c = current(s, track);
+    return c ? c->step : -1;
+}
+
+int seq_pattern(const q_seq *s, int track)
+{
+    const q_planned *c = current(s, track);
+    return c ? c->pat : s->t[track].pat;
+}
+
+static int64_t swung(const q_planned *h, const q_project *p)
+{
+    return date(&h->c, h->rank & 1 ? 96 * (p->swing - 50) : 0);
+}
+
+/* The next step is planned before the block's start passes halfway to it, except exactly halfway between two
+   unswung starts: that one block gets the current step at micro 11. */
+int seq_locate(const q_seq *s, const q_project *p, int track, int *micro)
+{
+    const q_seq_track *tr = &s->t[track];
+    const q_planned *c = current(s, track);
+    int64_t now = (int64_t)s->now;
+    if (!c) return -1;
+    if (c == &tr->h[0] && now - swung(c, p) >= swung(&tr->h[1], p) - now) c = &tr->h[1];
+    int64_t d = (now - swung(c, p)) * 24 * c->c.den, num = c->c.num;
+    int m = (int)((2 * d + (d < 0 ? -num : num)) / (2 * num));
+    *micro = m < -11 ? -11 : m > 11 ? 11 : m;
+    return c->step;
+}
+
+int seq_quantize(int micro, int quant) { return quant == 0 ? micro : quant == 1 ? micro / 2 : 0; }
+
+static const uint8_t PATHS[4][16] = {
+    { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
+    { 0, 1, 2, 3, 7, 6, 5, 4, 8, 9, 10, 11, 15, 14, 13, 12 },      /* SNAKE */
+    { 0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15 },      /* COLUMNS */
+    { 0, 1, 2, 3, 7, 11, 15, 14, 13, 12, 8, 4, 5, 6, 10, 9 },      /* SPIRAL */
+};
+
+/* the step the track's rank plays */
+static int step_at(q_seq *s, q_seq_track *tr, const q_pattern *pt)
+{
+    int len = pt->len, k = tr->k, m = 0;
+    switch (tr->path) {
+    case PATH_XY: return 4 * tr->row + k;
+    case PATH_REV: k = len - 1 - k; break;
+    case PATH_PINGPONG:
+        k = len > 1 ? tr->pp % (2 * len - 2) : 0;
+        if (k >= len) k = 2 * len - 2 - k;
+        break;
+    case PATH_RANDOM:
+        s->rng ^= s->rng << 13;
+        s->rng ^= s->rng >> 17;
+        s->rng ^= s->rng << 5;
+        k = (int)(s->rng % (uint32_t)len);
+        break;
+    case PATH_SNAKE: m = 1; break;
+    case PATH_COLUMNS: m = 2; break;
+    case PATH_SPIRAL: m = 3; break;
+    }
+    return 16 * (k / 16) + PATHS[m][k % 16];
+}
+
+static void plan_notes(q_seq *s, const q_project *p, int t, const q_step *st, int step)
+{
+    q_seq_track *tr = &s->t[t];
+    int r = STEP_RATCHET(st), g = r > 1 && st->len > 8 ? 8 : st->len;
+    int64_t f = 200 * st->micro + (tr->k & 1 ? 96 * (p->swing - 50) : 0);
+    for (int j = 0; j < r; j++) {
+        int64_t on = date(&tr->x, f + 4800 * j / r), off = date(&tr->x, f + 4800 * j / r + 600 * g / r);
+        if (on < (int64_t)s->now) on = (int64_t)s->now;     /* dated before this block: at its start */
+        if (off < on) off = on;
+        for (int i = 0; i < 4; i++)
+            if (st->note[i])
+                queue_push_on(&s->q[t], (uint64_t)on, (uint32_t)(off - on),
+                        (q_event){ 0, (uint8_t)t, st->note[i], st->vel, 1, (uint8_t)tr->pat, (uint8_t)step, 0 });
+    }
+}
+
+/* Plans the track's steps due before end. A step's duration is fixed when it begins (its start falls in a block),
+   as in a plain grid: a tempo change while it is only planned reaches it. */
+static void plan(q_seq *s, const q_project *p, int t, uint64_t end)
+{
+    q_seq_track *tr = &s->t[t];
+    for (;;) {
+        const q_pattern *pt = &p->pat[t][tr->pat];
+        int wrap = !tr->planned && tr->k + 1 >= (tr->path == PATH_XY ? pt->xlen : pt->len);
+        if (wrap) pt = &p->pat[t][p->pattern[t]];
+        clock_set(&tr->x, p->tempo, pt->div);
+        if (tr->planned) {
+            if (date(&tr->x, 0) >= (int64_t)end) return;
+            clock_next(&tr->x);
+            tr->planned = 0;
+            continue;
+        }
+        if (!due(&tr->x, end)) return;
+        if (wrap) {                     /* the pattern and its path are taken at the wrap */
+            if (p->pattern[t] != tr->pat || pt->path != tr->path) tr->pp = 0;
+            tr->pat = p->pattern[t];
+            tr->path = pt->path;
+            tr->k = 0;
+        } else {
+            tr->k++;
+        }
+        /* XY's rows run on their own clock from the anchor; a row starting with the X step applies to it */
+        clock_set(&tr->y, p->tempo, pt->ydiv);
+        while (not_after(&tr->y, &tr->x)) {
+            tr->row = (tr->row + 1) % pt->ylen;
+            clock_next(&tr->y);
+        }
+        int step = step_at(s, tr, pt);
+        tr->pp++;
+        tr->h[0] = tr->h[1];
+        tr->h[1] = (q_planned){ step, tr->pat, tr->k, tr->x };
+        if (pt->steps[step].flags & SF_ON) plan_notes(s, p, t, &pt->steps[step], step);
+        tr->planned = 1;
+    }
+}
+
+static void emit(q_event *out, int *n, uint64_t now, const q_queued *q)
+{
+    out[*n] = q->e;
+    out[(*n)++].offset = q->at < now ? 0 : (uint32_t)(q->at - now);
 }
 
 int seq_block(q_seq *s, const q_project *p, uint32_t nframes, q_event *out, int max)
@@ -104,56 +313,37 @@ int seq_block(q_seq *s, const q_project *p, uint32_t nframes, q_event *out, int 
     uint64_t end = s->now + nframes;
     if (!s->running) return 0;
 
-    for (int t = 0; t < Q_TRACKS; t++) {
-        q_seq_track *k = &s->t[t];
-        const q_pattern *pt = &p->pat[t][p->pattern[t]];
+    clock_set(&s->beat, p->tempo, DIV_4);
+    for (int64_t b; (b = date(&s->beat, 0)) < (int64_t)end; s->beats++, clock_next(&s->beat))
+        if (s->click || s->beats < s->count)
+            queue_push_on(&s->q[Q_CLICK_TRACK], (uint64_t)b, 0,
+                    (q_event){ 0, Q_CLICK_TRACK, (uint8_t)(s->beats % 4 == 0), 100, 1, 0, 0, 0 });
+    for (int t = 0; t < Q_TRACKS; t++)
+        plan(s, p, t, end);
 
-        /* the step in progress keeps its duration: carry the fractional start of the next step into the new
-           denominator, rounded up like a start frame (r * den' < 2^32 for tempo <= 240) */
-        if (p->tempo != k->tempo || pt->div != k->div) {
-            uint32_t num, den;
-            seq_step_ratio(p->tempo, pt->div, &num, &den);
-            if (k->den) {
-                uint32_t r = k->next_r * den;
-                k->next_r = r / k->den + (r % k->den > 0);
-            }
-            k->tempo = p->tempo;
-            k->div = pt->div;
-            k->num = num;
-            k->den = den;
+    /* the queues' heads by date, the lower track first at a date */
+    for (;;) {
+        q_queue *q = 0;
+        for (int t = 0; t <= Q_TRACKS; t++)
+            if (s->q[t].n && s->q[t].e[0].at < end && (!q || s->q[t].e[0].at < q->e[0].at)) q = &s->q[t];
+        if (!q) break;
+        q_queued e = q->e[0];
+        int off = -1;                   /* a later note-off of the same note comes just before the note-on */
+        for (int i = 1; e.e.on && off < 0 && i < q->n; i++)
+            if (!q->e[i].e.on && q->e[i].e.note == e.e.note) off = i;
+        if (n + 1 + (off >= 0) > max) break;
+        if (off >= 0) {
+            q_queued o = queue_take(q, off);
+            o.at = e.at;
+            emit(out, &n, s->now, &o);
         }
-
-        for (;;) {
-            uint64_t start = k->next_i + (k->next_r > 0);
-            if (k->playing && k->off_at < end) {
-                emit(out, &n, max, k->off_at, s->now, t, k->note, 0, 0);
-                k->playing = 0;
-            } else if (start < end) {
-                k->cur = k->cur + 1 >= pt->len ? 0 : k->cur + 1;
-                const q_step *st = &pt->steps[k->cur];
-                if (st->flags & SF_ON) {
-                    /* half a step on, over 2 x den so that an odd num stays exact */
-                    uint32_t r = 2 * k->next_r + k->num;
-                    emit(out, &n, max, start, s->now, t, st->note[0], st->vel, 1);
-                    k->playing = 1;
-                    k->note = st->note[0];
-                    k->off_at = k->next_i + r / (2 * k->den) + (r % (2 * k->den) > 0);
-                }
-                k->next_r += k->num;
-                k->next_i += k->next_r / k->den;
-                k->next_r %= k->den;
-            } else {
-                break;
-            }
+        queue_take(q, 0);
+        emit(out, &n, s->now, &e);
+        if (e.e.on) {
+            q->ons--;
+            if (e.e.track != Q_CLICK_TRACK)
+                queue_push(q, e.at + e.gate, 0, (q_event){ 0, e.e.track, e.e.note, 0, 0, e.e.pat, e.e.step, 0 });
         }
-    }
-
-    /* insertion sort, stable: a track's note-off stays before its next note-on */
-    for (int i = 1; i < n; i++) {
-        q_event e = out[i];
-        int j = i;
-        for (; j > 0 && out[j - 1].offset > e.offset; j--) out[j] = out[j - 1];
-        out[j] = e;
     }
     s->now = end;
     return n;

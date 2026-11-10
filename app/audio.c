@@ -10,7 +10,7 @@
 #define CMD_N 64                    /* a power of two */
 #define OFF_ROOM 32                 /* kept for note-offs, one per held key (27), and the preparation's request (1): the
                                      * render drains the ring each block. The last place is the hand-back's (push) */
-#define EV_MAX 40                   /* 4 tracks x 2 steps x on+off per block at 240 BPM in 1/32, with room */
+#define EV_MAX 64                   /* more stays in the sequencer's queues for the next block */
 #define LATER_N 16                  /* note-ons waiting for an engine switch: beyond, a note-on is dropped */
 #define PREP_WAIT (-2)              /* prep_slot: asked, the render has not answered */
 #define BUDGET_TICKS(n) ((n) * 544u)   /* n frames at 44117.6 Hz, in 24 MHz ticks */
@@ -260,13 +260,14 @@ static void commands(void)
             pool.v[c.track].state = V_FREE;
             pool.v[c.track].model = (int8_t)c.note;
         } else {
-            q_event off[Q_TRACKS];        /* a start while playing: the sounding steps' note-offs first */
+            static q_event off[Q_TRACKS * SEQ_QUEUE];   /* a start while playing: the sounding notes' offs first;
+                                                         * static: 3 KB off the render's stack */
             int n;
             seq_stop(&seq, off, &n);
             for (int i = 0; i < n; i++)
                 apply(&off[i]);
             if (c.on)
-                seq_start(&seq);
+                seq_start(&seq, prj, 0);
         }
     }
 }
