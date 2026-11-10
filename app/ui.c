@@ -11,16 +11,16 @@
 #define FOOT_Y 196
 #define PINK RGB(255, 47, 142)       /* notes playing only */
 
-enum { D_EDIT, D_SEQ, D_GLO, ND };
-enum { P_ENGINE, P_SOUND, P_STEPS, P_TEMPO, P_CPU, P_XY };
+enum { D_EDIT, D_SEQ, D_GLO, D_HOME, ND };
+enum { P_ENGINE, P_SOUND, P_STEPS, P_TEMPO, P_CPU, P_XY, P_TRACKS, P_SONG };
 /* what PRESET sets on a held step; the black keys 0..7 pick RATCHET .. MICRO, 8 is CLEAR */
 enum { A_VEL, A_RATCHET, A_PROB, A_COND, A_SLIDE, A_ACCENT, A_NOTE, A_LEN, A_MICRO, A_N };
 #define COND_N 40                    /* NONE, FIRST, !FIRST, PRE, !PRE, then A:B for B = 2..8, A = 1..B */
 
-static const uint8_t DOMAIN_PAGES[ND][2] = {{P_ENGINE, P_SOUND}, {P_STEPS, P_XY}, {P_TEMPO, P_CPU}};
-static const uint8_t DOMAIN_N[ND] = {2, 1, 2};      /* SEQ: 2 pages while PATH is XY (domain_n) */
-static const uint8_t DOMAIN_BTN[ND] = {B_EDIT, B_SEQ, B_GLO};
-static const char *const DOMAIN_NAME[ND] = {"EDIT", "SEQ", "GLO"};
+static const uint8_t DOMAIN_PAGES[ND][2] = {{P_ENGINE, P_SOUND}, {P_STEPS, P_XY}, {P_TEMPO, P_CPU}, {P_TRACKS, P_SONG}};
+static const uint8_t DOMAIN_N[ND] = {2, 1, 2, 2};      /* SEQ: 2 pages while PATH is XY (domain_n) */
+static const uint8_t DOMAIN_BTN[ND] = {B_EDIT, B_SEQ, B_GLO, B_HOME};
+static const char *const DOMAIN_NAME[ND] = {"EDIT", "SEQ", "GLO", "HOME"};
 
 typedef struct { const char *name, *label[4]; int16_t min[4], max[4]; } q_page;
 static const q_page PAGE[] = {
@@ -30,6 +30,8 @@ static const q_page PAGE[] = {
     {"TEMPO", {"TEMPO"}, {40}, {240}},
     {"CPU", {0}, {0}, {0}},
     {"XY", {"X LEN", "X DIV", "Y LEN", "Y DIV"}, {1, 0, 1, 0}, {4, DIV_N - 1, 4, DIV_N - 1}},
+    {"TRACKS", {0}, {0}, {0}},
+    {"SONG", {"ENTRY", "SCENE", "REPEAT", "MODE"}, {1, 1, 1, 0}, {Q_SONG, Q_SCENES, 16, 1}},
 };
 
 /* Plaits' registration order (pq.h) */
@@ -46,9 +48,11 @@ static const uint8_t WHITE[16] = PLAT_WHITE_KEYS;
 static const uint8_t BLACK[11] = PLAT_BLACK_KEYS;
 static const uint16_t KCOL[4] = {RGB(58, 109, 255), RGB(34, 213, 142), RGB(240, 240, 250), RGB(255, 122, 46)};
 
+typedef struct { uint8_t model, pat, playing, mute; int8_t pos, len; } q_trow;   /* pat, playing as in head */
+
 /* what is on the screen, part by part: a part is drawn again when its view changes */
 typedef struct {
-    struct { int8_t track, domain, page, n, msg, pat, playing; } head;   /* pat: P1..P8 asked; playing: the one playing when it differs, else 0 */
+    struct { int8_t track, domain, page, n, msg, pat, playing, scene; } head;   /* pat: P1..P8 asked; playing: the one playing when it differs, else 0 */
     struct { int8_t pid; uint8_t col, hide; int16_t v[4]; } foot;           /* col: the knobs shown in colour, the rest in grey (a lock page) */
     struct {
         int8_t pid, spage, cursor, pos, len, path, held, attr, showpath, xlen, ylen;
@@ -59,14 +63,17 @@ typedef struct {
         uint16_t tempo;
         q_step st[16];
         int32_t cpu[6];                         /* the CPU page's numbers as shown; core 2 -1: OFF */
+        q_trow tr[Q_TRACKS];                    /* TRACKS */
+        struct { int8_t n, cursor, first, playing; q_entry e[6]; } song;               /* SONG: the 6 entries shown from first */
     } scene;
 } q_view;
 
 static struct {
     q_project *p;
-    int domain, page[ND], track, octave, spage, rec, cursor, dirty;
+    int domain, page[ND], track, octave, spage, rec, cursor, dirty, entry;   /* entry: the song cursor 1..nsong, 0 none */
     int held, held_key, edited, attr, lpage, nwrote, seqdown;   /* held: the step held 1..64, 0 none; lpage: the held step's p-lock page;
                                                                    nwrote: notes of the chord written since the hold began */
+    int homedown, savedown, seldown, saveused, msg_scene;      /* saveused: a white key came while SAVE was held; msg_scene: 1..8 asked */
     uint8_t last_note[Q_TRACKS];               /* a step switched on by hand takes it */
     int8_t key_note[NKEYS], key_track[NKEYS];  /* what each held key sounds, for its note-off; -1 none */
     uint32_t btn, keys, msg_until, locks_until, path_until;
@@ -99,6 +106,10 @@ static int knob_get(int pid, int k)
     case P_XY * 4 + 1: return t->div;
     case P_XY * 4 + 2: return t->ylen;
     case P_XY * 4 + 3: return t->ydiv;
+    case P_SONG * 4: return ui.entry;
+    case P_SONG * 4 + 1: return ui.entry ? ui.p->song[ui.entry - 1].scene + 1 : 1;
+    case P_SONG * 4 + 2: return ui.entry ? ui.p->song[ui.entry - 1].reps : 1;
+    case P_SONG * 4 + 3: return ui.p->song_on;
     }
     return 0;
 }
@@ -131,6 +142,10 @@ static void knob_set(int pid, int k, int v)
     case P_XY * 4 + 1: t->div = (uint8_t)v; break;
     case P_XY * 4 + 2: t->ylen = (uint8_t)v; break;
     case P_XY * 4 + 3: t->ydiv = (uint8_t)v; break;
+    case P_SONG * 4: ui.entry = v; return;
+    case P_SONG * 4 + 1: ui.p->song[ui.entry - 1].scene = (uint8_t)(v - 1); break;
+    case P_SONG * 4 + 2: ui.p->song[ui.entry - 1].reps = (uint8_t)v; break;
+    case P_SONG * 4 + 3: ui.p->song_on = (uint8_t)v; break;
     }
     ui.dirty = 1;
 }
@@ -141,7 +156,9 @@ static void knob_turn(int pid, int k, int d)
     int v;
     if (!d || !pg->label[k])
         return;
-    v = clamp(knob_get(pid, k) + d, pg->min[k], pg->max[k]);
+    if (pid == P_SONG && k < 3 && !ui.entry)    /* no entries: nothing to edit */
+        return;
+    v = clamp(knob_get(pid, k) + d, pg->min[k], pid == P_SONG && !k ? ui.p->nsong : pg->max[k]);
     if (v != knob_get(pid, k))
         knob_set(pid, k, v);
 }
@@ -159,7 +176,7 @@ static void button(int b)
     switch (b) {
     case B_PLAY:
         audio_play(!audio_playing());
-        ui.rec = 0;
+        ui.rec = ui.msg_scene = 0;
         break;
     case B_REC:
         if (!audio_playing()) {
@@ -167,11 +184,17 @@ static void button(int b)
             ui.cursor = 1;
         }
         break;
-    case B_SAVE:
-        if (audio_playing())            /* a flash write stalls the render */
-            ui.msg_until = plat_ms() + MSG_MS;
-        else if (store_save(ui.p) == 0)
-            ui.dirty = 0;
+    case B_SAVE:                        /* saves at the release, unless a white key came meanwhile */
+        ui.saveused = 0;
+        break;
+    case B_SEL:                         /* the SONG page: clears the entry (SEL with HOME held is for the scenes) */
+        if (ui.domain == D_HOME && page_id() == P_SONG && !ui.homedown && ui.entry) {
+            q_project *p = ui.p;
+            __builtin_memmove(&p->song[ui.entry - 1], &p->song[ui.entry], (__SIZE_TYPE__)(p->nsong - ui.entry) * sizeof *p->song);
+            p->song[--p->nsong] = (q_entry){0, 1};
+            ui.entry = ui.entry > p->nsong ? p->nsong : ui.entry;
+            ui.dirty = 1;
+        }
         break;
     case B_OCTDN:
     case B_OCTUP:
@@ -297,12 +320,69 @@ static void black_key(int b, q_step *s, q_pattern *t)
     }
 }
 
+static void save_release(void)
+{
+    if (ui.saveused)
+        return;
+    if (audio_playing())                /* a flash write stalls the render */
+        ui.msg_until = plat_ms() + MSG_MS;
+    else if (store_save(ui.p) == 0)
+        ui.dirty = 0;
+}
+
+/* a new pattern or mask for the project: the cursor stays inside the pattern */
+static void scene_apply(const q_scene *sc)
+{
+    int t;
+    for (t = 0; t < Q_TRACKS; t++)
+        ui.p->pattern[t] = sc->pat[t];
+    ui.p->mute = sc->mute;
+    if (ui.cursor > pat()->len)
+        ui.cursor = 1;
+}
+
+/* HOME held and a white key: 0..3 mute the track, 8..15 the scene 1..8 */
+static void home_key(int w)
+{
+    q_scene *sc = &ui.p->scene[w < 8 ? 0 : w - 8];
+    int t;
+    if (w < Q_TRACKS) {
+        ui.p->mute ^= (uint8_t)(1u << w);
+        ui.dirty = 1;
+    } else if (w >= 8 && (ui.seldown || !sc->used)) {
+        for (t = 0; t < Q_TRACKS; t++)
+            sc->pat[t] = ui.p->pattern[t];
+        sc->mute = ui.p->mute;
+        sc->used = 1;
+        ui.dirty = 1;
+    } else if (w >= 8 && !audio_playing()) {
+        scene_apply(sc);
+        ui.dirty = 1;
+    } else if (w >= 8) {                /* the mutes and patterns follow when the scene has started */
+        audio_scene(w - 8);
+        ui.msg_scene = w - 7;
+    }
+}
+
 static void key_down(int k)
 {
     q_pattern *t = pat();
     q_step *s = 0;
     int note = 53 + k + 12 * ui.octave, w, b;
     for (w = 0; w < 16 && WHITE[w] != k; w++) {}
+    if (w < 16 && ui.homedown) {
+        home_key(w);
+        return;
+    }
+    if (w < 16 && ui.savedown) {        /* SAVE held: the white keys 1..8 add the scene to the song */
+        ui.saveused = 1;
+        if (w < Q_SCENES && ui.p->nsong < Q_SONG) {
+            ui.p->song[ui.p->nsong++] = (q_entry){(uint8_t)w, 1};
+            ui.entry = ui.p->nsong;
+            ui.dirty = 1;
+        }
+        return;
+    }
     if (ui.domain == D_SEQ) {           /* the white keys are the page's 16 steps */
         if (w < 16 && ui.seqdown) {     /* SEQ held: the white keys 1..8 are the patterns */
             if (w < Q_PATTERNS)
@@ -371,10 +451,19 @@ void ui_input(void)
 {
     uint32_t btn = plat_buttons(), keys = plat_keys();
     int i, e, d, n;
+    if ((n = audio_scene_started()) >= 0) {     /* first of the frame: before any other write to the mute mask */
+        scene_apply(&ui.p->scene[n]);
+        ui.msg_scene = 0;
+    }
     ui.seqdown = btn >> B_SEQ & 1u;
+    ui.homedown = btn >> B_HOME & 1u;
+    ui.savedown = btn >> B_SAVE & 1u;
+    ui.seldown = btn >> B_SEL & 1u;
     for (i = 0; i < NB; i++)
         if ((btn & ~ui.btn) >> i & 1u)
             button(i);
+    if ((ui.btn & ~btn) >> B_SAVE & 1u)
+        save_release();
     for (i = 0; i < NKEYS; i++) {
         if ((keys & ~ui.keys) >> i & 1u)
             key_down(i);
@@ -405,6 +494,8 @@ void ui_input(void)
             pattern_set(clamp(ui.p->pattern[ui.track] + e, 0, Q_PATTERNS - 1));
         } else if (ui.domain == D_EDIT) {
             knob_turn(P_SOUND, 0, e);
+        } else if (ui.domain == D_HOME && page_id() == P_SONG) {
+            knob_turn(P_SONG, 0, e);
         }
     }
     if (ui.page[D_SEQ] >= domain_n(D_SEQ))      /* another pattern or track, no XY page */
@@ -429,7 +520,12 @@ static void lights(void)
         btn |= 1u << B_REC;
     if (ui.domain == D_SEQ && ui.seqdown)       /* SEQ held: the pattern asked */
         keys = 1u << WHITE[ui.p->pattern[ui.track]];
-    else if (ui.domain == D_SEQ)
+    else if (ui.domain == D_HOME) {             /* the tracks playing, the scenes memorised */
+        for (i = 0; i < Q_TRACKS; i++)
+            keys |= (uint32_t)(!(ui.p->mute >> i & 1u)) << WHITE[i];
+        for (i = 0; i < Q_SCENES; i++)
+            keys |= (uint32_t)ui.p->scene[i].used << WHITE[8 + i];
+    } else if (ui.domain == D_SEQ)
         for (i = 0; i < 16; i++)
             if (t->steps[ui.spage * 16 + i].flags & SF_ON || ui.spage * 16 + i == pos)
                 keys |= 1u << WHITE[i];
@@ -463,6 +559,11 @@ static void note_name(int note, char *b)
 
 static void knob_text(int pid, int k, int v, char *b)
 {
+    if (pid == P_SONG && k == 3) {
+        const char *s = v ? "SONG" : "PATTERN";
+        while ((*b++ = *s++) != 0) {}
+        return;
+    }
     if ((pid == P_STEPS && k > 0) || (pid == P_XY && k & 1)) {
         const char *s = pid == P_STEPS && k == 2 ? PATH_NAME[v] : DIV_NAME[v];
         while ((*b++ = *s++) != 0) {}
@@ -533,6 +634,7 @@ static void view_now(q_view *v)
     v->head.n = (int8_t)domain_n(ui.domain);
     v->head.msg = plat_ms() < ui.msg_until ? 1 : plat_ms() < ui.locks_until ? 2 : 0;
     v->head.pat = (int8_t)(ui.p->pattern[ui.track] + 1);
+    v->head.scene = (int8_t)ui.msg_scene;
     if (audio_playing() && audio_pattern(ui.track) != ui.p->pattern[ui.track])
         v->head.playing = (int8_t)(audio_pattern(ui.track) + 1);
     v->foot.pid = (int8_t)fpid;
@@ -570,6 +672,28 @@ static void view_now(q_view *v)
         v->scene.pos = (int8_t)audio_pos(ui.track);
         v->scene.len = (int8_t)t->len;
         __builtin_memcpy(v->scene.st, &t->steps[ui.spage * 16], sizeof v->scene.st);
+    } else if (pid == P_TRACKS) {
+        for (k = 0; k < Q_TRACKS; k++) {
+            v->scene.tr[k].model = ui.p->sound[k].model;
+            v->scene.tr[k].pat = (uint8_t)(ui.p->pattern[k] + 1);
+            if (audio_playing() && audio_pattern(k) != ui.p->pattern[k])
+                v->scene.tr[k].playing = (uint8_t)(audio_pattern(k) + 1);
+            v->scene.tr[k].mute = ui.p->mute >> k & 1u;
+            v->scene.tr[k].pos = (int8_t)audio_pos(k);
+            v->scene.tr[k].len = (int8_t)ui.p->pat[k][ui.p->pattern[k]].len;
+        }
+    } else if (pid == P_SONG) {
+        int first = ui.entry > 3 ? ui.entry - 3 : 1;     /* the cursor on the 3rd row at most */
+        if (first + 5 > ui.p->nsong)
+            first = ui.p->nsong - 5 > 1 ? ui.p->nsong - 5 : 1;
+        v->scene.song.n = (int8_t)ui.p->nsong;
+        v->scene.song.cursor = (int8_t)ui.entry;
+        v->scene.song.first = (int8_t)first;
+        v->scene.song.playing = (int8_t)(audio_song_entry() + 1);
+        for (k = 0; k < 6 && first + k <= ui.p->nsong; k++)
+            v->scene.song.e[k] = ui.p->song[first + k - 1];
+        if (!ui.entry)
+            v->foot.hide = 7;
     } else if (pid == P_TEMPO) {
         v->scene.tempo = ui.p->tempo;
     } else {
@@ -594,7 +718,11 @@ static void draw_head(const q_view *v)
     x = cv_text(34, 7, &FONT_B, DOMAIN_NAME[v->head.domain], C_WHITE);
     if (v->head.msg)
         cv_text(x + 10, 7, &FONT_B, v->head.msg == 1 ? "STOP TO SAVE" : "LOCKS FULL", KCOL[3]);
-    else if (v->head.domain == D_SEQ) {         /* the pattern asked, after the one playing when it differs */
+    else if (v->head.domain == D_HOME && v->head.scene) {       /* the scene asked, until it starts */
+        t[0] = (char)('0' + v->head.scene), t[1] = 0;
+        x = cv_text(x + 10, 7, &FONT_B, "SCENE", C_AMB);
+        cv_text(x + 4, 7, &FONT_B, t, C_AMB);
+    } else if (v->head.domain == D_SEQ) {         /* the pattern asked, after the one playing when it differs */
         x += 10;
         if (v->head.playing) {
             t[0] = 'P', t[1] = (char)('0' + v->head.playing), t[2] = 0;
@@ -681,6 +809,47 @@ static void draw_scene(const q_view *v, int32_t oy)
                 cv_line(x0, y0 + 1, x1, y1 + 1, C_WHITE);
             }
             cv_rect(33 + 58 * (first % 4) - 4, oy + 34 + 37 * (first / 4) - 4, 9, 9, KCOL[3]);
+        }
+        break;
+    case P_TRACKS:
+        for (i = 0; i < Q_TRACKS; i++) {
+            const q_trow *r = &v->scene.tr[i];
+            int32_t y = oy + 4 + 40 * i, x = 150;
+            uint16_t c = r->mute ? C_GRAY : C_WHITE;
+            cv_rect(10, y + 2, 20, 20, r->mute ? C_DIM : C_HI);
+            int_text(i + 1, t);
+            cv_text(10 + (20 - text_w(&FONT_B, t)) / 2, y + 4, &FONT_B, t, C_BLACK);
+            cv_text(38, y + 6, &FONT_S, MODEL_NAME[r->model], c);
+            if (r->playing) {
+                t[0] = 'P', t[1] = (char)('0' + r->playing), t[2] = 0;
+                x = cv_text(x, y + 6, &FONT_S, t, C_GRAY) + 4;
+                x = cv_text(x, y + 6, &FONT_S, ">", C_GRAY) + 4;
+            }
+            t[0] = 'P', t[1] = (char)('0' + r->pat), t[2] = 0;
+            cv_text(x, y + 6, &FONT_S, t, C_AMB);
+            if (r->mute)
+                cv_text(194, y + 6, &FONT_S, "MUTE", KCOL[3]);
+            cv_rect(10, y + 28, 220, 4, C_LINE);
+            if (r->pos >= 0)
+                cv_rect(10, y + 28, 220 * (r->pos % r->len + 1) / r->len, 4, PINK);
+        }
+        break;
+    case P_SONG:
+        if (!v->scene.song.n)
+            cv_text(16, oy + 8, &FONT_S, "EMPTY", C_GRAY);
+        for (i = 0; i < 6 && v->scene.song.first + i <= v->scene.song.n; i++) {
+            int e = v->scene.song.first + i;
+            int32_t y = oy + 4 + 26 * i;
+            uint16_t c = e == v->scene.song.playing ? PINK : C_WHITE;
+            if (e == v->scene.song.cursor)
+                cv_rect(0, y - 2, 240, 24, C_LINE);
+            int_text(e, t);
+            cv_text(10, y + 3, &FONT_S, t, C_GRAY);
+            t[0] = 'S', t[1] = (char)('1' + v->scene.song.e[i].scene), t[2] = 0;
+            cv_text(60, y + 3, &FONT_S, t, c);
+            t[0] = 'X';
+            int_text(v->scene.song.e[i].reps, t + 1);
+            cv_text(230 - text_w(&FONT_S, t), y + 3, &FONT_S, t, c);
         }
         break;
     case P_TEMPO:
@@ -779,7 +948,7 @@ int ui_expect(const char *what, int *got)
     static const char *const F[] = {"stepon", "stepnote", "stepnote2", "stepvel", "steplen", "stepprob", "stepcond",
                                     "stepratchet", "stepslide", "stepaccent", "stepmicro", "lockharm"};
     const char *u = strchr(what, '_');
-    int f = 12, n = u ? atoi(u + 1) : 0;
+    int f = 12, n = u ? atoi(u + 1) : 0, m = u ? atoi(strrchr(what, '_') + 1) : 0;   /* m: the index after the last '_' */
     while (u && f-- > 0 && !(!strncmp(F[f], what, (size_t)(u - what)) && !F[f][u - what])) {}
     if (u && f >= 0) {
         const q_step *st = &t->steps[n - 1];
@@ -802,7 +971,16 @@ int ui_expect(const char *what, int *got)
             *got = i < 0 ? -1 : t->locks[i].value;
         }
         }
-    } else if (!strcmp(what, "domain")) *got = ui.domain;
+    } else if (!strncmp(what, "scene_used_", 11)) *got = m >= 1 && m <= Q_SCENES ? ui.p->scene[m - 1].used : 0;
+    else if (!strncmp(what, "song_scene_", 11)) *got = m >= 1 && m <= Q_SONG ? ui.p->song[m - 1].scene + 1 : 0;
+    else if (!strncmp(what, "song_reps_", 10)) *got = m >= 1 && m <= Q_SONG ? ui.p->song[m - 1].reps : 0;
+    else if (!strcmp(what, "song_n")) *got = ui.p->nsong;
+    else if (!strcmp(what, "song_on")) *got = ui.p->song_on;
+    else if (!strcmp(what, "entry")) *got = ui.entry;
+    else if (!strcmp(what, "playentry")) *got = audio_song_entry() + 1;
+    else if (!strcmp(what, "msg_scene")) *got = ui.msg_scene;
+    else if (!strcmp(what, "mute")) *got = ui.p->mute;
+    else if (!strcmp(what, "domain")) *got = ui.domain;
     else if (!strcmp(what, "page")) *got = ui.page[ui.domain] + 1;
     else if (!strcmp(what, "track")) *got = ui.track + 1;
     else if (!strcmp(what, "playing")) *got = audio_playing();

@@ -1,0 +1,30 @@
+# a scene launched while playing starts at the next bar
+wait 600
+press HOME
+key 14 down
+key 14 up
+release HOME
+tap SEQ
+turn PRESET 1
+press HOME
+key 16 down
+key 16 up
+release HOME
+expect scene_used_2 1
+tap SEQ
+turn PRESET -1
+tap PLAY
+wait 100
+expect playpat 1
+press HOME
+key 16 down
+key 16 up
+release HOME
+expect msg_scene 2
+expect playpat 1
+shot scene_pending.png
+wait 2100
+expect playpat 2
+expect msg_scene 0
+expect pattern 2
+tap PLAY

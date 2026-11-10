@@ -1,0 +1,31 @@
+# the song: entries added with SAVE held, edited on the SONG page, played
+wait 600
+press SAVE
+key 0 down
+key 0 up
+key 2 down
+key 2 up
+release SAVE
+expect song_n 2
+expect entry 2
+expect song_scene_1 1
+expect song_scene_2 2
+expect dirty 1
+expect store_writes 0
+tap HOME
+turn SELECT 1
+turn K3 1
+expect song_reps_2 2
+turn K4 1
+expect song_on 1
+tap PLAY
+expect playentry 1
+wait 2100
+expect playentry 2
+tap PLAY
+turn K1 -1
+expect entry 1
+tap SEL
+expect song_n 1
+expect entry 1
+shot song.png

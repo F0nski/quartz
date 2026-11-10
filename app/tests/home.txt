@@ -1,0 +1,54 @@
+# HOME: mutes by hand, scenes memorised and recalled when stopped
+wait 600
+tap HOME
+expect domain 3
+press HOME
+key 0 down
+key 0 up
+release HOME
+expect mute 1
+expect dirty 1
+# scene 1 = pattern 1 + track 1 muted
+expect scene_used_1 0
+press HOME
+key 14 down
+key 14 up
+release HOME
+expect scene_used_1 1
+tap SEQ
+turn PRESET 1
+expect pattern 2
+press HOME
+key 0 down
+key 0 up
+release HOME
+expect mute 0
+# recalled while stopped
+press HOME
+key 14 down
+key 14 up
+release HOME
+expect pattern 1
+expect mute 1
+# SEL held: scene 1 rewritten with the current state
+tap SEQ
+turn PRESET 2
+expect pattern 3
+press HOME
+press SEL
+key 14 down
+key 14 up
+release SEL
+release HOME
+expect pattern 3
+tap SEQ
+turn PRESET -2
+expect pattern 1
+press HOME
+key 14 down
+key 14 up
+release HOME
+expect pattern 3
+tap HOME
+wait 100
+shot home.png
