@@ -49,3 +49,41 @@ MODAL	modal
 BASS DRUM	bass drum
 SNARE	snare
 HI-HAT	hi-hat
+SEQ	sequencer
+PATH	path
+X LEN	x length
+X DIV	x division
+Y LEN	y length
+Y DIV	y division
+FWD	forward
+REV	reverse
+PING-PONG	ping-pong
+SNAKE	snake
+COLUMNS	columns
+SPIRAL	spiral
+RANDOM	random
+XY	X Y
+LOCKS FULL	locks full
+NOTE	note
+VEL	velocity
+MICRO	micro timing
+PROB	probability
+COND	condition
+RATCHET	ratchet
+SLIDE	slide
+ACCENT	accent
+NONE	none
+FIRST	first
+!FIRST	not first
+PRE	previous
+!PRE	not previous
+ON	on
+P1	pattern 1
+P2	pattern 2
+P3	pattern 3
+P4	pattern 4
+P5	pattern 5
+P6	pattern 6
+P7	pattern 7
+P8	pattern 8
+>	then

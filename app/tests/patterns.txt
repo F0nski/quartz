@@ -1,0 +1,53 @@
+# PATH, the XY page, and the pattern asked
+wait 600
+tap SEQ
+turn K3 3
+expect path 3
+wait 100
+shot seq_path.png
+turn K3 10
+expect path 7
+turn SELECT 1
+expect page 2
+turn K3 -1
+expect ylen 3
+turn K4 2
+expect ydiv 8
+turn K1 -9
+expect xlen 1
+turn K2 1
+expect div 3
+turn K2 -1
+turn SELECT 1
+turn K3 -7
+expect path 0
+turn SELECT 1
+expect page 1
+# SEQ held and a white key: the pattern asked
+press SEQ
+key 2 down
+key 2 up
+release SEQ
+expect pattern 2
+key 0 down
+key 0 up
+expect stepon_1 1
+turn PRESET -1
+expect pattern 1
+expect stepon_1 0
+turn PRESET 1
+expect stepon_1 1
+turn PRESET -1
+# playing: the asked pattern starts with the next pass
+tap PLAY
+press SEQ
+key 2 down
+key 2 up
+release SEQ
+expect pattern 2
+expect playpat 1
+wait 1000
+shot seq_pending.png
+wait 1100
+expect playpat 2
+tap PLAY
