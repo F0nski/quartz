@@ -9,6 +9,7 @@ turn SELECT 1
 turn K1 9
 wait 200
 expect model 17
+expect active 0
 key 7 up
 tap PLAY
 wait 3000

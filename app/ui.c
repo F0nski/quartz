@@ -9,7 +9,7 @@
 #define HEAD_H 30
 #define BAND_H 83                    /* the scene, 240 x 166, in two bands */
 #define FOOT_Y 196
-#define PINK RGB(255, 70, 170)       /* notes playing only */
+#define PINK RGB(255, 47, 142)       /* notes playing only */
 
 enum { D_EDIT, D_SEQ, D_GLO, ND };
 enum { P_ENGINE, P_SOUND, P_STEPS, P_TEMPO, P_CPU };
@@ -35,7 +35,7 @@ static const char *const MODEL_NAME[24] = {
     "SWARM", "NOISE", "PARTICLE", "STRING", "MODAL", "BASS DRUM", "SNARE", "HI-HAT"};
 static const char *const DIV_NAME[DIV_N] = {"1/32", "1/16T", "1/16", "1/8T", "1/8", "1/4T", "1/4", "1/2", "1/1"};
 static const uint8_t WHITE[16] = PLAT_WHITE_KEYS;
-static const uint16_t KCOL[4] = {RGB(70, 140, 255), RGB(80, 220, 120), C_WHITE, RGB(255, 150, 40)};
+static const uint16_t KCOL[4] = {RGB(58, 109, 255), RGB(34, 213, 142), RGB(240, 240, 250), RGB(255, 122, 46)};
 
 /* what is on the screen, part by part: a part is drawn again when its view changes */
 typedef struct {
@@ -188,7 +188,7 @@ static void key_up(int k)
 void ui_input(void)
 {
     uint32_t btn = plat_buttons(), keys = plat_keys();
-    int i, e, d = ui.domain, n = DOMAIN_N[d];
+    int i, e, d, n;
     for (i = 0; i < NB; i++)
         if ((btn & ~ui.btn) >> i & 1u)
             button(i);
@@ -200,6 +200,8 @@ void ui_input(void)
     }
     ui.btn = btn;
     ui.keys = keys;
+    d = ui.domain;                      /* after the buttons: SELECT turns the page of the domain just picked */
+    n = DOMAIN_N[d];
     if ((e = plat_enc(EN_ALGO)) != 0)
         ui.track = clamp(ui.track + e, 0, Q_TRACKS - 1);
     if ((e = plat_enc(EN_SELECT)) != 0)
