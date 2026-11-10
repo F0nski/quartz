@@ -249,7 +249,7 @@ static void divider(q_gen *g, int clusters, float bias, float u0, int *rat)
     int n = g->div_n++;
     for (int i = 0; i < 2; i++) {
         int p = g->div_pat[i][0], q = g->div_pat[i][1];
-        int c = (n + 1) * p / q - n * p / q;
+        int c = ((n + 1) * p + q - 1) / q - (n * p + q - 1) / q;   /* ceilings: a 1/q ratio fires on step 0 */
         rat[i] = c > 4 ? 4 : c;
     }
 }
@@ -259,7 +259,8 @@ static void divider(q_gen *g, int clusters, float bias, float u0, int *rat)
 static int marbles_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, uint32_t *rng, q_step *st)
 {
     const q_marbles *m = &pt->marbles;
-    float bias = m->bias / 127.0f, d = m->dejavu / 127.0f;
+    /* 63 and 64 both mean the centre: the loop is frozen there, never mutated */
+    float bias = m->bias / 127.0f, d = m->dejavu == 63 || m->dejavu == 64 ? 0.5f : m->dejavu / 127.0f;
     int len = m->len;
 
     /* RandomSequence::NextVector: pulse widths (unused), u[0], u[1], p, jitter. 24 bits keep them below 1. */
@@ -267,6 +268,8 @@ static int marbles_step(q_gen *g, const q_project *p, int track, const q_pattern
     uint32_t w = (uint32_t)(dejavu_next(&g->t, len, d, rng) * 4294967296.0f);
     for (int i = 0; i < 6; i++) { x[i] = (w >> 8) * (1.0f / 16777216.0f); w = w * 1664525u + 1013904223u; }
     const float *u = x + 2;
+    /* X draws on every step, even when its note is not played, so that T and X loop together */
+    float xu = dejavu_next(&g->x, len, d, rng);
 
     int bits = 0, rat[2] = { 1, 1 };
     switch (m->mode) {
@@ -311,7 +314,6 @@ static int marbles_step(q_gen *g, const q_project *p, int track, const q_pattern
         if (!out) return 0;
         if (m->tout != 2) ratchet = rat[m->tout == 3];
         float spread = m->spread / 127.0f, xbias = m->xbias / 127.0f;
-        float xu = dejavu_next(&g->x, len, d, rng);
         float degenerate = 1.25f - spread * 25.0f, bernoulli = spread * 25.0f - 23.75f;
         degenerate = degenerate < 0.0f ? 0.0f : degenerate > 1.0f ? 1.0f : degenerate;
         bernoulli = bernoulli < 0.0f ? 0.0f : bernoulli > 1.0f ? 1.0f : bernoulli;

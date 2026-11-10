@@ -153,28 +153,40 @@ static int kit_pads(const q_step *st)
     return m;
 }
 
+/* DEJA VU 63 and 64 are the frozen centre */
 static void marbles_dejavu_mid_loops(void)
 {
-    for (int mode = 0; mode < 7; mode++) {
-        int pads[40];
-        q_pattern *pt = msetup(M_KIT, mode);
-        pt->marbles.dejavu = 64;
-        pt->marbles.bias = 40;
-        for (int k = 0; k < 40; k++) { q_step st; int acc; played(pt, k, &st, &acc); pads[k] = kit_pads(&st); }
-        /* CLUSTERS, DRUMS, DIVIDER and MARKOV also follow their own patterns or history: only the Bernoulli
-           and three-state models loop on LEN alone */
-        if (mode == 0 || mode == 3 || mode == 5)
-            for (int k = 5; k < 40; k++) assert(pads[k] == pads[k - 5]);
+    for (int dv = 63; dv <= 64; dv++) {
+        for (int mode = 0; mode < 7; mode++) {
+            int pads[40];
+            q_pattern *pt = msetup(M_KIT, mode);
+            pt->marbles.dejavu = dv;
+            pt->marbles.bias = 40;
+            for (int k = 0; k < 40; k++) { q_step st; int acc; played(pt, k, &st, &acc); pads[k] = kit_pads(&st); }
+            /* CLUSTERS, DRUMS, DIVIDER and MARKOV also follow their own patterns or history: only the Bernoulli
+               and three-state models loop on LEN alone */
+            if (mode == 0 || mode == 3 || mode == 5)
+                for (int k = 5; k < 40; k++) assert(pads[k] == pads[k - 5]);
+        }
+        /* T OUT t1: X still draws on every step, so the played flag and the note loop together. Several fresh
+           loops: at least one must mix played and silent steps. */
+        int mixed = 0;
+        for (int run = 0; run < 8; run++) {
+            int on[400], notes[400], plays = 0;
+            q_pattern *pt = msetup(8, 0);
+            pt->marbles.tout = 1; pt->marbles.dejavu = dv; pt->marbles.bias = 64;
+            pt->marbles.range = 4; pt->marbles.spread = 100;
+            for (int k = 0; k < 400; k++) {
+                q_step st; int acc;
+                on[k] = played(pt, k, &st, &acc);
+                notes[k] = on[k] ? st.note[0] : -1;
+                plays += !!on[k];
+            }
+            mixed += plays > 0 && plays < 400;
+            for (int k = 5; k < 400; k++) assert(on[k] == on[k - 5] && notes[k] == notes[k - 5]);
+        }
+        assert(mixed > 0);
     }
-    int notes[40];
-    q_pattern *pt = msetup(8, 0);
-    pt->marbles.dejavu = 64;
-    for (int k = 0; k < 40; k++) {
-        q_step st; int acc;
-        assert(played(pt, k, &st, &acc) && acc == 0);
-        notes[k] = st.note[0];
-    }
-    for (int k = 5; k < 40; k++) assert(notes[k] == notes[k - 5]);
 }
 
 static void marbles_dejavu0_varies(void)
@@ -294,7 +306,7 @@ static void marbles_divider_ratchets(void)
         played(pt, k, &st, &acc);
         int m = kit_pads(&st);
         assert((m & 1) && STEP_RATCHET(&st) == 4);
-        if (m & 4) { t3++; if (last >= 0) assert(k - last == 8); last = k; }
+        if (m & 4) { t3++; assert(k % 8 == 0); if (last >= 0) assert(k - last == 8); last = k; }
     }
     assert(t3 == 8);
 }
