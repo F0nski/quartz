@@ -1134,20 +1134,37 @@ static void marbles_len_sets_loop(void)
     }
 }
 
+/* track 0 a MARBLES pattern whose loops mutate every step, a note every step; muted or not, then the notes of the
+   note-ons from step 16 to 20 */
+static void marbles_from_16(int mute, int *notes)
+{
+    int n = 0;
+    setup();
+    P.pat[0][0].src = SRC_MARBLES;
+    P.pat[0][0].marbles.tout = 2;
+    P.pat[0][0].marbles.dejavu = 0;
+    P.pat[0][0].marbles.spread = 100;
+    P.mute = (uint8_t)mute;
+    run_to((uint64_t)at16(15, 0));                              /* steps 0..15 planned */
+    P.mute = 0;
+    run_to((uint64_t)at16(20, 1));
+    for (int i = 0; i < NEV; i++) {
+        if (!EV[i].e.on || (int64_t)EV[i].at < at16(16, 0)) continue;
+        assert(n < 5);
+        notes[n++] = EV[i].e.note;
+    }
+    assert(n == 5);
+}
+
+/* a muted generator still draws its steps: unmuted, it plays what it would have played */
 static void muted_generator_advances(void)
 {
-    int want[3], n = 0;
-    grids_setup();
-    P.sound[0].model = M_KIT;
-    P.mute = 1;
-    run_to((uint64_t)at16(15, 0));                              /* steps 0..15 planned muted */
-    P.mute = 0;
-    run_to((uint64_t)at16(16, 1));
-    for (int i = 0; i < 3; i++)
-        if (grids_read(16, i, grids_u8(64), grids_u8(64)) > 0) want[n++] = KIT_NOTE + i;
-    assert(n > 0 && NEV == n);
-    for (int i = 0; i < n; i++)
-        assert(EV[i].e.on && EV[i].e.step == 16 && EV[i].e.note == want[i] && (int64_t)EV[i].at == at16(16, 0));
+    int want[5], got[5], ons = 0;
+    marbles_from_16(0, want);
+    marbles_from_16(1, got);
+    for (int i = 0; i < NEV; i++) ons += EV[i].e.on;
+    assert(ons == 5);                                           /* nothing before step 16 */
+    for (int i = 0; i < 5; i++) assert(got[i] == want[i]);
 }
 
 static void source_change_mid_play(void)

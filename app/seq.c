@@ -465,11 +465,9 @@ static void plan(q_seq *s, const q_project *p, int t, uint64_t end, const q_cloc
         /* a muted step still decides: it counts for PRE (and draws its probability); a generator still computes its
            step, so its state moves on. A generator's step has no condition nor probability. */
         q_step g;
-        const q_step *st = &pt->steps[step];
-        if (gen) {
-            acc = gen_step(&s->g[t], p, t, pt, tr->k, &s->rng, &g);
-            st = &g;
-        }
+        const q_step *st = &g;
+        if (gen) acc = gen_step(&s->g[t], p, t, pt, tr->k, &s->rng, &g);
+        else st = &pt->steps[step];
         if ((st->flags & SF_ON) && (gen || decide(s, tr, st)) && !(s->mute >> t & 1))
             plan_notes(s, p, t, st, step, acc);
         else if (tr->tie) untie(s, t);
