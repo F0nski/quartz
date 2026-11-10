@@ -1,0 +1,16 @@
+# fm1-base resumes the app (a refused update calls app_ui_init again): the held note is released, the edit stays unsaved
+wait 600
+key 7 down
+wait 100
+expect active 1
+tap SEQ
+key 0 down
+key 0 up
+expect dirty 1
+update_refused
+expect dirty 1
+wait 3000
+expect active 0
+key 7 up
+wait 100
+expect active 0

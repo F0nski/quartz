@@ -47,7 +47,7 @@ typedef struct {
         uint8_t model;
         uint16_t tempo;
         q_step st[16];
-        q_load load;
+        int32_t cpu[6];                         /* the CPU page's numbers as shown; core 2 -1: OFF */
     } scene;
 } q_view;
 
@@ -96,7 +96,11 @@ static void knob_set(int pid, int k, int v)
     case P_SOUND * 4 + 1: s->tune = (int8_t)v; break;
     case P_SOUND * 4 + 2: s->glide = (uint8_t)v; break;
     case P_SOUND * 4 + 3: s->poly = (uint8_t)v; break;
-    case P_STEPS * 4: t->len = (uint8_t)v; break;
+    case P_STEPS * 4:
+        t->len = (uint8_t)v;
+        if (ui.cursor > v)              /* step entry past the end: back to step 1 */
+            ui.cursor = 1;
+        break;
     case P_STEPS * 4 + 1: t->div = (uint8_t)v; break;
     case P_TEMPO * 4: ui.p->tempo = (uint16_t)v; break;
     }
@@ -161,6 +165,7 @@ static void key_down(int k)
                     s->note = ui.last_note[ui.track];
                     s->vel = 100;
                 }
+                __asm__ volatile("" ::: "memory");   /* note and vel before on: the render never reads half a step */
                 s->on = !s->on;
                 ui.dirty = 1;
             }
@@ -171,7 +176,11 @@ static void key_down(int k)
     ui.key_track[k] = (int8_t)ui.track;
     ui.last_note[ui.track] = (uint8_t)note;
     if (ui.rec) {                       /* step entry: the note at the cursor, then the next step */
-        t->steps[ui.cursor - 1] = (q_step){1, (uint8_t)note, 100, 0};
+        q_step *s = &t->steps[ui.cursor - 1];
+        s->note = (uint8_t)note;
+        s->vel = 100;
+        __asm__ volatile("" ::: "memory");   /* (as above) */
+        s->on = 1;
         ui.cursor = ui.cursor % t->len + 1;
         ui.dirty = 1;
     }
@@ -290,7 +299,13 @@ static void view_now(q_view *v)
     } else if (pid == P_TEMPO) {
         v->scene.tempo = ui.p->tempo;
     } else {
-        v->scene.load = audio_load();
+        q_load l = audio_load();
+        v->scene.cpu[0] = (int32_t)l.core1_pct;
+        v->scene.cpu[1] = l.cpu2 ? (int32_t)l.core2_pct : -1;
+        v->scene.cpu[2] = (int32_t)l.xruns;
+        v->scene.cpu[3] = (int32_t)l.active;
+        v->scene.cpu[4] = (int32_t)pq_voice_bytes();
+        v->scene.cpu[5] = (int32_t)l.cpu2_stack;
     }
 }
 
@@ -363,16 +378,13 @@ static void draw_scene(const q_view *v, int32_t oy)
         break;
     case P_CPU: {
         static const char *const ROW[6] = {"CORE 1", "CORE 2", "LOST BLOCKS", "VOICES", "BYTES/VOICE", "CORE 2 STACK"};
-        const q_load *l = &v->scene.load;
-        int val[6] = {(int)l->core1_pct, (int)l->core2_pct, (int)l->xruns, (int)l->active, (int)pq_voice_bytes(),
-                      (int)l->cpu2_stack};
         for (i = 0; i < 6; i++) {
             int32_t y = oy + 6 + 24 * i;
             cv_text(16, y, &FONT_S, ROW[i], C_GRAY);
-            if (i == 1 && !l->cpu2) {
+            if (i == 1 && v->scene.cpu[1] < 0) {
                 t[0] = 'O', t[1] = 'F', t[2] = 'F', t[3] = 0;
             } else {
-                int_text(val[i], t);
+                int_text(v->scene.cpu[i], t);
                 for (k = 0; t[k]; k++) {}
                 if (i < 2)
                     t[k++] = '%', t[k] = 0;
@@ -404,14 +416,24 @@ static void draw_foot(const q_view *v)
     cv_blit(0, FOOT_Y);
 }
 
+/* fm1-base calls it again when it resumes the app (a refused update): the held notes get their note-offs, the
+ * unsaved edits stay unsaved, and the keys and buttons still down do not count as pressed again */
 void ui_init(q_project *p)
 {
+    int k, dirty = ui.dirty;
+    uint32_t btn = ui.btn, keys = ui.keys;
+    if (ui.p)
+        for (k = 0; k < NKEYS; k++)
+            key_up(k);
     __builtin_memset(&ui, 0, sizeof ui);
     __builtin_memset(ui.key_note, -1, sizeof ui.key_note);
     __builtin_memset(ui.last_note, 60, sizeof ui.last_note);
     ui.p = p;
     ui.cursor = 1;
     ui.full = 1;
+    ui.dirty = dirty;
+    ui.btn = btn;
+    ui.keys = keys;
 }
 
 void ui_frame(void)

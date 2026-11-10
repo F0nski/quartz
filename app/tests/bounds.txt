@@ -1,0 +1,36 @@
+# The knobs' upper bounds, SELECT wrapping backwards, the step-entry cursor when LEN shrinks below it
+wait 600
+tap EDIT
+spin SELECT -1
+expect page 2
+spin K1 100
+expect model 23
+spin K2 100
+expect tune 24
+spin K4 100
+expect poly 4
+spin SELECT -1
+expect page 1
+tap GLO
+spin SELECT -1
+expect page 2
+tap SEQ
+spin K1 100
+expect len 64
+spin K1 -48
+expect len 16
+tap REC
+tap EDIT
+key 7 down
+key 7 up
+key 7 down
+key 7 up
+key 7 down
+key 7 up
+key 7 down
+key 7 up
+expect cursor 5
+tap SEQ
+spin K1 -13
+expect len 3
+expect cursor 1
