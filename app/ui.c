@@ -394,7 +394,9 @@ static void attr_turn(q_step *s, int d)
     case A_RATCHET: s->flags = (uint8_t)((s->flags & ~0x18) | (clamp(STEP_RATCHET(s) + d, 1, 4) - 1) << 3); break;
     case A_PROB: s->prob = (uint8_t)clamp(s->prob + d, 0, 20); break;
     case A_COND: s->cond = (uint8_t)cond_value(clamp(cond_index(s->cond) + d, 0, COND_N - 1)); break;
-    case A_NOTE:                        /* the whole chord, kept in 1..127 */
+    case A_NOTE:                        /* the whole chord, kept in 1..127; a KIT's pads stay */
+        if (kit())
+            break;
         for (i = 0; i < 4; i++)
             if (i == 0 || s->note[i]) {
                 lo = lo < s->note[i] ? lo : s->note[i];
@@ -442,7 +444,7 @@ static void lock_turn(int k, int d)
 static void rec_write(const q_rec *r)
 {
     q_step *s = &ui.p->pat[r->track][r->pat].steps[r->step];
-    int i, poly = ui.p->sound[r->track].poly;
+    int i, poly = ui.p->sound[r->track].model == M_KIT ? 4 : ui.p->sound[r->track].poly;   /* a KIT: pads added */
     if (ui.p->pat[r->track][r->pat].src != SRC_STEP)    /* a generator's: played, not written */
         return;
     if (!(s->flags & SF_ON)) {
@@ -943,6 +945,7 @@ static void view_now(q_view *v)
         v->scene.xlen = (int8_t)(pid == P_XY ? t->xlen : 4);
         v->scene.ylen = (int8_t)(pid == P_XY ? t->ylen : 4);
         v->scene.held = (int8_t)ui.held;
+        v->scene.model = ui.p->sound[ui.track].model;
         v->scene.attr = (int8_t)ui.attr;
         if (ui.held)
             v->scene.hst = t->steps[ui.held - 1];
@@ -1087,7 +1090,11 @@ static void draw_scene(const q_view *v, int32_t oy)
                 cv_rect(x, y, 54, 33, c);
             }
             if (st->flags & SF_ON) {
-                note_name(st->note[0], t);
+                if (v->scene.model == M_KIT) {      /* its first pad */
+                    t[0] = 'P';
+                    int_text(st->note[0] - KIT_NOTE + 1, t + 1);
+                } else
+                    note_name(st->note[0], t);
                 cv_text(x + (54 - text_w(&FONT_T, t)) / 2, y + 20, &FONT_T, t, C_BLACK);
             }
             if (v->scene.locks >> i & 1u)
