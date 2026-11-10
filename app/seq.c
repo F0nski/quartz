@@ -88,25 +88,28 @@ static void clock_next(q_clock *c)
     c->next_r %= c->den;
 }
 
+/* Out of line: inlined 64-bit multiplies among 16-bit loads now and then corrupt a register (base/bsp/docs/CPU.md) */
+static __attribute__((noinline)) int64_t mul64(int64_t a, int64_t b) { return a * b; }
+
 /* ceil(c's start + spf x f / 4800) in frames: f in 4800ths of a step keeps micro (200 per 24th), swing (96 per %)
    and ratchets (4800 / r) whole */
 static int64_t date(const q_clock *c, int64_t f)
 {
-    int64_t x = (int64_t)c->next_r * 4800 + (int64_t)c->num * f, d = 4800 * (int64_t)c->den;
+    int64_t x = mul64(c->next_r, 4800) + mul64(c->num, f), d = mul64(4800, c->den);
     return (int64_t)c->next_i + (x >= 0 ? (x + d - 1) / d : -(-x / d));
 }
 
 /* the step at c is planned half a step ahead: its start minus half a step falls before end */
 static int due(const q_clock *c, uint64_t end)
 {
-    return ((int64_t)c->next_i - (int64_t)end) * 2 * c->den + 2 * (int64_t)c->next_r < (int64_t)c->num;
+    return mul64((int64_t)c->next_i - (int64_t)end, 2 * (int64_t)c->den) + 2 * (int64_t)c->next_r < (int64_t)c->num;
 }
 
 /* a's start <= b's, exactly */
 static int not_after(const q_clock *a, const q_clock *b)
 {
-    return ((int64_t)a->next_i - (int64_t)b->next_i) * a->den * b->den + (int64_t)a->next_r * b->den
-        <= (int64_t)b->next_r * a->den;
+    return mul64(mul64((int64_t)a->next_i - (int64_t)b->next_i, a->den), b->den) + mul64(a->next_r, b->den)
+        <= mul64(b->next_r, a->den);
 }
 
 static void queue_push(q_queue *q, uint64_t at, uint32_t gate, q_event e)
@@ -302,7 +305,7 @@ int seq_locate(const q_seq *s, const q_project *p, int track, int *micro)
     int64_t now = (int64_t)s->now;
     if (!c) return -1;
     if (c == &tr->h[0] && now - swung(c, p) >= swung(&tr->h[1], p) - now) c = &tr->h[1];
-    int64_t d = (now - swung(c, p)) * 24 * c->c.den, num = c->c.num;
+    int64_t d = mul64(mul64(now - swung(c, p), 24), c->c.den), num = c->c.num;
     int m = (int)((2 * d + (d < 0 ? -num : num)) / (2 * num));
     *micro = m < -11 ? -11 : m > 11 ? 11 : m;
     return c->step;
@@ -461,10 +464,11 @@ int seq_block(q_seq *s, const q_project *p, uint32_t nframes, q_event *out, int 
     clock_set(&s->beat, p->tempo, DIV_4);
     if (s->launch >= 0) {               /* the launch's bar: not before the tracks start */
         if (s->bar < 0) s->bar = (s->beats + 3) / 4 > s->count / 4 ? (s->beats + 3) / 4 : s->count / 4;
-        uint64_t r = s->beat.next_r + (uint64_t)s->beat.num * (uint32_t)(4 * s->bar - s->beats);
+        uint64_t r = s->beat.next_r + (uint64_t)mul64(s->beat.num, (uint32_t)(4 * s->bar - s->beats));
         bar = s->beat;
-        bar.next_i += r / bar.den;
-        bar.next_r = (uint32_t)(r % bar.den);
+        uint64_t q = r / bar.den;
+        bar.next_i += q;
+        bar.next_r = (uint32_t)r - (uint32_t)q * bar.den;      /* r % den in 32 bits: no 64-bit multiply */
     }
     for (int64_t b; (b = date(&s->beat, 0)) < (int64_t)end; s->beats++, clock_next(&s->beat))
         if (s->click || s->beats < s->count)
