@@ -8,7 +8,10 @@
 #define Q_LOCKS 128
 #define Q_SCENES 8
 #define Q_SONG 32
-#define Q_VERSION 2                /* q_project.version: the saved layout */
+#define Q_VERSION 3                /* q_project.version: the saved layout */
+#define Q_PADS 16
+#define M_KIT 24                   /* q_sound.model: the 16-pad kit */
+#define KIT_NOTE 36                /* a KIT's note: KIT_NOTE + pad */
 #define Q_SR 44117.647f            /* exactly 24 000 000 / 544 = 750000/17 Hz; the timing uses the ratio (seq.c) */
 
 enum { DIV_32, DIV_16T, DIV_16, DIV_8T, DIV_8, DIV_4T, DIV_4, DIV_2, DIV_1, DIV_N };
@@ -22,11 +25,18 @@ typedef struct { uint8_t note[4], vel, len, prob, cond, flags; int8_t micro; } q
 typedef struct { uint8_t step, param, value; } q_lock;    /* value: the q_sound field's byte (tune as uint8_t) */
 enum { PATH_FWD, PATH_REV, PATH_PINGPONG, PATH_SNAKE, PATH_COLUMNS, PATH_SPIRAL, PATH_RANDOM, PATH_XY, PATH_N };
 /* XY: xlen, ylen 1..4, ydiv a DIV_* (the X clock is div) */
-typedef struct { uint8_t len, div, nlocks, path, xlen, ylen, ydiv, pad; q_step steps[Q_STEPS]; q_lock locks[Q_LOCKS]; } q_pattern;
+enum { SRC_STEP, SRC_GRIDS, SRC_MARBLES, SRC_N };         /* q_pattern.src: where the notes come from */
+/* 0..127 except voice 1..3 */
+typedef struct { uint8_t x, y, chaos, dens[3], voice, note; } q_grids;
+/* 0..127 except tout 1..3, len 1..16, mode 0..6, range 1..4; notes: pitch classes allowed (bit n = C + n), 0 = the project's scale */
+typedef struct { uint8_t tout, len, mode, bias, jitter, dejavu, spread, xbias, steps, note, range; uint8_t notes[2]; } q_marbles;
+typedef struct { uint8_t len, div, nlocks, path, xlen, ylen, ydiv, src; q_grids grids; q_marbles marbles; q_step steps[Q_STEPS]; q_lock locks[Q_LOCKS]; } q_pattern;
 typedef struct { uint8_t used, mute, pat[Q_TRACKS]; } q_scene;
 typedef struct { uint8_t scene, reps; } q_entry;          /* scene 0..7, reps 1..16 */
-/* 0..127 except model 0..23, poly 1..4, tune -24..24 */
+/* 0..127 except model 0..24, poly 1..4, tune -24..24 */
 typedef struct { uint8_t model, poly, glide, level; int8_t tune; uint8_t harm, timb, morph, decay; } q_sound;
+enum { PAD_BD, PAD_SN, PAD_HH };                          /* q_pad.engine */
+typedef struct { uint8_t engine; int8_t tune; uint8_t harm, timb, decay, level; } q_pad;   /* tune -24..24; the rest 0..127 */
 /* tempo in whole BPM, 40..240 */
 typedef struct {
     uint8_t version; uint16_t tempo;
@@ -38,6 +48,7 @@ typedef struct {
     q_pattern pat[Q_TRACKS][Q_PATTERNS];
     q_scene scene[Q_SCENES];
     q_entry song[Q_SONG];
+    q_pad kit[Q_TRACKS][Q_PADS];
 } q_project;
 
 void project_defaults(q_project *p);

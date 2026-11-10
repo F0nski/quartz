@@ -199,10 +199,21 @@ static void store_rejects_bad_object(void)
     assert(store_load(&b) == 0 && !memcmp(&a, &b, sizeof a));
 }
 
+/* p as chunks, by hand: the header of each is the one store_save wrote, the payload p's bytes */
+static void write_raw(const q_project *p)
+{
+    const uint8_t *raw = (const uint8_t *)p;
+    for (int i = 0; i < Q_CHUNKS; i++) {
+        uint32_t off = (uint32_t)i * (PLAT_STORE_MAX - 8u);
+        uint32_t n = sizeof *p - off < PLAT_STORE_MAX - 8u ? (uint32_t)sizeof *p - off : PLAT_STORE_MAX - 8u;
+        if (off >= sizeof *p) n = 0;
+        memcpy(mem[i] + 8, raw + off, n);
+    }
+}
+
 static void store_clamps_fields(void)
 {
     static q_project a, b;
-    uint8_t *raw = (uint8_t *)&b;
     project_defaults(&a);
     store_save(&a);
     b = a;
@@ -219,22 +230,70 @@ static void store_clamps_fields(void)
     b.nsong = 99; b.click = 9;
     b.scene[1].pat[2] = 9;
     b.song[4].scene = 9; b.song[4].reps = 0; b.song[5].reps = 99;
-    /* write b as chunks, by hand: the header of each is the one store_save wrote, the payload b's bytes */
-    for (int i = 0; i < Q_CHUNKS; i++) {
-        uint32_t off = (uint32_t)i * (PLAT_STORE_MAX - 8u);
-        uint32_t n = sizeof b - off < PLAT_STORE_MAX - 8u ? (uint32_t)sizeof b - off : PLAT_STORE_MAX - 8u;
-        if (off >= sizeof b) n = 0;
-        memcpy(mem[i] + 8, raw + off, n);
-    }
+    write_raw(&b);
     memset(&a, 0xAA, sizeof a);
     assert(store_load(&a) == 0);
-    assert(a.tempo == 40 && a.sound[1].poly == 1 && a.sound[2].model == 23);
+    assert(a.tempo == 40 && a.sound[1].poly == 1 && a.sound[2].model == M_KIT);
     assert(a.pat[3][0].div == DIV_N - 1 && a.pat[3][0].len == 1);
     assert(a.pat[1][2].nlocks == Q_LOCKS && a.pat[1][2].locks[3].step < Q_STEPS && a.pat[1][2].locks[3].param < LK_N);
     assert(a.pat[2][5].path == PATH_N - 1 && a.pat[2][5].xlen == 1 && a.pat[2][5].ylen == 4 && a.pat[2][5].ydiv == DIV_N - 1);
     assert(a.pattern[0] == Q_PATTERNS - 1 && a.nsong == Q_SONG && a.scene[1].pat[2] == Q_PATTERNS - 1);
     assert(a.song[4].scene == Q_SCENES - 1 && a.song[4].reps == 1 && a.song[5].reps == 16);
     assert(a.click == 3);
+}
+
+static void store_roundtrip_v3(void)
+{
+    static q_project a, b;
+    project_defaults(&a);
+    q_pattern *q = &a.pat[1][3];
+    q->src = SRC_MARBLES;
+    q->grids = (q_grids){ 10, 20, 30, { 40, 50, 60 }, 2, 70 };
+    q->marbles = (q_marbles){ 2, 12, 5, 11, 22, 33, 44, 55, 66, 77, 3, { 0x55, 0x0A } };
+    a.kit[2][9] = (q_pad){ 1, -7, 11, 22, 33, 44 };
+    assert(store_save(&a) == 0);
+    memset(&b, 0xAA, sizeof b);
+    assert(store_load(&b) == 0);
+    assert(!memcmp(&a, &b, sizeof a));
+}
+
+static void store_clamps_v3(void)
+{
+    static q_project a, b;
+    project_defaults(&a);
+    store_save(&a);
+    b = a;
+    q_pattern *q = &b.pat[0][1];
+    q->src = 9; q->grids.voice = 0; q->marbles.tout = 7; q->marbles.len = 0; q->marbles.mode = 9;
+    q->marbles.range = 0; q->marbles.steps = 200;
+    b.pat[0][2].grids.voice = 9; b.pat[0][2].marbles.tout = 0; b.pat[0][2].marbles.len = 99;
+    b.pat[0][2].marbles.mode = 7; b.pat[0][2].marbles.range = 9;
+    b.pat[0][3].grids.x = 200; b.pat[0][3].grids.dens[1] = 255; b.pat[0][3].marbles.bias = 250;
+    b.pat[0][3].marbles.note = 130;
+    b.kit[1][4].engine = 5; b.kit[1][4].tune = 100; b.kit[1][5].tune = -100; b.kit[1][5].level = 200;
+    b.sound[0].model = 30;
+    write_raw(&b);
+    memset(&a, 0xAA, sizeof a);
+    assert(store_load(&a) == 0);
+    q = &a.pat[0][1];
+    assert(q->src == SRC_N - 1 && q->grids.voice == 1 && q->marbles.tout == 3 && q->marbles.len == 1);
+    assert(q->marbles.mode == 6 && q->marbles.range == 1 && q->marbles.steps == 127);
+    assert(a.pat[0][2].grids.voice == 3 && a.pat[0][2].marbles.tout == 1 && a.pat[0][2].marbles.len == 16);
+    assert(a.pat[0][2].marbles.mode == 6 && a.pat[0][2].marbles.range == 4);
+    assert(a.pat[0][3].grids.x == 127 && a.pat[0][3].grids.dens[1] == 127 && a.pat[0][3].marbles.bias == 127);
+    assert(a.pat[0][3].marbles.note == 127);
+    assert(a.kit[1][4].engine == PAD_HH && a.kit[1][4].tune == 24 && a.kit[1][5].tune == -24 && a.kit[1][5].level == 127);
+    assert(a.sound[0].model == M_KIT);
+}
+
+/* a project saved before v3 has another layout: the defaults, not a misread */
+static void store_v2_gives_defaults(void)
+{
+    q_project a;
+    project_defaults(&a);
+    store_save(&a);
+    for (int i = 0; i < Q_CHUNKS; i++) mem[i][2] = 2;
+    check_defaults();
 }
 
 static void save_refused_while_playing(void)
@@ -258,6 +317,9 @@ int main(void)
     store_torn_twice();
     store_rejects_bad_object();
     store_clamps_fields();
+    store_roundtrip_v3();
+    store_clamps_v3();
+    store_v2_gives_defaults();
     save_refused_while_playing();
     puts("store ok");
     return 0;

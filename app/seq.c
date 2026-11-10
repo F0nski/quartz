@@ -1,6 +1,16 @@
 /* No libc headers: the device builds the app's C freestanding, so the compiler's builtins stand in. */
 #include "seq.h"
 
+/* the default kit: BD SN CH OH RIM CLAP TOM x3 / TOM BD2 SN2 CH2 CONGA COWBELL SHAKER RIDE */
+static const q_pad KIT_DEFAULT[Q_PADS] = {
+    { PAD_BD, -12, 40, 50, 60, 110 }, { PAD_SN, 0, 50, 60, 50, 100 }, { PAD_HH, 0, 50, 70, 20, 90 },
+    { PAD_HH, 0, 50, 70, 90, 90 }, { PAD_SN, 12, 100, 100, 10, 90 }, { PAD_SN, -5, 110, 30, 40, 100 },
+    { PAD_BD, -5, 10, 40, 60, 100 }, { PAD_BD, 0, 10, 40, 55, 100 }, { PAD_BD, 5, 10, 40, 50, 100 },
+    { PAD_BD, -10, 90, 80, 40, 110 }, { PAD_SN, 3, 80, 40, 70, 100 }, { PAD_HH, 7, 30, 40, 15, 90 },
+    { PAD_BD, 12, 5, 60, 40, 100 }, { PAD_HH, 19, 10, 90, 15, 80 }, { PAD_HH, 0, 60, 10, 25, 80 },
+    { PAD_HH, -5, 80, 50, 110, 80 },
+};
+
 void project_defaults(q_project *p)
 {
     __builtin_memset(p, 0, sizeof *p);
@@ -14,10 +24,13 @@ void project_defaults(q_project *p)
         q_sound *s = &p->sound[i];
         s->model = 8; s->poly = 1; s->level = 100;
         s->harm = s->timb = s->morph = s->decay = 64;
+        for (int k = 0; k < Q_PADS; k++) p->kit[i][k] = KIT_DEFAULT[k];
         for (int n = 0; n < Q_PATTERNS; n++) {
             q_pattern *pt = &p->pat[i][n];
             pt->len = 16; pt->div = DIV_16; pt->path = PATH_FWD;
             pt->xlen = pt->ylen = 4; pt->ydiv = DIV_4;
+            pt->grids = (q_grids){ 64, 64, 0, { 64, 64, 64 }, 1, 60 };
+            pt->marbles = (q_marbles){ 1, 8, 0, 64, 0, 0, 64, 64, 0, 48, 2, { 0, 0 } };
             for (int k = 0; k < Q_STEPS; k++) {
                 q_step *st = &pt->steps[k];
                 st->note[0] = 60; st->vel = 100; st->len = 4; st->prob = 20;

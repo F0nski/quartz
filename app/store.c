@@ -39,7 +39,7 @@ static void clamp_project(q_project *p)
     }
     for (int i = 0; i < Q_TRACKS; i++) {
         q_sound *s = &p->sound[i];
-        s->model = (uint8_t)clampi(s->model, 0, 23);
+        s->model = (uint8_t)clampi(s->model, 0, M_KIT);
         s->poly = (uint8_t)clampi(s->poly, 1, 4);
         s->tune = (int8_t)clampi(s->tune, -24, 24);
         s->glide = (uint8_t)clampi(s->glide, 0, 127);
@@ -49,6 +49,15 @@ static void clamp_project(q_project *p)
         s->morph = (uint8_t)clampi(s->morph, 0, 127);
         s->decay = (uint8_t)clampi(s->decay, 0, 127);
         p->pattern[i] = (uint8_t)clampi(p->pattern[i], 0, Q_PATTERNS - 1);
+        for (int k = 0; k < Q_PADS; k++) {
+            q_pad *pd = &p->kit[i][k];
+            pd->engine = (uint8_t)clampi(pd->engine, 0, 2);
+            pd->tune = (int8_t)clampi(pd->tune, -24, 24);
+            pd->harm = (uint8_t)clampi(pd->harm, 0, 127);
+            pd->timb = (uint8_t)clampi(pd->timb, 0, 127);
+            pd->decay = (uint8_t)clampi(pd->decay, 0, 127);
+            pd->level = (uint8_t)clampi(pd->level, 0, 127);
+        }
         for (int n = 0; n < Q_PATTERNS; n++) {
             q_pattern *q = &p->pat[i][n];
             q->len = (uint8_t)clampi(q->len, 1, Q_STEPS);
@@ -58,6 +67,19 @@ static void clamp_project(q_project *p)
             q->xlen = (uint8_t)clampi(q->xlen, 1, 4);
             q->ylen = (uint8_t)clampi(q->ylen, 1, 4);
             q->ydiv = (uint8_t)clampi(q->ydiv, 0, DIV_N - 1);
+            q->src = (uint8_t)clampi(q->src, 0, SRC_N - 1);
+            q_grids *g = &q->grids;
+            q_marbles *m = &q->marbles;
+            g->x = (uint8_t)clampi(g->x, 0, 127); g->y = (uint8_t)clampi(g->y, 0, 127);
+            g->chaos = (uint8_t)clampi(g->chaos, 0, 127); g->note = (uint8_t)clampi(g->note, 0, 127);
+            g->voice = (uint8_t)clampi(g->voice, 1, 3);
+            for (int j = 0; j < 3; j++) g->dens[j] = (uint8_t)clampi(g->dens[j], 0, 127);
+            m->tout = (uint8_t)clampi(m->tout, 1, 3); m->len = (uint8_t)clampi(m->len, 1, 16);
+            m->mode = (uint8_t)clampi(m->mode, 0, 6); m->range = (uint8_t)clampi(m->range, 1, 4);
+            m->bias = (uint8_t)clampi(m->bias, 0, 127); m->jitter = (uint8_t)clampi(m->jitter, 0, 127);
+            m->dejavu = (uint8_t)clampi(m->dejavu, 0, 127); m->spread = (uint8_t)clampi(m->spread, 0, 127);
+            m->xbias = (uint8_t)clampi(m->xbias, 0, 127); m->steps = (uint8_t)clampi(m->steps, 0, 127);
+            m->note = (uint8_t)clampi(m->note, 0, 127);
             for (int k = 0; k < Q_STEPS; k++) {
                 q_step *st = &q->steps[k];
                 for (int j = 0; j < 4; j++) st->note[j] = (uint8_t)clampi(st->note[j], 0, 127);
