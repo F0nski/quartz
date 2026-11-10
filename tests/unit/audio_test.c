@@ -749,6 +749,23 @@ static void overdub_early_at_pattern_change(void)
     assert(r.pat == 1 && r.step == 0 && r.micro < 0);
 }
 
+/* on 2: a note written to a held step sounds but is not recorded */
+static void step_note_not_recorded(void)
+{
+    setup();
+    audio_rec(1);
+    audio_play(1);
+    until(0, 4 * spf16(120));
+    NLOG = 0;
+    audio_live_note(1, 64, 2);
+    block(256);
+    assert(count('n', track_slot(1)) == 1);
+    audio_live_note(1, 64, 0);
+    block(256);
+    q_rec r;
+    assert(!audio_take_rec(&r));
+}
+
 static void stop_flushes_held_rec(void)
 {
     setup();
@@ -868,6 +885,7 @@ int main(void)
     count_in_then_play();
     overdub_records_step();
     overdub_early_at_pattern_change();
+    step_note_not_recorded();
     stop_flushes_held_rec();
     scene_reported_once();
     puts("audio_test ok");

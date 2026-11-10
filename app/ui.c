@@ -468,7 +468,7 @@ static void key_down(int k)
             return;
         }
     }
-    audio_live_note(ui.track, note, 1);
+    audio_live_note(ui.track, note, s ? 2 : 1);   /* written to the held step: not overdubbed too */
     ui.key_note[k] = (int8_t)note;
     ui.key_track[k] = (int8_t)ui.track;
     ui.last_note[ui.track] = (uint8_t)note;

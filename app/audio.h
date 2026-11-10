@@ -10,7 +10,8 @@ typedef struct { uint8_t track, pat, step, note, vel, len; int8_t micro; } q_rec
 
 void audio_setup(q_project *p);                         /* app_init, before the audio starts (fm1-base has its own audio_init) */
 void audio_play(int on);                                /* the sounding steps get their note-offs; on 1: from step 0 */
-void audio_live_note(int track, int note, int on);      /* the keyboard, velocity 100; a note-off is never dropped */
+/* the keyboard, velocity 100; a note-off is never dropped; on 2: a note-on not overdubbed (written to a held step) */
+void audio_live_note(int track, int note, int on);
 /* Overdub armed: the live notes while playing (count-in aside) are recorded, 8 held at most; the metronome per
  * prj->click (METRO), and a count-in on play (COUNT) */
 void audio_rec(int on);

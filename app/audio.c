@@ -391,7 +391,8 @@ static void commands(void)
         q_cmd c = cmd[cmd_r % CMD_N];
         cmd_r++;
         if (c.kind == CMD_NOTE) {
-            rec_note(c.track, c.note, c.on);
+            if (c.on != 2)
+                rec_note(c.track, c.note, c.on);
             event(c.track, c.note, 100, c.on, 0, -1);
         } else if (c.kind == CMD_MODEL) {
             int n = 0;

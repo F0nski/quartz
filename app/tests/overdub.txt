@@ -24,6 +24,21 @@ expect lockharm_5 74
 tap PLAY
 expect rec 0
 expect overdub 0
+# a note written to a held step is not recorded on the step playing
+tap SEQ
+tap REC
+tap PLAY
+wait 1000
+key 2 down
+wait 20
+key 9 down
+wait 230
+key 9 up
+key 2 up
+wait 50
+expect stepnote_2 62
+expect stepnote_5 60
+tap PLAY
 tap GLO
 turn SELECT 1
 turn K4 2
