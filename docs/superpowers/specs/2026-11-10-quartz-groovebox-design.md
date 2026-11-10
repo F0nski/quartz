@@ -45,10 +45,11 @@ Les effets, le séquenceur et l'écran ne sont pas encore mesurés : ils le sero
 
 - **Projet** : tempo, swing, gamme, 4 pistes, 8 scènes, une chanson, les réglages d'effets globaux.
 - **Piste** : un *moteur* (ce qui sonne) + une *source* (ce qui joue) + ses modulations et son insert.
-- **Moteur** : un modèle Plaits (synthé), ou KIT (trois voix de batterie Plaits : BD, SN, HH).
+- **Moteur** : un modèle Plaits (synthé), ou KIT (16 pads sur les blanches, chacun une percussion Plaits BD, SN ou
+  HH réglée à part, 3 voix au plus).
   Plus tard : le FM 6-op d'origine du FM-1, puis Rings.
-- **Source** : STEP (séquenceur pas à pas), GRIDS ou MARBLES. Toute piste se joue aussi au clavier,
-  quelle que soit sa source.
+- **Source** : STEP (séquenceur pas à pas), GRIDS ou MARBLES, choisie par pattern. Toute piste se joue aussi au
+  clavier, quelle que soit sa source.
 - **Pattern** : 8 par piste. Une piste joue un pattern à la fois.
 - **Scène** : une combinaison des 4 patterns en cours et des mutes. 8 par projet.
 - **Chanson** : une liste de scènes avec leur nombre de répétitions.
@@ -143,18 +144,19 @@ dans une croche ou une noire.
 - **REC + PLAY** : overdub dans le pattern en cours de la piste choisie. Quantisation OFF, 50 % ou
   100 % (réglée dans GLO). Les mouvements d'encodeurs deviennent des p-locks sur les pas traversés ;
   les punch-ins sont enregistrés aussi.
+- REC n'écrit que dans un pattern STEP.
 - **REC sans PLAY** : saisie pas à pas. Une touche écrit la note au pas courant et avance d'un pas.
 - Décompte d'une mesure et métronome, activables dans GLO.
 
 ## 6. Générateurs
 
 - **GRIDS** : carte de 5×5 rythmes de 32 pas à 3 voix, interpolée selon X et Y ; densité par voix ;
-  chaos ; accents. Sur un KIT, les 3 voix pilotent BD, SN et HH. Sur une piste synthé, une des 3 voix
+  chaos ; accents. Sur un KIT, les 3 voix jouent les pads 1, 2 et 3. Sur une piste synthé, une des 3 voix
   (au choix) déclenche une note fixe réglée sur la page source.
 - **MARBLES** : section T (rythmes aléatoires, 3 sorties t1–t3) et section X (notes aléatoires
   quantifiées dans la gamme : SPREAD, BIAS, STEPS), DÉJÀ VU et longueur de boucle 1–16. Sur un KIT,
-  t1–t3 pilotent BD, SN et HH.
-- Les deux suivent l'horloge et la division de la piste.
+  t1–t3 jouent les pads 1, 2 et 3 ; sur une piste synthé, une sortie T au choix joue la note de X.
+- Les deux suivent l'horloge et la division du pattern. Détail : `2026-11-10-quartz-step4-generators-design.md`.
 
 ## 7. Contrôles
 
@@ -172,12 +174,12 @@ dans une croche ou une noire.
 
 | Bouton de domaine | Pages (SELECT les parcourt) | Maintenu + touches |
 |---|---|---|
-| EDIT | moteur (4 paramètres du modèle) · modèle / accord / glide / poly | — |
+| EDIT | moteur (4 paramètres du modèle) · modèle / accord / glide / poly ; KIT : pad · kit | KIT : pad tenu + K1–K4 / PRESET règle le pad |
 | ENV | ADSR · filtre | — |
 | LFO | LFO | — |
 | ARP | arpégiateur | touches = notes tenues (latch) |
 | FX | insert · envois / pan / niveau | punch-ins sur les 16 blanches |
-| SEQ | pas + longueur / division · source · paramètres du générateur | blanches 1–8 : pattern de la piste |
+| SEQ | pas + longueur / division / source (STEP) ; division / source · réglages du générateur (GRIDS, MARBLES) | blanches 1–8 : pattern de la piste |
 | GLO | tempo / swing / compresseur · delay / reverb · gamme et réglages REC | — |
 | HOME | vue des 4 pistes | blanches 1–4 : mutes ; 9–16 : scènes |
 | SAVE | appui : sauvegarder le projet | blanches 1–8 : ajouter une scène à la chanson |
