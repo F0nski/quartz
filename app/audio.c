@@ -20,6 +20,7 @@ static q_seq seq;
 static q_voices pool;
 static uint8_t slot_model[Q_VOICES];
 static volatile int playing;
+static volatile int muted;
 
 /* main loop -> render, one producer and one consumer, both on core 1 (the main loop and the audio interrupt) */
 static q_cmd cmd[CMD_N];
@@ -50,6 +51,7 @@ void audio_setup(q_project *p)
     pq_init();
     __builtin_memset(slot_model, 8, sizeof slot_model);   /* pq_init's model */
     playing = 0;
+    muted = 0;
     cmd_w = cmd_r = 0;
     sum1 = sum2 = sum_budget = pct1 = pct2 = 0;
     plat_cpu2_set(1);
@@ -63,12 +65,13 @@ void audio_play(int on)
 
 void audio_live_note(int track, int note, int on) { push(CMD_NOTE, track, note, on); }
 void audio_track_model(int track) { push(CMD_MODEL, track, 0, 0); }
+void audio_mute(void) { muted = 1; }
 int audio_playing(void) { return playing; }
 int audio_pos(int track) { return seq_pos(&seq, track); }
 
 q_load audio_load(void)
 {
-    q_load l = { pct1, pct2, plat_xruns(), 0, plat_cpu2_on() };
+    q_load l = { pct1, pct2, plat_xruns(), 0, plat_cpu2_on(), plat_cpu2_stack() };
     for (int v = 0; v < Q_VOICES; v++)
         l.active += pool.v[v].state != V_FREE;
     return l;
@@ -177,6 +180,10 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
     int ne, ei = 0;
     float out_gain = 8388607.0f * (float)master_q12 / 4096.0f;
 
+    if (muted) {                    /* before an update rewrites the flash: nothing runs, nothing sounds */
+        __builtin_memset(lr, 0, 2 * n * sizeof *lr);
+        return;
+    }
     commands();
     ne = seq_block(&seq, prj, n, ev, EV_MAX);
     for (int v = 0; v < Q_VOICES; v++)

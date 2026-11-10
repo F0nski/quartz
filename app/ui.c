@@ -362,11 +362,12 @@ static void draw_scene(const q_view *v, int32_t oy)
         cv_text((240 - text_w(&FONT_XS, "BPM")) / 2, oy + 90, &FONT_XS, "BPM", C_GRAY);
         break;
     case P_CPU: {
-        static const char *const ROW[5] = {"CORE 1", "CORE 2", "LOST BLOCKS", "VOICES", "BYTES/VOICE"};
+        static const char *const ROW[6] = {"CORE 1", "CORE 2", "LOST BLOCKS", "VOICES", "BYTES/VOICE", "CORE 2 STACK"};
         const q_load *l = &v->scene.load;
-        int val[5] = {(int)l->core1_pct, (int)l->core2_pct, (int)l->xruns, (int)l->active, (int)pq_voice_bytes()};
-        for (i = 0; i < 5; i++) {
-            int32_t y = oy + 14 + 28 * i;
+        int val[6] = {(int)l->core1_pct, (int)l->core2_pct, (int)l->xruns, (int)l->active, (int)pq_voice_bytes(),
+                      (int)l->cpu2_stack};
+        for (i = 0; i < 6; i++) {
+            int32_t y = oy + 6 + 24 * i;
             cv_text(16, y, &FONT_S, ROW[i], C_GRAY);
             if (i == 1 && !l->cpu2) {
                 t[0] = 'O', t[1] = 'F', t[2] = 'F', t[3] = 0;

@@ -1,0 +1,20 @@
+# Stopping playback releases the voices: notes sound with a lengthened decay, none remain 3 s after PLAY (a decay near the max keeps its tail for over 15 s)
+wait 600
+tap SEQ
+key 0 down
+key 0 up
+key 1 down
+key 1 up
+key 2 down
+key 2 up
+key 3 down
+key 3 up
+tap EDIT
+turn K4 12
+tap PLAY
+wait 1500
+expect active >0
+tap PLAY
+expect playing 0
+wait 3000
+expect active 0

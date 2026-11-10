@@ -65,6 +65,24 @@ static void store_rejects_bad_object(void)
     assert(store_load(&b) == -1 && !memcmp(&b, &d, sizeof d));
 }
 
+static void store_clamps_fields(void)
+{
+    q_project a, b;
+    project_defaults(&a);
+    store_save(&a);
+    memcpy(&b, mem, sizeof b);
+    b.tempo = 0;
+    b.sound[1].poly = 0;
+    b.sound[2].model = 99;
+    b.pat[3].div = 99;
+    b.pat[3].len = 0;
+    memcpy(mem, &b, sizeof b);
+    memset(&a, 0xAA, sizeof a);
+    assert(store_load(&a) == 0);
+    assert(a.tempo == 40 && a.sound[1].poly == 1 && a.sound[2].model == 23);
+    assert(a.pat[3].div == DIV_N - 1 && a.pat[3].len == 1);
+}
+
 static void no_save_while_playing(void)
 {
     q_project a;
@@ -80,6 +98,7 @@ int main(void)
 {
     roundtrip();
     store_rejects_bad_object();
+    store_clamps_fields();
     no_save_while_playing();
     puts("store ok");
     return 0;

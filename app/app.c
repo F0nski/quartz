@@ -18,7 +18,7 @@ void app_init(void)
     booted = 1;
 }
 
-void app_panic(void) {}
+void app_panic(void) { audio_mute(); }
 
 void app_ui_init(void)
 {

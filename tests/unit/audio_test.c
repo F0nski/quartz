@@ -19,6 +19,7 @@ int plat_cpu2_run(void (*fn)(uint32_t), uint32_t arg)
 int plat_cpu2_wait(void) { return cpu2_mode == 2 ? -1 : 0; }
 uint32_t plat_ticks24(void) { return ticks += 10; }
 uint32_t plat_xruns(void) { return 0; }
+uint32_t plat_cpu2_stack(void) { return 0; }
 
 /* doubles: the voices, every call logged */
 typedef struct { char op; int v; float a; unsigned n; int core; } call;
@@ -203,6 +204,20 @@ static void slot_engine_follows_track(void)
     assert(count('n', 0) == 1 && count('e', 0) == 0);
 }
 
+static void panic_silences(void)
+{
+    setup();
+    six_notes();
+    block(256);
+    assert(LR[0] != 0);
+    audio_mute();   /* what app_panic calls */
+    NLOG = 0;
+    memset(LR, 0x55, sizeof LR);
+    block(256);
+    for (int i = 0; i < 2 * 256; i++) assert(LR[i] == 0);
+    assert(count('r', 0) + count('r', 1) + count('r', 2) + count('r', 3) + count('r', 4) + count('r', 5) == 0);
+}
+
 int main(void)
 {
     splits_block_at_events();
@@ -211,6 +226,7 @@ int main(void)
     free_voices_skipped();
     live_notes_reach_voices();
     slot_engine_follows_track();
+    panic_silences();
     puts("audio_test ok");
     return 0;
 }
