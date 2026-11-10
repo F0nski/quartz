@@ -16,10 +16,12 @@ void project_defaults(q_project *p)
     }
 }
 
-double seq_step_frames(int tempo, int div)
+/* frames per step = 750000/17 Hz x 60 / tempo x beats = 45000000 x beats_num / (17 x tempo x beats_den) */
+void seq_step_ratio(int tempo, int div, uint32_t *num, uint32_t *den)
 {
-    static const double beats[DIV_N] = { 1. / 8, 1. / 6, 1. / 4, 1. / 3, 1. / 2, 2. / 3, 1, 2, 4 };
-    return (double)Q_SR * 60 / tempo * beats[div];
+    static const uint8_t bnum[DIV_N] = { 1, 1, 1, 1, 1, 2, 1, 2, 4 }, bden[DIV_N] = { 8, 6, 4, 3, 2, 3, 1, 1, 1 };
+    *num = 45000000u * bnum[div];
+    *den = 17u * (uint32_t)tempo * bden[div];
 }
 
 void seq_start(q_seq *s)
@@ -30,7 +32,7 @@ void seq_start(q_seq *s)
     s->running = 1;
     for (int t = 0; t < Q_TRACKS; t++) {
         s->t[t].cur = -1;
-        s->t[t].next_start = now;
+        s->t[t].next_i = now;
     }
 }
 
@@ -66,31 +68,34 @@ int seq_block(q_seq *s, const q_project *p, uint32_t nframes, q_event *out, int 
         __typeof__(s->t[0]) *k = &s->t[t];
         const q_pattern *pt = &p->pat[t];
 
-        /* the step in progress keeps its duration: re-anchor on the start of the next one */
+        /* the step in progress keeps its duration: re-anchor on the (whole) frame the next one starts at */
         if (p->tempo != k->tempo || pt->div != k->div) {
-            k->anchor_f = (double)k->next_start;
-            k->anchor_n = k->n;
+            k->next_i += k->next_r > 0;
+            k->next_r = 0;
             k->tempo = p->tempo;
             k->div = pt->div;
+            seq_step_ratio(k->tempo, k->div, &k->num, &k->den);
         }
-        double spf = seq_step_frames(k->tempo, k->div);
 
         for (;;) {
+            uint64_t start = k->next_i + (k->next_r > 0);
             if (k->playing && k->off_at < end) {
                 emit(out, &n, max, k->off_at, s->now, t, k->note, 0, 0);
                 k->playing = 0;
-            } else if (k->next_start < end) {
-                uint64_t start = k->next_start;
+            } else if (start < end) {
                 k->cur = k->cur + 1 >= pt->len ? 0 : k->cur + 1;
                 const q_step *st = &pt->steps[k->cur];
                 if (st->on) {
+                    /* half a step on, over 2 x den so that an odd num stays exact */
+                    uint32_t r = 2 * k->next_r + k->num;
                     emit(out, &n, max, start, s->now, t, st->note, st->vel, 1);
                     k->playing = 1;
                     k->note = st->note;
-                    k->off_at = (uint64_t)__builtin_ceil(k->anchor_f + (double)(k->n - k->anchor_n + 0.5) * spf);
+                    k->off_at = k->next_i + r / (2 * k->den) + (r % (2 * k->den) > 0);
                 }
-                k->n++;
-                k->next_start = (uint64_t)__builtin_ceil(k->anchor_f + (double)(k->n - k->anchor_n) * spf);
+                k->next_r += k->num;
+                k->next_i += k->next_r / k->den;
+                k->next_r %= k->den;
             } else {
                 break;
             }

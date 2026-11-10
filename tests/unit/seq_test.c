@@ -1,7 +1,7 @@
 #include <assert.h>
-#include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include "seq.c"
 
 #define BLK 256
@@ -45,22 +45,29 @@ static int64_t nth(int track, int on, int k)
     return -1;
 }
 
+/* frames per step as num / den; every expected frame below is ceil(x * num / den) in integers */
+static uint64_t ceil_div(uint64_t a, uint64_t b) { return (a + b - 1) / b; }
+static uint32_t N16, D16;
+
 static void step_frames_values(void)
 {
-    assert(fabs(seq_step_frames(120, DIV_16) - 5514.705875) < 1e-3);
-    assert(fabs(seq_step_frames(120, DIV_16T) - seq_step_frames(120, DIV_16) * 2 / 3) < 1e-6);
-    assert(fabs(seq_step_frames(120, DIV_1) - 16 * seq_step_frames(120, DIV_16)) < 1e-6);
+    uint32_t n, d;
+    seq_step_ratio(120, DIV_16, &N16, &D16);
+    assert(N16 == 45000000u && D16 == 8160u);         /* 750000/17 Hz x 60 / 120 BPM x 1/4 beat = 5514.7 */
+    seq_step_ratio(120, DIV_16T, &n, &d);
+    assert((uint64_t)n * D16 * 3 == (uint64_t)N16 * d * 2);
+    seq_step_ratio(120, DIV_1, &n, &d);
+    assert((uint64_t)n * D16 == (uint64_t)N16 * d * 16);
 }
 
 static void steps_land_on_exact_frames(void)
 {
     setup();
     run(700);                       /* 2 full loops of the 16-step pattern */
-    double spf = seq_step_frames(120, DIV_16);
     int k = 0;
     for (; nth(0, 1, k) >= 0 && nth(0, 0, k) >= 0; k++) {
-        assert(nth(0, 1, k) == (int64_t)ceil(k * spf));
-        assert(nth(0, 0, k) == (int64_t)ceil((k + 0.5) * spf));
+        assert(nth(0, 1, k) == (int64_t)ceil_div((uint64_t)k * N16, D16));
+        assert(nth(0, 0, k) == (int64_t)ceil_div((uint64_t)(2 * k + 1) * N16, 2 * D16));
     }
     assert(k >= 32);
     assert(nth(1, 1, 0) < 0);
@@ -72,7 +79,7 @@ static void polyrhythm(void)
     P.pat[1].len = 12; P.pat[1].div = DIV_8T;
     for (int i = 0; i < 12; i++) P.pat[1].steps[i].on = 1;
     run(400);
-    int64_t loop = (int64_t)ceil(2 * (double)Q_SR);
+    int64_t loop = (int64_t)ceil_div(2 * 750000, 17);   /* 2 s at 750000/17 Hz */
     assert(nth(0, 1, 16) == loop);
     assert(nth(1, 1, 12) == loop);
 }
@@ -95,9 +102,10 @@ static void tempo_change_keeps_grid(void)
     P.tempo = 60;
     run(120);
     int64_t s4 = nth(0, 1, 4), s5 = nth(0, 1, 5);
-    double a = seq_step_frames(120, DIV_16), b = seq_step_frames(60, DIV_16);
-    assert(s4 == (int64_t)ceil(4 * a));
-    assert(s5 == s4 + (int64_t)ceil(b));
+    uint32_t n60, d60;
+    seq_step_ratio(60, DIV_16, &n60, &d60);
+    assert(s4 == (int64_t)ceil_div(4 * (uint64_t)N16, D16));
+    assert(s5 == s4 + (int64_t)ceil_div(n60, d60));
 }
 
 static void stop_releases_notes(void)

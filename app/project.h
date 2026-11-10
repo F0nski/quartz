@@ -4,7 +4,7 @@
 
 #define Q_TRACKS 4
 #define Q_STEPS 64
-#define Q_SR 44117.647f
+#define Q_SR 44117.647f            /* exactly 24 000 000 / 544 = 750000/17 Hz; the timing uses the ratio (seq.c) */
 
 enum { DIV_32, DIV_16T, DIV_16, DIV_8T, DIV_8, DIV_4T, DIV_4, DIV_2, DIV_1, DIV_N };
 

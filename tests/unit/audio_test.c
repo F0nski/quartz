@@ -1,5 +1,4 @@
 #include <assert.h>
-#include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include "seq.c"
@@ -69,7 +68,9 @@ static void splits_block_at_events(void)
     P.pat[0].div = DIV_32;
     P.pat[0].steps[0].on = P.pat[0].steps[1].on = 1;
     /* step 1 starts at frame spf: blocks before it so that it falls at offset 100 of a 256-frame block */
-    uint32_t spf = (uint32_t)ceil(seq_step_frames(120, DIV_32)), lead = spf - 100;
+    uint32_t num, den;
+    seq_step_ratio(120, DIV_32, &num, &den);
+    uint32_t spf = (num + den - 1) / den, lead = spf - 100;
     audio_play(1);
     block(lead % 256);
     for (uint32_t k = 0; k < lead / 256; k++) block(256);
