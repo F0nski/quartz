@@ -8,15 +8,15 @@
 #include "dsp/pq.h"
 
 #define CMD_N 64                    /* a power of two */
-#define OFF_ROOM 32                 /* kept for note-offs, one per held key (27), and the preparation's request and
-                                     * hand-back (2): the render drains the ring each block */
+#define OFF_ROOM 32                 /* kept for note-offs, one per held key (27), and the preparation's request (1): the
+                                     * render drains the ring each block. The last place is the hand-back's (push) */
 #define EV_MAX 40                   /* 4 tracks x 2 steps x on+off per block at 240 BPM in 1/32, with room */
 #define LATER_N 16                  /* note-ons waiting for an engine switch: beyond, a note-on is dropped */
 #define PREP_WAIT (-2)              /* prep_slot: asked, the render has not answered */
 #define BUDGET_TICKS(n) ((n) * 544u)   /* n frames at 44117.6 Hz, in 24 MHz ticks */
 #define LOAD_TICKS (24u * 1000000u)    /* the load is averaged over this much budget: 1 s */
 
-enum { CMD_NOTE, CMD_PLAY, CMD_MODEL, CMD_PREP_REQ, CMD_PREP_DONE };   /* PREP_REQ: note = model; DONE: track = slot */
+enum { CMD_NOTE, CMD_PLAY, CMD_MODEL, CMD_PREP_REQ, CMD_PREP_DONE };   /* PREP_REQ: note = model; DONE: track = slot, note = model */
 typedef struct { uint8_t kind, track, note, on; } q_cmd;
 
 static q_project *prj;
@@ -45,14 +45,19 @@ static uint32_t seg_pos, seg_len;
 static uint32_t sum1, sum2, sum_budget;
 static volatile uint32_t pct1, pct2;
 
-static void push(uint8_t kind, int track, int note, int on)
+/* 0: full. The UI cannot send 32 commands within a block: a note-off still fits. The last place is kept for the
+ * hand-back, of which the ring holds one at most (the next comes after the render answered the request behind it):
+ * never refused, no slot stays V_PREP */
+static int push(uint8_t kind, int track, int note, int on)
 {
     uint32_t w = cmd_w, used = w - cmd_r;
-    if (used == CMD_N || (used >= CMD_N - OFF_ROOM && !(kind == CMD_NOTE && !on) && kind < CMD_PREP_REQ))
-        return;                     /* full: the UI cannot send 32 commands within a block; a note-off still fits */
+    if (used == CMD_N || (used == CMD_N - 1 && kind != CMD_PREP_DONE) ||
+        (used >= CMD_N - OFF_ROOM && !(kind == CMD_NOTE && !on) && kind < CMD_PREP_REQ))
+        return 0;
     cmd[w % CMD_N] = (q_cmd){ kind, (uint8_t)track, (uint8_t)note, (uint8_t)on };
     __asm__ volatile("" ::: "memory");   /* the ring's publish barrier (fm1-base RING_PUBLISH) */
     cmd_w = w + 1;
+    return 1;
 }
 
 void audio_setup(q_project *p)
@@ -135,7 +140,8 @@ void audio_prepare(void)
         if (spare_slot(prj->sound[t].model) >= 0) {
             prep_model = prj->sound[t].model;
             prep_slot = PREP_WAIT;  /* before the request: push publishes both */
-            push(CMD_PREP_REQ, 0, prep_model, 0);
+            if (!push(CMD_PREP_REQ, 0, prep_model, 0))
+                prep_slot = -1;     /* the ring full: asked again next frame */
             return;
         }
 }
@@ -145,24 +151,32 @@ static void set_patch(int v, const q_sound *s)
     pq_set_patch(v, s->harm / 127.0f, s->timb / 127.0f, s->morph / 127.0f, s->decay / 127.0f, s->glide / 127.0f);
 }
 
-static void note_on(int track, int note, int vel)
+static uint32_t wanted(void)
 {
-    const q_sound *s = &prj->sound[track];
-    int v = voices_note_on(&pool, track, note, s->poly, s->model);
-    fading[v] = 0;                  /* (a fading slot taken: the new note at full level) */
-    if (pool.v[v].model != s->model) {
-        pq_set_engine(v, s->model);
-        pool.v[v].model = (int8_t)s->model;
-        switched = 1;
-    }
-    set_patch(v, s);
-    pq_note_on(v, (float)(note + s->tune), vel / 127.0f);
+    uint32_t w = 0;
+    for (int t = 0; t < Q_TRACKS; t++)
+        w |= 1u << prj->sound[t].model;
+    return w;
 }
 
 static int needs_switch(int track)
 {
     const q_sound *s = &prj->sound[track];
-    return pool.v[voices_pick(&pool, track, s->poly, s->model)].model != s->model;
+    return pool.v[voices_pick(&pool, track, s->poly, s->model, wanted())].model != s->model;
+}
+
+static void note_on(int track, int note, int vel)
+{
+    const q_sound *s = &prj->sound[track];
+    int sw = needs_switch(track);
+    int v = voices_note_on(&pool, track, note, s->poly, s->model, wanted());
+    fading[v] = 0;                  /* (a fading slot taken: the new note at full level) */
+    if (sw) {
+        pq_set_engine(v, s->model);
+        switched = 1;
+    }
+    set_patch(v, s);
+    pq_note_on(v, (float)(note + s->tune), vel / 127.0f);
 }
 
 static int waits(int track)

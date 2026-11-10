@@ -509,6 +509,49 @@ static void prep_hand_off(void)
     assert(count('n', s) == 1 && render_switches() == 0);
 }
 
+static void full_queue_keeps_the_hand_off(void)
+{
+    setup();
+    P.sound[0].model = 20;
+    audio_prepare();
+    block(256);
+    int s = -1;
+    for (int v = 0; v < Q_VOICES; v++) if (pool.v[v].state == V_PREP) s = v;
+    assert(s >= 0);
+    audio_mute();                       /* the render drains nothing: the ring fills */
+    for (int i = 0; i < 2 * CMD_N; i++) audio_live_note(1, 40, 0);
+    audio_prepare();                    /* its hand-back fits; its next request does not */
+    audio_unmute();
+    block(256);
+    assert(pool.v[s].state == V_FREE && pool.v[s].model == 20 && preps() == 0);
+    P.sound[1].model = 21;              /* the preparation goes on */
+    frames(4);
+    int n = 0;
+    for (int v = 0; v < Q_VOICES; v++) n += pool.v[v].model == 21 && pool.v[v].state == V_FREE;
+    assert(n == 1 && preps() == 0);
+}
+
+static void mono_model_change_keeps_its_fade(void)
+{
+    setup();
+    P.sound[1].model = 20;
+    P.sound[1].poly = 2;
+    frames(6);                          /* two engines on 20, built in the main loop */
+    audio_live_note(0, 60, 1);
+    block(256);
+    block(256);
+    int v0 = -1;
+    for (int v = 0; v < Q_VOICES; v++) if (pool.v[v].track == 0 && pool.v[v].state == V_ON) v0 = v;
+    assert(v0 >= 0 && pool.v[v0].model == 8);
+    P.sound[0].model = 20;
+    audio_track_model(0);
+    audio_live_note(0, 62, 1);          /* in the same block: the fading slot is not the track's own any more */
+    NLOG = 0;
+    block(256);
+    assert(render_switches() == 0 && count('n', v0) == 0 && track_on(0) == 1);
+    assert(pool.v[v0].state == V_FREE);
+}
+
 int main(void)
 {
     splits_block_at_events();
@@ -529,6 +572,8 @@ int main(void)
     model_change_while_playing_one_switch_per_block();
     switches_spread_over_blocks();
     prep_hand_off();
+    full_queue_keeps_the_hand_off();
+    mono_model_change_keeps_its_fade();
     puts("audio_test ok");
     return 0;
 }

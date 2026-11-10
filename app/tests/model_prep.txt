@@ -1,4 +1,5 @@
-# Models changed on the four tracks while playing: the engines are built outside the render, the voices stay sane
+# Models changed on the four tracks while playing: the engines are built outside the render, each mono track still
+# sounds its one voice (4), none left after stop
 wait 600
 tap SEQ
 key 0 down
@@ -30,8 +31,14 @@ turn K1 -3
 expect model 5
 wait 2500
 expect playing 1
-expect active >0
-expect active <7
+expect active 4
+expect track 1
+turn ALGO 1
+expect model 13
+turn ALGO 1
+expect model 20
+turn ALGO 1
+expect model 20
 tap PLAY
 wait 3000
 expect active 0
