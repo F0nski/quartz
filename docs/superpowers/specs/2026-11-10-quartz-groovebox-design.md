@@ -1,0 +1,277 @@
+# QUARTZ — firmware groovebox pour le M-VAVE FM-1
+
+Spec de conception globale. Chaque étape (section 12) aura son propre plan d'implémentation.
+
+## 1. But
+
+Un firmware open source qui transforme le FM-1 en groovebox 4 pistes, construite sur les modules
+Mutable Instruments (code MIT, `pichenettes/eurorack`) et la plateforme fm1-base (MPL-2.0).
+
+Elle doit être complète mais simple : séquenceur riche (durées et divisions différentes par piste),
+générateurs (Grids, Marbles), effets configurables, punch-ins façon Teenage Engineering, enregistrement
+live, et un écran avec une identité visuelle forte. Chaque bouton du FM-1 a un rôle clair.
+
+Usage visé : des projets qui mêlent pistes génératives et pistes programmées à la main ; des morceaux
+complets de temps en temps (mode chanson).
+
+Critères de réussite :
+- zéro bloc audio perdu dans le pire cas mesuré sur l'appareil (section 13) ;
+- toute fonction atteignable sans sous-menu (section 8) ;
+- un projet sauvegardé se recharge à l'identique.
+
+## 2. Plateforme et capacités mesurées
+
+| Ressource | Valeur | Source |
+|---|---|---|
+| Processeur | JieLi AC791N, 2 cœurs pi32v2 à 360 MHz, FPU simple précision | fm1-base, spike |
+| Audio | 44 117,6 Hz, blocs de 256 échantillons (5,8 ms) | fm1-base |
+| RAM | 96 Ko de RAM principale + 336 Ko de pool | linker fm1-base |
+| Flash | image d'app ≤ 568 Ko ; zone de données 0x97000–0xDFFFF (292 Ko), objets ≤ 3 840 octets | `include/plat.h` |
+| Écran | ST7789 240×240, dessin par bandes de 240×144 au plus | fm1-base |
+| Contrôles | 14 boutons, 7 encodeurs sans clic, potentiomètre MASTER, 27 touches (F3–G5) avec vélocité | `include/plat.h` |
+
+Coût CPU d'une voix Plaits, mesuré sur le FM-1 de l'auteur (spike du 2026-11-10), en % d'un cœur :
+
+| Classe | Modèles | Coût |
+|---|---|---|
+| Légers | SPEECH, CHIPTUNE, WAVESHAPE, WAVETABLE, VA VCF | 5–11 % |
+| Courants | 6-OP A/B/C, 2-OP FM, VA, CHORDS, STRING, PARTICLE, SWARM, GRAIN, PHASE DIST, NOISE, BD, SNARE, HI-HAT | 12–16 % |
+| Lourds | ADDITIVE, MODAL | 20–21 % |
+
+Le coût est linéaire en nombre de voix et le second cœur divise le temps par deux sans perte.
+Les effets, le séquenceur et l'écran ne sont pas encore mesurés : ils le seront à l'étape 1 et à l'étape 3.
+
+## 3. Concepts
+
+- **Projet** : tempo, swing, gamme, 4 pistes, 8 scènes, une chanson, les réglages d'effets globaux.
+- **Piste** : un *moteur* (ce qui sonne) + une *source* (ce qui joue) + ses modulations et son insert.
+- **Moteur** : un modèle Plaits (synthé), ou KIT (trois voix de batterie Plaits : BD, SN, HH).
+  Plus tard : le FM 6-op d'origine du FM-1, puis Rings.
+- **Source** : STEP (séquenceur pas à pas), GRIDS ou MARBLES. Toute piste se joue aussi au clavier,
+  quelle que soit sa source.
+- **Pattern** : 8 par piste. Une piste joue un pattern à la fois.
+- **Scène** : une combinaison des 4 patterns en cours et des mutes. 8 par projet.
+- **Chanson** : une liste de scènes avec leur nombre de répétitions.
+
+## 4. Son
+
+### 4.1 Voix et polyphonie
+- Pool de **6 voix**, 3 par cœur.
+- Chaque piste est mono par défaut ; POLY règle 1 à 4 voix par piste. Une piste KIT prend jusqu'à
+  3 voix (une par instrument).
+- Quand le pool est plein, la voix la plus ancienne est volée.
+- Une voix silencieuse (enveloppe retombée) n'est pas calculée.
+- Une voix n'instancie que le modèle choisi ; changer de modèle réinitialise les voix de la piste.
+
+### 4.2 Modulations par piste
+- **ADSR**, qui pilote le niveau et, via ENV AMT, le filtre.
+- **LFO** : formes sinus, triangle, dent de scie, carré, S&H ; vitesse synchronisée au tempo ou libre ;
+  une destination parmi les paramètres des pages de la piste.
+- **Arpégiateur** : modes up, down, up-down, random, ordre joué ; 1 à 4 octaves ; division propre.
+  Il arpège les notes tenues au clavier, ou les notes d'un pas polyphonique pendant la durée du pas.
+
+### 4.3 Effets
+- **Par piste** : filtre SVF (passe-bas, passe-haut, passe-bande ; cutoff, résonance, ENV AMT) puis
+  un slot d'insert au choix : overdrive, wavefolder, bitcrush, chorus, phaser, ring mod, comb.
+- **Deux envois** : delay synchronisé au tempo (ping-pong) et reverb Mutable. Par piste : envoi delay,
+  envoi reverb, pan, niveau.
+- **Master** : compresseur-limiteur, avec ducking optionnel déclenché par la BD du KIT.
+- Sources du code : Mutable (Plaits, Rings, Clouds/Beads pour la reverb et le chorus, stmlib pour
+  les filtres) en priorité ; code propre sinon.
+
+### 4.4 Punch-ins
+FX maintenu : les 16 touches blanches deviennent 16 effets momentanés sur le master, actifs tant que la
+touche est tenue. Avec REC armé et PLAY, ils sont enregistrés dans les patterns en cours.
+
+1–4 LOOP 1/8, 1/12, 1/16, 1/32 · 5 TAPE STOP · 6 LOW-PASS · 7 HIGH-PASS · 8 SWEEP résonant ·
+9 BITCRUSH · 10 DOWNSAMPLE · 11 GATE 1/16 · 12 AUTO-PAN · 13 DELAY THROW · 14 REVERB FREEZE ·
+15 RING MOD · 16 KILL LOWS.
+
+Les LOOP utilisent un tampon stéréo de 0,37 s ; une boucle plus longue que le tampon est divisée par
+deux jusqu'à y tenir.
+
+### 4.5 Budget mémoire du pool (336 Ko)
+
+| Poste | Taille |
+|---|---|
+| 6 voix (un modèle chacune) | ≤ 96 Ko (≤ 16 Ko par voix, mesuré à l'étape 1) |
+| Reverb | 32 Ko |
+| Delay (stéréo, 16 bits, échantillonné à 22 kHz : 0,74 s) | 64 Ko |
+| Tampon des LOOP | 64 Ko |
+| Patterns du projet chargé | 32 Ko |
+| Marge | ≥ 48 Ko |
+
+Si la mesure de l'étape 1 dépasse 16 Ko par voix, la durée du delay est réduite avant le reste.
+
+## 5. Séquenceur
+
+### 5.1 Par piste
+- Longueur libre de 1 à 64 pas.
+- Division propre : 1/32, 1/16T, 1/16, 1/8T, 1/8, 1/4T, 1/4, 1/2, 1/1. Pistes de longueurs et de
+  divisions différentes = polyrythmes.
+- Changement de pattern : à la fin du pattern en cours.
+
+### 5.2 Par pas
+- Note (une à quatre si la piste est POLY ; pour un KIT, quels instruments jouent), vélocité 1–127.
+- Durée : de 1/8 de pas à 8 pas.
+- Micro-timing : de −11/24 à +11/24 de pas, par 1/24.
+- Probabilité : 0 à 100 %, par 5 %.
+- Condition : A:B (joue la A-ième fois sur B, B de 2 à 8), FIRST, !FIRST, PRE, !PRE.
+- Ratchet : 1 à 4 répétitions dans le pas.
+- Slide : glissé vers la note suivante (durée = GLIDE de la piste). Accent : vélocité et ENV AMT augmentées.
+- P-locks : jusqu'à 128 par pattern, sur tout paramètre des pages de la piste (moteur, enveloppe,
+  filtre, insert, envois, LFO).
+
+### 5.3 Projet
+- Tempo 40–240 BPM, swing 50–75 %.
+- Scènes lancées à la mesure suivante.
+- Chanson : jusqu'à 32 entrées (scène, 1 à 16 répétitions).
+- Gamme du projet : tonique et mode ; elle quantifie Marbles et l'affichage des notes.
+
+### 5.4 Enregistrement
+- **REC + PLAY** : overdub dans le pattern en cours de la piste choisie. Quantisation OFF, 50 % ou
+  100 % (réglée dans GLO). Les mouvements d'encodeurs deviennent des p-locks sur les pas traversés ;
+  les punch-ins sont enregistrés aussi.
+- **REC sans PLAY** : saisie pas à pas. Une touche écrit la note au pas courant et avance d'un pas.
+- Décompte d'une mesure et métronome, activables dans GLO.
+
+## 6. Générateurs
+
+- **GRIDS** : carte de 5×5 rythmes de 32 pas à 3 voix, interpolée selon X et Y ; densité par voix ;
+  chaos ; accents. Sur un KIT, les 3 voix pilotent BD, SN et HH. Sur une piste synthé, une des 3 voix
+  (au choix) déclenche une note fixe réglée sur la page source.
+- **MARBLES** : section T (rythmes aléatoires, 3 sorties t1–t3) et section X (notes aléatoires
+  quantifiées dans la gamme : SPREAD, BIAS, STEPS), DÉJÀ VU et longueur de boucle 1–16. Sur un KIT,
+  t1–t3 pilotent BD, SN et HH.
+- Les deux suivent l'horloge et la division de la piste.
+
+## 7. Contrôles
+
+| Contrôle | Rôle |
+|---|---|
+| ALGORITHM | choisir la piste 1–4 |
+| SELECT (encodeur) | passer d'une page à l'autre dans le domaine courant |
+| PRESET | parcourir ce qui est à l'écran : presets du moteur, type d'insert, pattern… |
+| K1–K4 | les 4 paramètres de la page ; couleurs fixes bleu, vert, blanc, orange |
+| SEL (bouton) | valider (charger le preset choisi, confirmer une action) ; maintenu + K1–K4 : réglage fin |
+| MASTER | volume |
+| PLAY | lecture / stop |
+| REC | seul : saisie pas à pas ; REC + PLAY : overdub |
+| OCT− / OCT+ | octave du clavier ; dans SEQ, page de pas (1–16, 17–32…) |
+
+| Bouton de domaine | Pages (SELECT les parcourt) | Maintenu + touches |
+|---|---|---|
+| EDIT | moteur (4 paramètres du modèle) · modèle / accord / glide / poly | — |
+| ENV | ADSR · filtre | — |
+| LFO | LFO | — |
+| ARP | arpégiateur | touches = notes tenues (latch) |
+| FX | insert · envois / pan / niveau | punch-ins sur les 16 blanches |
+| SEQ | pas + longueur / division · source · paramètres du générateur | blanches 1–8 : pattern de la piste |
+| GLO | tempo / swing / compresseur · delay / reverb · gamme et réglages REC | — |
+| HOME | vue des 4 pistes | blanches 1–4 : mutes ; 9–16 : scènes |
+| SAVE | appui : sauvegarder le projet | blanches 1–8 : ajouter une scène à la chanson |
+
+Clavier :
+- Hors SEQ, les touches jouent la piste courante (et l'enregistrent quand REC est armé).
+- Dans SEQ, les 16 blanches sont les pas : un appui active ou coupe le pas ; pas maintenu + K = p-lock.
+- Pas maintenu + touche noire : ratchet, probabilité, condition, slide, accent, note, durée,
+  micro-timing, effacer (9 des 11 noires ; les 2 dernières restent libres).
+
+## 8. Navigation
+
+- Un bouton = un domaine, trois pages au plus, aucun sous-menu.
+- Une page qu'un moteur n'utilise pas est masquée.
+- ALGORITHM choisit toujours la piste, PRESET parcourt toujours ce qui est affiché.
+- Maintenir un bouton de domaine pose sa couche sur les touches ; le relâcher la retire.
+
+## 9. Écran
+
+### 9.1 Mise en page
+- En-tête (30 px) : numéro de piste, nom du moteur ou de la page, page courante.
+- Zone de scène (240×166) : dessinée en deux bandes, visée 30 images par seconde.
+- Pied (44 px) : les 4 paramètres de la page, valeur et jauge dans la couleur de leur encodeur.
+
+### 9.2 Direction visuelle
+Univers arcade rétrofuturiste, inspiré de Rez, sans copier de jeu existant :
+- objets en low poly 3D, faces en aplats de trois tons (clair, base, ombre), lumière en haut à gauche ;
+- fil de fer fin par-dessus ;
+- aucun dégradé, pas de formes rondes ;
+- un décor propre à chaque scène ;
+- rose réservé aux notes jouées et aux déclenchements ;
+- toute note affichée suit la gamme du projet.
+
+### 9.3 Scènes
+Une scène animée par famille de moteurs et par source. Chaque encodeur pilote un élément visible de la
+scène ; chaque note déclenche un mouvement.
+
+| Scène | Idée | État |
+|---|---|---|
+| 6-OP A/B/C, 2-OP FM | planète taillée à anneau, vaisseaux en orbite qui tirent à chaque note, sol quadrillé | validée |
+| KIT, BD, SNARE, HI-HAT | octaèdre (BD) qui gonfle, cube (SN) qui éclate, tétraèdre (HH) qui pivote, dans un tunnel en fil de fer | validée |
+| MARBLES | pachinko, billes icosaèdres, notes de la gamme sous les cases avec petits plots d'historique | validée |
+| MODAL | figure de Chladni en relief low poly, posée ; une frappe la fait frémir | validée |
+| SPEECH | tête low poly qui parle, grille de scan | idée validée ; visage à modéliser à la main |
+| GRIDS | la carte des rythmes en relief 3D, curseur X/Y | à concevoir à l'étape 5 |
+| autres familles | une scène chacune | à concevoir à l'étape 5 |
+
+Les maquettes de référence sont dans `docs/screens/scenes.html` (à ouvrir dans un navigateur).
+
+### 9.4 Rendu
+Un petit moteur 3D en aplats : rotation, tri des faces, triangles pleins, traits. Moins de 300 faces par
+scène. Pas de transparence.
+
+## 10. Architecture
+
+- Application fm1-base en C ; DSP Mutable en C++ derrière de petites fonctions C ; pas de constructeurs
+  statiques (placement new dans le pool).
+- **Cœur 1** : boutons, écran, horloge du séquenceur, 3 voix, effets, mixage.
+- **Cœur 2** : 3 voix.
+- L'horloge vit dans le rendu audio ; un bloc est découpé aux instants exacts des notes.
+- L'interface envoie ses changements à l'audio par une file sans verrou ; l'audio ne bloque jamais.
+
+| Module | Rôle |
+|---|---|
+| `seq` | patterns, pas, p-locks, conditions, scènes, chanson, enregistrement |
+| `gen` | Grids, Marbles |
+| `voices` | pool, attribution, vol de voix, répartition sur les deux cœurs |
+| `engines` | interface commune ; Plaits ; plus tard FM 6-op et Rings |
+| `mod` | ADSR, LFO, arpégiateur |
+| `fx` | filtres, inserts, delay, reverb, compresseur, punch-ins |
+| `ui` | pages, couches, saisie, scènes |
+| `gfx` | moteur 3D en aplats |
+| `store` | projets |
+
+## 11. Sauvegarde
+- 8 emplacements de projet dans la zone de données, objets en pool (fm1-base `APP_STORE_POOL`).
+- Un pattern = un objet (< 1 Ko : 64 pas × 6 octets + 128 p-locks × 4 octets) ; un projet ≈ 30 Ko.
+- La sauvegarde coupe le son un instant (contrainte de la flash) : elle se fait sur SAVE, jamais pendant la lecture.
+
+## 12. Étapes
+
+| Étape | Contenu | Résultat |
+|---|---|---|
+| 1. Socle | 4 pistes Plaits, pool de 6 voix sur 2 cœurs, STEP simple (note, longueur, division), PLAY/REC, pages EDIT et SEQ, sauvegarde, écran sobre, page CPU | jouer et programmer 4 pistes |
+| 2. Séquenceur complet | section 5 entière, patterns, scènes, chanson, enregistrement live | composer un morceau |
+| 3. Son | section 4.2 à 4.4 | sculpter et jouer en live |
+| 4. Générateurs | GRIDS, MARBLES, KIT | pistes génératives |
+| 5. Écran | `gfx`, scènes, animations de HOME | identité visuelle |
+| 6. Moteurs | FM 6-op d'origine, puis Rings | palette élargie |
+
+Chaque étape produit un firmware installable et a son propre plan.
+
+## 13. Tests
+- **Logique (PC)** : tests C dans le simulateur hôte de fm1-base. On rend N blocs et on vérifie que chaque
+  note tombe à l'échantillon prévu (divisions, swing, micro-timing, conditions, ratchets, changements de pattern).
+- **Navigation (PC)** : scripts du simulateur (touche, vérification d'état) pour chaque page et couche.
+- **Émulateur** (fm1-emu) : démarrage et captures d'écran à chaque étape.
+- **Appareil** : une page développeur affiche la charge des deux cœurs et les blocs perdus. Le pire cas
+  (6 voix lourdes, tous les effets, scène animée) doit tourner sans bloc perdu pour valider une étape.
+
+## 14. Hors périmètre
+- Bluetooth MIDI et audio, MIDI en sortie, horloge MIDI.
+- Samples et enregistrement audio.
+- Granulaire (Beads ou Clouds) : sous-projet ultérieur, après mesures.
+- Second slot d'insert par piste, second LFO.
+- Copier-coller de patterns, condition FILL (aucun contrôle libre pour l'activer).
+- Plus de 4 pistes.
+- Menu de réglages système.
