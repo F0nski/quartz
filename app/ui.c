@@ -1090,10 +1090,9 @@ static void draw_scene(const q_view *v, int32_t oy)
                 cv_rect(x, y, 54, 33, c);
             }
             if (st->flags & SF_ON) {
-                if (v->scene.model == M_KIT) {      /* its first pad */
-                    t[0] = 'P';
-                    int_text(st->note[0] - KIT_NOTE + 1, t + 1);
-                } else
+                if (v->scene.model == M_KIT)        /* its first pad */
+                    int_text(st->note[0] - KIT_NOTE + 1, t);
+                else
                     note_name(st->note[0], t);
                 cv_text(x + (54 - text_w(&FONT_T, t)) / 2, y + 20, &FONT_T, t, C_BLACK);
             }
