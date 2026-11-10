@@ -1,4 +1,4 @@
-#ifndef SPIKE_CXX_CMATH
-#define SPIKE_CXX_CMATH
+#ifndef QUARTZ_CXX_CMATH
+#define QUARTZ_CXX_CMATH
 #include <math.h>
 #endif

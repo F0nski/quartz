@@ -16,7 +16,10 @@ fi
 
 # libm and compiler-rt for the C++ DSP on the device
 git -C base apply --reverse --check ../patches/fm1-base-device-libs.patch 2>/dev/null ||
-    git -C base apply ../patches/fm1-base-device-libs.patch
-[ -e app/libc_include ] || ln -s "$JIELI_TOOLCHAIN/pi32v2/include" app/libc_include
+    git -C base apply ../patches/fm1-base-device-libs.patch || {
+        echo "build.sh: patches/fm1-base-device-libs.patch does not apply to base (fm1-base $(git -C base rev-parse --short HEAD), pinned at $(git ls-tree HEAD base | awk '{print $3}')): check that base is at the pinned commit" >&2
+        exit 1
+    }
+ln -sfn "$JIELI_TOOLCHAIN/pi32v2/include" app/libc_include
 
 cd base && exec python3 tools/build.py ../app "$@"

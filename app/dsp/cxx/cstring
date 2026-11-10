@@ -1,4 +1,4 @@
-#ifndef SPIKE_CXX_CSTRING
-#define SPIKE_CXX_CSTRING
+#ifndef QUARTZ_CXX_CSTRING
+#define QUARTZ_CXX_CSTRING
 #include <string.h>
 #endif

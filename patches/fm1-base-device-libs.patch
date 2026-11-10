@@ -6,7 +6,7 @@ index a74366d..5e53de4 100755
      if not WIFI and stacks() != STACKS:          # (other stack sizes: the SRAM's end and the bands moved)
          ld = stack_script(ld)
      LAYOUT = memory_regions(ld.read_text())
-+    # quartz: fm1.toml device_libs = ["libm.a"], the toolchain's (pi32v2/lib/r3) for the app's C++ DSP
++    # quartz: fm1.toml device_libs = ["libm.a", "libcompiler_rt.a"], the toolchain's (pi32v2/lib/r3) for the app's C++ DSP
 +    # (strings, not Paths: tc() makes Paths relative to ROOT, and the toolchain may be a symlink out of it)
 +    lib_dir = "/opt/jieli" if use_docker() else str(toolchain())
 +    dev_libs = [f"{lib_dir}/pi32v2/lib/r3/{f}" for f in CONF.get("device_libs", [])]

@@ -1,6 +1,6 @@
 // Minimal <algorithm> for the JieLi toolchain (it ships no C++ library): what Plaits and stmlib use.
-#ifndef SPIKE_CXX_ALGORITHM
-#define SPIKE_CXX_ALGORITHM
+#ifndef QUARTZ_CXX_ALGORITHM
+#define QUARTZ_CXX_ALGORITHM
 namespace std {
 template <typename T> inline const T& min(const T& a, const T& b) { return b < a ? b : a; }
 template <typename T> inline const T& max(const T& a, const T& b) { return a < b ? b : a; }
