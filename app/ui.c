@@ -14,7 +14,7 @@
 
 enum { D_EDIT, D_SEQ, D_GLO, D_HOME, ND };
 enum { P_ENGINE, P_SOUND, P_STEPS, P_TEMPO, P_SCALE, P_CPU, P_XY, P_TRACKS, P_SONG, P_GRIDS, P_MAP, P_DENS, P_MARBLES, P_T,
-       P_X, P_NOTES };
+       P_X, P_NOTES, P_PAD, P_KIT };
 /* what PRESET sets on a held step; the black keys 0..7 pick RATCHET .. MICRO, 8 is CLEAR */
 enum { A_VEL, A_RATCHET, A_PROB, A_COND, A_SLIDE, A_ACCENT, A_NOTE, A_LEN, A_MICRO, A_N };
 #define COND_N 40                    /* NONE, FIRST, !FIRST, PRE, !PRE, then A:B for B = 2..8, A = 1..B */
@@ -22,13 +22,14 @@ enum { A_VEL, A_RATCHET, A_PROB, A_COND, A_SLIDE, A_ACCENT, A_NOTE, A_LEN, A_MIC
 static const uint8_t DOMAIN_PAGES[ND][4] = {{P_ENGINE, P_SOUND}, {P_STEPS, P_XY}, {P_TEMPO, P_SCALE, P_CPU}, {P_TRACKS, P_SONG}};
 static const uint8_t DOMAIN_N[ND] = {2, 1, 3, 2};      /* SEQ: 2 pages while PATH is XY (pages) */
 static const uint8_t GEN_PAGES[2][4] = {{P_GRIDS, P_MAP, P_DENS}, {P_MARBLES, P_T, P_X, P_NOTES}};
+static const uint8_t KIT_PAGES[4] = {P_PAD, P_KIT};
 static const uint8_t DOMAIN_BTN[ND] = {B_EDIT, B_SEQ, B_GLO, B_HOME};
 static const char *const DOMAIN_NAME[ND] = {"EDIT", "SEQ", "GLO", "HOME"};
 
 typedef struct { const char *name, *label[4]; int16_t min[4], max[4]; } q_page;
 static const q_page PAGE[] = {
     {"ENGINE", {"HARM", "TIMB", "MORPH", "DECAY"}, {0, 0, 0, 0}, {127, 127, 127, 127}},
-    {"SOUND", {"MODEL", "TUNE", "GLIDE", "POLY"}, {0, -24, 0, 1}, {23, 24, 127, 4}},
+    {"SOUND", {"MODEL", "TUNE", "GLIDE", "POLY"}, {0, -24, 0, 1}, {M_KIT, 24, 127, 4}},
     {"STEPS", {"LEN", "DIV", "PATH", "SOURCE"}, {1, 0, 0, 0}, {Q_STEPS, DIV_N - 1, PATH_N - 1, SRC_N - 1}},
     {"TEMPO", {"TEMPO", "SWING"}, {40, 50}, {240, 75}},
     {"SCALE", {"TONIC", "MODE", "QUANT", "CLICK"}, {0, 0, 0, 0}, {11, 10, 2, 3}},
@@ -43,13 +44,16 @@ static const q_page PAGE[] = {
     {"T", {"MODE", "BIAS", "JITTER", "DEJA VU"}, {0, 0, 0, 0}, {6, 127, 127, 127}},
     {"X", {"SPREAD", "X BIAS", "STEPS"}, {0, 0, 0}, {127, 127, 127}},
     {"NOTES", {"NOTE", "RANGE"}, {0, 1}, {127, 4}},
+    {"PAD", {"TUNE", "HARM", "TIMB", "DECAY"}, {-24, 0, 0, 0}, {24, 127, 127, 127}},
+    {"KIT", {"MODEL", "ENGINE", "LEVEL"}, {0, 0, 0}, {M_KIT, 2, 127}},
 };
 
 /* Plaits' registration order (pq.h) */
-static const char *const MODEL_NAME[24] = {
+static const char *const MODEL_NAME[M_KIT + 1] = {
     "VA VCF", "PHASE DIST", "6-OP A", "6-OP B", "6-OP C", "WAVE TERRAIN", "STRING MACH", "CHIPTUNE",
     "VA", "WAVESHAPE", "2-OP FM", "GRAIN FORM", "ADDITIVE", "WAVETABLE", "CHORDS", "SPEECH",
-    "SWARM", "NOISE", "PARTICLE", "STRING", "MODAL", "BASS DRUM", "SNARE", "HI-HAT"};
+    "SWARM", "NOISE", "PARTICLE", "STRING", "MODAL", "BASS DRUM", "SNARE", "HI-HAT", "KIT"};
+static const char *const ENGINE_NAME[3] = {"BD", "SN", "HH"};
 static const char *const DIV_NAME[DIV_N] = {"1/32", "1/16T", "1/16", "1/8T", "1/8", "1/4T", "1/4", "1/2", "1/1"};
 static const char *const SRC_NAME[SRC_N] = {"STEP", "GRIDS", "MARBLES"};
 /* Marbles' T models, its TGeneratorModel order (gen.c) */
@@ -71,7 +75,8 @@ typedef struct { uint8_t model, pat, playing, mute; int8_t pos, len; } q_trow;  
 
 /* what is on the screen, part by part: a part is drawn again when its view changes */
 typedef struct {
-    struct { int8_t track, domain, page, n, msg, pat, playing, scene; } head;   /* pat: P1..P8 asked; playing: the one playing when it differs, else 0 */
+    struct { int8_t track, domain, page, n, msg, pat, playing, scene, pad; } head;   /* pat: P1..P8 asked; playing: the one playing when it differs, else 0;
+                                                                                   pad: a KIT's in EDIT 1..16, else 0 */
     struct { int8_t pid; uint8_t col, hide; int16_t v[4]; } foot;           /* col: the knobs shown in colour, the rest in grey (a lock page) */
     struct {
         int8_t pid, spage, cursor, pos, len, path, held, attr, showpath, xlen, ylen, src;   /* a generator: pos its rank, len its loop */
@@ -79,7 +84,8 @@ typedef struct {
         uint16_t notes;                         /* NOTES: the allowed pitch classes */
         q_step hst;                             /* the held step */
         int16_t v[4];
-        uint8_t model;
+        uint8_t model, pad;                     /* pad: KIT, the pad its knobs set */
+        uint8_t eng[Q_PADS];                    /* KIT: the pads' engines */
         uint16_t tempo;
         q_step st[16];
         int32_t cpu[6];                         /* the CPU page's numbers as shown; core 2 -1: OFF */
@@ -93,6 +99,7 @@ static struct {
     int domain, page[ND], track, octave, spage, rec, cursor, dirty, entry;   /* entry: the song cursor 1..nsong, 0 none */
     int held, held_key, edited, attr, lpage, nwrote, seqdown;   /* held: the step held 1..64, 0 none; lpage: the held step's p-lock page;
                                                                    nwrote: notes of the chord written since the hold began */
+    int pad, padheld;                          /* a KIT: its last pad played 0..15; the held pad's key + 1, 0 none */
     int homedown, savedown, seldown, saveused, msg_scene;      /* saveused: a white key came while SAVE was held; msg_scene: 1..8 asked */
     uint8_t last_note[Q_TRACKS];               /* a step switched on by hand takes it */
     int8_t key_note[NKEYS], key_track[NKEYS];  /* what each held key sounds, for its note-off; -1 none */
@@ -113,6 +120,10 @@ static int pages(int d, uint8_t *out)
         __builtin_memcpy(out, GEN_PAGES[t->src - 1], 4);
         return t->src == SRC_GRIDS ? 3 : kit() ? 2 : 4;     /* a KIT has no X section */
     }
+    if (d == D_EDIT && kit()) {
+        __builtin_memcpy(out, KIT_PAGES, 4);
+        return 2;
+    }
     __builtin_memcpy(out, DOMAIN_PAGES[d], 4);
     return d == D_SEQ && t->path == PATH_XY ? 2 : DOMAIN_N[d];
 }
@@ -130,6 +141,9 @@ static int page_id(void)
     return id[ui.page[ui.domain]];
 }
 
+/* the page K1-K4 set, a step held aside: a KIT's pad held in EDIT gives its PAD page */
+static int knob_page(void) { return ui.domain == D_EDIT && ui.padheld && kit() ? P_PAD : page_id(); }
+
 /* a KIT plays the generators' 3 voices on its pads: no voice, note nor T output to pick */
 static int knob_hidden(int pid, int k) { return kit() && ((pid == P_GRIDS && (k == 1 || k == 2)) || (pid == P_MARBLES && k == 1)); }
 
@@ -137,12 +151,14 @@ static int knob_get(int pid, int k)
 {
     const q_sound *s = &ui.p->sound[ui.track];
     const q_pattern *t = &ui.p->pat[ui.track][ui.p->pattern[ui.track]];
+    const q_pad *pd = &ui.p->kit[ui.track][ui.pad];
     switch (pid * 4 + k) {
     case P_ENGINE * 4: return s->harm;
     case P_ENGINE * 4 + 1: return s->timb;
     case P_ENGINE * 4 + 2: return s->morph;
     case P_ENGINE * 4 + 3: return s->decay;
-    case P_SOUND * 4: return s->model;
+    case P_SOUND * 4:
+    case P_KIT * 4: return s->model;
     case P_SOUND * 4 + 1: return s->tune;
     case P_SOUND * 4 + 2: return s->glide;
     case P_SOUND * 4 + 3: return s->poly;
@@ -173,6 +189,12 @@ static int knob_get(int pid, int k)
     case P_X * 4 + 2: return t->marbles.steps;
     case P_NOTES * 4: return t->marbles.note;
     case P_NOTES * 4 + 1: return t->marbles.range;
+    case P_PAD * 4: return pd->tune;
+    case P_PAD * 4 + 1: return pd->harm;
+    case P_PAD * 4 + 2: return pd->timb;
+    case P_PAD * 4 + 3: return pd->decay;
+    case P_KIT * 4 + 1: return pd->engine;
+    case P_KIT * 4 + 2: return pd->level;
     case P_TEMPO * 4: return ui.p->tempo;
     case P_TEMPO * 4 + 1: return ui.p->swing;
     case P_SCALE * 4: return ui.p->tonic;
@@ -195,12 +217,14 @@ static void knob_set(int pid, int k, int v)
 {
     q_sound *s = &ui.p->sound[ui.track];
     q_pattern *t = &ui.p->pat[ui.track][ui.p->pattern[ui.track]];
+    q_pad *pd = &ui.p->kit[ui.track][ui.pad];
     switch (pid * 4 + k) {
     case P_ENGINE * 4: s->harm = (uint8_t)v; break;
     case P_ENGINE * 4 + 1: s->timb = (uint8_t)v; break;
     case P_ENGINE * 4 + 2: s->morph = (uint8_t)v; break;
     case P_ENGINE * 4 + 3: s->decay = (uint8_t)v; break;
-    case P_SOUND * 4: s->model = (uint8_t)v; audio_track_model(ui.track); break;
+    case P_SOUND * 4:
+    case P_KIT * 4: s->model = (uint8_t)v; audio_track_model(ui.track); break;
     case P_SOUND * 4 + 1: s->tune = (int8_t)v; break;
     case P_SOUND * 4 + 2: s->glide = (uint8_t)v; break;
     case P_SOUND * 4 + 3: s->poly = (uint8_t)v; break;
@@ -238,6 +262,12 @@ static void knob_set(int pid, int k, int v)
     case P_X * 4 + 2: t->marbles.steps = (uint8_t)v; break;
     case P_NOTES * 4: t->marbles.note = (uint8_t)v; break;
     case P_NOTES * 4 + 1: t->marbles.range = (uint8_t)v; break;
+    case P_PAD * 4: pd->tune = (int8_t)v; break;
+    case P_PAD * 4 + 1: pd->harm = (uint8_t)v; break;
+    case P_PAD * 4 + 2: pd->timb = (uint8_t)v; break;
+    case P_PAD * 4 + 3: pd->decay = (uint8_t)v; break;
+    case P_KIT * 4 + 1: pd->engine = (uint8_t)v; break;     /* the render takes it at the pad's next hit */
+    case P_KIT * 4 + 2: pd->level = (uint8_t)v; break;
     case P_TEMPO * 4: ui.p->tempo = (uint16_t)v; break;
     case P_TEMPO * 4 + 1: ui.p->swing = (uint8_t)v; break;
     case P_SCALE * 4: ui.p->tonic = (uint8_t)v; break;
@@ -459,6 +489,28 @@ static void pattern_set(int n)
     ui.dirty = 1;
 }
 
+/* a KIT's pad in or out of the held step's notes, 4 at most: the last one out switches the step off */
+static void pad_toggle(q_step *s, int note)
+{
+    int i, n = 0;
+    if (!(s->flags & SF_ON))
+        __builtin_memset(s->note, 0, sizeof s->note);
+    else
+        for (n = 1; n < 4 && s->note[n]; n++) {}
+    for (i = 0; i < n && s->note[i] != note; i++) {}
+    if (i == n) {
+        if (n < 4)
+            s->note[n] = (uint8_t)note;
+        step_on(s);
+    } else if (n == 1) {
+        s->flags &= (uint8_t)~SF_ON;
+    } else {
+        for (; i < 3; i++)
+            s->note[i] = s->note[i + 1];
+        s->note[3] = 0;
+    }
+}
+
 /* a black key while a step is held */
 static void black_key(int b, q_step *s, q_pattern *t)
 {
@@ -578,11 +630,21 @@ static void key_down(int k)
             return;
         }
     }
+    if (kit()) {                        /* the white keys are the pads */
+        if (w == 16)
+            return;
+        note = KIT_NOTE + w;
+        ui.pad = w;
+        if (!s)
+            ui.padheld = k + 1;
+    }
     audio_live_note(ui.track, note, s ? 2 : 1);   /* written to the held step: not overdubbed too */
     ui.key_note[k] = (int8_t)note;
     ui.key_track[k] = (int8_t)ui.track;
     ui.last_note[ui.track] = (uint8_t)note;
-    if (s) {                            /* the first note replaces the chord, the next ones fill it up to POLY */
+    if (s && kit()) {
+        pad_toggle(s, note);
+    } else if (s) {                     /* the first note replaces the chord, the next ones fill it up to POLY */
         if (!ui.nwrote)
             __builtin_memset(s->note, 0, sizeof s->note);
         if (ui.nwrote < ui.p->sound[ui.track].poly)
@@ -604,7 +666,12 @@ static void key_up(int k)
         q_step *s = &pat()->steps[ui.held - 1];
         if (!ui.edited) {
             if (!(s->flags & SF_ON)) {
-                s->note[0] = ui.last_note[ui.track];
+                int n = ui.last_note[ui.track];
+                if (kit()) {            /* one pad: the last one played, pad 1 when none */
+                    __builtin_memset(s->note, 0, sizeof s->note);
+                    n = n >= KIT_NOTE && n < KIT_NOTE + Q_PADS ? n : KIT_NOTE;
+                }
+                s->note[0] = (uint8_t)n;
                 s->vel = 100;
             }
             __asm__ volatile("" ::: "memory");   /* note and vel before on */
@@ -613,6 +680,8 @@ static void key_up(int k)
         }
         ui.held = 0;
     }
+    if (ui.padheld == k + 1)
+        ui.padheld = 0;
     if (ui.key_note[k] < 0)
         return;
     audio_live_note(ui.key_track[k], ui.key_note[k], 0);
@@ -622,7 +691,7 @@ static void key_up(int k)
 void ui_input(void)
 {
     uint32_t btn = plat_buttons(), keys = plat_keys();
-    int i, e, d, n;
+    int i, e, d, n, kpid;
     q_rec rec;
     if ((n = audio_scene_started()) >= 0) {     /* first of the frame: before any other write to the mute mask */
         scene_apply(&ui.p->scene[n]);
@@ -667,6 +736,8 @@ void ui_input(void)
             ui.edited = ui.dirty = 1;
         } else if (ui.domain == D_SEQ) {
             pattern_set(clamp(ui.p->pattern[ui.track] + e, 0, Q_PATTERNS - 1));
+        } else if (ui.domain == D_EDIT && ui.padheld && kit()) {
+            knob_turn(P_KIT, 1, e);     /* the held pad's engine */
         } else if (ui.domain == D_EDIT) {
             knob_turn(P_SOUND, 0, e);
         } else if (ui.domain == D_HOME && page_id() == P_SONG) {
@@ -675,14 +746,16 @@ void ui_input(void)
     }
     if (ui.page[D_SEQ] >= domain_n(D_SEQ))      /* another pattern or track, no XY page */
         ui.page[D_SEQ] = 0;
+    kpid = knob_page();
     for (i = 0; i < 4; i++) {
         e = plat_enc(EN_K1 + i);
-        if (ui.held)
-            lock_turn(i, e);
-        else {
-            knob_turn(page_id(), i, e);
+        if (ui.held) {
+            if (!kit())                 /* a KIT's steps take no p-locks */
+                lock_turn(i, e);
+        } else {
+            knob_turn(kpid, i, e);
             if (e && ui.rec && audio_playing())
-                rec_lock(page_id(), i);
+                rec_lock(kpid, i);
         }
     }
 }
@@ -761,7 +834,12 @@ static void knob_text(int pid, int k, int v, char *b)
         while ((*b++ = *s++) != 0) {}
         return;
     }
-    if (pid == P_SOUND && k == 1 && v > 0)
+    if (pid == P_KIT && k == 1) {
+        const char *s = ENGINE_NAME[v];
+        while ((*b++ = *s++) != 0) {}
+        return;
+    }
+    if (((pid == P_SOUND && k == 1) || (pid == P_PAD && !k)) && v > 0)
         *b++ = '+';
     int_text(v, b);
 }
@@ -818,7 +896,7 @@ static void attr_text(const q_step *s, int a, char *b)
 static void view_now(q_view *v)
 {
     const q_pattern *t = &ui.p->pat[ui.track][ui.p->pattern[ui.track]];
-    int pid = page_id(), k, fpid = ui.held ? (ui.lpage ? P_SOUND : P_ENGINE) : pid, locked;
+    int pid = page_id(), k, fpid = ui.held ? (ui.lpage ? P_SOUND : P_ENGINE) : knob_page(), locked;
     __builtin_memset(v, 0, sizeof *v);  /* the padding too: views are compared whole */
     v->head.track = (int8_t)ui.track;
     v->head.domain = (int8_t)ui.domain;
@@ -829,6 +907,8 @@ static void view_now(q_view *v)
     v->head.scene = (int8_t)ui.msg_scene;
     if (audio_playing() && audio_pattern(ui.track) != ui.p->pattern[ui.track])
         v->head.playing = (int8_t)(audio_pattern(ui.track) + 1);
+    if (ui.domain == D_EDIT && kit())
+        v->head.pad = (int8_t)(ui.pad + 1);
     v->foot.pid = (int8_t)fpid;
     v->scene.pid = (int8_t)pid;
     v->foot.col = 15;
@@ -838,7 +918,9 @@ static void view_now(q_view *v)
         if (knob_hidden(fpid, k))
             v->foot.hide |= (uint8_t)(1u << k);
     }
-    if (ui.held)                        /* the lock page: the locked values in colour, the track's in grey */
+    if (ui.held && kit())               /* no locks on a KIT's step */
+        v->foot.hide = 15;
+    else if (ui.held)                   /* the lock page: the locked values in colour, the track's in grey */
         for (v->foot.col = 0, k = 0; k < 4; k++) {
             if (lock_param(k) < 0) {
                 v->foot.hide |= (uint8_t)(1u << k);
@@ -847,9 +929,13 @@ static void view_now(q_view *v)
             v->foot.v[k] = (int16_t)lock_value(t, lock_param(k), &locked);
             v->foot.col |= (uint8_t)(locked << k);
         }
-    if (pid == P_ENGINE || pid == P_SOUND || pid == P_SCALE) {
+    if (pid == P_ENGINE || pid == P_SOUND || pid == P_SCALE || pid == P_PAD) {
         __builtin_memcpy(v->scene.v, v->foot.v, sizeof v->scene.v);
-        v->scene.model = ui.p->sound[ui.track].model;
+        v->scene.model = pid == P_PAD ? KIT_MODEL + ui.p->kit[ui.track][ui.pad].engine : ui.p->sound[ui.track].model;
+    } else if (pid == P_KIT) {
+        v->scene.pad = (uint8_t)ui.pad;
+        for (k = 0; k < Q_PADS; k++)
+            v->scene.eng[k] = ui.p->kit[ui.track][k].engine;
     } else if (pid == P_STEPS || pid == P_XY) {
         v->scene.spage = (int8_t)ui.spage;
         v->scene.path = (int8_t)t->path;
@@ -932,8 +1018,15 @@ static void draw_head(const q_view *v)
         }
         t[0] = 'P', t[1] = (char)('0' + v->head.pat), t[2] = 0;
         cv_text(x, 7, &FONT_B, t, C_AMB);
-    } else
-        cv_text(x + 10, 7, &FONT_B, PAGE[v->foot.pid].name, C_AMB);
+    } else {
+        x = cv_text(x + 10, 7, &FONT_B, PAGE[v->foot.pid].name, C_AMB);
+        if (v->head.pad) {              /* a KIT: the pad its knobs set */
+            if (v->foot.pid != P_PAD)
+                x = cv_text(x + 8, 7, &FONT_B, "PAD", C_AMB);
+            int_text(v->head.pad, t);
+            cv_text(x + 6, 7, &FONT_B, t, C_AMB);
+        }
+    }
     t[0] = (char)('1' + v->head.page);
     t[1] = '/';
     t[2] = (char)('0' + v->head.n);
@@ -951,6 +1044,7 @@ static void draw_scene(const q_view *v, int32_t oy)
     switch (v->scene.pid) {
     case P_ENGINE:
     case P_SOUND:
+    case P_PAD:
         cv_text(10, oy + 8, &FONT_M, MODEL_NAME[v->scene.model], C_WHITE);
         for (k = 0; k < 4; k++) {
             const q_page *pg = &PAGE[v->scene.pid];
@@ -1010,6 +1104,14 @@ static void draw_scene(const q_view *v, int32_t oy)
                 cv_line(x0, y0 + 1, x1, y1 + 1, C_WHITE);
             }
             cv_rect(33 + 58 * (first % 4) - 4, oy + 34 + 37 * (first / 4) - 4, 9, 9, KCOL[3]);
+        }
+        break;
+    case P_KIT:                         /* the 16 pads, 4 x 4 as the steps, the one the knobs set lit */
+        for (i = 0; i < Q_PADS; i++) {
+            int32_t x = 6 + 58 * (i % 4), y = oy + 18 + 37 * (i / 4);
+            const char *n = ENGINE_NAME[v->scene.eng[i]];
+            cv_rect(x, y, 54, 33, i == v->scene.pad ? C_HI : C_LINE);
+            cv_text(x + (54 - text_w(&FONT_T, n)) / 2, y + 20, &FONT_T, n, i == v->scene.pad ? C_BLACK : C_GRAY);
         }
         break;
     case P_GRIDS:
@@ -1257,6 +1359,22 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "mnotes")) *got = t->marbles.notes[0] | t->marbles.notes[1] << 8;
     else if (!strcmp(what, "mdejavu")) *got = t->marbles.dejavu;
     else if (!strcmp(what, "mmode")) *got = t->marbles.mode;
+    else if (!strcmp(what, "mtout")) *got = t->marbles.tout;
+    else if (!strcmp(what, "gvoice")) *got = t->grids.voice;
+    else if (!strcmp(what, "gnote")) *got = t->grids.note;
+    else if (!strcmp(what, "pad")) *got = ui.pad + 1;
+    else if (!strncmp(what, "pad", 3) && u && m >= 1 && m <= Q_PADS) {
+        const q_pad *pd = &ui.p->kit[ui.track][m - 1];
+        if (!strncmp(what, "padtune_", 8)) *got = pd->tune;
+        else if (!strncmp(what, "padharm_", 8)) *got = pd->harm;
+        else if (!strncmp(what, "padengine_", 10)) *got = pd->engine;
+        else if (!strncmp(what, "padlevel_", 9)) *got = pd->level;
+        else
+            return 0;
+    } else if (!strncmp(what, "stepnotes_", 10) && m >= 1 && m <= Q_STEPS) {
+        const q_step *st = &t->steps[m - 1];
+        for (*got = 1; *got < 4 && st->note[*got]; ++*got) {}
+    }
     else
         return 0;
     return 1;

@@ -1,0 +1,112 @@
+# KIT: its EDIT pages, a pad held and the knobs, pads in steps, the generators' knobs it hides
+wait 600
+tap EDIT
+turn PRESET 20
+expect model 24
+expect page 1
+expect pad 1
+# white 4 held: K1-K4 and PRESET set pad 4
+key 6 down
+turn K1 3
+expect padtune_4 3
+expect pad 4
+turn PRESET -2
+expect padengine_4 0
+expect model 24
+wait 100
+shot kit_pad_held.png
+key 6 up
+# released: the page sets the last pad played
+turn K2 1
+expect padharm_4 51
+turn SELECT 1
+expect page 2
+turn K3 -10
+expect padlevel_4 80
+wait 100
+shot kit_page.png
+turn SELECT 1
+expect page 1
+wait 100
+shot kit_pad.png
+# a black key plays nothing: the pad stays
+key 1 down
+key 1 up
+expect pad 4
+# SEQ: step 4 held, the white keys 1 and 3 in, then 1 out
+tap SEQ
+key 6 down
+key 0 down
+key 0 up
+key 4 down
+key 4 up
+expect stepnotes_4 2
+expect stepon_4 1
+expect pad 3
+key 0 down
+key 0 up
+expect stepnotes_4 1
+expect stepnote_4 38
+# no p-lock on a KIT step
+turn K1 5
+expect locks 0
+expect msg_locks_full 0
+wait 100
+shot kit_step_held.png
+key 6 up
+expect stepon_4 1
+# an empty step tapped takes the last pad played: 1
+key 2 down
+key 2 up
+expect stepon_2 1
+expect stepnote_2 36
+expect stepnotes_2 1
+# step 5 held, its only pad out: the step goes off
+key 7 down
+key 4 down
+key 4 up
+expect stepon_5 1
+key 4 down
+key 4 up
+expect stepon_5 0
+key 7 up
+expect stepon_5 0
+wait 100
+shot kit_steps.png
+# one voice per engine
+tap PLAY
+wait 500
+expect active <4
+wait 500
+expect active <4
+wait 500
+expect active <4
+wait 500
+expect active <4
+wait 500
+expect active <4
+wait 500
+expect active <4
+wait 500
+expect active <4
+wait 500
+expect active <4
+tap PLAY
+# GRIDS on a KIT: VOICE and NOTE hidden, their knobs ignored
+turn K4 1
+expect src 1
+turn K2 2
+expect gvoice 1
+turn K3 5
+expect gnote 60
+# MARBLES on a KIT: 2 pages, T OUT hidden and ignored
+turn K4 1
+expect src 2
+turn K2 2
+expect mtout 1
+turn SELECT 1
+expect page 2
+turn SELECT 1
+expect page 1
+turn K4 -2
+expect src 0

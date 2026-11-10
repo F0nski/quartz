@@ -3,12 +3,14 @@ wait 600
 tap EDIT
 spin SELECT -1
 expect page 2
-spin K1 100
-expect model 23
 spin K2 100
 expect tune 24
 spin K4 100
 expect poly 4
+spin K1 100
+expect model 24
+spin K1 -1
+expect model 23
 spin SELECT -1
 expect page 1
 tap GLO
