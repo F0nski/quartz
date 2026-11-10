@@ -359,6 +359,11 @@ static void panic_silences(void)
     block(256);
     for (int i = 0; i < 2 * 256; i++) assert(LR[i] == 0);
     assert(count('r', 0) + count('r', 1) + count('r', 2) + count('r', 3) + count('r', 4) + count('r', 5) == 0);
+    block(256);
+    assert(LR[0] == 0);
+    audio_unmute();                 /* what app_ui_init calls: the app resumed */
+    block(256);
+    assert(LR[0] != 0 && count('r', 0) == 1);
 }
 
 int main(void)

@@ -72,6 +72,7 @@ void audio_play(int on)
 void audio_live_note(int track, int note, int on) { push(CMD_NOTE, track, note, on); }
 void audio_track_model(int track) { push(CMD_MODEL, track, 0, 0); }
 void audio_mute(void) { muted = 1; }
+void audio_unmute(void) { muted = 0; }
 int audio_playing(void) { return playing; }
 int audio_pos(int track) { return seq_pos(&seq, track); }
 

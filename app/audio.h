@@ -13,7 +13,10 @@ void audio_live_note(int track, int note, int on);      /* the keyboard, velocit
 void audio_track_model(int track);                      /* after sound[track].model changed: its voices faded out
                                                          * over a block, then freed */
 q_load audio_load(void);                                /* the cores' load over ~1 s, in % of the block's budget */
-void audio_mute(void);                                  /* app_panic: silence from the next block on, for good */
+/* app_panic: silence from the next block on, until audio_unmute. fm1-base calls app_panic before an update (then
+ * app_ui_init when it is refused, a reboot when committed) and before plat_restart (a reboot): app_ui_init unmutes */
+void audio_mute(void);
+void audio_unmute(void);
 int audio_playing(void);
 int audio_pos(int track);                               /* step in progress, -1 when stopped */
 
