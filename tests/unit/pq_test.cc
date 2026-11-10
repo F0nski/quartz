@@ -51,8 +51,8 @@ static void pitch_is_right(void)
 
 static void all_models_sound(void)
 {
-    pq_init();
     for (int m = 0; m < 24; m++) {
+        pq_init();      // a fresh voice per model: no envelope or trigger left from the previous one
         pq_set_engine(1, m);
         pq_set_patch(1, 0.5f, 0.5f, 0.5f, 0.5f, 0.0f);
         pq_note_on(1, 60.0f, 1.0f);
@@ -72,6 +72,38 @@ static void engine_switch_while_sounding(void)
     pq_set_engine(2, 17);
     float peak = render(2, (unsigned)(kRate * 0.2f));
     assert(peak < 4.0f);
+    assert(peak > 0.01f);       // still sounding: the switch keeps the envelope and the gate
+}
+
+// Crossings per second over the next seconds of voice v.
+static float frequency(int v, float seconds)
+{
+    crossings = 0;
+    last = 0.0f;
+    render(v, (unsigned)(kRate * seconds), count_crossings);
+    return crossings / seconds;
+}
+
+static void glide_slides_between_notes(void)
+{
+    pq_init();
+    pq_set_engine(5, 8);
+    pq_set_patch(5, 0.5f, 0.5f, 0.5f, 1.0f, 0.0f);
+    pq_note_on(5, 48.0f, 1.0f);
+    render(5, (unsigned)(kRate * 0.1f));
+    float from = frequency(5, 0.1f);                 // 130.8 Hz
+    pq_set_patch(5, 0.5f, 0.5f, 0.5f, 1.0f, 1.0f);   // glide 1: time constant of 0.5 s
+    pq_note_on(5, 72.0f, 1.0f);
+    float mid = frequency(5, 0.2f);                  // 523.3 Hz at the end, about 4 to 10 semitones up on the way
+    printf("  glide: %.0f Hz, then %.0f Hz\n", from, mid);
+    assert(from > 125.0f && from < 137.0f);
+    assert(mid > from * 1.2f && mid < 523.0f * 0.8f);
+
+    pq_set_patch(5, 0.5f, 0.5f, 0.5f, 1.0f, 0.0f);   // glide 0: the new note at once
+    pq_note_on(5, 48.0f, 1.0f);
+    render(5, (unsigned)(kRate * 0.05f));
+    float now = frequency(5, 0.2f);
+    assert(now > 125.0f && now < 137.0f);
 }
 
 static void release_goes_silent(void)
@@ -120,6 +152,7 @@ int main(void)
     pitch_is_right();
     all_models_sound();
     engine_switch_while_sounding();
+    glide_slides_between_notes();
     release_goes_silent();
     off_on_between_renders_retriggers();
     voice_bytes_reported();

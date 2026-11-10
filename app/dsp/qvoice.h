@@ -145,7 +145,9 @@ class QVoice {
   // engines). Selects model 8 (VA).
   void Init(void* buffer, size_t size);
   // model: 0..23 in Plaits' registration order. Destroys the current engine
-  // and builds this one in its place.
+  // and builds this one in its place. As in Plaits' Voice, the decay and LPG
+  // envelopes and the trigger state carry over: a sounding voice keeps
+  // sounding through the switch.
   void SetEngine(int model);
   void Render(
       const Patch& patch,
