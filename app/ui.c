@@ -12,13 +12,13 @@
 #define PINK RGB(255, 47, 142)       /* notes playing only */
 
 enum { D_EDIT, D_SEQ, D_GLO, D_HOME, ND };
-enum { P_ENGINE, P_SOUND, P_STEPS, P_TEMPO, P_CPU, P_XY, P_TRACKS, P_SONG };
+enum { P_ENGINE, P_SOUND, P_STEPS, P_TEMPO, P_SCALE, P_CPU, P_XY, P_TRACKS, P_SONG };
 /* what PRESET sets on a held step; the black keys 0..7 pick RATCHET .. MICRO, 8 is CLEAR */
 enum { A_VEL, A_RATCHET, A_PROB, A_COND, A_SLIDE, A_ACCENT, A_NOTE, A_LEN, A_MICRO, A_N };
 #define COND_N 40                    /* NONE, FIRST, !FIRST, PRE, !PRE, then A:B for B = 2..8, A = 1..B */
 
-static const uint8_t DOMAIN_PAGES[ND][2] = {{P_ENGINE, P_SOUND}, {P_STEPS, P_XY}, {P_TEMPO, P_CPU}, {P_TRACKS, P_SONG}};
-static const uint8_t DOMAIN_N[ND] = {2, 1, 2, 2};      /* SEQ: 2 pages while PATH is XY (domain_n) */
+static const uint8_t DOMAIN_PAGES[ND][3] = {{P_ENGINE, P_SOUND}, {P_STEPS, P_XY}, {P_TEMPO, P_SCALE, P_CPU}, {P_TRACKS, P_SONG}};
+static const uint8_t DOMAIN_N[ND] = {2, 1, 3, 2};      /* SEQ: 2 pages while PATH is XY (domain_n) */
 static const uint8_t DOMAIN_BTN[ND] = {B_EDIT, B_SEQ, B_GLO, B_HOME};
 static const char *const DOMAIN_NAME[ND] = {"EDIT", "SEQ", "GLO", "HOME"};
 
@@ -27,7 +27,8 @@ static const q_page PAGE[] = {
     {"ENGINE", {"HARM", "TIMB", "MORPH", "DECAY"}, {0, 0, 0, 0}, {127, 127, 127, 127}},
     {"SOUND", {"MODEL", "TUNE", "GLIDE", "POLY"}, {0, -24, 0, 1}, {23, 24, 127, 4}},
     {"STEPS", {"LEN", "DIV", "PATH"}, {1, 0, 0}, {Q_STEPS, DIV_N - 1, PATH_N - 1}},
-    {"TEMPO", {"TEMPO"}, {40}, {240}},
+    {"TEMPO", {"TEMPO", "SWING"}, {40, 50}, {240, 75}},
+    {"SCALE", {"TONIC", "MODE", "QUANT", "CLICK"}, {0, 0, 0, 0}, {11, 10, 2, 3}},
     {"CPU", {0}, {0}, {0}},
     {"XY", {"X LEN", "X DIV", "Y LEN", "Y DIV"}, {1, 0, 1, 0}, {4, DIV_N - 1, 4, DIV_N - 1}},
     {"TRACKS", {0}, {0}, {0}},
@@ -41,6 +42,11 @@ static const char *const MODEL_NAME[24] = {
     "SWARM", "NOISE", "PARTICLE", "STRING", "MODAL", "BASS DRUM", "SNARE", "HI-HAT"};
 static const char *const DIV_NAME[DIV_N] = {"1/32", "1/16T", "1/16", "1/8T", "1/8", "1/4T", "1/4", "1/2", "1/1"};
 static const char *const PATH_NAME[PATH_N] = {"FWD", "REV", "PING-PONG", "SNAKE", "COLUMNS", "SPIRAL", "RANDOM", "XY"};
+static const char *const TONIC_NAME[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+static const char *const MODE_NAME[11] = {"CHROM", "MAJOR", "MINOR", "DORIAN", "PHRYG", "LYDIAN", "MIXO", "LOCRIAN",
+                                          "HARM MIN", "PENTA", "MIN PENTA"};
+static const char *const QUANT_NAME[3] = {"OFF", "50 %", "100 %"};
+static const char *const CLICK_NAME[4] = {"OFF", "METRO", "COUNT", "BOTH"};
 static const char *const ATTR_NAME[A_N] = {"VEL", "RATCHET", "PROB", "COND", "SLIDE", "ACCENT", "NOTE", "LEN", "MICRO"};
 static const uint8_t ATTR_ROW[A_N] = {A_NOTE, A_VEL, A_LEN, A_MICRO, A_PROB, A_COND, A_RATCHET, A_SLIDE, A_ACCENT};
 static const char *const COND_NAME[5] = {"NONE", "FIRST", "!FIRST", "PRE", "!PRE"};
@@ -102,6 +108,11 @@ static int knob_get(int pid, int k)
     case P_STEPS * 4 + 1: return t->div;
     case P_STEPS * 4 + 2: return t->path;
     case P_TEMPO * 4: return ui.p->tempo;
+    case P_TEMPO * 4 + 1: return ui.p->swing;
+    case P_SCALE * 4: return ui.p->tonic;
+    case P_SCALE * 4 + 1: return ui.p->mode;
+    case P_SCALE * 4 + 2: return ui.p->quant;
+    case P_SCALE * 4 + 3: return ui.p->click;
     case P_XY * 4: return t->xlen;
     case P_XY * 4 + 1: return t->div;
     case P_XY * 4 + 2: return t->ylen;
@@ -138,6 +149,11 @@ static void knob_set(int pid, int k, int v)
         ui.path_until = plat_ms() + MSG_MS;     /* the path is drawn while it is being chosen */
         break;
     case P_TEMPO * 4: ui.p->tempo = (uint16_t)v; break;
+    case P_TEMPO * 4 + 1: ui.p->swing = (uint8_t)v; break;
+    case P_SCALE * 4: ui.p->tonic = (uint8_t)v; break;
+    case P_SCALE * 4 + 1: ui.p->mode = (uint8_t)v; break;
+    case P_SCALE * 4 + 2: ui.p->quant = (uint8_t)v; break;
+    case P_SCALE * 4 + 3: ui.p->click = (uint8_t)v; break;
     case P_XY * 4: t->xlen = (uint8_t)v; break;
     case P_XY * 4 + 1: t->div = (uint8_t)v; break;
     case P_XY * 4 + 2: t->ylen = (uint8_t)v; break;
@@ -175,14 +191,17 @@ static void button(int b)
         }
     switch (b) {
     case B_PLAY:
-        audio_play(!audio_playing());
-        ui.rec = ui.msg_scene = 0;
+        d = !audio_playing();
+        if (!d)                         /* stopping disarms REC */
+            ui.rec = 0;
+        audio_rec(ui.rec);              /* armed before the start: the count-in */
+        audio_play(d);
+        ui.msg_scene = 0;
         break;
     case B_REC:
-        if (!audio_playing()) {
-            ui.rec = !ui.rec;
-            ui.cursor = 1;
-        }
+        ui.rec = !ui.rec;
+        audio_rec(ui.rec);
+        ui.cursor = 1;
         break;
     case B_SAVE:                        /* saves at the release, unless a white key came meanwhile */
         ui.saveused = 0;
@@ -297,6 +316,46 @@ static void lock_turn(int k, int d)
     }
     step_on(&t->steps[ui.held - 1]);
     ui.dirty = 1;
+}
+
+/* a note the render recorded: it lands on its step, whatever pattern is shown now */
+static void rec_write(const q_rec *r)
+{
+    q_step *s = &ui.p->pat[r->track][r->pat].steps[r->step];
+    int i, poly = ui.p->sound[r->track].poly;
+    if (!(s->flags & SF_ON)) {
+        __builtin_memset(s, 0, sizeof *s);
+        s->note[0] = r->note;
+        s->vel = r->vel;
+        s->len = r->len;
+        s->micro = r->micro;
+        s->prob = 20;
+        step_on(s);
+    } else if (poly == 1) {
+        s->note[0] = r->note;
+        s->vel = r->vel;
+        s->len = r->len;
+        s->micro = r->micro;
+    } else {
+        for (i = 0; i < poly && s->note[i] != r->note; i++) {}
+        if (i < poly)
+            return;
+        for (i = 1; i < poly && s->note[i]; i++) {}
+        if (i < poly)
+            s->note[i] = r->note;
+    }
+    ui.dirty = 1;
+}
+
+/* overdub: a lockable knob turned also locks the step playing, when it is on and of the pattern shown */
+static void rec_lock(int pid, int k)
+{
+    q_pattern *t = pat();
+    int pos = audio_pos(ui.track), param = pid == P_ENGINE ? k : pid == P_SOUND && k > 0 && k < 3 ? LK_TUNE + k - 1 : -1;
+    if (param < 0 || pos < 0 || audio_pattern(ui.track) != ui.p->pattern[ui.track] || !(t->steps[pos].flags & SF_ON))
+        return;
+    if (lock_set(t, pos, param, (uint8_t)knob_get(pid, k)))
+        ui.locks_until = plat_ms() + MSG_MS;
 }
 
 static void pattern_set(int n)
@@ -418,7 +477,7 @@ static void key_down(int k)
         if (ui.nwrote < ui.p->sound[ui.track].poly)
             s->note[ui.nwrote++] = (uint8_t)note;
         step_on(s);
-    } else if (ui.rec) {                /* step entry: the note at the cursor, then the next step */
+    } else if (ui.rec && !audio_playing()) {    /* step entry: the note at the cursor, then the next step; playing, the render records */
         s = &t->steps[ui.cursor - 1];
         s->note[0] = (uint8_t)note;
         s->vel = 100;
@@ -453,10 +512,13 @@ void ui_input(void)
 {
     uint32_t btn = plat_buttons(), keys = plat_keys();
     int i, e, d, n;
+    q_rec rec;
     if ((n = audio_scene_started()) >= 0) {     /* first of the frame: before any other write to the mute mask */
         scene_apply(&ui.p->scene[n]);
         ui.msg_scene = 0;
     }
+    while (audio_take_rec(&rec))
+        rec_write(&rec);
     ui.seqdown = btn >> B_SEQ & 1u;
     ui.homedown = btn >> B_HOME & 1u;
     ui.savedown = btn >> B_SAVE & 1u;
@@ -506,8 +568,11 @@ void ui_input(void)
         e = plat_enc(EN_K1 + i);
         if (ui.held)
             lock_turn(i, e);
-        else
+        else {
             knob_turn(page_id(), i, e);
+            if (e && ui.rec && audio_playing())
+                rec_lock(page_id(), i);
+        }
     }
 }
 
@@ -563,6 +628,11 @@ static void knob_text(int pid, int k, int v, char *b)
 {
     if (pid == P_SONG && k == 3) {
         const char *s = v ? "SONG" : "PATTERN";
+        while ((*b++ = *s++) != 0) {}
+        return;
+    }
+    if (pid == P_SCALE) {
+        const char *s = k == 0 ? TONIC_NAME[v] : k == 1 ? MODE_NAME[v] : k == 2 ? QUANT_NAME[v] : CLICK_NAME[v];
         while ((*b++ = *s++) != 0) {}
         return;
     }
@@ -654,7 +724,7 @@ static void view_now(q_view *v)
             v->foot.v[k] = (int16_t)lock_value(t, lock_param(k), &locked);
             v->foot.col |= (uint8_t)(locked << k);
         }
-    if (pid == P_ENGINE || pid == P_SOUND) {
+    if (pid == P_ENGINE || pid == P_SOUND || pid == P_SCALE) {
         __builtin_memcpy(v->scene.v, v->foot.v, sizeof v->scene.v);
         v->scene.model = ui.p->sound[ui.track].model;
     } else if (pid == P_STEPS || pid == P_XY) {
@@ -670,7 +740,7 @@ static void view_now(q_view *v)
         for (k = 0; k < t->nlocks; k++)
             if (t->locks[k].step / 16 == ui.spage)
                 v->scene.locks |= (uint16_t)(1u << (t->locks[k].step % 16));
-        v->scene.cursor = (int8_t)(ui.rec ? ui.cursor : 0);
+        v->scene.cursor = (int8_t)(ui.rec && !audio_playing() ? ui.cursor : 0);
         v->scene.pos = (int8_t)audio_pos(ui.track);
         v->scene.len = (int8_t)t->len;
         __builtin_memcpy(v->scene.st, &t->steps[ui.spage * 16], sizeof v->scene.st);
@@ -859,6 +929,10 @@ static void draw_scene(const q_view *v, int32_t oy)
         cv_text((240 - text_w(&FONT_L, t)) / 2, oy + 52, &FONT_L, t, C_WHITE);
         cv_text((240 - text_w(&FONT_XS, "BPM")) / 2, oy + 90, &FONT_XS, "BPM", C_GRAY);
         break;
+    case P_SCALE:
+        cv_text((240 - text_w(&FONT_L, TONIC_NAME[v->scene.v[0]])) / 2, oy + 40, &FONT_L, TONIC_NAME[v->scene.v[0]], C_WHITE);
+        cv_text((240 - text_w(&FONT_M, MODE_NAME[v->scene.v[1]])) / 2, oy + 100, &FONT_M, MODE_NAME[v->scene.v[1]], C_GRAY);
+        break;
     case P_CPU: {
         static const char *const ROW[6] = {"CORE 1", "CORE 2", "LOST BLOCKS", "VOICES", "BYTES/VOICE", "CORE 2 STACK"};
         for (i = 0; i < 6; i++) {
@@ -993,6 +1067,12 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "tune")) *got = s->tune;
     else if (!strcmp(what, "harm")) *got = s->harm;
     else if (!strcmp(what, "tempo")) *got = ui.p->tempo;
+    else if (!strcmp(what, "swing")) *got = ui.p->swing;
+    else if (!strcmp(what, "tonic")) *got = ui.p->tonic;
+    else if (!strcmp(what, "mode")) *got = ui.p->mode;
+    else if (!strcmp(what, "quant")) *got = ui.p->quant;
+    else if (!strcmp(what, "click")) *got = ui.p->click;
+    else if (!strcmp(what, "overdub")) *got = ui.rec && audio_playing();
     else if (!strcmp(what, "len")) *got = t->len;
     else if (!strcmp(what, "div")) *got = t->div;
     else if (!strcmp(what, "pos")) *got = audio_pos(ui.track);

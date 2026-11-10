@@ -1,0 +1,24 @@
+# GLO: TEMPO and SWING, then SCALE (tonic, mode, quant, click), kept through a save and a reboot
+wait 600
+tap GLO
+turn K2 30
+expect swing 75
+turn SELECT 1
+expect page 2
+turn K1 -1
+expect tonic 0
+turn K2 1
+turn K3 -2
+turn K4 3
+expect mode 2
+expect quant 0
+expect click 3
+shot glo_scale.png
+tap SAVE
+expect dirty 0
+reboot
+wait 600
+expect swing 75
+expect mode 2
+expect quant 0
+expect click 3

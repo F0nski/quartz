@@ -1,0 +1,36 @@
+# Overdub: a live note lands on its step, a turned knob locks the step playing, PLAY disarms, COUNT delays the start
+wait 600
+tap GLO
+turn K1 -100
+expect tempo 40
+turn K1 20
+expect tempo 60
+tap EDIT
+tap REC
+tap PLAY
+expect overdub 1
+wait 1000
+key 7 down
+wait 250
+key 7 up
+wait 50
+expect stepon_5 1
+expect stepnote_5 60
+expect steplen_5 8
+expect stepmicro_5 0
+wait 3700
+spin K1 10
+expect lockharm_5 74
+tap PLAY
+expect rec 0
+expect overdub 0
+tap GLO
+turn SELECT 1
+turn K4 2
+expect click 2
+tap REC
+tap PLAY
+wait 500
+expect pos -1
+wait 4100
+expect pos >-1

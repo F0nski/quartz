@@ -13,7 +13,7 @@ spin SELECT -1
 expect page 1
 tap GLO
 spin SELECT -1
-expect page 2
+expect page 3
 tap SEQ
 spin K1 100
 expect len 64

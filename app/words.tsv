@@ -121,3 +121,36 @@ X13	repeat 13 times
 X14	repeat 14 times
 X15	repeat 15 times
 X16	repeat 16 times
+SWING	swing
+SCALE	scale
+TONIC	tonic
+QUANT	quantize
+CLICK	click
+C	C
+C#	C sharp
+D	D
+D#	D sharp
+E	E
+F	F
+F#	F sharp
+G	G
+G#	G sharp
+A	A
+A#	A sharp
+B	B
+CHROM	chromatic
+MAJOR	major
+MINOR	minor
+DORIAN	dorian
+PHRYG	phrygian
+LYDIAN	lydian
+MIXO	mixolydian
+LOCRIAN	locrian
+HARM MIN	harmonic minor
+PENTA	pentatonic
+MIN PENTA	minor pentatonic
+50 %	50 percent
+100 %	100 percent
+METRO	metronome
+COUNT	count in
+BOTH	both
