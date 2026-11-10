@@ -190,7 +190,9 @@ static void button(int b)
     case B_SEL:                         /* the SONG page: clears the entry (SEL with HOME held is for the scenes) */
         if (ui.domain == D_HOME && page_id() == P_SONG && !ui.homedown && ui.entry) {
             q_project *p = ui.p;
-            __builtin_memmove(&p->song[ui.entry - 1], &p->song[ui.entry], (__SIZE_TYPE__)(p->nsong - ui.entry) * sizeof *p->song);
+            int i;
+            for (i = ui.entry; i < p->nsong; i++)
+                p->song[i - 1] = p->song[i];
             p->song[--p->nsong] = (q_entry){0, 1};
             ui.entry = ui.entry > p->nsong ? p->nsong : ui.entry;
             ui.dirty = 1;
