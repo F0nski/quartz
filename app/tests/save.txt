@@ -1,0 +1,25 @@
+# SAVE refused while playing, then saved, then reloaded
+wait 600
+tap GLO
+turn K1 5
+expect tempo 125
+tap SEQ
+key 0 down
+key 0 up
+expect stepon_1 1
+expect dirty 1
+tap PLAY
+tap SAVE
+expect msg_stop_to_save 1
+expect dirty 1
+shot save_refused.png
+wait 1600
+expect msg_stop_to_save 0
+tap PLAY
+tap SAVE
+expect dirty 0
+reboot
+wait 600
+expect tempo 125
+expect stepon_1 1
+expect dirty 0

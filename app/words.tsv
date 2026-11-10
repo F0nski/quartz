@@ -2,3 +2,50 @@
 # The words for a screen reader (fm1-reader): the text on the screen <TAB> what to say.
 # url: https://github.com/f0nski/quartz/words/
 QUARTZ	quartz
+EDIT	edit
+ENGINE	engine
+SOUND	sound
+STEPS	steps
+TEMPO	tempo
+STOP TO SAVE	stop to save
+HARM	harmonics
+TIMB	timbre
+MORPH	morph
+DECAY	decay
+MODEL	model
+TUNE	tune
+GLIDE	glide
+POLY	polyphony
+LEN	length
+DIV	division
+BPM	B P M
+CORE 1	core 1
+CORE 2	core 2
+OFF	off
+LOST BLOCKS	lost blocks
+VOICES	voices
+BYTES/VOICE	bytes per voice
+VA VCF	V A, V C F
+PHASE DIST	phase distortion
+6-OP A	six-op A
+6-OP B	six-op B
+6-OP C	six-op C
+WAVE TERRAIN	wave terrain
+STRING MACH	string machine
+CHIPTUNE	chiptune
+VA	V A
+WAVESHAPE	waveshape
+2-OP FM	two-op F M
+GRAIN FORM	grain formant
+ADDITIVE	additive
+WAVETABLE	wavetable
+CHORDS	chords
+SPEECH	speech
+SWARM	swarm
+NOISE	noise
+PARTICLE	particle
+STRING	string
+MODAL	modal
+BASS DRUM	bass drum
+SNARE	snare
+HI-HAT	hi-hat

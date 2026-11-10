@@ -1,0 +1,15 @@
+# A model change while a note is held frees the track's voices
+wait 600
+tap PLAY
+key 7 down
+wait 100
+expect active 1
+tap EDIT
+turn SELECT 1
+turn K1 9
+wait 200
+expect model 17
+key 7 up
+tap PLAY
+wait 3000
+expect active 0

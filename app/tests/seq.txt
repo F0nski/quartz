@@ -1,0 +1,43 @@
+# Steps by hand, step pages, step entry, then playback
+wait 600
+tap SEQ
+turn K1 -8
+expect len 8
+key 0 down
+key 0 up
+expect stepon_1 1
+expect stepnote_1 60
+key 0 down
+key 0 up
+expect stepon_1 0
+key 0 down
+key 0 up
+tap OCT+
+key 0 down
+key 0 up
+expect stepon_17 1
+tap OCT-
+tap REC
+expect rec 1
+expect cursor 1
+tap EDIT
+key 7 down
+key 7 up
+expect stepnote_1 60
+expect stepon_1 1
+expect cursor 2
+key 9 down
+key 9 up
+expect stepnote_2 62
+expect cursor 3
+tap REC
+expect rec 0
+tap SEQ
+tap PLAY
+wait 500
+expect playing 1
+expect pos >-1
+shot seq_play.png
+tap PLAY
+expect playing 0
+expect pos -1

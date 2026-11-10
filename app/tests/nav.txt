@@ -1,0 +1,27 @@
+# Domains, pages, tracks and a bound
+wait 600
+tap EDIT
+expect domain 0
+expect page 1
+shot edit1.png
+turn SELECT 1
+expect page 2
+shot edit2.png
+turn SELECT 1
+expect page 1
+turn ALGO 2
+expect track 3
+turn ALGO 5
+expect track 4
+tap SEQ
+expect domain 1
+shot seq1.png
+tap GLO
+expect domain 2
+turn K1 -100
+expect tempo 40
+shot glo1.png
+turn SELECT 1
+expect page 2
+wait 1200
+shot glo2.png
