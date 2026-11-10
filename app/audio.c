@@ -170,6 +170,12 @@ static uint32_t models(int t)
 /* a KIT has one voice per engine: a pad cuts the one sounding on its engine (CH cuts OH) */
 static int note_poly(int t) { return prj->sound[t].model == M_KIT ? 1 : prj->sound[t].poly; }
 
+/* a KIT's note outside its pads: ignored */
+static int no_pad(int t, int note)
+{
+    return prj->sound[t].model == M_KIT && (note < KIT_NOTE || note >= KIT_NOTE + Q_PADS);
+}
+
 static int note_model(int t, int note)
 {
     return prj->sound[t].model == M_KIT ? KIT_MODEL + prj->kit[t][note - KIT_NOTE].engine : prj->sound[t].model;
@@ -301,8 +307,8 @@ static int waits(int track)
  * wait behind it, in order. A note-off for a waiting note-on cancels it; the others go to the voices. */
 static void event(int track, int note, int vel, int on, int pat, int step)
 {
-    if (prj->sound[track].model == M_KIT && (note < KIT_NOTE || note >= KIT_NOTE + Q_PADS))
-        return;                     /* no pad */
+    if (no_pad(track, note))
+        return;
     if (on) {
         if (waits(track) || (switched && needs_switch(track, note))) {
             if (n_later < LATER_N)
@@ -323,12 +329,15 @@ static void event(int track, int note, int vel, int on, int pat, int step)
         pq_note_off(v);
 }
 
-/* the waiting note-ons, at the block's start: in order, a track's stopping at its first that still waits */
+/* the waiting note-ons, at the block's start: in order, a track's stopping at its first that still waits. The
+ * main loop may have turned a track KIT before the render takes its CMD_MODEL: its synth notes go */
 static void start_later(void)
 {
     int n = 0, held = 0;
     for (int i = 0; i < n_later; i++) {
         q_later e = later[i];
+        if (no_pad(e.track, e.note))
+            continue;
         if (!(held >> e.track & 1) && !(switched && needs_switch(e.track, e.note))) {
             note_on(e.track, e.note, e.vel, e.pat, e.step);
         } else {

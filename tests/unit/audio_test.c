@@ -984,6 +984,31 @@ static void kit_legato_strikes(void)
     assert(track_on(0) == 0);
 }
 
+/* a synth note-on waiting for an engine when its track turns KIT (model written before the render takes
+ * CMD_MODEL): no pad, dropped; and back, a pad's note-on waiting when the track turns synth plays as a synth note */
+static void kit_switch_while_waiting(void)
+{
+    for (int back = 0; back < 2; back++) {
+        setup();
+        P.sound[0].model = back ? M_KIT : 20;
+        P.sound[1].model = 20;
+        audio_live_note(1, 60, 1);
+        audio_live_note(0, back ? KIT_NOTE : 60, 1);   /* waits behind track 1's switch */
+        block(256);
+        assert(n_later == 1 && later[0].track == 0);
+        P.sound[0].model = back ? 8 : M_KIT;
+        audio_track_model(0);
+        NLOG = 0;
+        block(256);
+        for (int i = 0; i < NLOG; i++) if (LOG[i].op == 'e') assert(LOG[i].a <= 23.0f);
+        for (int v = 0; v < Q_VOICES; v++) assert(vpad[v] < Q_PADS && pool.v[v].model <= 23);
+        assert(n_later == 0 && track_on(0) == 0);
+        int n = 0;
+        for (int i = 0; i < NLOG; i++) n += LOG[i].op == 'n';
+        assert(n == back);              /* back: started, then faded by the model change */
+    }
+}
+
 int main(void)
 {
     splits_block_at_events();
@@ -1024,6 +1049,7 @@ int main(void)
     kit_engine_change_while_sounding();
     kit_prepares_its_engines();
     kit_legato_strikes();
+    kit_switch_while_waiting();
     puts("audio_test ok");
     return 0;
 }
