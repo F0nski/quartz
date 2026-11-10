@@ -1,4 +1,6 @@
-/* The six Plaits voices (pq.cc), one engine each, behind a C interface. */
+/* The six Plaits voices (pq.cc), one engine each, behind a C interface.
+ * Threading: every call for voice v (pq_set_engine, pq_set_patch, pq_note_on, pq_note_off) must be
+ * serialized with pq_render(v), never run while the other core renders that voice. */
 #pragma once
 
 #define PQ_VOICES 6

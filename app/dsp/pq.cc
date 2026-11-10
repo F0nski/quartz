@@ -23,7 +23,7 @@ struct Slot {
   plaits::QVoice::Frame block[plaits::kBlockSize];
   size_t pos;            // next frame to read in block (kBlockSize: empty)
   bool gate;
-  bool retrigger;        // a note-on came while the gate was high
+  bool retrigger;        // a note-on came while the voice last saw the trigger high
   float target;          // note the glide heads to
   float glide;           // one-pole coefficient per block (1: immediate)
   unsigned quiet;        // frames since the output last exceeded kSilence, up to kSilentFrames
@@ -93,7 +93,7 @@ extern "C" void pq_set_patch(int v, float harm, float timb, float morph, float d
 extern "C" void pq_note_on(int v, float note, float vel) {
   Slot& s = *slots[v];
   s.target = note;
-  s.retrigger = s.gate;
+  s.retrigger = s.mod.trigger > 0.5f;   // the trigger last sent, not the gate: off+on between renders
   s.gate = true;
   s.mod.level = vel;
   s.quiet = 0;

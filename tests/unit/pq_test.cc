@@ -92,6 +92,23 @@ static void release_goes_silent(void)
     assert(pq_silent(3));
 }
 
+static void off_on_between_renders_retriggers(void)
+{
+    pq_init();
+    pq_set_engine(4, 21);
+    pq_set_patch(4, 0.5f, 0.5f, 0.5f, 0.3f, 0.0f);
+    pq_note_on(4, 48.0f, 1.0f);
+    float first = render(4, (unsigned)(kRate * 0.1f));
+    render(4, (unsigned)(kRate * 0.9f));
+    float tail = render(4, (unsigned)(kRate * 0.1f));
+    pq_note_off(4);
+    pq_note_on(4, 48.0f, 1.0f);
+    float again = render(4, (unsigned)(kRate * 0.1f));
+    printf("  bass drum: first %.3f tail %.4f again %.3f\n", first, tail, again);
+    assert(tail < first * 0.1f);
+    assert(again > first * 0.5f);
+}
+
 static void voice_bytes_reported(void)
 {
     printf("  pq_voice_bytes = %u\n", pq_voice_bytes());
@@ -104,6 +121,7 @@ int main(void)
     all_models_sound();
     engine_switch_while_sounding();
     release_goes_silent();
+    off_on_between_renders_retriggers();
     voice_bytes_reported();
     printf("pq_test ok\n");
     return 0;
