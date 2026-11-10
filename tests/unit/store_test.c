@@ -124,6 +124,35 @@ static void store_mixed_generations(void)
     check_defaults();
 }
 
+/* a save cut off after chunk 3: the later chunks keep the save before */
+static void torn_save(const q_project *p)
+{
+    static uint8_t keep[Q_CHUNKS][PLAT_STORE_MAX];
+    static int keep_len[Q_CHUNKS];
+    memcpy(keep, mem, sizeof keep);
+    memcpy(keep_len, mem_len, sizeof keep_len);
+    store_save(p);
+    memcpy(mem[4], keep[4], (Q_CHUNKS - 4) * sizeof mem[0]);
+    memcpy(&mem_len[4], &keep_len[4], (Q_CHUNKS - 4) * sizeof mem_len[0]);
+}
+
+/* after a failed load (a reboot: save_gen 0), the next torn save must not pair with the older save's chunks */
+static void store_torn_twice(void)
+{
+    static q_project a;
+    q_project b;
+    forget();
+    save_gen = 0;
+    fill_random(&a);
+    store_save(&a);
+    a.tempo = a.tempo == 99 ? 98 : 99;
+    torn_save(&a);
+    save_gen = 0;
+    check_defaults();
+    torn_save(&a);
+    assert(store_load(&b) == -1);
+}
+
 static void store_missing_chunk(void)
 {
     static q_project a;
@@ -226,6 +255,7 @@ int main(void)
     roundtrip_full_project();
     store_mixed_generations();
     store_missing_chunk();
+    store_torn_twice();
     store_rejects_bad_object();
     store_clamps_fields();
     save_refused_while_playing();

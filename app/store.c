@@ -10,7 +10,7 @@ _Static_assert(sizeof(chunk_hdr) == 8, "chunk header");
 _Static_assert(sizeof(q_project) <= Q_CHUNKS * CHUNK_DATA, "q_project must fit its chunks");
 
 static uint8_t chunk_buf[PLAT_STORE_MAX] __attribute__((aligned(4)));   /* one chunk: no q_project on the stack */
-static uint32_t save_gen;                            /* the generation of the save last loaded or written */
+static uint32_t save_gen;                            /* chunk 0's last read or written: the highest gen */
 
 static uint32_t chunk_len(int i)                     /* payload bytes of chunk i */
 {
@@ -84,11 +84,10 @@ static int load_chunks(q_project *p)
         if (plat_store_size(OBJ_CHUNK0 + i) != (int)(sizeof h + n)) return -1;   /* (plat_store_load cuts a longer one) */
         if (plat_store_load(OBJ_CHUNK0 + i, chunk_buf, sizeof h + n) != (int)(sizeof h + n)) return -1;
         __builtin_memcpy(&h, chunk_buf, sizeof h);
-        if (i == 0) gen = h.gen;
+        if (i == 0) save_gen = gen = h.gen;      /* written first: a failed load still saves past it */
         if (h.magic != CHUNK_MAGIC || h.version != Q_VERSION || h.index != i || h.gen != gen) return -1;
         __builtin_memcpy((uint8_t *)p + (uint32_t)i * CHUNK_DATA, chunk_buf + sizeof h, n);
     }
-    save_gen = gen;
     return 0;
 }
 
