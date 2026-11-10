@@ -28,6 +28,7 @@ static void clamp_project(q_project *p)
     p->tonic = (uint8_t)clampi(p->tonic, 0, 11);
     p->mode = (uint8_t)clampi(p->mode, 0, 10);
     p->quant = (uint8_t)clampi(p->quant, 0, 2);
+    p->click = (uint8_t)clampi(p->click, 0, 3);
     p->nsong = (uint8_t)clampi(p->nsong, 0, Q_SONG);
     for (int i = 0; i < Q_SCENES; i++)
         for (int t = 0; t < Q_TRACKS; t++)

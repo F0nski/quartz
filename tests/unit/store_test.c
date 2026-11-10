@@ -187,7 +187,7 @@ static void store_clamps_fields(void)
     b.pat[1][2].locks[3].param = 99;
     b.pat[2][5].path = 99; b.pat[2][5].xlen = 0; b.pat[2][5].ylen = 9; b.pat[2][5].ydiv = 99;
     b.pattern[0] = 9;
-    b.nsong = 99;
+    b.nsong = 99; b.click = 9;
     b.scene[1].pat[2] = 9;
     b.song[4].scene = 9; b.song[4].reps = 0; b.song[5].reps = 99;
     /* write b as chunks, by hand: the header of each is the one store_save wrote, the payload b's bytes */
@@ -205,6 +205,7 @@ static void store_clamps_fields(void)
     assert(a.pat[2][5].path == PATH_N - 1 && a.pat[2][5].xlen == 1 && a.pat[2][5].ylen == 4 && a.pat[2][5].ydiv == DIV_N - 1);
     assert(a.pattern[0] == Q_PATTERNS - 1 && a.nsong == Q_SONG && a.scene[1].pat[2] == Q_PATTERNS - 1);
     assert(a.song[4].scene == Q_SCENES - 1 && a.song[4].reps == 1 && a.song[5].reps == 16);
+    assert(a.click == 3);
 }
 
 static void save_refused_while_playing(void)
