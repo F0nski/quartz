@@ -8,6 +8,7 @@
 #define APP_NAME "QUARTZ"
 #define APP_SPLASH_RGB RGB(80, 160, 255)
 #define APP_BLOCK 256u                   /* frames per audio block: 5.8 ms at 44.1 kHz */
+#define APP_CANVAS_PX (240u * 83u)       /* the widest strip drawn: a scene band (ui.c BAND_H); the pool keeps the rest */
 
 /* the store, each object at its flash offset (A/B sector pair). The numbering is fm1-base's template's: the panel
  * calibration record must stay readable across apps (storage rejects a record whose type is not its object number).
