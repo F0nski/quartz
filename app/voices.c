@@ -4,42 +4,57 @@
 void voices_init(q_voices *p)
 {
     __builtin_memset(p, 0, sizeof *p);
-    for (int i = 0; i < Q_VOICES; i++) p->v[i].track = -1;
+    for (int i = 0; i < Q_VOICES; i++) p->v[i].track = p->v[i].model = -1;
 }
 
-/* oldest slot in the given state; track >= 0 restricts it to that track's slots */
-static int oldest(const q_voices *p, int state, int track)
+/* oldest slot in the given state; track >= 0 restricts it to that track's slots, model >= 0 to that engine's */
+static int oldest(const q_voices *p, int state, int track, int model)
 {
     int best = -1;
     for (int i = 0; i < Q_VOICES; i++)
-        if (p->v[i].state == state && (track < 0 || p->v[i].track == track) &&
+        if (p->v[i].state == state && (track < 0 || p->v[i].track == track) && (model < 0 || p->v[i].model == model) &&
             (best < 0 || p->v[i].age < p->v[best].age)) best = i;
     return best;
 }
 
-int voices_note_on(q_voices *p, int track, int note, int poly)
+/* the first free slot from slot `first` on, holding `model` if >= 0 */
+static int first_free(const q_voices *p, int first, int model)
 {
-    int own = 0, load[2] = {0, 0}, slot = -1;
+    for (int k = 0; k < Q_VOICES; k++) {
+        int i = (first + k) % Q_VOICES;
+        if (p->v[i].state == V_FREE && (model < 0 || p->v[i].model == model)) return i;
+    }
+    return -1;
+}
+
+int voices_pick(const q_voices *p, int track, int poly, int model)
+{
+    int own = 0, load[2] = {0, 0}, slot;
     if (poly < 1) poly = 1;
     if (poly > 4) poly = 4;
     for (int i = 0; i < Q_VOICES; i++) {
-        if (p->v[i].state == V_FREE) continue;
+        if (p->v[i].state == V_FREE || p->v[i].state == V_PREP) continue;
         load[i / 3]++;
         if (p->v[i].track != track) continue;
         own++;
     }
     if (own >= poly) {
-        slot = oldest(p, V_RELEASED, track);    /* covers mono retrigger */
-        if (slot < 0) slot = oldest(p, V_ON, track);
+        slot = oldest(p, V_RELEASED, track, -1);    /* covers mono retrigger */
+        if (slot < 0) slot = oldest(p, V_ON, track, -1);
     } else {
         int first = load[1] < load[0] ? 3 : 0;      /* least loaded core first */
-        for (int k = 0; k < Q_VOICES && slot < 0; k++) {
-            int i = (first + k) % Q_VOICES;
-            if (p->v[i].state == V_FREE) slot = i;
-        }
-        if (slot < 0) slot = oldest(p, V_RELEASED, -1);
-        if (slot < 0) slot = oldest(p, V_ON, -1);
+        slot = first_free(p, first, model);
+        if (slot < 0) slot = first_free(p, first, -1);
+        if (slot < 0) slot = oldest(p, V_RELEASED, -1, model);
+        if (slot < 0) slot = oldest(p, V_RELEASED, -1, -1);
+        if (slot < 0) slot = oldest(p, V_ON, -1, -1);
     }
+    return slot;
+}
+
+int voices_note_on(q_voices *p, int track, int note, int poly, int model)
+{
+    int slot = voices_pick(p, track, poly, model);
     q_vslot *s = &p->v[slot];
     s->state = V_ON; s->track = (int8_t)track; s->note = (uint8_t)note; s->age = ++p->clock;
     return slot;

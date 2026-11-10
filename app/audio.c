@@ -19,7 +19,6 @@ typedef struct { uint8_t kind, track, note, on; } q_cmd;
 static q_project *prj;
 static q_seq seq;
 static q_voices pool;
-static uint8_t slot_model[Q_VOICES];
 static uint8_t fading[Q_VOICES];    /* a model change: faded out over this block, then freed */
 static volatile int playing;
 static volatile int muted;
@@ -53,7 +52,8 @@ void audio_setup(q_project *p)
     __builtin_memset(&seq, 0, sizeof seq);
     voices_init(&pool);
     pq_init();
-    __builtin_memset(slot_model, 8, sizeof slot_model);   /* pq_init's model */
+    for (int v = 0; v < Q_VOICES; v++)
+        pool.v[v].model = 8;        /* pq_init's model */
     __builtin_memset(fading, 0, sizeof fading);
     out_gain = 0;
     playing = 0;
@@ -92,11 +92,11 @@ static void set_patch(int v, const q_sound *s)
 static void note_on(int track, int note, int vel)
 {
     const q_sound *s = &prj->sound[track];
-    int v = voices_note_on(&pool, track, note, s->poly);
+    int v = voices_note_on(&pool, track, note, s->poly, s->model);
     fading[v] = 0;                  /* (a fading slot taken: the new note at full level) */
-    if (slot_model[v] != s->model) {
+    if (pool.v[v].model != s->model) {
         pq_set_engine(v, s->model);
-        slot_model[v] = s->model;
+        pool.v[v].model = (int8_t)s->model;
     }
     set_patch(v, s);
     pq_note_on(v, (float)(note + s->tune), vel / 127.0f);
