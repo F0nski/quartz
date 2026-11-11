@@ -94,8 +94,8 @@ static float inv_n;                 /* 1 / the block's frames: the fades */
 static float out_gain;              /* MASTER's gain at the end of the last block: ramped from there */
 static uint32_t seg_pos, seg_len;
 
-static uint32_t sum1, sum2, sum_budget;
-static volatile uint32_t pct1, pct2;
+static uint32_t sum1, sum2, sumfx, sum_budget;
+static volatile uint32_t pct1, pct2, pctfx;
 
 /* 0: full. The UI cannot send 32 commands within a block: a note-off still fits. The last place is kept for the
  * hand-back, of which the ring holds one at most (the next comes after the render answered the request behind it):
@@ -143,7 +143,7 @@ void audio_setup(q_project *p)
     playing = 0;
     muted = 0;
     cmd_w = cmd_r = 0;
-    sum1 = sum2 = sum_budget = pct1 = pct2 = 0;
+    sum1 = sum2 = sumfx = sum_budget = pct1 = pct2 = pctfx = 0;
     plat_cpu2_set(1);
 }
 
@@ -189,7 +189,7 @@ static int sounding(int v) { return pool.v[v].state == V_ON || pool.v[v].state =
 
 q_load audio_load(void)
 {
-    q_load l = { pct1, pct2, plat_xruns(), 0, plat_cpu2_on(), plat_cpu2_stack() };
+    q_load l = { pct1, pct2, plat_xruns(), 0, plat_cpu2_on(), plat_cpu2_stack(), pctfx };
     for (int v = 0; v < Q_VOICES; v++)
         l.active += (uint32_t)sounding(v);
     return l;
@@ -824,7 +824,9 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
     uint32_t num, den;
     seq_step_ratio(prj->tempo, prj->dtime, &num, &den);
     fm = (qfx_master){ (float)num / (float)den, prj->dfb, prj->rsize, prj->rtone, prj->comp, prj->duck };
+    uint32_t tfx = plat_ticks24();
     qfx_block(b, tr, &fm, duck_at, l, r, n);
+    sumfx += plat_ticks24() - tfx;
     for (uint32_t i = 0; i < n; i++) {
         g += dg;
         float xl = (l[i] + clk[i]) * g, xr = (r[i] + clk[i]) * g;
@@ -840,6 +842,7 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
     if (sum_budget >= LOAD_TICKS) {
         pct1 = sum1 / (sum_budget / 100u);   /* no 64-bit multiply: fm1-base bsp/docs/CPU.md */
         pct2 = sum2 / (sum_budget / 100u);
-        sum1 = sum2 = sum_budget = 0;
+        pctfx = sumfx / (sum_budget / 100u);
+        sum1 = sum2 = sumfx = sum_budget = 0;
     }
 }

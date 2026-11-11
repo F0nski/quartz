@@ -108,7 +108,7 @@ typedef struct {
         uint8_t eng[Q_PADS];                    /* KIT: the pads' engines */
         uint16_t tempo;
         q_step st[16];
-        int32_t cpu[6];                         /* the CPU page's numbers as shown; core 2 -1: OFF */
+        int32_t cpu[7];                         /* the CPU page's numbers as shown; core 2 -1: OFF */
         q_trow tr[Q_TRACKS];                    /* TRACKS */
         struct { int8_t n, cursor, first, playing; q_entry e[6]; } song;               /* SONG: the 6 entries shown from first */
     } scene;
@@ -1175,6 +1175,7 @@ static void view_now(q_view *v)
         v->scene.cpu[3] = (int32_t)l.active;
         v->scene.cpu[4] = (int32_t)pq_voice_bytes();
         v->scene.cpu[5] = (int32_t)l.cpu2_stack;
+        v->scene.cpu[6] = (int32_t)l.fx_pct;
     }
 }
 
@@ -1397,16 +1398,16 @@ static void draw_scene(const q_view *v, int32_t oy)
         cv_text((240 - text_w(&FONT_M, MODE_NAME[v->scene.v[1]])) / 2, oy + 100, &FONT_M, MODE_NAME[v->scene.v[1]], C_GRAY);
         break;
     case P_CPU: {
-        static const char *const ROW[6] = {"CORE 1", "CORE 2", "LOST BLOCKS", "VOICES", "BYTES/VOICE", "CORE 2 STACK"};
-        for (i = 0; i < 6; i++) {
-            int32_t y = oy + 6 + 24 * i;
+        static const char *const ROW[7] = {"CORE 1", "CORE 2", "LOST BLOCKS", "VOICES", "BYTES/VOICE", "CORE 2 STACK", "EFFECTS"};
+        for (i = 0; i < 7; i++) {
+            int32_t y = oy + 6 + 22 * i;
             cv_text(16, y, &FONT_S, ROW[i], C_GRAY);
             if (i == 1 && v->scene.cpu[1] < 0) {
                 t[0] = 'O', t[1] = 'F', t[2] = 'F', t[3] = 0;
             } else {
                 int_text(v->scene.cpu[i], t);
                 for (k = 0; t[k]; k++) {}
-                if (i < 2)
+                if (i < 2 || i == 6)
                     t[k++] = '%', t[k] = 0;
             }
             cv_text(224 - text_w(&FONT_S, t), y, &FONT_S, t, C_WHITE);

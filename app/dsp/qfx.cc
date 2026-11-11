@@ -9,6 +9,8 @@
 #include <string.h>
 #include <new>
 
+#include "fastmath.h"   // libm is slow on the device
+
 #include "clouds/dsp/fx/reverb.h"
 
 #include "plaits/dsp/fx/overdrive.h"
@@ -25,9 +27,9 @@ const float kTwoPi = 6.2831853f;
 const unsigned kChunk = 64;
 const unsigned kDelayMask = 1023;   // the delay lines hold 1024 samples: 23 ms
 
-float e(float a, float b, int x) { return a * powf(b / a, x / 127.0f); }
+float e(float a, float b, int x) { return a * fm_powf(b / a, x / 127.0f); }
 // one-pole low-pass coefficient for a cutoff in Hz
-float lp_coef(float hz) { return 1.0f - expf(-kTwoPi * hz / kSr); }
+float lp_coef(float hz) { return 1.0f - fm_expf(-kTwoPi * hz / kSr); }
 
 struct Track {
   int type;
@@ -144,8 +146,8 @@ void phaser(Track& s, float inc, float octaves, float fb, float* x, unsigned n) 
     s.phase += inc;
     if (s.phase >= 1.0f) s.phase -= 1.0f;
     if ((i & 3) == 0) {   // the sweep is slow: the coefficient moves every 4 samples
-      const float f = 200.0f * exp2f(octaves * (0.5f + 0.5f * plaits::Sine(s.phase)));
-      const float w = tanf(3.14159265f * f / kSr);
+      const float f = 200.0f * fm_exp2f(octaves * (0.5f + 0.5f * plaits::Sine(s.phase)));
+      const float w = fm_tanf(3.14159265f * f / kSr);
       a = (w - 1.0f) / (w + 1.0f);   // -90 degrees per stage at f
     }
     float y = x[i] + fb * s.last;
@@ -232,8 +234,8 @@ void duck(int depth, int duck_at, unsigned n) {
   const float db = 24.0f * depth / 127.0f;
   for (unsigned i = 0; i < n; ++i) {
     if (depth && static_cast<int>(i) == duck_at) {
-      M.duck = exp2f(-db / kDb);
-      M.rise = exp2f(db / kDb / (0.15f * kSr));
+      M.duck = fm_exp2f(-db / kDb);
+      M.rise = fm_exp2f(db / kDb / (0.15f * kSr));
     } else if (M.duck < 1.0f) {
       M.duck *= M.rise;
       if (M.duck > 1.0f) M.duck = 1.0f;
@@ -282,9 +284,9 @@ void compress(int comp, float* l, float* r, unsigned n) {
       const float p = fmaxf(fabsf(l[i]), fabsf(r[i]));
       M.env += (p > M.env ? att : rel) * (p - M.env);
     }
-    if (M.env < 1e-10f) M.env = 0.0f;   // log2f(0) is -inf: no reduction, as wanted
-    const float over = kDb * log2f(M.env) - t;
-    const float g = exp2f(((over > 0.0f ? -0.75f * over : 0.0f) + makeup) / kDb);
+    if (M.env < 1e-10f) M.env = 0.0f;   // fm_log2f(0) is -127: no reduction, as wanted
+    const float over = kDb * fm_log2f(M.env) - t;
+    const float g = fm_exp2f(((over > 0.0f ? -0.75f * over : 0.0f) + makeup) / kDb);
     const float step = (g - M.comp) / (e - o);
     for (unsigned i = o; i < e; ++i) {
       M.comp += step;
@@ -341,7 +343,7 @@ extern "C" void qfx_block(float* const bus[QFX_TRACKS], const qfx_track tr[QFX_T
   if (!M.primed) {   // no fade-in: the first block starts at its own settings
     for (int t = 0; t < QFX_TRACKS; ++t) M.mix[t] = targets(tr[t]);
     M.dly = qfx_delay_fit(m->dly) * 0.5f;
-    M.comp = exp2f(0.5f * 30.0f * m->comp / 127.0f * 0.75f / kDb);
+    M.comp = fm_exp2f(0.5f * 30.0f * m->comp / 127.0f * 0.75f / kDb);
     M.primed = true;
   }
   for (unsigned i = 0; i < n; ++i) {
@@ -381,7 +383,7 @@ extern "C" void qfx_insert(int t, int type, int p1, int p2, int p3, int mix, flo
   const float chorus_depth = 8.0f * p2 / 127.0f;
   const float octaves = 5.0f * p2 / 127.0f, phaser_fb = 0.9f * p3 / 127.0f;
   const float ring_inc = e(20.0f, 5000.0f, p1) / kSr;
-  const float comb_hz = 440.0f * exp2f((p1 < 29 ? 29 - 69 : p1 - 69) / 12.0f);
+  const float comb_hz = 440.0f * fm_exp2f((p1 < 29 ? 29 - 69 : p1 - 69) / 12.0f);
   const float comb_d = kSr / comb_hz, comb_fb = 0.95f * p2 / 127.0f, comb_a = lp_coef(e(20000.0f, 500.0f, p3));
 
   float dry[kChunk];

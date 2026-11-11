@@ -2,6 +2,7 @@
 #include "project.h"
 #include "mod.h"
 #include "dsp/pq.h"
+#include "fastmath.h"            /* libm is slow on the device: 128 voice blocks per audio block call these */
 
 #define MOD_BLK 12                                   /* frames per Plaits block */
 enum { E_IDLE, E_ATK, E_DEC, E_REL };
@@ -21,7 +22,7 @@ static uint32_t RCYC[NRATE];                         /* ... and their cycle coun
 static const float PERIOD[LRATE_SYNC] = { 32, 16, 8, 4, 2, 1, 2.f / 3, 0.5f, 1.f / 3, 0.25f, 1.f / 6, 0.125f };
 
 /* 0.001 * 10000^(x/127) s */
-static float env_time(int x) { return 0.001f * __builtin_powf(10000.f, x / 127.f); }
+static float env_time(int x) { return 0.001f * fm_powf(10000.f, x / 127.f); }
 static float clampf(float x, float lo, float hi) { return x < lo ? lo : x > hi ? hi : x; }
 
 static float hash_rnd(uint32_t x)                    /* -1..1 */
@@ -34,7 +35,7 @@ static float lfo_value(const mvoice *s, int v)
 {
     float ph = s->ph;
     switch (s->p.lshape) {
-    case LS_SIN: return __builtin_sinf(6.2831853f * ph);
+    case LS_SIN: return fm_sinf(6.2831853f * ph);
     case LS_TRI: return ph < 0.25f ? 4 * ph : ph < 0.75f ? 2 - 4 * ph : 4 * ph - 4;
     case LS_SAW: return 2 * ph - 1;
     case LS_SQR: return ph < 0.5f ? 1.f : -1.f;
@@ -94,10 +95,10 @@ void mod_voice_block(int v, pq_mod *m)
         if (s->env >= 1) { s->env = 1; s->stage = E_DEC; }
         break;
     case E_DEC:                                      /* 1 % of the gap left after DEC */
-        s->env = sus + (s->env - sus) * __builtin_expf(-4.6051702f * dt / env_time(p->dec));
+        s->env = sus + (s->env - sus) * fm_expf(-4.6051702f * dt / env_time(p->dec));
         break;
     case E_REL:                                      /* 0.001 left after REL */
-        s->env *= __builtin_expf(-6.9077553f * dt / env_time(p->rel));
+        s->env *= fm_expf(-6.9077553f * dt / env_time(p->rel));
         if (s->env < 0.001f) { s->env = 0; s->stage = E_IDLE; }
         break;
     }
@@ -116,8 +117,8 @@ void mod_voice_block(int v, pq_mod *m)
     case LD_RES: res = clampf(res + ld, 0, 1); break;
     default: m->gain = 1 - (d < 0 ? -d : d) * (1 - l) / 2; break;
     }
-    m->cutoff = clampf(440.f * __builtin_expf((semi - 69) * (0.69314718f / 12)) / Q_SR, 0.0001f, 0.45f);
-    m->res = 0.5f * __builtin_powf(60.f, res);
+    m->cutoff = clampf(440.f * fm_expf((semi - 69) * (0.69314718f / 12)) / Q_SR, 0.0001f, 0.45f);
+    m->res = 0.5f * fm_powf(60.f, res);
 
     s->ph += s->inc;                                 /* TRIG: own phase; FREE: mod_set re-derives it */
     if (s->ph >= 1) { s->ph -= 1; s->cyc++; }

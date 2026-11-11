@@ -299,9 +299,10 @@ static void load_fields(void)
     assert(l.core1_pct == 0 && l.core2_pct == 0);   /* not a second of blocks yet */
     for (int k = 1; k < 173; k++) block(256);       /* 173 blocks of 256: the first second of budget */
     l = audio_load();
-    /* a block: core 2's job 1 step of ticks, core 1 4 (5 less 1 waiting); 173 x 256 x 544 ticks of budget */
+    /* a block: core 2's job 1 step of ticks, core 1 6 (7 less 1 waiting), qfx 1 of them; 173 x 256 x 544 ticks of budget */
     assert(l.core2_pct == 173u * 10000u / (173u * 256u * 544u / 100u));
-    assert(l.core1_pct == 4u * 173u * 10000u / (173u * 256u * 544u / 100u));
+    assert(l.core1_pct == 6u * 173u * 10000u / (173u * 256u * 544u / 100u));
+    assert(l.fx_pct == 173u * 10000u / (173u * 256u * 544u / 100u));
     cpu2_mode = 0;
     assert(audio_load().cpu2 == 0);
     xruns = cpu2_stack = 0;
