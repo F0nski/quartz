@@ -189,3 +189,86 @@ docs/cpu.md
 - [ ] **Step 3: MARBLES** : une piste MARBLES T OUT 3 affichée sur MARBLES : même relevé.
 - [ ] **Step 4: Écrire** les lignes « Step 5b » dans `docs/cpu.md` ; si un bloc est perdu ou FPS < 15, en parler avant d'optimiser.
 - [ ] **Step 5: Commit** `CPU: step 5b measured on the device`
+
+---
+
+## Suite : décor ville, escadrille, piles GRIDS (spec sections 2, 3, 3 bis)
+
+La tâche 6 (mesure sur l'appareil) se fait après les tâches 7 à 10.
+
+### Task 7: p3d compact, étoiles au hasard, décor ville
+
+**Files:** `app/p3d.c` ; `app/scene.c` (étoiles de la planète) ; `app/plateau.c` (`backdrop`) ; tests `p3d_test.c`, `plateau_test.c`
+
+- `p3_prim` en coordonnées `int16_t` au quart de pixel, profondeur `int16_t` : `P3D_MAX` passe à 256 pour une place
+  équivalente dans le pool. `p3d_fill` garde ses `float`.
+- Étoiles (planète, ville, escadrille) : `x = hash(i)·240`, `y` de même, couche (1 px sombre, 1 px clair, 2 px blanc)
+  tirée au hasard, les grosses rares ; `hash` entier (xorshift) commun, dans `p3d.c` (`p3d_hash(uint32_t)` → 0..1).
+- Ville : horizon y = 48 ; deux rangées de tours (rangée lointaine : vitesse 0,5, `#0c0822` bordé `#22184a` ; proche :
+  vitesse 1, `#120c2c` bordé `#3a2870`), une tour tous les 30 px décalée de `hash·10`, largeur `8 + hash·12`, hauteur
+  `22 + hash·30` (lointaine) ou `14 + hash·22` (proche), antenne si `hash > 0.6`, fenêtres 2×2 `#5b2f8c` ; défilement
+  intégré au temps (6 px/s) ; sol `#0a0620`, ligne d'horizon `#5b2f8c`, 25 lignes de fuite et 6 lignes qui avancent `#1c1340`.
+- Tests : `p3d_test` inchangés et verts (la règle des centres tient au quart de pixel : sommets des tests en .25/.75) ;
+  `plateau_test` : `city_above_horizon` (des pixels de bordure de tour au-dessus de y = 48, aucun en dessous), les tests
+  du plateau restent verts.
+
+### Task 8: l'escadrille MARBLES
+
+**Files:** `app/scene.c`, `scene.h`, `app/gen.c`, `gen.h`, `app/ui.c` ; tests `scene_test.c`, `marbles_scene.txt`
+
+- `gen.h` : `uint16_t gen_kept(uint16_t allowed, int tonic, int steps)` (les classes gardées par STEPS, extraite de
+  `gen_quantize`, qui l'utilise).
+- `scene.h` : la vue
+  ```c
+  typedef struct { uint8_t tout, mode, bias, jitter, dejavu, spread, xbias, len; int8_t pos; uint16_t allowed, kept;
+                   uint32_t step_ms; } q_mview;
+  void marbles_frame(const q_mview *v, uint32_t ms);       /* remplace l'ancienne signature */
+  int  marbles_ships(void);                                /* vaisseaux dessinés (tests) */
+  ```
+  `marbles_bin`, `marbles_enter`, `marbles_drop(note, ms, land_ms)`, `marbles_band`, `marbles_flying` (tirs en vol),
+  `marbles_hist` gardent leur sens.
+- Valeurs (zone, maquette `marbles.html`) : horizon y = 66 ; crête (crêtes tous les 40 px, hauteur `10 + hash·18`, glisse à
+  0,6 × la vitesse) ; rochers : 8 profondeurs × 2 côtés × 2 rangées, trouées `hash < 0.45` (intérieure) / `0.15`
+  (extérieure), pierres au fond `hash < 0.55` ; 6 maillages de blocs (icosaèdre bosselé, bas aplati) et 3 d'aiguilles
+  (colonne à 5 pans effilée) construits au démarrage ; tons `#6a48b0 #46307e #26184e` ; profondeur `p = 0.72·((k+f)/N)^1.9`,
+  sortie par le côté `(p/0.72)^4·140` ; un rocher de `p < 0.15` en un seul triangle. Vitesse du décor : `0.5 / (4·step)`
+  (DIV). Cristaux : un par classe permise, x = `28 + i·(184 / (n−1))` (centré si n = 1), socle `box` 9 × 4,5 haut de
+  `4 + hist·1.5`, octaèdre étiré (×0.7, ×1.4, ×0.7) de taille `8 + hist·0.8`, éteint (contour `#2a2050`, socle 2 px) hors
+  `kept` ; touché : rose, éclats (6, retombent sur 450 ms), onde en losange (500 ms), repousse en 350 ms. Vaisseaux :
+  `tout` ; formations `FORM[mode]` de la maquette ; boucle de vol `x = mid + 46·sin φ`, `y = 42 + 14·sin 2φ`,
+  `φ = t·0.5·(0.25/step)` ; `mid = 120 + (xbias−64)/64·55`, écart `16 + spread/127·26` ; taille de tête `1.05 + 0.6·bias/127`
+  et des autres `1.05 + 0.6·(1 − bias/127)` ; balancement `jitter/127·1.2·sin(5t)` ; blanc 60 ms après un tir ; flamme
+  alternée ; DEJA VU > 64 : tons orange, traînée de 10 points derrière chaque vaisseau. Tir : traînée en 3 paliers
+  (0,2 / 0,11 / 0,05 du trajet) `#8a1050 #ff2f8e #ffb8dc`, de la position du vaisseau au départ jusqu'au cristal ; 6 tirs
+  en vol au plus. Témoins de boucle : `len` tirets en haut, `pos` allumé.
+- `ui.c` : remplit `q_mview` depuis le pattern (`step_ms` depuis le tempo et DIV) ; inchangé sinon.
+- Tests : `ships_follow_tout` (tout 1, 2, 3 → `marbles_ships()`) ; `lands_when_it_sounds`, `six_marbles_max`,
+  `deja_vu_orange` adaptés ; `steps_dims_crystals` (STEPS 127 : un seul cristal hors contour) ; le script reste vert.
+
+### Task 9: les piles GRIDS
+
+**Files:** `app/gen.c`, `gen.h`, `app/seq.c`, `app/plateau.c`, `plateau.h`, `app/ui.c` ; tests `gen_test.c`, `plateau_test.c`, `app/tests/grids_scene.txt` (nouveau)
+
+- `gen.h` : `int gen_grids_level(const q_grids *g, int step, int voice);` — `grids_read` sans CHAOS, 0..255.
+- `seq.c` : l'anneau des notes reçoit aussi les notes des patterns GRIDS (`src != SRC_STEP`).
+- `plateau.h` :
+  ```c
+  typedef struct { uint8_t level[3][32], dens[3]; int8_t pos, voice; char top_l[8], top_r[10]; uint8_t x, y, chaos; } q_gview;
+  void grids_enter(void);
+  void grids_frame(const q_gview *v, const uint8_t *hit_voices, int nhits, uint32_t ms);   /* voix 0..2 frappées depuis l'image précédente */
+  void grids_band(int32_t oy);
+  ```
+- Valeurs (maquette `backdrops.html`, G2) : `A = 18.5, B = 9.25, origine (83, 42)` dans la zone ; épaisseur 5 ; ombre
+  `#05030f` ; cases `#151030` (temps) / `#0e0a26`, bordure `#2a1d55`, contour `#5b2f8c` ; bloc `box(A·0.36, B·0.36)` haut
+  de `4 + level/255·9`, présent si `level > 255 − dens·255/127` ; frappe en plus (CHAOS) : contour de losange 6 × 3,
+  gardé jusqu'à la fin du passage ; saut rose 150 ms, onde et éclats du plateau ; densités : 3 lignes 36 × 2 en (196, 6 +
+  6v) ; mini-carte 16 × 14 en (12, 138) ; sol filaire `#120c2a`.
+- `ui.c` : `anim = 4` pour P_GRIDS, P_MAP, P_DENS d'un pattern GRIDS ; voix d'une note : KIT → `note − KIT_NOTE` (0..2),
+  synthé → `voice − 1`.
+- Tests : `gen_grids_level` égal au niveau qu'utilise `grids_step` sans CHAOS (gen_test) ; plateau_test :
+  `grids_stack_order` (BD sous SN sous HH dans une pile), `grids_threshold` (DENS 0 : aucun bloc ; DENS 127 : 96 blocs),
+  `grids_hit_pink` ; script `grids_scene.txt` : `anim 4` sur GRIDS, MAP, DENS, captures.
+
+### Task 10: revue de la branche
+
+- Relecture finale par un relecteur neuf (opus), corrections Critical/Important, puis tâche 6 (appareil).
