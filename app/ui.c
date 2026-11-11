@@ -134,6 +134,7 @@ static struct {
     int full;                                  /* the next frame draws everything */
     uint32_t scene_ms, fps_ms;                 /* the last scene drawn (every other 16-ms frame: 30 a second); the second being counted */
     uint32_t notes_seen;                       /* MARBLES: the track's notes already dropped (audio_notes) */
+    int scene_key;                             /* the animated scene last drawn: anim, track, pattern, page of steps */
     int frames, fps, fps_mixed;                /* scene frames this second; the last whole second's; a frame without the scene */
 } ui;
 
@@ -1267,12 +1268,13 @@ static void plateau_view(const q_view *v, q_plateau *p)
         else
             for (k = 0; TONIC_NAME[st->note[0] % 12][k]; k++)
                 c->name[k] = TONIC_NAME[st->note[0] % 12][k];
-        if (first + i < v->scene.len && i % 4 < v->scene.xlen && i / 4 < v->scene.ylen)
+        if ((v->scene.path == PATH_XY || first + i < v->scene.len) && i % 4 < v->scene.xlen && i / 4 < v->scene.ylen)   /* XY plays
+                                                                                                         its grid whatever LEN */
             p->live |= (uint16_t)(1u << i);
     }
     p->pos = (int8_t)(v->scene.pos >= first && v->scene.pos < first + 16 ? v->scene.pos - first : -1);
     p->cursor = (int8_t)(v->scene.cursor - 1 >= first && v->scene.cursor - 1 < first + 16 ? v->scene.cursor - 1 - first : -1);
-    p->end = (int8_t)(v->scene.len - 1 >= first && v->scene.len - 1 < first + 15 ? v->scene.len - 1 - first : -1);
+    p->end = (int8_t)(v->scene.path != PATH_XY && v->scene.len - 1 >= first && v->scene.len - 1 < first + 15 ? v->scene.len - 1 - first : -1);
     p->held = (int8_t)(v->scene.held - 1 >= first && v->scene.held - 1 < first + 16 ? v->scene.held - 1 - first : -1);
     if (v->scene.showpath && v->scene.path != PATH_RANDOM && v->scene.path != PATH_XY) {
         int m = v->scene.path == PATH_SNAKE ? 1 : v->scene.path == PATH_COLUMNS ? 2 : v->scene.path == PATH_SPIRAL ? 3 : 0;
@@ -1300,7 +1302,21 @@ static void plateau_view(const q_view *v, q_plateau *p)
             int a = ATTR_ROW[i];
             for (k = 0; ATTR_NAME[a][k]; k++)
                 p->rows[i][0][k] = ATTR_NAME[a][k];
-            attr_text(&v->scene.hst, a, p->rows[i][1]);
+            if (a == A_NOTE) {          /* a chord: its first note and how many more, to keep to the cell */
+                int n = 0;
+                note_name(v->scene.hst.note[0], p->rows[i][1]);
+                for (k = 1; k < 4; k++)
+                    n += v->scene.hst.note[k] != 0;
+                if (n) {
+                    for (k = 0; p->rows[i][1][k]; k++) {}
+                    p->rows[i][1][k++] = ' ';
+                    p->rows[i][1][k++] = '+';
+                    p->rows[i][1][k++] = (char)('0' + n);
+                    p->rows[i][1][k] = 0;
+                }
+            } else {
+                attr_text(&v->scene.hst, a, p->rows[i][1]);
+            }
             if (a == v->scene.attr)
                 p->attr = (int8_t)i;
         }
@@ -1555,8 +1571,9 @@ void ui_frame(void)
         uint32_t now = plat_ms();
         if (ui.full || now - ui.scene_ms >= 30u || __builtin_memcmp(&v.scene, &ui.shown.scene, sizeof v.scene)) {
             /* shown anew (another scene, track, pattern or page of steps): the notes before do not hit */
-            int fresh = ui.full || ui.shown.scene.anim != v.scene.anim || ui.shown.head.track != v.head.track ||
-                        ui.shown.head.pat != v.head.pat || ui.shown.scene.spage != v.scene.spage;
+            /* compared with the last frame drawn, not the last one shown: a change between two draws counts */
+            int key = v.scene.anim | v.head.track << 2 | v.head.pat << 5 | v.scene.spage << 9, fresh = ui.full || key != ui.scene_key;
+            ui.scene_key = key;
             ui.scene_ms = now;
             ui.frames++;
             if (v.scene.anim == 1) {
@@ -1708,6 +1725,14 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "dtime")) *got = ui.p->dtime;
     else if (!strcmp(what, "scene3d")) *got = ui.shown.scene.anim == 1;
     else if (!strcmp(what, "anim")) *got = ui.shown.scene.anim;
+    else if (!strcmp(what, "flying")) *got = marbles_flying();
+    else if (!strcmp(what, "plive") || !strcmp(what, "pend") || !strcmp(what, "pnotelen")) {
+        static q_view pv;
+        static q_plateau pp;
+        view_now(&pv);
+        plateau_view(&pv, &pp);
+        *got = what[1] == 'l' ? pp.live : what[1] == 'e' ? pp.end : (int)strlen(pp.rows[0][1]);
+    }
     else if (!strcmp(what, "hits")) *got = (int)audio_hits(ui.track);
     else if (!strcmp(what, "fps")) *got = ui.fps;
     else if (!strcmp(what, "dfb")) *got = ui.p->dfb;

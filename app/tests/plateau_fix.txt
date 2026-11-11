@@ -1,0 +1,67 @@
+# The plateau and MARBLES after the final review: a track change between two scene frames, a chord on a held
+# step, PATH XY with a short LEN
+wait 600
+# a 4-note chord on step 2: the NOTE row keeps to its cell
+tap EDIT
+turn SELECT 1
+turn K4 3
+expect poly 4
+tap SEQ
+key 2 down
+key 4 down
+key 4 up
+key 7 down
+key 7 up
+key 9 down
+key 9 up
+key 11 down
+key 11 up
+expect stepnote2_2 >0
+expect pnotelen <10
+wait 100
+shot plateau_chord.png
+key 2 up
+# XY plays 4 x 4 whatever LEN: no dark cell, no end edge
+turn K1 -11
+expect len 5
+turn K3 7
+expect plive 65535
+expect pend -1
+turn K3 -7
+expect plive 31
+turn K1 11
+# two MARBLES tracks with the same scene but not the same notes; stopped, a switch drops no old note
+turn K4 2
+turn SELECT 1
+turn K2 2
+turn SELECT -1
+turn ALGO 1
+turn K4 2
+tap PLAY
+wait 2000
+tap PLAY
+wait 800
+turn ALGO -1
+wait 4
+expect flying 0
+turn ALGO 1
+wait 8
+expect flying 0
+turn ALGO -1
+wait 12
+expect flying 0
+turn ALGO 1
+wait 16
+expect flying 0
+turn ALGO -1
+wait 20
+expect flying 0
+turn ALGO 1
+wait 24
+expect flying 0
+turn ALGO -1
+wait 28
+expect flying 0
+turn ALGO 1
+wait 32
+expect flying 0
