@@ -109,7 +109,7 @@ void phaser(Track& s, float inc, float octaves, float fb, float* x, unsigned n) 
     if ((i & 3) == 0) {   // the sweep is slow: the coefficient moves every 4 samples
       const float f = 200.0f * exp2f(octaves * (0.5f + 0.5f * plaits::Sine(s.phase)));
       const float w = tanf(3.14159265f * f / kSr);
-      a = (1.0f - w) / (1.0f + w);
+      a = (w - 1.0f) / (w + 1.0f);   // -90 degrees per stage at f
     }
     float y = x[i] + fb * s.last;
     for (int k = 0; k < 4; ++k) {

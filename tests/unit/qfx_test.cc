@@ -140,6 +140,29 @@ static void drive_zero_not_silent(void)
     assert(fabs(db) <= 3.0);
 }
 
+// RMS of a sine at hz through the PHASER with DEPTH 0 (stages fixed at 200 Hz), FEEDBK 0, MIX 64
+static double phaser_gain(float hz)
+{
+    static float b[8192];
+    qfx_init();
+    for (unsigned i = 0; i < 8192; i++) b[i] = 0.5f * sinf(6.2831853f * hz * i / kRate);
+    for (unsigned i = 0; i < 8192; i += kBlock) qfx_insert(0, IT_PHASER, 0, 0, 0, 64, b + i, kBlock);
+    double sq = 0.0;
+    for (unsigned i = 4096; i < 8192; i++) sq += (double)b[i] * b[i];
+    return sqrt(sq / 4096);
+}
+
+// Each all-pass is at -90 degrees at its tuning f0 (200 Hz): the 4 stages total -180 degrees, a notch
+// against the dry, at tan(pi f / fs) = tan(pi f0 / fs) * tan(22.5 degrees)
+static void phaser_tuned_low(void)
+{
+    const double w = tan(3.14159265358979 * 200.0 / kRate) * tan(3.14159265358979 / 8.0);
+    const float notch = (float)(atan(w) * kRate / 3.14159265358979);
+    const double lo = phaser_gain(notch), hi = phaser_gain(5000.0f);
+    printf("  phaser: %.0f Hz notch %.4f, 5 kHz %.4f\n", notch, lo, hi);
+    assert(lo < hi * 0.1);
+}
+
 int main(void)
 {
     off_is_identity();
@@ -149,6 +172,7 @@ int main(void)
     crush_bits();
     type_switch_resets_state();
     drive_zero_not_silent();
+    phaser_tuned_low();
     printf("qfx_test ok\n");
     return 0;
 }
