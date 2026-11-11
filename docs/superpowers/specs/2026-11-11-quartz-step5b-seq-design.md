@@ -92,7 +92,7 @@ Pages MARBLES, T et X d'un pattern MARBLES (la page NOTES garde son clavier). Ma
 - Aucune transparence ni dégradé. Les étoiles de la planète FM (5a) prennent le même tirage au hasard (leur motif en
   diagonale disparaît).
 - **Budget** : au plus 300 faces visibles ; les rochers les plus lointains (moins de 15 % de la profondeur) sont dessinés
-  en un seul triangle.
+  en un seul triangle. Si le budget ou la fluidité l'exigent, on dessine moins de rochers (accord de l'utilisateur).
 
 ## 4. Architecture
 
