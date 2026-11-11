@@ -346,7 +346,7 @@ function decorCanyon(c, t) {
     for (const side of [-1, 1]) {
       const r = q => hash(id * 17 + (side > 0 ? 7 : 0) + q * 31);
       if (r(0) < 0.3) continue;                                                                              /* a gap */
-      const spire = r(1) > 0.82, out = 70 + r(2) * 80, x = vx + side * (12 + p * out * 1.6), y = vy + p * 96;
+      const spire = r(1) > 0.82, out = 70 + r(2) * 80, x = vx + side * (12 + p * out * 1.6 + (p / 0.7) ** 4 * 130), y = vy + p * 96;   /* they leave by the side before they go */
       const w = p * (spire ? 14 + r(3) * 10 : 30 + r(3) * 46), h = p * (spire ? 90 + r(4) * 60 : 26 + r(4) * 52);
       rock(c, x, y, w, h, (r(5) - 0.5) * 0.5, side);
     }
