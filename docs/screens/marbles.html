@@ -341,7 +341,7 @@ function decorCanyon(c, t) {
   poly(c, [[0, vy], [240, vy], [240, 196], [0, 196]], "#120a28");                                         /* the canyon floor */
   for (let k = 0; k < 5; k++) { const p = ((k + f) / 5) ** 2, y = vy + p * 100; stroke(c, [[vx - 20 - p * 150, y], [vx + 20 + p * 150, y]], "#1e1240", 1, false); }
   stroke(c, [[0, vy], [240, vy]], "#2e1c5a", 1, false);
-  for (let k = N - 1; k >= 0; k--) {                                                                         /* far to near */
+  for (let k = 0; k < N; k++) {                                                                             /* far to near */
     const id = base - k, p = 0.7 * ((k + f) / N) ** 1.9;     /* towards the viewer; a rock keeps its id; the nearest stop behind the crystals */
     for (const side of [-1, 1]) {
       const r = q => hash(id * 17 + (side > 0 ? 7 : 0) + q * 31);
