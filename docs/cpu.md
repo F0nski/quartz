@@ -12,10 +12,14 @@ core's load and LOST BLOCKS; a step is validated only with zero lost blocks in i
 | Step 3a (filter, LFO, arp; played by ear, worst case not run) | not recorded | not recorded |
 | Step 3b: MODAL x 6 (two POLY 3 tracks), delay and reverb | 82 % / 74 % (effects 6 %) | 0 |
 | Step 3b: the same, two PHASER inserts, COMP | 87 % / 71 % (effects 13 %) | 0 |
+| Step 5a: MODAL and 6-OP A (POLY 3 each, 6 voices), delay, reverb, two PHASER, COMP, the planet on ENGINE (29 fps) | 64 % / 43 % (effects 12 %) | 0 |
 
 One Plaits voice costs 5 to 11 % of a core for the light models, 12 to 16 % for the common ones and 20 to 21 % for
 ADDITIVE and MODAL; the cost is linear in voices and the second core halves the wall time. The generators run once
 per step, not per block: their cost does not show on the CPU page.
+
+The screen is drawn by the main loop, outside the cores' figures, which measure the render only: the CPU page's
+SCENE FPS shows what a scene gets (30 at most), measured over the last second spent on one.
 
 The EFFECTS row is the effects' share of core 1; the reverb runs on core 2, within its figure. On the device, libm
 calls (expf, powf, even fmaxf and fminf) cost far more than on a PC: a PC run underestimated the effects about tenfold.
