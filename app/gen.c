@@ -105,7 +105,7 @@ int gen_quantize(int note, uint16_t allowed, int tonic, int steps)
         if (allowed >> c & 1) { kept |= 1 << c; keep--; }
     }
     int best = 0, dist = 1 << 30;
-    for (int c = 0; c < 128; c++) {       /* upward: a tie keeps the lower note */
+    for (int c = 1; c < 128; c++) {       /* upward: a tie keeps the lower note. From 1: note 0 is no note */
         int d = c > note ? c - note : note - c;
         if ((kept >> (c % 12) & 1) && d < dist) { best = c; dist = d; }
     }

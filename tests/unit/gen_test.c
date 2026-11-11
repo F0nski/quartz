@@ -253,6 +253,15 @@ static void quantize_top_clamps(void)
     }
 }
 
+/* note 0 is no note (plan_notes skips it): the quantizer never returns it */
+static void quantize_never_zero(void)
+{
+    assert(gen_quantize(0, 0x001, 0, 0) == 12);
+    assert(gen_quantize(0, 0xFFF, 0, 0) == 1);
+    assert(gen_quantize(-30, 0x001, 0, 0) == 12);
+    for (int n = -12; n < 128; n++) assert(gen_quantize(n, 0xAB5, 0, 127) > 0);
+}
+
 static void marbles_t2_every_step(void)
 {
     for (int mode = 0; mode < 7; mode++) {
@@ -266,6 +275,29 @@ static void marbles_t2_every_step(void)
             for (int s = 0; s < 4; s++) assert(!st.note[s] || (st.note[s] >= KIT_NOTE && st.note[s] < KIT_NOTE + 3));
         }
     }
+}
+
+/* T OUT 3: a synth plays on t3's triggers, those that put pad 3 on a KIT from the same state */
+static void marbles_tout3_on_t3(void)
+{
+    int ons = 0;
+    for (int mode = 0; mode < 7; mode++) {
+        q_pattern *pt = msetup(M_KIT, mode);
+        pt->marbles.tout = 3;
+        q_gen gk = G;
+        uint32_t rk = R;
+        for (int k = 0; k < 64; k++) {
+            q_step sk, ss;
+            P.sound[0].model = M_KIT;
+            gen_step(&gk, &P, 0, pt, k, &rk, &sk);
+            P.sound[0].model = 8;
+            gen_step(&G, &P, 0, pt, k, &R, &ss);
+            assert(!!(ss.flags & SF_ON) == !!(kit_pads(&sk) & 4));
+            assert(!(ss.flags & SF_ON) || (ss.note[0] && !ss.note[1]));
+            ons += !!(ss.flags & SF_ON);
+        }
+    }
+    assert(ons > 0 && ons < 7 * 64);
 }
 
 static void marbles_drums_pattern(void)
@@ -324,8 +356,10 @@ int main(void)
     marbles_notes_in_allowed();
     quantize_steps_keeps_strongest();
     quantize_top_clamps();
+    quantize_never_zero();
     marbles_t2_every_step();
     marbles_drums_pattern();
+    marbles_tout3_on_t3();
     marbles_jitter_bounds();
     marbles_divider_ratchets();
     puts("gen ok");

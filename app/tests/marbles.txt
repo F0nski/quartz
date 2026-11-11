@@ -25,6 +25,11 @@ turn K1 -2
 turn SELECT 2
 expect page 4
 expect mnotes 0
+# NOTE stops at 1: note 0 is no note
+spin K1 -127
+expect mnote 1
+spin K1 47
+expect mnote 48
 # D off: C major without D
 key 9 down
 key 9 up

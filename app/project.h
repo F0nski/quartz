@@ -26,9 +26,9 @@ typedef struct { uint8_t step, param, value; } q_lock;    /* value: the q_sound 
 enum { PATH_FWD, PATH_REV, PATH_PINGPONG, PATH_SNAKE, PATH_COLUMNS, PATH_SPIRAL, PATH_RANDOM, PATH_XY, PATH_N };
 /* XY: xlen, ylen 1..4, ydiv a DIV_* (the X clock is div) */
 enum { SRC_STEP, SRC_GRIDS, SRC_MARBLES, SRC_N };         /* q_pattern.src: where the notes come from */
-/* 0..127 except voice 1..3 */
+/* 0..127 except voice 1..3, note 1..127 (0 is no note) */
 typedef struct { uint8_t x, y, chaos, dens[3], voice, note; } q_grids;
-/* 0..127 except tout 1..3, len 1..16, mode 0..6, range 1..4; notes: pitch classes allowed (bit n = C + n), 0 = the project's scale */
+/* 0..127 except tout 1..3, len 1..16, note 1..127, mode 0..6, range 1..4; notes: pitch classes allowed (bit n = C + n), 0 = the project's scale */
 typedef struct { uint8_t tout, len, mode, bias, jitter, dejavu, spread, xbias, steps, note, range; uint8_t notes[2]; } q_marbles;
 typedef struct { uint8_t len, div, nlocks, path, xlen, ylen, ydiv, src; q_grids grids; q_marbles marbles; q_step steps[Q_STEPS]; q_lock locks[Q_LOCKS]; } q_pattern;
 typedef struct { uint8_t used, mute, pat[Q_TRACKS]; } q_scene;

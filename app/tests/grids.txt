@@ -6,6 +6,11 @@ expect src 1
 expect page 1
 wait 100
 shot grids_page1.png
+# NOTE stops at 1: note 0 is no note
+spin K3 -127
+expect gnote 1
+spin K3 59
+expect gnote 60
 turn SELECT 1
 expect page 2
 turn K1 10
@@ -51,3 +56,8 @@ expect stepon_4 0
 shot grids_play.png
 tap PLAY
 expect rec 0
+# TRACKS: a GRIDS pattern's progress runs over its 32 steps, a STEP pattern's over its LEN
+tap HOME
+wait 100
+expect trlen_1 32
+expect trlen_2 16

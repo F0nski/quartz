@@ -37,13 +37,13 @@ static const q_page PAGE[] = {
     {"XY", {"X LEN", "X DIV", "Y LEN", "Y DIV"}, {1, 0, 1, 0}, {4, DIV_N - 1, 4, DIV_N - 1}},
     {"TRACKS", {0}, {0}, {0}},
     {"SONG", {"ENTRY", "SCENE", "REPEAT", "MODE"}, {1, 1, 1, 0}, {Q_SONG, Q_SCENES, 16, 1}},
-    {"GRIDS", {"DIV", "VOICE", "NOTE", "SOURCE"}, {0, 1, 0, 0}, {DIV_N - 1, 3, 127, SRC_N - 1}},
+    {"GRIDS", {"DIV", "VOICE", "NOTE", "SOURCE"}, {0, 1, 1, 0}, {DIV_N - 1, 3, 127, SRC_N - 1}},
     {"MAP", {"X", "Y", "CHAOS"}, {0, 0, 0}, {127, 127, 127}},
     {"DENS", {"DENS 1", "DENS 2", "DENS 3"}, {0, 0, 0}, {127, 127, 127}},
     {"MARBLES", {"DIV", "T OUT", "LEN", "SOURCE"}, {0, 1, 1, 0}, {DIV_N - 1, 3, 16, SRC_N - 1}},
     {"T", {"MODE", "BIAS", "JITTER", "DEJA VU"}, {0, 0, 0, 0}, {6, 127, 127, 127}},
     {"X", {"SPREAD", "X BIAS", "STEPS"}, {0, 0, 0}, {127, 127, 127}},
-    {"NOTES", {"NOTE", "RANGE"}, {0, 1}, {127, 4}},
+    {"NOTES", {"NOTE", "RANGE"}, {1, 1}, {127, 4}},
     {"PAD", {"TUNE", "HARM", "TIMB", "DECAY"}, {-24, 0, 0, 0}, {24, 127, 127, 127}},
     {"KIT", {"MODEL", "ENGINE", "LEVEL"}, {0, 0, 0}, {M_KIT, 2, 127}},
 };
@@ -969,8 +969,9 @@ static void view_now(q_view *v)
             if (audio_playing() && audio_pattern(k) != ui.p->pattern[k])
                 v->scene.tr[k].playing = (uint8_t)(audio_pattern(k) + 1);
             v->scene.tr[k].mute = ui.p->mute >> k & 1u;
+            const q_pattern *pt = &ui.p->pat[k][ui.p->pattern[k]];
             v->scene.tr[k].pos = (int8_t)audio_pos(k);
-            v->scene.tr[k].len = (int8_t)ui.p->pat[k][ui.p->pattern[k]].len;
+            v->scene.tr[k].len = (int8_t)(pt->src == SRC_STEP ? pt->len : gen_loop(pt));
         }
     } else if (pid == P_SONG) {
         int first = ui.entry > 3 ? ui.entry - 3 : 1;     /* the cursor on the 3rd row at most */
@@ -1368,6 +1369,8 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "mtout")) *got = t->marbles.tout;
     else if (!strcmp(what, "gvoice")) *got = t->grids.voice;
     else if (!strcmp(what, "gnote")) *got = t->grids.note;
+    else if (!strcmp(what, "mnote")) *got = t->marbles.note;
+    else if (!strncmp(what, "trlen_", 6) && m >= 1 && m <= Q_TRACKS) *got = ui.shown.scene.tr[m - 1].len;
     else if (!strcmp(what, "pad")) *got = ui.pad + 1;
     else if (!strncmp(what, "pad", 3) && u && m >= 1 && m <= Q_PADS) {
         const q_pad *pd = &ui.p->kit[ui.track][m - 1];
