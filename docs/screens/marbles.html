@@ -41,7 +41,7 @@ button[aria-pressed=true] { background: var(--hot); color: #fff; border-color: v
 <main>
 <header>
   <h1>MARBLES <em>autrement</em></h1>
-  <p class="lead">L'escadrille dans le canyon, trois styles de rochers. Ce qui part (cristal, rayon, comète, tir) part un pas avant sa note et
+  <p class="lead">L'escadrille dans le canyon de rochers taillés. Ce qui part (cristal, rayon, comète, tir) part un pas avant sa note et
   arrive quand la note sonne. Chaque encodeur des pages MARBLES, T et X change quelque chose à l'écran : tourne les
   curseurs, ou laisse « auto » les faire bouger.</p>
 </header>
@@ -52,13 +52,8 @@ button[aria-pressed=true] { background: var(--hot); color: #fff; border-color: v
 </section>
 
 <div class="grid">
-  <figure><canvas id="shipsRocks" width="240" height="240"></canvas><figcaption><span class="tag">A</span><h2>Rochers taillés</h2>
-    <p>Des blocs cabossés et quelques aiguilles, en volumes ombrés, sur deux rangées de chaque côté.</p></figcaption></figure>
-  <figure><canvas id="shipsMesa" width="240" height="240"></canvas><figcaption><span class="tag">B</span><h2>Mésas</h2>
-    <p>Des buttes à sommet plat, striées de strates, dans un violet plus chaud.</p></figcaption></figure>
-  <figure><canvas id="shipsCrystals" width="240" height="240"></canvas><figcaption><span class="tag">C</span><h2>Cristaux</h2>
-    <p>Des grappes de cristaux sombres, bleu-vert, qui répondent aux cristaux des notes.</p></figcaption></figure>
-  <figure><canvas id="shipsCanyon" width="240" height="240"></canvas><figcaption><span class="tag">avant</span><h2>Canyon précédent</h2><p>Pour comparer.</p></figcaption></figure>
+  <figure><canvas id="shipsRocks" width="240" height="240"></canvas><figcaption><span class="tag">A</span><h2>Escadrille, canyon de rochers taillés</h2>
+    <p>Deux rangées de rochers et d'aiguilles de chaque côté, des pierres éparses au fond du canyon, une crête en facettes sur l'horizon.</p></figcaption></figure>
 </div>
 
 <section aria-label="Ce que fait chaque encodeur">
@@ -373,7 +368,7 @@ const SHARD = (s, k, tilt) => ({ v: OCTA.v.map(([x, y, z]) => { const h = (y - 1
 const CLUSTER = s => { const parts = [SHARD(s, 0, 0), SHARD(s + 1, 0.6, -0.25), SHARD(s + 2, -0.55, 0.3)]; let v = [], f = [];
   parts.forEach(m => { const o = v.length; v = v.concat(m.v.map(([x, y, z], i) => [x, y, z + (i ? 0 : 0)])); f = f.concat(m.f.map(q => q.map(i => i + o))); }); return { v, f }; };
 const MESHES = {};
-const meshOf = (kind, id) => MESHES[kind + id] || (MESHES[kind + id] = kind === "rocks" ? (hash(id * 5) > 0.7 ? SPIRE(id) : BOULDER(id)) : kind === "mesa" ? MESA(id) : CLUSTER(id));
+const meshOf = (kind, id) => MESHES[kind + id] || (MESHES[kind + id] = kind === "rocks" ? (id < 9000 && hash(id * 5) > 0.7 ? SPIRE(id) : BOULDER(id)) : kind === "mesa" ? MESA(id) : CLUSTER(id));
 const ROCKT = { rocks: ["#6a48b0", "#46307e", "#26184e"], mesa: ["#7a4a9a", "#52306e", "#2e1a44"], crystals: ["#3d7f9c", "#25587a", "#142f48"] };
 function decorKind(kind) {
   return (c, t) => {
@@ -381,6 +376,13 @@ function decorKind(kind) {
     c.fillStyle = "#0c0820"; c.fillRect(0, 30, 240, 166); starsBg(c, t);
     poly(c, [[0, vy], [240, vy], [240, 196], [0, 196]], "#120a28");
     for (let k = 0; k < 5; k++) { const p = ((k + f) / 5) ** 2, y = vy + p * 100; stroke(c, [[vx - 20 - p * 150, y], [vx + 20 + p * 150, y]], "#1e1240", 1, false); }
+    if (kind === "rocks") {                                               /* far away: a faceted ridge across the horizon */
+      const shift = (d * 0.6) % 40;
+      for (let i = -1; i < 8; i++) {
+        const x0 = i * 40 - shift, id = Math.floor(d * 0.6 / 40) + i, h = 10 + hash(id * 3) * 18, px = x0 + 10 + hash(id * 5) * 20;
+        poly(c, [[x0 - 6, vy], [px, vy - h], [px + 4, vy]], "#2a1c52"); poly(c, [[px, vy - h], [x0 + 46, vy], [px + 4, vy]], "#1c1240");
+      }
+    }
     stroke(c, [[0, vy], [240, vy]], "#2e1c5a", 1, false);
     const items = [];
     for (let k = 0; k < N; k++) {
@@ -391,6 +393,13 @@ function decorKind(kind) {
         const out = lane ? 120 + r(2) * 60 : 55 + r(2) * 35, x = vx + side * (10 + p * out * 1.5 + (p / 0.72) ** 4 * 140), y = vy + p * 96;
         const sc = p * (lane ? 26 + r(3) * 16 : 12 + r(3) * 10) * (kind === "mesa" ? 1.3 : 1);
         items.push({ p, x, y, sc, ay: r(4) * TAU, mesh: meshOf(kind, id * 4 + (side > 0 ? 2 : 0) + lane) });
+      }
+      if (kind === "rocks") {                                             /* the canyon floor: small stones in the middle */
+        const r = q => hash(id * 41 + q * 13 + 7);
+        if (r(0) < 0.55) {
+          const off = (r(1) - 0.5) * 2 * 48, x = vx + off * (0.2 + p * 2.2), y = vy + p * 96;
+          items.push({ p, x, y, sc: p * (5 + r(2) * 7), ay: r(3) * TAU, mesh: meshOf(kind, 9000 + id) });
+        }
       }
     }
     items.sort((a, b) => a.p - b.p).forEach(o => {
@@ -607,7 +616,7 @@ function ships(c, t) {
   header(c, t);
 }
 
-const views = [["shipsRocks", (c, t) => shipsPro(c, t, decorKind("rocks"))], ["shipsMesa", (c, t) => shipsPro(c, t, decorKind("mesa"))], ["shipsCrystals", (c, t) => shipsPro(c, t, decorKind("crystals"))], ["shipsCanyon", (c, t) => shipsPro(c, t, decorCanyon)]].map(([id, f]) => [document.getElementById(id).getContext("2d"), f]);
+const views = [["shipsRocks", (c, t) => shipsPro(c, t, decorKind("rocks"))]].map(([id, f]) => [document.getElementById(id).getContext("2d"), f]);
 function frame(ms) { const t = ms / 1000; views.forEach(([c, f]) => f(c, t)); }
 function loop(ms) { frame(ms + 1310); requestAnimationFrame(loop); }
 document.fonts.ready.then(() => { frame(1310); if (!reduce) requestAnimationFrame(loop); });
