@@ -13,7 +13,9 @@ typedef struct {
     uint32_t cyc, notes;                             /* S&H: cycle number (FREE: global, TRIG: own) and note counter */
 } mvoice;
 static mvoice MV[PQ_VOICES];
-static double mclk_s, mclk_beats;                      /* the FREE LFOs' clock since mod_restart */
+#define NRATE 76                                     /* q_sound.lrate 0..75 */
+static float RPH[NRATE], RHZ[NRATE - LRATE_SYNC];    /* the FREE LFOs' phase per RATE since mod_restart; free rates' Hz */
+static uint32_t RCYC[NRATE];                         /* ... and their cycle count */
 
 /* beats per cycle of the synced rates */
 static const float PERIOD[LRATE_SYNC] = { 32, 16, 8, 4, 2, 1, 2.f / 3, 0.5f, 1.f / 3, 0.25f, 1.f / 6, 0.125f };
@@ -44,26 +46,17 @@ void mod_init(void)
 {
     __builtin_memset(MV, 0, sizeof MV);
     for (int v = 0; v < PQ_VOICES; v++) MV[v].p = (q_vparam){ 0, 64, 127, 20, FT_LP, 127, 0, 0, LS_SIN, 0, 5, 0, LD_CUT };
-    mclk_s = mclk_beats = 0;
+    for (int i = 0; i < NRATE - LRATE_SYNC; i++) RHZ[i] = 0.05f * __builtin_powf(600.f, i / 63.f);
+    mod_restart();
 }
 
 void mod_set(int v, const q_vparam *p, int tempo)
 {
     mvoice *s = &MV[v];
     s->p = *p; s->tempo = tempo;
-    double per_frame;                                /* LFO cycles per frame */
-    double x;                                        /* the FREE clock in cycles */
-    if (p->lrate < LRATE_SYNC) {
-        per_frame = tempo / 60.0 / Q_SR / PERIOD[p->lrate]; x = mclk_beats / PERIOD[p->lrate];
-    } else {
-        double hz = 0.05 * __builtin_pow(600.0, (p->lrate - LRATE_SYNC) / 63.0);
-        per_frame = hz / Q_SR; x = mclk_s * hz;
-    }
-    s->inc = (float)(per_frame * MOD_BLK);
-    if (!p->ltrig) {
-        double c = __builtin_floor(x);
-        s->ph = (float)(x - c); s->cyc = (uint32_t)(uint64_t)c;
-    }
+    float per_frame = p->lrate < LRATE_SYNC ? tempo / 60.f / Q_SR / PERIOD[p->lrate] : RHZ[p->lrate - LRATE_SYNC] / Q_SR;
+    s->inc = per_frame * MOD_BLK;
+    if (!p->ltrig) { s->ph = RPH[p->lrate]; s->cyc = RCYC[p->lrate]; }
 }
 
 void mod_note_on(int v, int accent)
@@ -78,10 +71,13 @@ void mod_note_off(int v) { if (MV[v].stage != E_IDLE) MV[v].stage = E_REL; }
 
 void mod_clock(int tempo, uint32_t n)
 {
-    mclk_s += n / (double)Q_SR; mclk_beats += n * tempo / 60.0 / Q_SR;
+    for (int i = 0; i < NRATE; i++) {
+        RPH[i] += n * (i < LRATE_SYNC ? tempo / 60.f / Q_SR / PERIOD[i] : RHZ[i - LRATE_SYNC] / Q_SR);
+        while (RPH[i] >= 1) { RPH[i] -= 1; RCYC[i]++; }
+    }
 }
 
-void mod_restart(void) { mclk_s = mclk_beats = 0; }
+void mod_restart(void) { __builtin_memset(RPH, 0, sizeof RPH); __builtin_memset(RCYC, 0, sizeof RCYC); }
 
 void mod_voice_block(int v, pq_mod *m)
 {

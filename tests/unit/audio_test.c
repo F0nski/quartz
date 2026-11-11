@@ -649,10 +649,10 @@ static void play_restarts_lfo_clock(void)
 {
     setup();
     for (int i = 0; i < 4; i++) block(256);
-    assert(mclk_s > 256 * 4 / Q_SR * 0.99);
+    assert(RPH[40] > RHZ[28] * 1024 / Q_SR * 0.99f);
     audio_play(1);
     block(100);
-    assert(mclk_s > 99 / (double)Q_SR && mclk_s < 101 / (double)Q_SR);
+    assert(RPH[40] > RHZ[28] * 99 / Q_SR && RPH[40] < RHZ[28] * 101 / Q_SR);
 }
 
 static void legato_glides_without_retrigger(void)
