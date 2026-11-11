@@ -8,7 +8,7 @@
 #define Q_LOCKS 128
 #define Q_SCENES 8
 #define Q_SONG 32
-#define Q_VERSION 4                /* q_project.version: the saved layout */
+#define Q_VERSION 5                /* q_project.version: the saved layout */
 #define Q_PADS 16
 #define M_KIT 24                   /* q_sound.model: the 16-pad kit */
 #define KIT_NOTE 36                /* a KIT's note: KIT_NOTE + pad */
@@ -21,7 +21,9 @@ enum { SF_ON = 1, SF_SLIDE = 2, SF_ACCENT = 4 };          /* q_step.flags; bits 
 enum { CD_NONE, CD_FIRST, CD_NFIRST, CD_PRE, CD_NPRE };   /* q_step.cond < 16; else A:B: A = cond & 15, B = cond >> 4 */
 enum { LK_HARM, LK_TIMB, LK_MORPH, LK_DECAY, LK_TUNE, LK_GLIDE,
        LK_ATK, LK_DEC, LK_SUS, LK_REL, LK_FTYPE, LK_CUT, LK_RES, LK_ENVAMT,
-       LK_SHAPE, LK_RATE, LK_DEPTH, LK_DEST, LK_AMODE, LK_AOCT, LK_ADIV, LK_AGATE, LK_N };   /* lockable q_sound fields */
+       LK_SHAPE, LK_RATE, LK_DEPTH, LK_DEST, LK_AMODE, LK_AOCT, LK_ADIV, LK_AGATE,
+       LK_I1, LK_I2, LK_I3, LK_IMIX, LK_DSEND, LK_RSEND, LK_PAN, LK_LEVEL, LK_N };   /* lockable q_sound fields */
+enum { IT_OFF, IT_DRIVE, IT_FOLD, IT_CRUSH, IT_CHORUS, IT_PHASER, IT_RING, IT_COMB, IT_N };   /* q_sound.itype: the insert */
 enum { FT_LP, FT_HP, FT_BP };
 enum { LS_SIN, LS_TRI, LS_SAW, LS_SQR, LS_SH };
 enum { LD_HARM, LD_TIMB, LD_MORPH, LD_PITCH, LD_CUT, LD_RES, LD_LEVEL };
@@ -41,20 +43,23 @@ typedef struct { uint8_t len, div, nlocks, path, xlen, ylen, ydiv, src; q_grids 
 typedef struct { uint8_t used, mute, pat[Q_TRACKS]; } q_scene;
 typedef struct { uint8_t scene, reps; } q_entry;          /* scene 0..7, reps 1..16 */
 /* 0..127 except model 0..24, poly 1..4, tune -24..24, ftype 0..2, envamt and ldepth -64..63, lshape 0..4, ltrig 0 FREE 1 TRIG,
- * lrate 0..75, ldest 0..6, amode 0..5, aoct 1..4, adiv a DIV_*, agate 5..100 */
+ * lrate 0..75, ldest 0..6, amode 0..5, aoct 1..4, adiv a DIV_*, agate 5..100, itype 0..7 (IT_*), pan -64..63;
+ * i1..i3 the insert's knobs, imix its dry/wet, dsend and rsend the sends to the delay and the reverb */
 typedef struct {
     uint8_t model, poly, glide, level; int8_t tune; uint8_t harm, timb, morph, decay;
     uint8_t atk, dec, sus, rel, ftype, cutoff, res; int8_t envamt;
     uint8_t lshape, ltrig, lrate; int8_t ldepth; uint8_t ldest, amode, aoct, adiv, agate;
+    uint8_t itype, i1, i2, i3, imix, dsend, rsend; int8_t pan;
 } q_sound;
 enum { PAD_BD, PAD_SN, PAD_HH };                          /* q_pad.engine */
 typedef struct { uint8_t engine; int8_t tune; uint8_t harm, timb, decay, level; } q_pad;   /* tune -24..24; the rest 0..127 */
-/* tempo in whole BPM, 40..240 */
+/* tempo in whole BPM, 40..240; dtime a DIV_*, dfb rsize rtone comp duck 0..127 (the delay and reverb returns, the master's compressor and duck) */
 typedef struct {
     uint8_t version; uint16_t tempo;
     uint8_t swing, tonic, mode, quant, click, mute, song_on, nsong;   /* swing 50..75; tonic 0..11; mode 0..10;
                                                        quant 0 OFF 1 50 % 2 100 %; click bit 0 METRO, bit 1 COUNT;
                                                        mute bit per track */
+    uint8_t dtime, dfb, rsize, rtone, comp, duck;
     uint8_t pattern[Q_TRACKS];                        /* the pattern each track is asked to play (and is edited) */
     q_sound sound[Q_TRACKS];
     q_pattern pat[Q_TRACKS][Q_PATTERNS];

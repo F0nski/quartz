@@ -19,6 +19,7 @@ void project_defaults(q_project *p)
     p->swing = 50;
     p->mode = 1;                    /* MAJOR */
     p->quant = 2;
+    p->dtime = DIV_8; p->dfb = 40; p->rsize = 80; p->rtone = 64;   /* comp, duck: 0 */
     for (int i = 0; i < Q_SONG; i++) p->song[i].reps = 1;   /* 1..16: what the load's clamp would make of 0 */
     for (int i = 0; i < Q_TRACKS; i++) {
         q_sound *s = &p->sound[i];
@@ -26,6 +27,7 @@ void project_defaults(q_project *p)
         s->harm = s->timb = s->morph = s->decay = 64;
         s->dec = 64; s->sus = 127; s->rel = 20; s->cutoff = 127;    /* the rest of the new fields: 0 (LP, SIN, FREE, OFF...) */
         s->lrate = 5; s->ldest = LD_CUT; s->aoct = 1; s->adiv = DIV_16; s->agate = 50;
+        s->i1 = s->i2 = s->i3 = 64; s->imix = 127;                  /* itype, dsend, rsend, pan: 0 (no insert, no send, centre) */
         for (int k = 0; k < Q_PADS; k++) p->kit[i][k] = KIT_DEFAULT[k];
         for (int n = 0; n < Q_PATTERNS; n++) {
             q_pattern *pt = &p->pat[i][n];

@@ -26,7 +26,9 @@ static const int8_t lk_range[LK_N][2] = {
     [LK_GLIDE] = {0, 127}, [LK_ATK] = {0, 127}, [LK_DEC] = {0, 127}, [LK_SUS] = {0, 127}, [LK_REL] = {0, 127},
     [LK_FTYPE] = {0, FT_BP}, [LK_CUT] = {0, 127}, [LK_RES] = {0, 127}, [LK_ENVAMT] = {-64, 63},
     [LK_SHAPE] = {0, LS_SH}, [LK_RATE] = {0, 75}, [LK_DEPTH] = {-64, 63}, [LK_DEST] = {0, LD_LEVEL},
-    [LK_AMODE] = {0, AM_ORDER}, [LK_AOCT] = {1, 4}, [LK_ADIV] = {0, DIV_N - 1}, [LK_AGATE] = {5, 100} };
+    [LK_AMODE] = {0, AM_ORDER}, [LK_AOCT] = {1, 4}, [LK_ADIV] = {0, DIV_N - 1}, [LK_AGATE] = {5, 100},
+    [LK_I1] = {0, 127}, [LK_I2] = {0, 127}, [LK_I3] = {0, 127}, [LK_IMIX] = {0, 127}, [LK_DSEND] = {0, 127},
+    [LK_RSEND] = {0, 127}, [LK_PAN] = {-64, 63}, [LK_LEVEL] = {0, 127} };
 
 /* a valid-CRC object can still hold out-of-range fields: the render indexes and divides with them */
 static void clamp_project(q_project *p)
@@ -38,6 +40,10 @@ static void clamp_project(q_project *p)
     p->quant = (uint8_t)clampi(p->quant, 0, 2);
     p->click = (uint8_t)clampi(p->click, 0, 3);
     p->nsong = (uint8_t)clampi(p->nsong, 0, Q_SONG);
+    p->dtime = (uint8_t)clampi(p->dtime, 0, DIV_N - 1);
+    p->dfb = (uint8_t)clampi(p->dfb, 0, 127); p->rsize = (uint8_t)clampi(p->rsize, 0, 127);
+    p->rtone = (uint8_t)clampi(p->rtone, 0, 127); p->comp = (uint8_t)clampi(p->comp, 0, 127);
+    p->duck = (uint8_t)clampi(p->duck, 0, 127);
     for (int i = 0; i < Q_SCENES; i++)
         for (int t = 0; t < Q_TRACKS; t++)
             p->scene[i].pat[t] = (uint8_t)clampi(p->scene[i].pat[t], 0, Q_PATTERNS - 1);
@@ -66,6 +72,11 @@ static void clamp_project(q_project *p)
         s->ldest = (uint8_t)clampi(s->ldest, 0, LD_LEVEL); s->amode = (uint8_t)clampi(s->amode, 0, AM_ORDER);
         s->aoct = (uint8_t)clampi(s->aoct, 1, 4); s->adiv = (uint8_t)clampi(s->adiv, 0, DIV_N - 1);
         s->agate = (uint8_t)clampi(s->agate, 5, 100);
+        s->itype = (uint8_t)clampi(s->itype, 0, IT_N - 1);
+        s->i1 = (uint8_t)clampi(s->i1, 0, 127); s->i2 = (uint8_t)clampi(s->i2, 0, 127);
+        s->i3 = (uint8_t)clampi(s->i3, 0, 127); s->imix = (uint8_t)clampi(s->imix, 0, 127);
+        s->dsend = (uint8_t)clampi(s->dsend, 0, 127); s->rsend = (uint8_t)clampi(s->rsend, 0, 127);
+        s->pan = (int8_t)clampi(s->pan, -64, 63);
         p->pattern[i] = (uint8_t)clampi(p->pattern[i], 0, Q_PATTERNS - 1);
         for (int k = 0; k < Q_PADS; k++) {
             q_pad *pd = &p->kit[i][k];

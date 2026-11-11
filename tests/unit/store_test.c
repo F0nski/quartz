@@ -365,6 +365,59 @@ static void store_v3_gives_defaults(void)
     }
 }
 
+static void store_roundtrip_v5(void)
+{
+    static q_project a, b;
+    project_defaults(&a);
+    q_sound *s = &a.sound[3];
+    s->itype = IT_COMB; s->i1 = 11; s->i2 = 22; s->i3 = 33; s->imix = 44; s->dsend = 55; s->rsend = 66; s->pan = -33;
+    a.dtime = DIV_4T; a.dfb = 77; a.rsize = 88; a.rtone = 99; a.comp = 111; a.duck = 122;
+    assert(store_save(&a) == 0);
+    memset(&b, 0xAA, sizeof b);
+    assert(store_load(&b) == 0);
+    assert(!memcmp(&a, &b, sizeof a));
+}
+
+static void store_clamps_v5(void)
+{
+    static q_project a, b;
+    project_defaults(&a);
+    store_save(&a);
+    b = a;
+    q_sound *s = &b.sound[1];
+    s->itype = 9; s->i1 = 200; s->i2 = 255; s->i3 = 128; s->imix = 130; s->dsend = 200; s->rsend = 250; s->pan = -100;
+    b.sound[2].pan = 100;
+    b.dtime = 20; b.dfb = 200; b.rsize = 255; b.rtone = 128; b.comp = 200; b.duck = 140;
+    b.pat[0][0].locks[0] = (q_lock){ 1, LK_PAN, (uint8_t)-100 };
+    b.pat[0][0].locks[1] = (q_lock){ 1, LK_LEVEL, 200 };
+    b.pat[0][0].nlocks = 2;
+    write_raw(&b);
+    memset(&a, 0xAA, sizeof a);
+    assert(store_load(&a) == 0);
+    s = &a.sound[1];
+    assert(s->itype == IT_N - 1 && s->i1 == 127 && s->i2 == 127 && s->i3 == 127 && s->imix == 127);
+    assert(s->dsend == 127 && s->rsend == 127 && s->pan == -64 && a.sound[2].pan == 63);
+    assert(a.dtime == DIV_N - 1 && a.dfb == 127 && a.rsize == 127 && a.rtone == 127 && a.comp == 127 && a.duck == 127);
+    assert((int8_t)a.pat[0][0].locks[0].value == -64 && a.pat[0][0].locks[1].value == 127);
+}
+
+/* a project saved before v5 has another layout: the defaults (the v5 ones too), not a misread */
+static void store_v4_gives_defaults(void)
+{
+    q_project a;
+    project_defaults(&a);
+    store_save(&a);
+    for (int i = 0; i < Q_CHUNKS; i++) mem[i][2] = 4;
+    check_defaults();
+    store_load(&a);
+    assert(a.dtime == DIV_8 && a.dfb == 40 && a.rsize == 80 && a.rtone == 64 && a.comp == 0 && a.duck == 0);
+    for (int t = 0; t < Q_TRACKS; t++) {
+        const q_sound *s = &a.sound[t];
+        assert(s->itype == IT_OFF && s->i1 == 64 && s->i2 == 64 && s->i3 == 64 && s->imix == 127);
+        assert(s->dsend == 0 && s->rsend == 0 && s->pan == 0 && s->level == 100);
+    }
+}
+
 static void save_refused_while_playing(void)
 {
     q_project a;
@@ -392,6 +445,9 @@ int main(void)
     store_roundtrip_v4();
     store_clamps_v4();
     store_v3_gives_defaults();
+    store_roundtrip_v5();
+    store_clamps_v5();
+    store_v4_gives_defaults();
     save_refused_while_playing();
     puts("store ok");
     return 0;
