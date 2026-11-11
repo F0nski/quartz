@@ -40,9 +40,9 @@ button[aria-pressed=true] { background: var(--hot); color: #fff; border-color: v
 
 <main>
 <header>
-  <h1>MARBLES <em>en relief</em></h1>
-  <p class="lead">Trois pistes pour la scène MARBLES, dans l'univers du plateau SEQ. La bille part un pas avant sa note et
-  atterrit quand la note sonne. Chaque encodeur des pages MARBLES, T et X change quelque chose à l'écran : tourne les
+  <h1>MARBLES <em>autrement</em></h1>
+  <p class="lead">Cinq pistes pour la scène MARBLES. Ce qui part (cristal, rayon, comète, tir) part un pas avant sa note et
+  arrive quand la note sonne. Chaque encodeur des pages MARBLES, T et X change quelque chose à l'écran : tourne les
   curseurs, ou laisse « auto » les faire bouger.</p>
 </header>
 
@@ -52,28 +52,25 @@ button[aria-pressed=true] { background: var(--hot); color: #fff; border-color: v
 </section>
 
 <div class="grid">
-  <figure><canvas id="iso" width="240" height="240"></canvas><figcaption><span class="tag">A</span><h2>Pachinko en relief</h2>
-    <p>La planche en isométrique comme le plateau SEQ. Plots en prismes, cases en blocs qui montent avec l'historique, lanceurs au fond.</p></figcaption></figure>
-  <figure><canvas id="well" width="240" height="240"></canvas><figcaption><span class="tag">B</span><h2>Le puits</h2>
-    <p>On regarde vers le bas : des cadres de plots en fil de fer s'enfoncent vers le fond, découpé en cases. La bille rapetisse en tombant.</p></figcaption></figure>
-  <figure><canvas id="rails" width="240" height="240"></canvas><figcaption><span class="tag">C</span><h2>Rails</h2>
-    <p>Un arbre de rails lumineux : la bille bifurque à chaque nœud jusqu'à une cible en losange qui éclate quand la note sonne.</p></figcaption></figure>
+  <figure><canvas id="keys" width="240" height="240"></canvas><figcaption><span class="tag">1</span><h2>Pluie sur un clavier</h2>
+    <p>Des cristaux tombent des émetteurs sur les touches de la gamme ; la touche s'enfonce en rose quand la note sonne. X BIAS déplace les émetteurs, SPREAD ouvre le cône.</p></figcaption></figure>
+  <figure><canvas id="prism" width="240" height="240"></canvas><figcaption><span class="tag">2</span><h2>Prisme</h2>
+    <p>Les faisceaux entrent dans un prisme et repartent en rayons vers les barres des notes. X BIAS tourne le prisme, SPREAD règle la dispersion, MODE sa section.</p></figcaption></figure>
+  <figure><canvas id="moons" width="240" height="240"></canvas><figcaption><span class="tag">3</span><h2>Lunes</h2>
+    <p>Une lune par note, plus aiguë plus loin ; une comète part d'une station et percute sa lune quand la note sonne. X BIAS incline les orbites, SPREAD les écarte.</p></figcaption></figure>
+  <figure><canvas id="turrets" width="240" height="240"></canvas><figcaption><span class="tag">4</span><h2>Tourelles</h2>
+    <p>Une à trois tourelles tirent sur la rangée des cibles ; la cible éclate quand la note sonne puis se reconstruit. X BIAS règle la visée, SPREAD le balayage.</p></figcaption></figure>
+  <figure><canvas id="ships" width="240" height="240"></canvas><figcaption><span class="tag">5</span><h2>Escadrille</h2>
+    <p>Les vaisseaux de la planète FM, en formation au-dessus du sol quadrillé, tirent sur les cristaux des notes. X BIAS déplace la formation, SPREAD l'écarte, MODE sa trajectoire.</p></figcaption></figure>
 </div>
 
 <section aria-label="Ce que fait chaque encodeur">
-  <h2>Ce que fait chaque encodeur</h2>
+  <h2>Partout</h2>
   <ul class="map">
-    <li><b>DIV</b> : vitesse de chute (un pas) et défilement du décor.</li>
-    <li><b>T OUT</b> : nombre de lanceurs (1 à 3), donc de billes par pas.</li>
-    <li><b>LEN</b> : la rangée de témoins de la boucle (1 à 16), le pas en cours allumé.</li>
-    <li><b>MODE</b> : la forme des lanceurs (un polyèdre par mode).</li>
-    <li><b>BIAS</b> : la taille relative des lanceurs, le plus probable le plus gros.</li>
-    <li><b>JITTER</b> : les lanceurs tremblent, les billes partent en décalé.</li>
-    <li><b>DEJA VU</b> : la scène vire à l'orange, et le trajet qui se répète reste tracé.</li>
-    <li><b>SPREAD</b> : l'écartement des plots, donc l'éventail des chutes.</li>
-    <li><b>X BIAS</b> : l'inclinaison de la planche, du puits ou de l'arbre.</li>
-    <li><b>STEPS</b> : les cases éteintes et aplaties quand la quantification ne garde que quelques notes.</li>
-    <li><b>NOTE</b> (page NOTES, rappel) : les noms sous les cases.</li>
+    <li><b>DIV</b> : vitesse du décor et durée du trajet (un pas). <b>T OUT</b> : nombre d'émetteurs, tourelles ou vaisseaux. <b>LEN</b> : les témoins de boucle en haut.</li>
+    <li><b>MODE</b> : la forme des émetteurs (ou la section du prisme, la trajectoire de l'escadrille). <b>BIAS</b> : leur taille relative. <b>JITTER</b> : tremblement, scintillement.</li>
+    <li><b>DEJA VU</b> : la scène vire à l'orange et les trajets répétés restent tracés. <b>STEPS</b> : les notes que la quantification écarte s'éteignent.</li>
+    <li><b>SPREAD</b> et <b>X BIAS</b> : voir chaque scène.</li>
   </ul>
 </section>
 </main>
@@ -206,115 +203,183 @@ function loopLights(c, x0, y, w, W) {
   for (let i = 0; i < n; i++) { const x = x0 + (w - n * g) / 2 + i * g; poly(c, [[x + 1, y], [x + g - 1, y], [x + g - 3, y + 4], [x - 1, y + 4]], i === W.cur ? (W.deja ? K[3][0] : K[1][0]) : "#2a2050"); }
 }
 
-/* ---- A: isometric pachinko ---- */
-function iso(c, t) {
-  autoKnobs(t); const W = world(t), tilt = (P.xbias - 64) / 64, gap = 0.55 + P.spread / 127 * 0.5, deja = W.deja, ks = kept();
-  backdrop(c, t);
-  /* the board: a plane in isometric, rows from the back (y 0) to the bins (y 5) */
-  const A = 17, B = 8.5, at = (x, y) => [120 + (x - y * tilt * 0.25) * A - (y - 2.5) * 0, 56 + y * B * 1.8 + x * 0 + (x * tilt * 1.4)];
-  poly(c, [at(-6, -0.4), at(6, -0.4), at(6, 5.6), at(-6, 5.6)], "#0e0a26");
-  stroke(c, [at(-6, -0.4), at(6, -0.4), at(6, 5.6), at(-6, 5.6)], WIRE);
-  for (let y = 0; y <= 5; y++) stroke(c, [at(-6, y + 0.3), at(6, y + 0.3)], "#160f36", 1, false);
-  /* the loop's lights along the back edge */
-  loopLights(c, 40, 40, 160, W);
-  /* launchers: one polyhedron per output, MODE's shape, BIAS's size, JITTER's shake */
+/* ---- shared pieces of the five directions ---- */
+const BINS = 7, DIM3 = ["#2a2050", "#1c1638", "#120e26"];
+const tonesOf = (W, b, base) => W.flash[b] ? HOT : !kept().includes(b) ? DIM3 : W.deja ? K[3] : base;
+function shards(c, x, y, k, n = 4) {
+  for (let i = 0; i < n; i++) { const a = i * TAU / n + 0.6, d = 6 + k * 16, sx = x + Math.cos(a) * d, sy = y + Math.sin(a) * d - k * 6;
+    poly(c, [[sx, sy - 3], [sx + 3, sy + 1], [sx - 2, sy + 2]], i % 2 ? HOT[0] : HOT[1]); }
+}
+/* an isometric box standing on (cx, cy): half width sx, half depth sy, height h */
+function box(c, cx, cy, sx, sy, h, T) {
+  poly(c, [[cx - sx, cy], [cx, cy + sy], [cx, cy + sy - h], [cx - sx, cy - h]], T[1]);
+  poly(c, [[cx, cy + sy], [cx + sx, cy], [cx + sx, cy - h], [cx, cy + sy - h]], T[2]);
+  poly(c, [[cx, cy - sy - h], [cx + sx, cy - h], [cx, cy + sy - h], [cx - sx, cy - h]], T[0]);
+}
+const emitterTones = W => W.deja ? K[3] : K[0];
+const emitterSize = (ch, a, b) => a + b * (ch === 0 ? P.bias / 127 : 1 - P.bias / 127);
+const lastHit = (W, t) => { const h = new Array(BINS).fill(9); for (let k = Math.floor(t / stepDur()) - 8; k <= Math.floor(t / stepDur()); k++) stepEvents(k).forEach(e => { if (e.at <= t) h[e.bin] = Math.min(h[e.bin], t - e.at); }); return h; };
+function noteNames(c, W, xs, y) { xs.forEach((x, b) => text(c, SCALE[b], x, y, 10, W.flash[b] ? HOT[0] : kept().includes(b) ? "#f4f1ff" : "#4a4466", "center")); }
+function starfield(c, t) {
+  for (let i = 0; i < 30; i++) { const big = i % 4 === 0, x = ((i * 73) - t * (big ? 12 : 6) * 0.25 / stepDur()) % 240, y = 34 + (i * 41) % 110;
+    c.fillStyle = big ? "#fff" : "#6c5fa0"; c.fillRect((x + 480) % 240, y, big ? 2 : 1, big ? 2 : 1); }
+}
+
+/* ---- 1: rain on a keyboard ---- */
+function keys(c, t) {
+  autoKnobs(t); const W = world(t), H = lastHit(W, t), cx0 = 120 + (P.xbias - 64) / 64 * 50, cone = 10 + P.spread / 127 * 40;
+  backdrop(c, t); loopLights(c, 40, 40, 160, W);
+  /* the keys: long iso blocks, the scale's 7, back to front from left to right */
+  const kx = b => 34 + b * 29, ky = b => 160 - b * 1;
+  for (let b = 0; b < BINS; b++) {
+    const on = kept().includes(b), press = H[b] < 0.12 ? 1 - H[b] / 0.12 : 0, T = tonesOf(W, b, K[2]);
+    const h = on ? 12 - press * 6 : 4;
+    box(c, kx(b), ky(b), 13, 8, h, T);
+    if (on && W.hist[b] > 0.2) c.fillStyle = W.deja ? "#ffc196" : "#8fb4ff", c.fillRect(kx(b) - 1, ky(b) - h - 1 - W.hist[b] * 2, 2, W.hist[b] * 2);
+  }
+  noteNames(c, W, [...Array(BINS).keys()].map(kx), 182);
+  /* the emitters and their rain cones */
   for (let ch = 0; ch < P.tout; ch++) {
-    const x = (launcherX(ch) - 120) / A, [px, py] = at(x, -0.6), size = 5 + 4 * (ch === 0 ? P.bias / 127 : 1 - P.bias / 127);
-    draw3d(c, SHAPES[P.mode], { cx: px + shake(t, ch), cy: py - 4, s: size, ay: t * 1.2 + ch, ax: 0.5, tones: deja ? K[3] : K[0] });
+    const ex = cx0 + (ch - (P.tout - 1) / 2) * 34 + shake(t, ch), ey = 62;
+    stroke(c, [[ex, ey], [ex - cone, 150], [ex + cone, 150]], "#1e1640");
+    draw3d(c, SHAPES[P.mode], { cx: ex, cy: ey, s: emitterSize(ch, 5, 5), ay: t + ch, ax: 0.4, tones: emitterTones(W) });
   }
-  /* pins: small hexagonal prisms, SPREAD apart */
-  for (let r = 0; r < 5; r++) for (let i = -6; i <= 6; i++) {
-    const x = i * gap * 1.6 + (r % 2) * gap * 0.8; if (Math.abs(x) > 5.6) continue;
-    const [px, py] = at(x, r + 0.5); poly(c, [[px - 2, py], [px, py - 1], [px + 2, py], [px, py + 1]], "#3a2c64");
-    poly(c, [[px - 2, py], [px, py + 1], [px, py + 4], [px - 2, py + 3]], "#22184a"); poly(c, [[px, py + 1], [px + 2, py], [px + 2, py + 3], [px, py + 4]], "#160f36");
-  }
-  /* bins: blocks rising with the history; those STEPS drops are flat and dim */
-  for (let b = 0; b < 7; b++) {
-    const x = -5.1 + b * 1.7, on = ks.includes(b), h = on ? 3 + W.hist[b] * 5 : 1, T = W.flash[b] ? HOT : !on ? ["#2a2050", "#1c1638", "#120e26"] : deja ? K[3] : K[2];
-    const [x0, y0] = at(x - 0.6, 5.3), [x1, y1] = at(x + 0.6, 5.3), [x2, y2] = at(x + 0.6, 5.9), [x3, y3] = at(x - 0.6, 5.9);
-    poly(c, [[x3, y3], [x2, y2], [x2, y2 - h], [x3, y3 - h]], T[1]); poly(c, [[x1, y1], [x2, y2], [x2, y2 - h], [x1, y1 - h]], T[2]);
-    poly(c, [[x0, y0 - h], [x1, y1 - h], [x2, y2 - h], [x3, y3 - h]], T[0]);
-    text(c, SCALE[b], (x2 + x3) / 2, y3 + 9, 10, W.flash[b] ? HOT[0] : on ? "#f4f1ff" : "#4a4466", "center");
-  }
-  /* the marbles: from their launcher, through the pins, onto their bin when the note sounds */
-  W.fly.sort((a, b) => a.u - b.u).forEach(e => {
-    const lx = (launcherX(e.c) - 120) / A, tx = -5.1 + e.bin * 1.7, y = e.u * 5.5, r = Math.min(5, Math.floor(y));
-    let x = lx; for (let j = 0; j < 5; j++) if (y > j + 0.5) x += e.path[j] * gap * 0.25 * Math.min(1, y - j - 0.5);
-    x = lerp(x, tx, clamp((y - 0.2) / 5.3, 0, 1) ** 1.5); const [px, py] = at(x, y);
-    if (e.repeat && deja) { c.strokeStyle = "#5a2a10"; c.lineWidth = 1; c.beginPath(); c.moveTo(...at(lx, 0)); c.lineTo(px, py - 5); c.stroke(); }
-    draw3d(c, ICO, { cx: px, cy: py - 5, s: 4.5, ay: t * 4 + e.c, ax: t * 3, tones: deja ? K[3] : K[2] });
-  });
-  text(c, "D DORIAN", 232, 40, 9, UI, "right", 500);
-  header(c, t);
-}
-
-/* ---- B: the well ---- */
-function well(c, t) {
-  autoKnobs(t); const W = world(t), deja = W.deja, ks = kept(), tilt = (P.xbias - 64) / 64;
-  c.fillStyle = BG; c.fillRect(0, 30, 240, 166);
-  /* frames at depth z (0 the rim, 1 the bottom), the vanishing point leaning with X BIAS */
-  const vx = 120 + tilt * 30, vy = 113, frame = z => { const s = 1 / (1 + z * 1.4), w = 104 * s, h = 76 * s, cx = lerp(120, vx, 1 - s), cy = lerp(113, vy, 1 - s);
-    const wob = P.jitter / 127 * 2 * Math.sin(t * 9 + z * 12); return [[cx - w + wob, cy - h], [cx + w + wob, cy - h], [cx + w - wob, cy + h], [cx - w - wob, cy + h]]; };
-  const scroll = (t / stepDur()) % 1;
-  for (let k = 0; k <= 6; k++) { const z = (k + 1 - scroll) / 7; stroke(c, frame(z), z > 0.85 ? "#120c2c" : WIRE); }
-  [0, 1, 2, 3].forEach(i => { const a = frame(0)[i], b = frame(1)[i]; stroke(c, [a, b], RAY, 1, false); });
-  /* the bottom: 7 cases across, STEPS's dropped ones dark */
-  const bot = frame(1), bx = (b, k) => lerp(bot[0][0], bot[1][0], (b + k) / 7);
-  for (let b = 0; b < 7; b++) {
-    const on = ks.includes(b), lvl = W.hist[b] / 6, col = W.flash[b] ? HOT[1] : !on ? "#0a0720" : deja ? `rgba(255,122,46,${0.25 + lvl * 0.75})` : `rgba(58,109,255,${0.25 + lvl * 0.75})`;
-    poly(c, [[bx(b, 0.08), bot[0][1] + 2], [bx(b, 0.92), bot[0][1] + 2], [bx(b, 0.92), bot[2][1] - 2], [bx(b, 0.08), bot[2][1] - 2]], col);
-  }
-  /* pins on four frames: SPREAD apart */
-  for (let r = 0; r < 4; r++) { const f = frame((r + 1) / 5), n = Math.round(3 + P.spread / 127 * 6);
-    for (let i = 0; i < n; i++) { const x = lerp(f[0][0], f[1][0], (i + 0.5 + (r % 2) * 0.5) / (n + 0.5)), y = lerp(f[0][1], f[3][1], 0.5), s = 3 / (1 + (r + 1) / 5 * 1.4) + 1;
-      poly(c, [[x, y - s], [x + s, y], [x, y + s], [x - s, y]], "#3a2c64"); } }
-  /* the rim: the loop's lights and the launchers */
-  loopLights(c, 30, 40, 180, W);
-  for (let ch = 0; ch < P.tout; ch++) draw3d(c, SHAPES[P.mode], { cx: launcherX(ch) + shake(t, ch), cy: 54, s: 5 + 4 * (ch === 0 ? P.bias / 127 : 1 - P.bias / 127), ay: t + ch, ax: 0.4, tones: deja ? K[3] : K[0] });
-  W.fly.sort((a, b) => b.u - a.u).forEach(e => {
-    const z = e.u, f = frame(z), x0 = launcherX(e.c), tx = bx(e.bin, 0.5), s = 1 / (1 + z * 1.4);
-    let wig = 0; for (let j = 0; j < 4; j++) if (z > (j + 1) / 5) wig += e.path[j] * 8 * s;
-    const x = lerp(lerp(x0, 120, 0.4), tx, z ** 1.3) + wig * (1 - z), y = lerp(56, lerp(f[0][1], f[3][1], 0.5), Math.min(1, z * 3));
-    draw3d(c, ICO, { cx: x, cy: y, s: 8 * s + 1.5, ay: t * 4 + e.c, ax: t * 3, tones: deja ? K[3] : K[2] });
-  });
-  for (let b = 0; b < 7; b++) {         /* the names along the rim's foot, a leader down to each case */
-    const nx = 26 + b * 31.3, on = ks.includes(b);
-    stroke(c, [[bx(b, 0.5), bot[2][1]], [nx, 180]], on ? "#2a1d55" : "#160f36", 1, false);
-    text(c, SCALE[b], nx, 188, 10, W.flash[b] ? HOT[0] : on ? "#f4f1ff" : "#4a4466", "center");
-  }
-  header(c, t);
-}
-
-/* ---- C: rails ---- */
-function rails(c, t) {
-  autoKnobs(t); const W = world(t), deja = W.deja, ks = kept(), tilt = (P.xbias - 64) / 64, fan = 0.6 + P.spread / 127 * 0.6;
-  backdrop(c, t, 30);
-  loopLights(c, 40, 40, 160, W);
-  /* nodes: rows 0..4, row r has r + 1 nodes, leaning with X BIAS; row 5 the 7 targets */
-  const node = (r, i) => { const w = r * 30 * fan; return [120 + (r ? -w / 2 + i * w / r : 0) + tilt * r * 7 + P.jitter / 127 * 1.5 * Math.sin(t * 11 + r * 3 + i), 62 + r * 22]; };
-  const target = b => [26 + b * 31.3, 172];
-  const lit = new Set(); W.fly.forEach(e => { let i = 0; for (let r = 0; r < 4; r++) { const ni = clamp(i + (e.path[r] > 0 ? 1 : 0), 0, r + 1); if (e.u * 5 > r) lit.add(r + ":" + i + ">" + ni); i = ni; } });
-  for (let r = 0; r < 4; r++) for (let i = 0; i <= r; i++) for (const ni of [i, i + 1]) {
-    const on = lit.has(r + ":" + i + ">" + ni); stroke(c, [node(r, i), node(r + 1, ni)], on ? (deja ? K[3][1] : K[1][1]) : WIRE, on ? 2 : 1, false); }
-  for (let i = 0; i <= 4; i++) for (const b of [Math.floor(i * 1.5), Math.ceil(i * 1.5)]) stroke(c, [node(4, i), target(b)], RAY, 1, false);
-  for (let r = 0; r <= 4; r++) for (let i = 0; i <= r; i++) { const [x, y] = node(r, i); poly(c, [[x, y - 3], [x + 3, y], [x, y + 3], [x - 3, y]], "#3a2c64"); }
-  for (let b = 0; b < 7; b++) {
-    const [x, y] = target(b), on = ks.includes(b), s = on ? 7 + W.hist[b] : 4, T = W.flash[b] ? HOT : !on ? ["#2a2050", "#1c1638", "#120e26"] : deja ? K[3] : K[0];
-    poly(c, [[x, y - s], [x + s * 0.8, y], [x, y], [x - s * 0.8, y]], T[0]); poly(c, [[x, y], [x + s * 0.8, y], [x, y + s]], T[2]); poly(c, [[x, y], [x, y + s], [x - s * 0.8, y]], T[1]);
-    if (W.flash[b]) for (let k = 0; k < 4; k++) { const a = k * TAU / 4 + 0.6, d = 12; poly(c, [[x + Math.cos(a) * d, y + Math.sin(a) * d - 2], [x + Math.cos(a) * d + 3, y + Math.sin(a) * d + 1], [x + Math.cos(a) * d - 2, y + Math.sin(a) * d + 2]], HOT[0]); }
-    text(c, SCALE[b], x, 189, 10, W.flash[b] ? HOT[0] : on ? "#f4f1ff" : "#4a4466", "center");
-  }
-  for (let ch = 0; ch < P.tout; ch++) draw3d(c, SHAPES[P.mode], { cx: launcherX(ch) * 0.5 + 60 + shake(t, ch), cy: 50, s: 4 + 3 * (ch === 0 ? P.bias / 127 : 1 - P.bias / 127), ay: t + ch, ax: 0.4, tones: deja ? K[3] : K[0] });
+  /* the crystals: an elongated octahedron from its emitter onto its key when the note sounds */
   W.fly.forEach(e => {
-    let i = 0; const pos = e.u * 5, r = Math.min(4, Math.floor(pos)), f = pos - r;
-    for (let j = 0; j < r; j++) i = clamp(i + (e.path[j] > 0 ? 1 : 0), 0, j + 1);
-    const a = node(r, i), b = r < 4 ? node(r + 1, clamp(i + (e.path[r] > 0 ? 1 : 0), 0, r + 1)) : target(e.bin);
-    draw3d(c, ICO, { cx: lerp(a[0], b[0], f), cy: lerp(a[1], b[1], f) - 2, s: 4.5, ay: t * 4, ax: t * 3, tones: deja ? K[3] : K[2] });
+    const ex = cx0 + (e.c - (P.tout - 1) / 2) * 34, x = lerp(ex, kx(e.bin), e.u), y = lerp(66, ky(e.bin) - 12, e.u * e.u);
+    if (e.repeat && W.deja) stroke(c, [[ex, 66], [x, y]], "#5a2a10", 1, false);
+    draw3d(c, { v: OCTA.v.map(([a, b2, d]) => [a * 0.6, b2 * 1.4, d * 0.6]), f: OCTA.f }, { cx: x, cy: y, s: 5, ay: t * 5, ax: 0.3, tones: W.deja ? K[3] : K[1] });
+  });
+  for (let b = 0; b < BINS; b++) if (H[b] < 0.2) shards(c, kx(b), ky(b) - 14, H[b] / 0.2);
+  header(c, t);
+}
+
+/* ---- 2: prism ---- */
+function prismScene(c, t) {
+  autoKnobs(t); const W = world(t), H = lastHit(W, t), turn = (P.xbias - 64) / 64 * 0.5, fan = 0.25 + P.spread / 127 * 0.75;
+  backdrop(c, t); loopLights(c, 40, 40, 160, W);
+  const px = 60, py = 82, bx = b => 30 + b * 30, by = 168;
+  /* the incoming beams, one per output, BIAS their width, JITTER their flicker */
+  for (let ch = 0; ch < P.tout; ch++) {
+    const y = py - 6 + ch * 6, w = 1 + Math.round(emitterSize(ch, 0, 3)), flick = 1 - P.jitter / 127 * 0.6 * (0.5 + 0.5 * Math.sin(t * 40 + ch * 3));
+    c.globalAlpha = flick; stroke(c, [[0, y + Math.sin(t * 3 + ch) * P.jitter / 127 * 2], [px - 8, y]], W.deja ? K[3][0] : "#f4f1ff", w, false); c.globalAlpha = 1;
+  }
+  /* the fan: faint rays from the prism over SPREAD, turned by X BIAS */
+  const ray = k => { const a = Math.PI / 2 + turn + (k - 0.5) * fan * 1.6; return [px + 10 + Math.cos(a) * 160, py + Math.sin(a) * 160]; };
+  for (let k = 0; k <= 8; k++) stroke(c, [[px + 10, py], ray(k / 8)], "#1e1640", 1, false);
+  draw3d(c, prism(Math.max(3, Math.min(6, 3 + P.mode % 4)), 1.1), { cx: px, cy: py, s: 12, ay: 0.4 + turn + t * 0.2, ax: 1.2, tones: W.deja ? K[3] : K[2] });
+  /* the note bars: iso blocks rising with the history */
+  for (let b = 0; b < BINS; b++) { const on = kept().includes(b); box(c, bx(b), by, 11, 6, on ? 4 + W.hist[b] * 4 : 2, tonesOf(W, b, K[0])); }
+  noteNames(c, W, [...Array(BINS).keys()].map(bx), 186);
+  /* the rays in flight: a bright dash running from the prism to its bar, reaching it when the note sounds */
+  W.fly.forEach(e => {
+    const x0 = px + 10, y0 = py, x1 = bx(e.bin), y1 = by - 6, k0 = Math.max(0, e.u - 0.25), col = W.deja ? K[3][1] : [K[0][0], K[1][0], HOT[0]][e.c];
+    stroke(c, [[lerp(x0, x1, k0), lerp(y0, y1, k0)], [lerp(x0, x1, e.u), lerp(y0, y1, e.u)]], col, 2, false);
+    if (e.repeat && W.deja) stroke(c, [[x0, y0], [x1, y1]], "#5a2a10", 1, false);
+  });
+  for (let b = 0; b < BINS; b++) if (H[b] < 0.2) shards(c, bx(b), by - 12, H[b] / 0.2);
+  header(c, t);
+}
+
+/* ---- 3: moons ---- */
+const PLANET = (() => { const v = [], f = []; const lat = 4, lon = 8;
+  for (let i = 0; i <= lat; i++) for (let j = 0; j < lon; j++) { const th = i / lat * Math.PI - Math.PI / 2, ph = j / lon * TAU; v.push([Math.cos(th) * Math.sin(ph), Math.sin(th), Math.cos(th) * Math.cos(ph)]); }
+  for (let i = 0; i < lat; i++) for (let j = 0; j < lon; j++) { const a = i * lon + j, b = i * lon + (j + 1) % lon, cc = (i + 1) * lon + (j + 1) % lon, d = (i + 1) * lon + j; f.push([a, b, cc, d]); }
+  return out({ v, f }); })();
+function moons(c, t) {
+  autoKnobs(t); const W = world(t), H = lastHit(W, t), tilt = 0.25 + (P.xbias / 127) * 0.45, gap = 8 + P.spread / 127 * 6;
+  c.fillStyle = "#120b26"; c.fillRect(0, 30, 240, 166); starfield(c, t); loopLights(c, 40, 40, 160, W);
+  const cx = 132, cy = 116, R = b => 22 + (b + 1) * gap, sp = b => 0.9 / (1 + b * 0.35) * 0.125 / stepDur() * 2;
+  const moonAt = (b, tt) => { const a = tt * sp(b) + b * 1.3; return [cx + Math.cos(a) * R(b), cy + Math.sin(a) * R(b) * tilt, Math.sin(a)]; };
+  /* orbits: 16-segment rings, the planet in the middle; the far half of each first */
+  for (let b = BINS - 1; b >= 0; b--) { const pts = [...Array(17).keys()].map(i => { const a = i * TAU / 16; return [cx + Math.cos(a) * R(b), cy + Math.sin(a) * R(b) * tilt]; }); stroke(c, pts, kept().includes(b) ? "#2a1d55" : "#160f36", 1, false); }
+  const drawMoon = b => { const [x, y] = moonAt(b, t), on = kept().includes(b); draw3d(c, ICO, { cx: x, cy: y, s: on ? 4 + W.hist[b] * 0.8 : 2.5, ay: t + b, ax: 0.4, tones: tonesOf(W, b, K[1]) });
+    if (H[b] < 0.2) shards(c, x, y, H[b] / 0.2); if (on) text(c, SCALE[b], x, y + 10, 9, W.flash[b] ? HOT[0] : UI, "center"); };
+  for (let b = 0; b < BINS; b++) if (moonAt(b, t)[2] < 0) drawMoon(b);
+  draw3d(c, PLANET, { cx, cy, s: 16, ay: t * 0.4, ax: 0.3, tones: W.deja ? K[3] : K[0] });
+  for (let b = 0; b < BINS; b++) if (moonAt(b, t)[2] >= 0) drawMoon(b);
+  /* the stations, top left; the comets meet their moon where it will be when the note sounds */
+  const st = ch => [26 + ch * 16 + shake(t, ch), 52 + ch * 8];
+  for (let ch = 0; ch < P.tout; ch++) { const [x, y] = st(ch); draw3d(c, SHAPES[P.mode], { cx: x, cy: y, s: emitterSize(ch, 4, 4), ay: t + ch, ax: 0.4, tones: emitterTones(W) }); }
+  W.fly.forEach(e => {
+    const [x0, y0] = st(e.c), [x1, y1] = moonAt(e.bin, e.at), x = lerp(x0, x1, e.u), y = lerp(y0, y1, e.u) - Math.sin(e.u * Math.PI) * 18;
+    const bx = lerp(x0, x1, Math.max(0, e.u - 0.12)), by = lerp(y0, y1, Math.max(0, e.u - 0.12)) - Math.sin(Math.max(0, e.u - 0.12) * Math.PI) * 18;
+    stroke(c, [[bx, by], [x, y]], W.deja ? K[3][1] : HOT[1], 2, false);
+    poly(c, [[x, y - 2], [x + 2, y], [x, y + 2], [x - 2, y]], "#fff");
   });
   header(c, t);
 }
 
-const views = [["iso", iso], ["well", well], ["rails", rails]].map(([id, f]) => [document.getElementById(id).getContext("2d"), f]);
+/* ---- 4: turrets ---- */
+function turrets(c, t) {
+  autoKnobs(t); const W = world(t), H = lastHit(W, t), aim = (P.xbias - 64) / 64 * 40, sweep = P.spread / 127;
+  backdrop(c, t); loopLights(c, 40, 40, 160, W);
+  const tx = b => 30 + b * 30, ty = 74, base = ch => [120 + aim * 0.4 + (ch - (P.tout - 1) / 2) * 52, 176];
+  /* the targets: iso blocks on a rail; a hit shatters one, then it builds up again */
+  stroke(c, [[12, ty + 6], [228, ty + 6]], WIRE, 1, false);
+  for (let b = 0; b < BINS; b++) {
+    const on = kept().includes(b), k = H[b] < 0.5 ? H[b] / 0.5 : 1, h = (on ? 10 + W.hist[b] * 2 : 3) * (H[b] < 0.12 ? 0 : k);
+    if (h > 0) box(c, tx(b), ty, 10, 5, h, tonesOf(W, b, K[0]));
+    if (H[b] < 0.25) shards(c, tx(b), ty - 6, H[b] / 0.25, 6);
+  }
+  noteNames(c, W, [...Array(BINS).keys()].map(tx), 92);
+  /* the turrets: MODE's shape as the head, BIAS its size, JITTER its recoil; idle they sweep over SPREAD around the aim */
+  for (let ch = 0; ch < P.tout; ch++) {
+    const [x, y] = base(ch), fly = W.fly.filter(e => e.c === ch).sort((a, b) => b.u - a.u)[0];
+    const goal = fly ? tx(fly.bin) : 120 + aim + Math.sin(t * 1.3 + ch) * sweep * 90, ang = Math.atan2(ty - y, goal - x);
+    box(c, x, y + 6, 14, 7, 6, ["#3a2c64", "#22184a", "#160f36"]);
+    const r = H.some(h => h < 0.08) ? 2 : 0, bl = 18 - r;
+    stroke(c, [[x, y - 8], [x + Math.cos(ang) * bl, y - 8 + Math.sin(ang) * bl]], W.deja ? K[3][1] : K[2][1], 3, false);
+    draw3d(c, SHAPES[P.mode], { cx: x + shake(t, ch), cy: y - 6, s: emitterSize(ch, 5, 4), ay: -ang, ax: 0.5, tones: emitterTones(W) });
+  }
+  /* the shots */
+  W.fly.forEach(e => {
+    const [x0, y0] = base(e.c), x1 = tx(e.bin), y1 = ty - 6, k0 = Math.max(0, e.u - 0.15);
+    if (e.repeat && W.deja) stroke(c, [[x0, y0 - 8], [x1, y1]], "#5a2a10", 1, false);
+    stroke(c, [[lerp(x0, x1, k0), lerp(y0 - 8, y1, k0)], [lerp(x0, x1, e.u), lerp(y0 - 8, y1, e.u)]], HOT[0], 2, false);
+  });
+  header(c, t);
+}
+
+/* ---- 5: ships ---- */
+function shipShape(c, x, y, a, col, s = 1) {
+  const f = (dx, dy) => [x + (Math.cos(a) * dx - Math.sin(a) * dy) * s, y + (Math.sin(a) * dx + Math.cos(a) * dy) * s];
+  poly(c, [f(8, 0), f(-5, 5), f(-2, 0)], col[1]); poly(c, [f(8, 0), f(-2, 0), f(-5, -5)], col[0]); poly(c, [f(-5, 3), f(-10, 0), f(-5, -3)], HOT[1]);
+}
+function ships(c, t) {
+  autoKnobs(t); const W = world(t), H = lastHit(W, t), mid = 120 + (P.xbias - 64) / 64 * 50, gap = 14 + P.spread / 127 * 30;
+  c.fillStyle = "#120b26"; c.fillRect(0, 30, 240, 166); starfield(c, t);
+  /* the floor grid, as under the FM planet */
+  const hz = 150; c.fillStyle = "#1a0f33"; c.fillRect(0, hz, 240, 196 - hz); c.strokeStyle = "#5b2f8c"; c.lineWidth = 1;
+  for (let i = -10; i <= 10; i++) { c.beginPath(); c.moveTo(120 + i * 10, hz); c.lineTo(120 + i * 70, 196); c.stroke(); }
+  for (let k = 0; k < 4; k++) { const p = ((k + (t * 0.25 / stepDur()) % 1) / 4) ** 2, y = Math.round(hz + p * 46) + .5; c.beginPath(); c.moveTo(0, y); c.lineTo(240, y); c.stroke(); }
+  loopLights(c, 40, 40, 160, W);
+  /* the crystals on the floor: the notes */
+  const cx = b => 30 + b * 30, cy = 160;
+  for (let b = 0; b < BINS; b++) {
+    const on = kept().includes(b), hit = H[b] < 0.15;
+    if (!hit) draw3d(c, { v: OCTA.v.map(([a, b2, d]) => [a * 0.7, b2 * 1.3, d * 0.7]), f: OCTA.f }, { cx: cx(b), cy: cy - (on ? 6 + W.hist[b] : 2), s: on ? 6 + W.hist[b] * 0.7 : 3, ay: t * 0.8 + b, ax: 0.2, tones: tonesOf(W, b, K[0]) });
+    if (H[b] < 0.25) shards(c, cx(b), cy - 8, H[b] / 0.25, 6);
+  }
+  noteNames(c, W, [...Array(BINS).keys()].map(cx), 186);
+  /* the fleet: T OUT ships flying a loop (MODE its shape), around X BIAS, SPREAD apart, BIAS the leader's size, JITTER their wobble */
+  const loopX = (ch, tt) => { const ph = tt * 0.6 * 0.25 / stepDur() + ch * 0.4, m = P.mode;
+    const lx = Math.sin(ph) * 40 * (m % 2 ? 1 : 0.6), ly = (m === 2 || m === 5 ? Math.sin(ph * 2) : Math.cos(ph)) * 10;
+    return [mid + lx + (ch - (P.tout - 1) / 2) * gap + shake(tt, ch) * 2, 70 + ly + ch * 6 + shake(tt + 1, ch)]; };
+  for (let ch = 0; ch < P.tout; ch++) {
+    const [x, y] = loopX(ch, t), [x2, y2] = loopX(ch, t + 0.05);
+    if (W.deja) { const tr = [...Array(12).keys()].map(i => loopX(ch, t - i * 0.08)); stroke(c, tr, "#5a2a10", 1, false); }
+    shipShape(c, x, y, Math.atan2(y2 - y, x2 - x), W.deja ? K[3] : K[ch % 2], ch === 0 ? 0.8 + P.bias / 127 * 0.6 : 1.2 - P.bias / 127 * 0.4);
+  }
+  /* the shots: fired from where the ship was a step ago, landing on the crystal when the note sounds */
+  W.fly.forEach(e => {
+    const [x0, y0] = loopX(e.c, e.at - Math.min(stepDur(), 0.5)), x1 = cx(e.bin), y1 = cy - 8, k0 = Math.max(0, e.u - 0.18);
+    stroke(c, [[lerp(x0, x1, k0), lerp(y0, y1, k0)], [lerp(x0, x1, e.u), lerp(y0, y1, e.u)]], HOT[0], 2, false);
+  });
+  header(c, t);
+}
+
+const views = [["keys", keys], ["prism", prismScene], ["moons", moons], ["turrets", turrets], ["ships", ships]].map(([id, f]) => [document.getElementById(id).getContext("2d"), f]);
 function frame(ms) { const t = ms / 1000; views.forEach(([c, f]) => f(c, t)); }
 function loop(ms) { frame(ms + 1310); requestAnimationFrame(loop); }
 document.fonts.ready.then(() => { frame(1310); if (!reduce) requestAnimationFrame(loop); });
