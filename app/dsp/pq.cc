@@ -139,19 +139,27 @@ extern "C" void pq_render(int v, float* out, unsigned n) {
       s.mod.trigger = s.gate && !s.retrigger ? 1.0f : 0.0f;
       s.retrigger = false;
       s.voice.Render(s.patch, s.mod, s.block, plaits::kBlockSize);
-      s.svf.set_f_q<stmlib::FREQUENCY_ACCURATE>(m.cutoff, m.res);
-      for (size_t k = 0; k < plaits::kBlockSize; ++k) {
-        const float x = static_cast<float>(s.block[k].out) * (1.0f / 32768.0f);
-        const float y = (m.type == FT_HP ? s.svf.Process<stmlib::FILTER_MODE_HIGH_PASS>(x)
-                       : m.type == FT_BP ? s.svf.Process<stmlib::FILTER_MODE_BAND_PASS>(x)
-                       : s.svf.Process<stmlib::FILTER_MODE_LOW_PASS>(x)) * m.gain;
-        s.out[k] = y > 1.0f ? 1.0f : y < -1.0f ? -1.0f : y;   // the resonance can overshoot
+      // LP, CUTOFF 127, RES 0 (the default) passes all the sound: not computed, a big share of the voices' time
+      if (m.type == FT_LP && m.cutoff >= 0.45f && m.res <= 0.5f) {
+        for (size_t k = 0; k < plaits::kBlockSize; ++k) {
+          const float y = static_cast<float>(s.block[k].out) * (1.0f / 32768.0f) * m.gain;
+          s.out[k] = y > 1.0f ? 1.0f : y < -1.0f ? -1.0f : y;
+        }
+      } else {
+        s.svf.set_f_q<stmlib::FREQUENCY_ACCURATE>(m.cutoff, m.res);
+        for (size_t k = 0; k < plaits::kBlockSize; ++k) {
+          const float x = static_cast<float>(s.block[k].out) * (1.0f / 32768.0f);
+          const float y = (m.type == FT_HP ? s.svf.Process<stmlib::FILTER_MODE_HIGH_PASS>(x)
+                         : m.type == FT_BP ? s.svf.Process<stmlib::FILTER_MODE_BAND_PASS>(x)
+                         : s.svf.Process<stmlib::FILTER_MODE_LOW_PASS>(x)) * m.gain;
+          s.out[k] = y > 1.0f ? 1.0f : y < -1.0f ? -1.0f : y;   // the resonance can overshoot
+        }
       }
       s.pos = 0;
     }
     const float x = s.out[s.pos++];
     out[i] += x;
-    if (fabsf(x) > kSilence) {
+    if (x > kSilence || x < -kSilence) {   // fabsf is a call on the device
       s.quiet = 0;
     } else if (s.quiet < kSilentFrames) {
       ++s.quiet;
