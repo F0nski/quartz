@@ -53,10 +53,11 @@ button[aria-pressed=true] { background: var(--hot); color: #fff; border-color: v
 
 <h2>Plateau SEQ</h2>
 <div class="grid">
-  <figure><canvas id="seqNow" width="240" height="240"></canvas><figcaption><span class="tag">actuel</span><h2>Lignes de fuite</h2><p>Pour comparer.</p></figcaption></figure>
-  <figure><canvas id="seqCity" width="240" height="240"></canvas><figcaption><span class="tag">A</span><h2>Ville</h2><p>Des tours en fil de fer à l'horizon, qui défilent lentement ; un sol quadrillé qui s'efface sous le plateau ; des étoiles.</p></figcaption></figure>
-  <figure><canvas id="seqStreams" width="240" height="240"></canvas><figcaption><span class="tag">B</span><h2>Flux</h2><p>Des colonnes de petits carrés qui tombent doucement au fond, plus vite au tempo ; une ligne d'horizon et un sol en lignes de fuite.</p></figcaption></figure>
-  <figure><canvas id="seqRoom" width="240" height="240"></canvas><figcaption><span class="tag">C</span><h2>Salle</h2><p>Une pièce en fil de fer : mur du fond quadrillé, sol et plafond en perspective ; le mur s'éclaire d'un cran à chaque temps.</p></figcaption></figure>
+  <figure><canvas id="seqStill" width="240" height="240"></canvas><figcaption><span class="tag">1</span><h2>Ville immobile</h2><p>Les tours ne bougent plus ; quelques fenêtres changent à chaque temps.</p></figcaption></figure>
+  <figure><canvas id="seqLines" width="240" height="240"></canvas><figcaption><span class="tag">2</span><h2>Lignes de fuite, finies</h2><p>Les lignes simples, avec une ligne d'horizon nette qui s'éclaire sur le temps, quelques étoiles et un sol sombre sous l'horizon ; les lignes du sol avancent au tempo.</p></figcaption></figure>
+  <figure><canvas id="seqSlow" width="240" height="240"></canvas><figcaption><span class="tag">3</span><h2>Ville lente</h2><p>Le même défilement, quatre fois plus lent : à peine perceptible.</p></figcaption></figure>
+  <figure><canvas id="seqCity" width="240" height="240"></canvas><figcaption><span class="tag">firmware</span><h2>Ville actuelle</h2><p>Pour comparer.</p></figcaption></figure>
+  <figure><canvas id="seqNow" width="240" height="240"></canvas><figcaption><span class="tag">avant</span><h2>Lignes de fuite d'origine</h2><p>Pour comparer.</p></figcaption></figure>
 </div>
 
 <h2>GRIDS en piles</h2>
@@ -531,20 +532,31 @@ function seqNow(c, t) { c.fillStyle = "#07041a"; c.fillRect(0, 30, 240, 166); c.
     stroke(c, p, "#2a1d55"); stroke(c, p.map(([u, w]) => [u, w - 9]), "#2a1d55"); p.forEach(([u, w]) => stroke(c, [[u, w], [u, w - 9]], "#2a1d55", 1, false)); });
   seqPlate(c, t); }
 /* A: a wire city on the horizon */
-function seqCity(c, t) {
-  c.fillStyle = "#07041a"; c.fillRect(0, 30, 240, 166); stars(c, t, 0.05);
-  const hz = 78, d = t * 6;
+function seqCity(c, t, speed = 6, beatWin = false) {
+  c.fillStyle = "#07041a"; c.fillRect(0, 30, 240, 166); stars(c, t, speed ? 0.05 : 0);
+  const hz = 78, d = t * speed, beat = Math.floor(t / 0.5);
   for (let layer = 0; layer < 2; layer++) {               /* two rows of towers, the near one faster and brighter */
     const sp = layer ? 1 : 0.5, sh = (d * sp) % 30, base = Math.floor(d * sp / 30);
     for (let i = -1; i < 10; i++) { const id = base + i + layer * 100, x = i * 30 - sh + hash(id) * 10, w = 8 + hash(id * 3) * 12, h = (layer ? 14 : 22) + hash(id * 7) * (layer ? 22 : 30);
-      const fill = layer ? "#120c2c" : "#0c0822", edge = layer ? "#3a2870" : "#22184a";
+      const fill = layer ? "#1a1240" : "#120c2e", edge = layer ? "#4a3488" : "#2e2060";
       poly(c, [[x, hz], [x, hz - h], [x + w, hz - h], [x + w, hz]], fill); stroke(c, [[x, hz], [x, hz - h], [x + w, hz - h], [x + w, hz]], edge, 1, false);
       if (hash(id * 11) > 0.6) stroke(c, [[x + w / 2, hz - h], [x + w / 2, hz - h - 8]], edge, 1, false);
-      for (let f = 1; f < h / 6; f++) if (hash(id * 13 + f) > 0.55) c.fillStyle = layer ? "#5b2f8c" : "#2a1d55", c.fillRect(x + 2 + (f % 2) * (w - 6), hz - f * 6, 2, 2); } }
+      for (let f = 1; f < h / 6; f++) { const lit = beatWin ? hash(id * 13 + f + beat * 7) > 0.6 : hash(id * 13 + f) > 0.55; if (lit) c.fillStyle = layer ? "#8a6ad8" : "#5b2f8c", c.fillRect(x + 2 + (f % 2) * (w - 6), hz - f * 6, 2, 2); } } }
   c.fillStyle = "#0a0620"; c.fillRect(0, hz, 240, 196 - hz); stroke(c, [[0, hz], [240, hz]], "#5b2f8c", 1, false);
   c.strokeStyle = "#1c1340"; c.lineWidth = 1; for (let k = -12; k <= 12; k++) { c.beginPath(); c.moveTo(120 + k * 10, hz); c.lineTo(120 + k * 60, 196); c.stroke(); }
   for (let k = 0; k < 6; k++) { const p = ((k + (t * 0.5) % 1) / 6) ** 2, y = Math.round(hz + p * (196 - hz)) + .5; c.beginPath(); c.moveTo(0, y); c.lineTo(240, y); c.stroke(); }
   seqPlate(c, t); }
+/* improved vanishing lines: a clean horizon, a few stars, the floor lines moving on the tempo */
+function seqLines(c, t) {
+  c.fillStyle = "#07041a"; c.fillRect(0, 30, 240, 166);
+  for (let i = 0; i < 16; i++) { const x = hash(i * 7 + 3) * 240, y = 34 + hash(i * 13 + 1) * 40; c.fillStyle = hash(i * 5) > 0.8 ? "#a99ce0" : "#3a2f68"; c.fillRect(x, y, 1, 1); }
+  const hz = 78, beat = (t / 0.5) % 1;
+  c.fillStyle = "#0a0620"; c.fillRect(0, hz, 240, 196 - hz);
+  stroke(c, [[0, hz], [240, hz]], beat < 0.15 ? "#8a6ad8" : "#5b2f8c", 1, false);
+  c.strokeStyle = "#1c1340"; c.lineWidth = 1; for (let k = -12; k <= 12; k++) { c.beginPath(); c.moveTo(120 + k * 10, hz); c.lineTo(120 + k * 60, 196); c.stroke(); }
+  for (let k = 0; k < 6; k++) { const p = ((k + (t * 0.5) % 1) / 6) ** 2, y = Math.round(hz + p * (196 - hz)) + .5; c.beginPath(); c.moveTo(0, y); c.lineTo(240, y); c.stroke(); }
+  seqPlate(c, t); }
+
 /* B: data streams falling far behind */
 function seqStreams(c, t) {
   c.fillStyle = "#07041a"; c.fillRect(0, 30, 240, 166);
@@ -611,7 +623,7 @@ function gBeacons(c, t) { const L = lastHits(t); c.fillStyle = "#07041a"; c.fill
     if (hot) stroke(c, [[x, y - 12], [x, y - 16]], HOT[0], 1, false); });
   stacks3(c, t); }
 
-const views = [["seqNow", seqNow], ["seqCity", seqCity], ["seqStreams", seqStreams], ["seqRoom", seqRoom], ["gStars", gStars], ["gFloor", gFloor], ["gBeacons", gBeacons]].map(([id, f]) => [document.getElementById(id).getContext("2d"), f]);
+const views = [["seqStill", (c, t) => seqCity(c, t, 0, true)], ["seqLines", seqLines], ["seqSlow", (c, t) => seqCity(c, t, 1.5)], ["seqCity", seqCity], ["seqNow", seqNow], ["gStars", gStars], ["gFloor", gFloor], ["gBeacons", gBeacons]].map(([id, f]) => [document.getElementById(id).getContext("2d"), f]);
 function frame(ms) { const t = ms / 1000; views.forEach(([c, f]) => f(c, t)); }
 function loop(ms) { frame(ms + 1310); requestAnimationFrame(loop); }
 document.fonts.ready.then(() => { frame(1310); if (!reduce) requestAnimationFrame(loop); });
