@@ -41,7 +41,7 @@ button[aria-pressed=true] { background: var(--hot); color: #fff; border-color: v
 <main>
 <header>
   <h1>GRIDS <em>en scène</em></h1>
-  <p class="lead">Deux pistes pour la scène GRIDS. Grids joue trois voix (grosse caisse, caisse claire, charleston sur
+  <p class="lead">Quatre pistes plus abstraites pour la scène GRIDS (1 à 4), puis les deux précédentes. Grids joue trois voix (grosse caisse, caisse claire, charleston sur
   un KIT) lues dans une carte de rythmes à la position X/Y. Chaque encodeur des pages GRIDS, MAP et DENS change quelque
   chose à l'écran : tourne les curseurs, ou laisse « auto » les faire bouger.</p>
 </header>
@@ -52,6 +52,14 @@ button[aria-pressed=true] { background: var(--hot); color: #fff; border-color: v
 </section>
 
 <div class="grid">
+  <figure><canvas id="blob" width="240" height="240"></canvas><figcaption><span class="tag">1</span><h2>Polyèdre</h2>
+    <p>Une grande forme low poly en trois bandes (HH en haut, SN au milieu, BD en bas) ; chaque frappe pousse sa bande et l'allume en rose. X et Y la tournent, DENS gonfle les bandes, CHAOS les cabosse, NOTE règle sa taille, VOICE allume sa bande.</p></figcaption></figure>
+  <figure><canvas id="square" width="240" height="240"></canvas><figcaption><span class="tag">2</span><h2>Carré de 32 pas</h2>
+    <p>Le vrai rythme : 32 pas en trois anneaux carrés de blocs (BD dehors, HH dedans), hauts selon la carte, éteints sous le seuil de DENS. La tête de lecture fait le tour ; X/Y changent les hauteurs, CHAOS les fait vibrer.</p></figcaption></figure>
+  <figure><canvas id="stars" width="240" height="240"></canvas><figcaption><span class="tag">3</span><h2>Constellation</h2>
+    <p>Les 25 rythmes de la carte en étoiles reliées ; le curseur X/Y tire sur ses quatre voisines (le lien le plus fort en blanc), des éclats y filent à chaque frappe. Trois satellites, un par voix, grossissent avec DENS ; CHAOS fait dériver les étoiles.</p></figcaption></figure>
+  <figure><canvas id="ribbon" width="240" height="240"></canvas><figcaption><span class="tag">4</span><h2>Rubans</h2>
+    <p>Trois rubans à facettes qui coulent, un par voix ; chaque frappe y lève un pli qui s'éloigne avec le courant. X règle l'ondulation, Y le décalage entre rubans, DENS leur largeur, CHAOS les froisse.</p></figcaption></figure>
   <figure><canvas id="map" width="240" height="240"></canvas><figcaption><span class="tag">A</span><h2>La carte en relief</h2>
     <p>Le terrain des rythmes de Grids sur tout l'écran, en facettes ; un drone le survole à la position X/Y (la zone sous lui s'éclaire), à l'altitude de NOTE, et lâche une onde de la couleur de la voix à chaque frappe. DENS hausse ses trois colonnes, CHAOS fait trembler le terrain.</p></figcaption></figure>
   <figure><canvas id="guns" width="240" height="240"></canvas><figcaption><span class="tag">C</span><h2>Trois tourelles</h2>
@@ -262,7 +270,105 @@ function gunScene(c, t) {
   header(c, "GRIDS", [["DIV", ["1/16", "1/8", "1/4"][P.div], P.div / 2], ["VOICE", P.voice, (P.voice - 1) / 2], ["NOTE", P.note, (P.note - 24) / 72]]);
 }
 
-const views = [["map", mapScene], ["guns", gunScene]].map(([id, f]) => [document.getElementById(id).getContext("2d"), f]);
+/* ---- abstract directions ---- */
+const kNow = t => Math.floor(t / stepDur());
+function rays(c, t, vy = 112) { c.fillStyle = BG; c.fillRect(0, 30, 240, 166); c.strokeStyle = RAY; c.lineWidth = 1;
+  for (let k = -8; k <= 8; k++) { c.beginPath(); c.moveTo(120, vy); c.lineTo(120 + k * 40, 196); c.stroke(); }
+  const f = (t * 0.25 / stepDur()) % 1; for (let k = 0; k < 5; k++) { const p = ((k + f) / 5) ** 2, y = Math.round(vy + p * (196 - vy)) + .5; c.beginPath(); c.moveTo(0, y); c.lineTo(240, y); c.stroke(); } }
+
+/* 1: one polyhedron in three bands (HH on top, SN in the middle, BD below); a hit pushes its band out */
+const BLOB = (() => { const v = [], f = [], lat = 6, lon = 12;
+  for (let i = 0; i <= lat; i++) for (let j = 0; j < lon; j++) { const th = i / lat * Math.PI - Math.PI / 2, ph = (j + (i % 2) * 0.5) / lon * TAU; v.push([Math.cos(th) * Math.sin(ph), Math.sin(th), Math.cos(th) * Math.cos(ph)]); }
+  for (let i = 0; i < lat; i++) for (let j = 0; j < lon; j++) { const a = i * lon + j, b = i * lon + (j + 1) % lon, cc = (i + 1) * lon + (j + 1) % lon, d = (i + 1) * lon + j; f.push([a, b, cc], [a, cc, d]); }
+  return out({ v, f }); })();
+const band = y => y < -0.33 ? 2 : y < 0.33 ? 1 : 0;           /* y up is negative: the top is HH */
+function blobScene(c, t) {
+  autoKnobs(t); const L = lastHits(t), k0 = kNow(t); rays(c, t);
+  const push = [0, 1, 2].map(v => 0.08 + DENS()[v] / 127 * 0.12 + (L[v][0] < 0.25 ? (1 - L[v][0] / 0.25) * 0.45 * (0.5 + L[v][1]) : 0));
+  const v = BLOB.v.map(([x, y, z], i) => { const b = band(y), n = 1 + push[b] + (hash(i * 7 + k0 * 13) - 0.5) * P.chaos / 127 * 0.35; return [x * n, y * n, z * n]; });
+  const ay = P.x / 127 * TAU + t * 0.25, ax = (P.y / 127 - 0.5) * 1.4, s = 34 + (P.note - 24) / 72 * 16;
+  const P3 = v.map(q => rot(q, ay, ax));
+  BLOB.f.map((f, fi) => { const q = f.map(i => P3[i]), a = q[1].map((x, k) => x - q[0][k]), b = q[2].map((x, k) => x - q[0][k]);
+    let n = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; const ln = Math.hypot(...n) || 1; n = n.map(x => x / ln);
+    return { q, n, z: q.reduce((s2, p) => s2 + p[2], 0) / 3, b: band(f.reduce((s2, i) => s2 + BLOB.v[i][1], 0) / 3) }; })
+    .filter(f => f.n[2] > 0).sort((p, q) => p.z - q.z).forEach(f => {
+      const d = f.n[0] * LIGHT[0] + f.n[1] * LIGHT[1] + f.n[2] * LIGHT[2], vv = [2, 1, 0][f.b], hot = L[vv][0] < 0.1;
+      const T = hot ? HOT : vv === P.voice - 1 ? VCOL[vv] : [VCOL[vv][1], VCOL[vv][2], "#160f36"];
+      poly(c, f.q.map(([x, y]) => [120 + x * s, 108 + y * s]), d > 0.55 ? T[0] : d > 0.15 ? T[1] : T[2]); });
+  VNAME.forEach((n, i) => text(c, n, 22, [148, 112, 76][i], 10, L[i][0] < 0.12 ? HOT[0] : i === P.voice - 1 ? "#f4f1ff" : UI, "left"));
+  header(c, "MAP", MAPK());
+}
+
+/* 2: the 32 steps as three square rings of blocks (BD outside, HH inside); heights the rhythm's levels, the threshold DENS */
+function squareScene(c, t) {
+  autoKnobs(t); const k0 = kNow(t), cur = ((k0 % 32) + 32) % 32, L = lastHits(t); rays(c, t, 60);
+  const A = 11, B = 5.5, ox = 120, oy = 62, at = (gx, gy) => [ox + (gx - gy) * A, oy + (gx + gy) * B];
+  /* the ring's cell of step s: 8 per side, clockwise, ring r (0 outer) inset by 2r */
+  const cell = (s2, r) => { const n = 8 - 2 * r, side = Math.floor(s2 / 8), i = Math.floor((s2 % 8) * n / 8), o = 1 + 2 * r;
+    return side === 0 ? [o + i, o] : side === 1 ? [o + n, o + i] : side === 2 ? [o + n - i, o + n] : [o, o + n - i]; };
+  const items = [];
+  for (let r = 0; r < 3; r++) for (let s2 = 0; s2 < 32; s2 += r ? 2 : 1) {
+    const [gx, gy] = cell(s2, r), v = r, lv = level(v, s2), on = lv > 1 - DENS()[v] / 127, isCur = Math.floor(cur / (r ? 2 : 1)) * (r ? 2 : 1) === s2;
+    items.push({ gx, gy, v, lv, on, isCur, s2 });
+  }
+  items.sort((a, b) => a.gx + a.gy - (b.gx + b.gy)).forEach(o => {
+    const [x, y] = at(o.gx + 0.5, o.gy + 0.5), jit = (hash(o.s2 * 5 + o.v + k0 * 3) - 0.5) * P.chaos / 127 * 3;
+    const hot = o.isCur && L[o.v][0] < 0.12, h = o.on ? 3 + o.lv * 14 + (hot ? 4 : 0) : 1;
+    const T = hot ? HOT : o.on ? VCOL[o.v] : ["#2a2050", "#1c1638", "#120e26"];
+    box(c, x + jit, y, A * 0.8, B * 0.8, h, T);
+    if (o.isCur) stroke(c, [[x - A, y], [x, y - B], [x + A, y], [x, y + B]], "#f4f1ff");
+  });
+  [0, 1, 2].forEach(v => { if (v === P.voice - 1) { const r = v, o = 1 + 2 * r, n = 8 - 2 * r; stroke(c, [at(o - 0.2, o - 0.2), at(o + n + 1.2, o - 0.2), at(o + n + 1.2, o + n + 1.2), at(o - 0.2, o + n + 1.2)], "#f4f1ff"); } });
+  const [cx, cy] = at(6, 6); draw3d(c, OCTA, { cx, cy: cy - 14, s: 6 + (P.note - 24) / 72 * 6, ay: t, ax: 0.4, tones: L.some(([a]) => a < 0.08) ? HOT : K[2] });
+  text(c, "STEP " + String(cur + 1).padStart(2, "0"), 8, 40, 10, K[1][0], "left");
+  header(c, "DENS", DENSK());
+}
+
+/* 3: the 25 rhythms as stars on a tilted plane, linked; the cursor at X/Y pulls on its four */
+function starsScene(c, t) {
+  autoKnobs(t); const L = lastHits(t); c.fillStyle = "#0c0820"; c.fillRect(0, 30, 240, 166); stars(c, t, 0.05);
+  const at = (i, j) => { const u = i / 4 - 0.5, w = j / 4 - 0.5, dr = P.chaos / 127 * 4; return [120 + (u - w) * 150 + Math.sin(t * 1.7 + i * 2 + j) * dr, 110 + (u + w) * 62 + Math.cos(t * 1.3 + j * 3 + i) * dr]; };
+  for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) { if (i < 4) stroke(c, [at(i, j), at(i + 1, j)], "#22184a", 1, false); if (j < 4) stroke(c, [at(i, j), at(i, j + 1)], "#22184a", 1, false); }
+  const fx = P.x / 127 * 4, fy = P.y / 127 * 4, i0 = Math.min(3, Math.floor(fx)), j0 = Math.min(3, Math.floor(fy)), a = fx - i0, b = fy - j0;
+  const [cx, cy0] = [lerp(lerp(at(i0, j0)[0], at(i0 + 1, j0)[0], a), lerp(at(i0, j0 + 1)[0], at(i0 + 1, j0 + 1)[0], a), b), lerp(lerp(at(i0, j0)[1], at(i0 + 1, j0)[1], a), lerp(at(i0, j0 + 1)[1], at(i0 + 1, j0 + 1)[1], a), b)];
+  const lift = 10 + (P.note - 24) / 72 * 20, cy = cy0 - lift;
+  [[i0, j0, (1 - a) * (1 - b)], [i0 + 1, j0, a * (1 - b)], [i0, j0 + 1, (1 - a) * b], [i0 + 1, j0 + 1, a * b]].forEach(([i, j, w]) => {
+    const [x, y] = at(i, j); stroke(c, [[cx, cy], [x, y]], w > 0.5 ? "#f4f1ff" : w > 0.2 ? "#8b84a8" : "#3a2c64", w > 0.5 ? 2 : 1, false);
+    L.forEach(([ago], v) => { if (ago < 0.2) { const k = ago / 0.2, px = lerp(cx, x, k), py = lerp(cy, y, k); poly(c, [[px, py - 2], [px + 2, py], [px, py + 2], [px - 2, py]], VCOL[v][0]); } }); });
+  for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) { const [x, y] = at(i, j), w = (node(i, j, 0, 0) + node(i, j, 1, 4) + node(i, j, 2, 2)) / 3, near = Math.abs(i - fx) <= 1 && Math.abs(j - fy) <= 1;
+    draw3d(c, ICO, { cx: x, cy: y - 3, s: 2.5 + w * 5, ay: t * 0.6 + i + j, ax: 0.4, tones: near ? K[2] : ["#6a5aa0", "#4a3f78", "#2a2050"] }); }
+  /* the cursor: a white diamond; three satellites, one per voice, DENS their size, flashing on their hits; VOICE's one ringed */
+  poly(c, [[cx, cy - 6], [cx + 6, cy], [cx, cy + 6], [cx - 6, cy]], "#f4f1ff");
+  [0, 1, 2].forEach(v => { const an = t * 1.2 + v * TAU / 3, x = cx + Math.cos(an) * 16, y = cy + Math.sin(an) * 7, hot = L[v][0] < 0.1, s2 = 2.5 + DENS()[v] / 127 * 4 + (hot ? 2 : 0);
+    draw3d(c, GUN[v], { cx: x, cy: y, s: s2, ay: t * 2, ax: 0.5, tones: hot ? HOT : VCOL[v] });
+    if (v === P.voice - 1) stroke(c, [[x - s2 - 3, y], [x, y - s2 - 3], [x + s2 + 3, y], [x, y + s2 + 3]], "#f4f1ff"); });
+  header(c, "MAP", MAPK());
+}
+
+/* 4: three faceted ribbons flowing left; a hit raises a fold that travels away with the flow */
+function ribbonScene(c, t) {
+  autoKnobs(t); const d = stepDur(), k0 = kNow(t); rays(c, t, 40);
+  const N = 24, flow = 120 / (8 * d);                              /* px a second: a fold crosses in 8 steps */
+  [0, 1, 2].forEach(v => {                                          /* HH far (top), BD near (bottom) */
+    const y0 = [86, 120, 158][2 - v] + (P.note - 60) * 0.15 * (v === P.voice - 1 ? 1 : 0), w = 4 + DENS()[v] / 127 * 10;
+    const pts = [];
+    for (let i = 0; i <= N; i++) {
+      const x = i * 240 / N, base = Math.sin(x * (0.02 + P.x / 127 * 0.05) + v * (P.y / 127) * 3 + t * 0.6) * 6;
+      let fold = 0; for (let k = k0; k > k0 - 10; k--) { const h = hits(k)[v]; if (!h) continue; const xs = 240 - (t - k * d) * flow; const dx = x - xs; if (Math.abs(dx) < 18) fold += (1 - Math.abs(dx) / 18) * 22 * h; }
+      const tw = (hash(i * 7 + v + k0 * 11) - 0.5) * P.chaos / 127 * 6;
+      pts.push([x, y0 - base - fold, w + tw * 0.5, fold]);
+    }
+    for (let i = 0; i < N; i++) { const [x0, y0a, w0, f0] = pts[i], [x1, y1, w1, f1] = pts[i + 1], hot = f0 + f1 > 18 && (240 - x0) < flow * 0.12 + 20;
+      const T = hot ? HOT : VCOL[v], up = y1 < y0a;
+      poly(c, [[x0, y0a - w0], [x1, y1 - w1], [x1, y1], [x0, y0a]], up ? T[0] : T[1]);
+      poly(c, [[x0, y0a], [x1, y1], [x1, y1 + w1 * 0.6], [x0, y0a + w0 * 0.6]], T[2]); }
+    if (v === P.voice - 1) stroke(c, pts.map(([x, y, ww]) => [x, y - ww - 2]), "#f4f1ff", 1, false);
+    text(c, VNAME[v], 6, y0 - 18, 9, UI, "left");
+  });
+  header(c, "GRIDS", [["DIV", ["1/16", "1/8", "1/4"][P.div], P.div / 2], ["VOICE", P.voice, (P.voice - 1) / 2], ["NOTE", P.note, (P.note - 24) / 72]]);
+}
+
+const views = [["blob", blobScene], ["square", squareScene], ["stars", starsScene], ["ribbon", ribbonScene], ["map", mapScene], ["guns", gunScene]].map(([id, f]) => [document.getElementById(id).getContext("2d"), f]);
 function frame(ms) { const t = ms / 1000; views.forEach(([c, f]) => f(c, t)); }
 function loop(ms) { frame(ms + 1310); requestAnimationFrame(loop); }
 document.fonts.ready.then(() => { frame(1310); if (!reduce) requestAnimationFrame(loop); });
