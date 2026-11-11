@@ -591,8 +591,8 @@ static void gate_on_grid(void)
     qfx_init();
     defaults();
     run_punch(pl, pr, kPB, 1u << 10, 0, kPB, src_dc, ~0u);
-    const unsigned q = 22059 / 4;   // a 1/16
-    for (unsigned s = 1; s < 6; s++) {
+    const unsigned q = 22059 / 2;   // a 1/16 on, a 1/16 off
+    for (unsigned s = 1; s < 3; s++) {
         assert(rms(pl, s * q + 100, s * q + q / 2 - 100) > 0.1);
         assert(rms(pl, s * q + q / 2 + 100, s * q + q - 100) < 1e-4);
     }
@@ -841,6 +841,84 @@ static void punch_chatter(void)
     assert(late < 1e-3f);
 }
 
+// the best correlation of x[0..n) with ref at a start in [lo, hi)
+static double best_corr(const float *x, const float *ref, unsigned n, unsigned lo, unsigned hi)
+{
+    double b = 0.0;
+    for (unsigned s = lo; s < hi; s++) b = fmax(b, corr(x, ref + s, n));
+    return b;
+}
+
+// LOOP 1/8 held past the buffer, let go a block, pressed again in the same 1/8: it repeats recent sound only
+static void loop_retap_after_long_hold(void)
+{
+    qfx_init();
+    defaults();
+    run_punch(ql, qr, kPB, 0, 0, 0, src_noise, ~0u);
+    qfx_init();
+    defaults();
+    for (unsigned b = 0; b < kPB; b++) {
+        memset(bus, 0, sizeof(bus));
+        for (unsigned i = 0; i < kBlock; i++) bus[0][i] = src_noise(b * kBlock + i);
+        ms.punch = b < 100 || b >= 102 ? 1u : 0u;
+        ms.bpos = (float)(b * kBlock);
+        block(busp, tr, &ms, -1, pl + b * kBlock, pr + b * kBlock, kBlock);
+    }
+    const double c = best_corr(pl + 33200, ql, 2000, 24000, 36000);
+    printf("  loop retap: best correlation with the recent sound %.3f\n", c);
+    assert(c > 0.9);
+}
+
+// a LOOP held for minutes keeps repeating the same slice exactly
+static void loop_long_hold_precise(void)
+{
+    static float first[11029], L[kBlock], R[kBlock];
+    const unsigned len = 11029, blocks = 7u * 60u * 44118u / kBlock;   // 7 min: past 2^24 frames
+    float worst = 0.0f;
+    qfx_init();
+    defaults();
+    ms.fpb = 22058.0f;   // a whole 1/8
+    ms.punch = 1u;
+    for (unsigned b = 0; b < blocks; b++) {
+        memset(bus, 0, sizeof(bus));
+        for (unsigned i = 0; i < kBlock; i++) bus[0][i] = src_sine1k(b * kBlock + i);
+        ms.bpos = fmodf((float)(b * kBlock), 4.0f * ms.fpb);
+        block(busp, tr, &ms, -1, L, R, kBlock);
+        for (unsigned i = 0; i < kBlock; i++) {
+            const unsigned f = b * kBlock + i;
+            if (f >= len && f < 2 * len) first[f - len] = L[i];
+            else if (f >= 2 * len && b > blocks - 100) worst = fmaxf(worst, fabsf(L[i] - first[f % len]));
+        }
+    }
+    printf("  loop held 7 min: off by %.5f\n", worst);
+    assert(worst < 1e-3f);
+}
+
+// the tempo moving under a held LOOP or TAPE STOP changes nothing: their lengths are taken at the press
+static void tempo_frozen_while_held(void)
+{
+    const uint16_t masks[2] = {1u, 1u << 4};
+    for (int k = 0; k < 2; k++) {
+        qfx_init();
+        defaults();
+        run_punch(ql, qr, kPB, masks[k], 0, kPB, src_noise, ~0u);
+        qfx_init();
+        defaults();
+        for (unsigned b = 0; b < kPB; b++) {
+            noise_track0(b);
+            ms.punch = masks[k];
+            ms.bpos = (float)(b * kBlock);   // as in run_punch: the grid of the press
+            ms.fpb = b < 20 ? 22059.0f : (b & 1) ? 44118.0f : 15000.0f;
+            block(busp, tr, &ms, -1, pl + b * kBlock, pr + b * kBlock, kBlock);
+        }
+        ms.fpb = 22059.0f;
+        float d = 0.0f;
+        for (unsigned i = 0; i < kPB * kBlock; i++) d = fmaxf(d, fabsf(pl[i] - ql[i]));
+        printf("  tempo moved under punch %d: off by %.5f\n", k ? 5 : 1, d);
+        assert(d < 1e-6f);
+    }
+}
+
 int main(void)
 {
     off_is_identity();
@@ -880,6 +958,9 @@ int main(void)
     loop_survives_tempo_and_stop();
     all_punches_bounded();
     punch_chatter();
+    loop_retap_after_long_hold();
+    loop_long_hold_precise();
+    tempo_frozen_while_held();
     printf("qfx_test ok\n");
     return 0;
 }

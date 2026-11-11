@@ -119,7 +119,9 @@ static void clamp_project(q_project *p)
             }
             for (int k = 0; k < Q_LOCKS; k++) {
                 q->locks[k].step = (uint8_t)clampi(q->locks[k].step, 0, Q_STEPS - 1);
-                q->locks[k].param = (uint8_t)clampi(q->locks[k].param, 0, LK_N - 1);
+                q->locks[k].param = (uint8_t)clampi(q->locks[k].param, 0, LK_PUNCH_HI);
+                if (q->locks[k].param >= LK_N)
+                    continue;               /* a punch-in mask: any byte */
                 const int8_t *r = lk_range[q->locks[k].param];
                 q->locks[k].value = (uint8_t)clampi(r[0] < 0 ? (int8_t)q->locks[k].value : q->locks[k].value, r[0], r[1]);
             }

@@ -60,9 +60,15 @@ struct Mix {
 };
 
 // The loop buffer's reader: LOOP (kind 0..3), TAPE STOP, STUTTER or STUTTER GATE, -1 none
+// The loop buffer's reader: LOOP (kind 0..3), TAPE STOP, STUTTER or STUTTER GATE, -1 none. Its tempo is taken at
+// the press: a slice keeps its length, TAPE STOP its span, whatever the tempo does meanwhile.
 struct Reader {
   int kind;
   uint32_t g;   // a slice's start, in frames of Master::now
+  float fpb;    // frames per beat at the press
+  float len;    // a slice's length
+  float ph;     // frames into the slice of the next frame: small, exact over any hold
+  bool first;   // the slice's first pass: the live mix
   float lag;    // TAPE STOP: how far behind the live signal it reads
 };
 
@@ -89,6 +95,8 @@ struct Master {
   stmlib::Svf flt[3][2];             // LOW-PASS, HIGH-PASS, SWEEP; per channel
   plaits::SampleRateReducer srr[2];  // DOWNSAMPLE
   uint32_t now;         // frames since qfx_init at the block's start: the loop buffer's clock
+  uint32_t wfrom;       // the first frame written since the writer last stopped: older frames are stale
+  bool wstop;           // the writer stopped (a slice's start would be overwritten)
   Reader rd;            // the loop buffer's reader in the last block
 };
 
@@ -369,8 +377,8 @@ float chop(float x, float q) {
 void punch_fx(int k, const qfx_master& m, float* l, float* r, unsigned n) {
   Master& M = *master;
   switch (k) {
-    case P_GATE: {
-      const float q = 0.25f * m.fpb;
+    case P_GATE: {   // a 1/16 on, a 1/16 off
+      const float q = 0.5f * m.fpb;
       for (unsigned i = 0; i < n; ++i) {
         const float g = chop(wrap(m.bpos + i, q), q);
         l[i] *= g;
@@ -444,13 +452,22 @@ float fit(float len) {
   return len;
 }
 
-// a slice reader's length this block
-float slice_len(int kind, const qfx_master& m) {
+// a slice reader's length at fpb frames per beat
+float slice_len(int kind, float fpb) {
   static const float kLoop[4] = {0.5f, 1.0f / 3.0f, 0.25f, 0.125f};   // 1/8, 1/12, 1/16, 1/32, in beats
-  if (kind < 4) return fit(kLoop[kind] * m.fpb);
-  if (kind == P_SGATE) return fit(m.fpb / 16.0f);
-  const int beats = static_cast<int>(master->since[P_STUT] / m.fpb);   // STUTTER: 1/8, 1/16, 1/32, then 1/64
-  return fit(0.5f * m.fpb / static_cast<float>(1 << (beats < 3 ? beats : 3)));
+  if (kind < 4) return fit(kLoop[kind] * fpb);
+  if (kind == P_SGATE) return fit(fpb / 16.0f);
+  const int beats = static_cast<int>(master->since[P_STUT] / fpb);   // STUTTER: 1/8, 1/16, 1/32, then 1/64
+  return fit(0.5f * fpb / static_cast<float>(1 << (beats < 3 ? beats : 3)));
+}
+
+// a slice reader's new length: its place carried into it (a roll stays on the start's grid)
+void set_len(Reader& r, float len) {
+  r.len = len;
+  if (r.ph >= len) {
+    r.ph = wrap(r.ph, len);
+    r.first = false;
+  }
 }
 
 // the buffer's frame at full-rate position base + off (off >= 0, base + off already written), channel c
@@ -462,34 +479,37 @@ float lread(int c, uint32_t base, float off) {
   return (lbuf[c][a] + (lbuf[c][b] - lbuf[c][a]) * f) * (1.0f / kDlyScale);
 }
 
-// a reader's frame i of the block into *a, *b; live: the mix
-void read(Reader& r, const qfx_master& m, float len, unsigned i, const float* l, const float* rr, float* a, float* b) {
+// a reader's frame i of the block into *a, *b, and its next frame; live: the mix
+void read(Reader& r, unsigned i, const float* l, const float* rr, float* a, float* b) {
   const uint32_t t = master->now + i;
   if (r.kind < 0) {
     *a = l[i];
     *b = rr[i];
   } else if (r.kind == P_TAPE) {   // 1 to 0 in a beat (0.7 s at most), silence then
-    const float span = fm_minf(m.fpb, 0.7f * kSr), s = master->since[P_TAPE] + i;
+    const float span = fm_minf(r.fpb, 0.7f * kSr), s = master->since[P_TAPE] + i;
     if (s >= span) {
       *a = *b = 0.0f;
       return;
     }
-    r.lag += s / span;   // a frame of reading moves 1 - s / span frames
+    // a frame of reading moves 1 - s / span frames; never into frames the writer skipped
+    r.lag = fm_minf(r.lag + s / span, fm_maxf(0.0f, static_cast<float>(t - master->wfrom) - 4.0f));
     const float back = r.lag + 2.0f;   // the last two frames' pair is the newest written
     const uint32_t whole = static_cast<uint32_t>(back) + 1u;
     *a = lread(0, t - whole, static_cast<float>(whole) - back);
     *b = lread(1, t - whole, static_cast<float>(whole) - back);
   } else {
-    const float off = static_cast<float>(t - r.g);
-    float g = 1.0f;
-    if (r.kind == P_SGATE) g = chop(wrap(off, len), len);
-    if (off < len) {   // the slice's first pass is the live signal
+    const float g = r.kind == P_SGATE ? chop(r.ph, r.len) : 1.0f;
+    if (r.first) {
       *a = g * l[i];
       *b = g * rr[i];
     } else {
-      const float o = wrap(off, len);
-      *a = g * lread(0, r.g, o);
-      *b = g * lread(1, r.g, o);
+      *a = g * lread(0, r.g, r.ph);
+      *b = g * lread(1, r.g, r.ph);
+    }
+    r.ph += 1.0f;
+    if (r.ph >= r.len) {
+      r.ph -= r.len;
+      r.first = false;
     }
   }
 }
@@ -498,33 +518,51 @@ void read(Reader& r, const qfx_master& m, float len, unsigned i, const float* l,
 void loop_buffer(const qfx_master& m, float* l, float* r, unsigned n) {
   Master& M = *master;
   Reader old = M.rd;
+  Reader& rd = M.rd;
   const int kind = reader_kind(m.punch);
   if (kind != old.kind) {
-    M.rd.kind = kind;
-    M.rd.lag = 0.0f;
-    // a slice reader after another keeps its start (a roll); else the last line of its grid
-    if (slicing(kind) && !slicing(old.kind)) {
-      const float grid = kind == P_STUT ? fit(0.5f * m.fpb) : slice_len(kind, m);
-      M.rd.g = M.now - static_cast<uint32_t>(wrap(m.bpos, grid));
+    rd.kind = kind;
+    if (kind == P_TAPE) {
+      rd.fpb = m.fpb;
+      rd.lag = 0.0f;
+    } else if (slicing(kind) && slicing(old.kind)) {   // a roll: the same start, the same tempo
+      set_len(rd, slice_len(kind, rd.fpb));
+    } else if (slicing(kind)) {   // from the last line of its grid, but not before the writer's gap
+      rd.fpb = m.fpb;
+      const float grid = kind == P_STUT ? fit(0.5f * m.fpb) : slice_len(kind, m.fpb);
+      rd.g = M.now - static_cast<uint32_t>(wrap(m.bpos, grid));
+      if (static_cast<int32_t>(rd.g - M.wfrom) < 0) rd.g = M.wfrom;
+      rd.ph = static_cast<float>(M.now - rd.g);
+      rd.first = true;
+      set_len(rd, slice_len(kind, rd.fpb));
     }
+  } else if (kind == P_STUT) {   // STUTTER shortens beat by beat
+    const float len = slice_len(kind, rd.fpb);
+    if (len != rd.len) set_len(rd, len);
   }
   // the writer stops once a slice's start would be overwritten
   for (unsigned i = 0; i < n; i += 2) {
     const uint32_t t = M.now + i;
-    if ((slicing(old.kind) || slicing(kind)) && static_cast<float>(t - M.rd.g) >= kLoopMax) continue;
+    if ((slicing(old.kind) || slicing(kind)) && t - rd.g >= static_cast<uint32_t>(kLoopMax)) {
+      M.wstop = true;
+      continue;
+    }
+    if (M.wstop) {
+      M.wstop = false;
+      M.wfrom = t;
+    }
     const unsigned k = (t >> 1) & (kLoopLen - 1);
     lbuf[0][k] = dstore(0.5f * (l[i] + l[i + 1]));
     lbuf[1][k] = dstore(0.5f * (r[i] + r[i + 1]));
   }
   if (kind >= 0 || old.kind >= 0) {
-    const float lo = old.kind >= 0 ? slice_len(old.kind, m) : 0.0f, ln = kind >= 0 ? slice_len(kind, m) : 0.0f;
     const bool fade = kind != old.kind;
     for (unsigned i = 0; i < n; ++i) {
       float a, b;
-      read(M.rd, m, ln, i, l, r, &a, &b);
+      read(rd, i, l, r, &a, &b);
       if (fade) {   // from the old reader (or the live mix) to the new one over the block
         float c, d;
-        read(old, m, lo, i, l, r, &c, &d);
+        read(old, i, l, r, &c, &d);
         const float w = static_cast<float>(i + 1) / n;
         a = c + w * (a - c);
         b = d + w * (b - d);

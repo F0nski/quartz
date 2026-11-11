@@ -243,7 +243,7 @@ static void store_clamps_fields(void)
     assert(store_load(&a) == 0);
     assert(a.tempo == 40 && a.sound[1].poly == 1 && a.sound[2].model == M_KIT);
     assert(a.pat[3][0].div == DIV_N - 1 && a.pat[3][0].len == 1);
-    assert(a.pat[1][2].nlocks == Q_LOCKS && a.pat[1][2].locks[3].step < Q_STEPS && a.pat[1][2].locks[3].param < LK_N);
+    assert(a.pat[1][2].nlocks == Q_LOCKS && a.pat[1][2].locks[3].step < Q_STEPS && a.pat[1][2].locks[3].param <= LK_PUNCH_HI);
     {
         const q_lock *l = a.pat[1][2].locks;
         assert(l[4].value == 75 && l[5].value == DIV_N - 1 && l[6].value == 1 && (int8_t)l[7].value == -64);
@@ -429,9 +429,23 @@ static void save_refused_while_playing(void)
     playing = 0;
 }
 
+/* punch-in locks are masks past LK_N: kept as they are */
+static void store_keeps_punch_locks(void)
+{
+    static q_project a, b;
+    project_defaults(&a);
+    lock_set(&a.pat[2][5], 3, LK_PUNCH_LO, 0xFF);
+    lock_set(&a.pat[2][5], 3, LK_PUNCH_HI, 0x80);
+    assert(store_save(&a) == 0);
+    memset(&b, 0xAA, sizeof b);
+    assert(store_load(&b) == 0);
+    assert(!memcmp(&a, &b, sizeof a));
+}
+
 int main(void)
 {
     forget();
+    store_keeps_punch_locks();
     roundtrip();
     roundtrip_full_project();
     store_mixed_generations();
