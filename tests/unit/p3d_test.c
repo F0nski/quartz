@@ -132,6 +132,27 @@ static void mesh_culls_and_tones(void)
     assert(px(132, 72) == ORANGE[2]);
 }
 
+/* rows whose centre lies on a horizontal edge: the top one in, the bottom one out, and no 0/0 */
+static void flat_on_centres(void)
+{
+    static const float T[2][6] = {{10, 10.5f, 60, 10.5f, 30, 40.5f}, {10, 40.5f, 60, 40.5f, 30, 10.5f}};
+    for (int k = 0; k < 2; k++) {
+        cv_begin(240, 83, 0);
+        p3d_fill(T[k][0], T[k][1], T[k][2], T[k][3], T[k][4], T[k][5], RED);
+        int top = 0, bottom = 0;
+        for (int x = 0; x < 240; x++) { top += px(x, 10) == RED; bottom += px(x, 40) == RED; }
+        assert(k == 0 ? top > 0 : top == 0);
+        assert(bottom == 0);
+        for (int y = 11; y < 40; y++)
+            for (int x = 0; x < 240; x++)
+                if (x + 0.5f != 30.0f) {
+                    float t[6];
+                    memcpy(t, T[k], sizeof t);
+                    if (inside(t, x + 0.5f, y + 0.5f)) assert(px(x, y) == RED);
+                }
+    }
+}
+
 int main(void)
 {
     fill_matches_centres();
@@ -141,6 +162,7 @@ int main(void)
     far_drawn_first();
     sphere_closed();
     mesh_culls_and_tones();
+    flat_on_centres();
     printf("p3d ok\n");
     return 0;
 }

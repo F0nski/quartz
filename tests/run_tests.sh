@@ -11,7 +11,7 @@ mkdir -p "$OUT"
 
 for t in tests/unit/*_test.c; do
     [ -e "$t" ] || continue
-    cc -std=gnu11 -O1 -fsanitize=address -Iapp -Ibase/include -Ibase/device -Iapp/build/gen "$t" -o "$OUT/$(basename "$t" .c)" -lm
+    cc -std=gnu11 -O1 -fsanitize=address,float-cast-overflow -fno-sanitize-recover -Iapp -Ibase/include -Ibase/device -Iapp/build/gen "$t" -o "$OUT/$(basename "$t" .c)" -lm
     echo "run $t"
     "$OUT/$(basename "$t" .c)"
 done

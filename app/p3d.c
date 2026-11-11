@@ -59,8 +59,8 @@ void p3d_fill(float x0, float y0, float x1, float y1, float x2, float y2, uint16
     if (y1 < y0) { t = x0, x0 = x1, x1 = t; t = y0, y0 = y1, y1 = t; }
     if (y2 < y1) { t = x1, x1 = x2, x2 = t; t = y1, y1 = y2, y2 = t; }
     if (y1 < y0) { t = x0, x0 = x1, x1 = t; t = y0, y0 = y1, y1 = t; }
-    ya = (int32_t)fm_clampf(fm_floorf(y0 + 0.5f), 0.0f, (float)cv_h);    /* rows whose centre is in [y0, y2) */
-    yb = (int32_t)fm_clampf(fm_floorf(y2 + 0.5f), 0.0f, (float)cv_h);
+    ya = (int32_t)fm_clampf((float)ceil_px(fm_clampf(y0, -300.0f, 300.0f) - 0.5f), 0.0f, (float)cv_h);   /* rows whose */
+    yb = (int32_t)fm_clampf((float)ceil_px(fm_clampf(y2, -300.0f, 300.0f) - 0.5f), 0.0f, (float)cv_h);   /* centre is in [y0, y2) */
     for (y = ya; y < yb; y++) {
         float yc = (float)y + 0.5f, xl = x0 + (yc - y0) * (x2 - x0) / (y2 - y0);
         float xs = yc < y1 ? x0 + (yc - y0) * (x1 - x0) / (y1 - y0) : x1 + (yc - y1) * (x2 - x1) / (y2 - y1);
