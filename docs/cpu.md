@@ -1,0 +1,15 @@
+# CPU on the FM-1
+
+Measured on the author's FM-1 (360 MHz, two cores, 256-frame blocks at 44.1 kHz). The GLO CPU page shows each
+core's load and LOST BLOCKS; a step is validated only with zero lost blocks in its worst case.
+
+| Case | Core 1 / core 2 | Lost blocks |
+|---|---|---|
+| MODAL × 6 | 69 % / 63 % | 0 |
+| ADDITIVE and mixed models × 6 | 50 % / 50 % | 0 |
+| Step 2 worst case (ratchets, p-locks, scene launches) | not recorded | 0 |
+| Step 4 worst case (KIT on GRIDS, MARBLES, two heavy POLY tracks) | not recorded | 0 |
+
+One Plaits voice costs 5 to 11 % of a core for the light models, 12 to 16 % for the common ones and 20 to 21 % for
+ADDITIVE and MODAL; the cost is linear in voices and the second core halves the wall time. The generators run once
+per step, not per block: their cost does not show on the CPU page.
