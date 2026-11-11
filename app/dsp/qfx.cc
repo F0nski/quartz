@@ -59,6 +59,13 @@ struct Mix {
   float g, pl, pr, ds, rs, m;   // LEVEL, PAN's left and right, delay and reverb sends, insert MIX
 };
 
+// The loop buffer's reader: LOOP (kind 0..3), TAPE STOP, STUTTER or STUTTER GATE, -1 none
+struct Reader {
+  int kind;
+  uint32_t g;   // a slice's start, in frames of Master::now
+  float lag;    // TAPE STOP: how far behind the live signal it reads
+};
+
 struct Master {
   clouds::Reverb reverb;
   bool primed;      // a block was rendered since qfx_init: the ramps have a start
@@ -81,6 +88,8 @@ struct Master {
   float since[16];      // frames since each punch-in was pressed, at the block's start
   stmlib::Svf flt[3][2];             // LOW-PASS, HIGH-PASS, SWEEP; per channel
   plaits::SampleRateReducer srr[2];  // DOWNSAMPLE
+  uint32_t now;         // frames since qfx_init at the block's start: the loop buffer's clock
+  Reader rd;            // the loop buffer's reader in the last block
 };
 
 enum { P_TAPE = 4, P_LP, P_HP, P_SWEEP, P_CRUSH, P_DOWN, P_GATE, P_PAN, P_THROW, P_FREEZE, P_STUT, P_SGATE };
@@ -88,6 +97,10 @@ enum { P_TAPE = 4, P_LP, P_HP, P_SWEEP, P_CRUSH, P_DOWN, P_GATE, P_PAN, P_THROW,
 alignas(Master) char mstorage[sizeof(Master)];
 Master* master;
 int16_t dbuf[2][kDlyLen] __attribute__((section(".pool")));
+// the loop buffer: the mix at half rate, 0.37 s
+const unsigned kLoopLen = 8192;
+const float kLoopMax = 2.0f * kLoopLen - 2.0f;   // the longest slice, in frames: its interpolation stays inside
+int16_t lbuf[2][kLoopLen] __attribute__((section(".pool")));
 uint16_t rbuf[16384] __attribute__((section(".pool")));   // the reverb's FxEngine<16384>
 // qfx_block's scratch; the punch-ins take dry and dsum for the dry L and R once the tracks and the delay are done
 float dry[QFX_BLOCK], dsum[QFX_BLOCK], dg[QFX_BLOCK];
@@ -411,10 +424,123 @@ void punch_fx(int k, const qfx_master& m, float* l, float* r, unsigned n) {
   }
 }
 
+
+// --- the loop buffer ---
+
+// the reader the punch-ins ask for: TAPE STOP, then STUTTER GATE, STUTTER, the shortest LOOP held
+int reader_kind(uint16_t p) {
+  if (p >> P_TAPE & 1) return P_TAPE;
+  if (p >> P_SGATE & 1) return P_SGATE;
+  if (p >> P_STUT & 1) return P_STUT;
+  for (int k = 3; k >= 0; --k)
+    if (p >> k & 1) return k;
+  return -1;
+}
+
+bool slicing(int kind) { return kind >= 0 && kind != P_TAPE; }
+
+float fit(float len) {
+  while (len > kLoopMax) len *= 0.5f;
+  return len;
+}
+
+// a slice reader's length this block
+float slice_len(int kind, const qfx_master& m) {
+  static const float kLoop[4] = {0.5f, 1.0f / 3.0f, 0.25f, 0.125f};   // 1/8, 1/12, 1/16, 1/32, in beats
+  if (kind < 4) return fit(kLoop[kind] * m.fpb);
+  if (kind == P_SGATE) return fit(m.fpb / 16.0f);
+  const int beats = static_cast<int>(master->since[P_STUT] / m.fpb);   // STUTTER: 1/8, 1/16, 1/32, then 1/64
+  return fit(0.5f * m.fpb / static_cast<float>(1 << (beats < 3 ? beats : 3)));
+}
+
+// the buffer's frame at full-rate position base + off (off >= 0, base + off already written), channel c
+float lread(int c, uint32_t base, float off) {
+  const float h = 0.5f * (static_cast<float>(base & 1u) + off);
+  const unsigned i = static_cast<unsigned>(h);
+  const float f = h - static_cast<float>(i);
+  const unsigned a = ((base >> 1) + i) & (kLoopLen - 1), b = (a + 1) & (kLoopLen - 1);
+  return (lbuf[c][a] + (lbuf[c][b] - lbuf[c][a]) * f) * (1.0f / kDlyScale);
+}
+
+// a reader's frame i of the block into *a, *b; live: the mix
+void read(Reader& r, const qfx_master& m, float len, unsigned i, const float* l, const float* rr, float* a, float* b) {
+  const uint32_t t = master->now + i;
+  if (r.kind < 0) {
+    *a = l[i];
+    *b = rr[i];
+  } else if (r.kind == P_TAPE) {   // 1 to 0 in a beat (0.7 s at most), silence then
+    const float span = fm_minf(m.fpb, 0.7f * kSr), s = master->since[P_TAPE] + i;
+    if (s >= span) {
+      *a = *b = 0.0f;
+      return;
+    }
+    r.lag += s / span;   // a frame of reading moves 1 - s / span frames
+    const float back = r.lag + 2.0f;   // the last two frames' pair is the newest written
+    const uint32_t whole = static_cast<uint32_t>(back) + 1u;
+    *a = lread(0, t - whole, static_cast<float>(whole) - back);
+    *b = lread(1, t - whole, static_cast<float>(whole) - back);
+  } else {
+    const float off = static_cast<float>(t - r.g);
+    float g = 1.0f;
+    if (r.kind == P_SGATE) g = chop(wrap(off, len), len);
+    if (off < len) {   // the slice's first pass is the live signal
+      *a = g * l[i];
+      *b = g * rr[i];
+    } else {
+      const float o = wrap(off, len);
+      *a = g * lread(0, r.g, o);
+      *b = g * lread(1, r.g, o);
+    }
+  }
+}
+
+// LOOP, TAPE STOP and the STUTTERs on l and r: the mix is written into the buffer, then read back
+void loop_buffer(const qfx_master& m, float* l, float* r, unsigned n) {
+  Master& M = *master;
+  Reader old = M.rd;
+  const int kind = reader_kind(m.punch);
+  if (kind != old.kind) {
+    M.rd.kind = kind;
+    M.rd.lag = 0.0f;
+    // a slice reader after another keeps its start (a roll); else the last line of its grid
+    if (slicing(kind) && !slicing(old.kind)) {
+      const float grid = kind == P_STUT ? fit(0.5f * m.fpb) : slice_len(kind, m);
+      M.rd.g = M.now - static_cast<uint32_t>(wrap(m.bpos, grid));
+    }
+  }
+  // the writer stops once a slice's start would be overwritten
+  for (unsigned i = 0; i < n; i += 2) {
+    const uint32_t t = M.now + i;
+    if ((slicing(old.kind) || slicing(kind)) && static_cast<float>(t - M.rd.g) >= kLoopMax) continue;
+    const unsigned k = (t >> 1) & (kLoopLen - 1);
+    lbuf[0][k] = dstore(0.5f * (l[i] + l[i + 1]));
+    lbuf[1][k] = dstore(0.5f * (r[i] + r[i + 1]));
+  }
+  if (kind >= 0 || old.kind >= 0) {
+    const float lo = old.kind >= 0 ? slice_len(old.kind, m) : 0.0f, ln = kind >= 0 ? slice_len(kind, m) : 0.0f;
+    const bool fade = kind != old.kind;
+    for (unsigned i = 0; i < n; ++i) {
+      float a, b;
+      read(M.rd, m, ln, i, l, r, &a, &b);
+      if (fade) {   // from the old reader (or the live mix) to the new one over the block
+        float c, d;
+        read(old, m, lo, i, l, r, &c, &d);
+        const float w = static_cast<float>(i + 1) / n;
+        a = c + w * (a - c);
+        b = d + w * (b - d);
+      }
+      l[i] = a;
+      r[i] = b;
+    }
+  }
+  M.now += n;
+}
+
 // the punch-ins on the mix, in their order; each fades in and out over a block
 void punches(const qfx_master& m, float* l, float* r, unsigned n) {
   static const int kOrder[] = {P_GATE, P_CRUSH, P_DOWN, P_LP, P_HP, P_SWEEP, P_PAN};
   Master& M = *master;
+  loop_buffer(m, l, r, n);
   for (int k : kOrder) {
     const float w0 = M.w[k], w1 = m.punch >> k & 1 ? 1.0f : 0.0f;
     if (w0 == 0.0f && w1 == 0.0f) continue;
@@ -447,6 +573,8 @@ extern "C" void qfx_init(void) {
   memset(static_cast<void*>(master), 0, sizeof(Master));
   master->duck = master->lim = 1.0f;
   memset(dbuf, 0, sizeof(dbuf));
+  memset(lbuf, 0, sizeof(lbuf));
+  master->rd.kind = -1;
   memset(rbuf, 0, sizeof(rbuf));
   master->reverb.Init(rbuf);
   master->reverb.set_amount(1.0f);

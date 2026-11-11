@@ -632,6 +632,215 @@ static void freeze_holds_tail(void)
     assert(gone < 1e-3f * early);
 }
 
+// noise low-passed at ~2 kHz: what the half-rate loop buffer keeps; the same on every run
+static float src_noise(unsigned f)
+{
+    static float t[600 * 256];
+    static int made;
+    if (!made) {
+        float y = 0.0f;
+        for (unsigned i = 0; i < 600 * 256; i++) {
+            unsigned seed = i * 2654435761u;
+            seed ^= seed >> 13;
+            seed *= 1664525u;
+            y += 0.25f * (((seed >> 8) * (2.0f / 16777216.0f) - 1.0f) - y);
+            t[i] = 2.0f * y;
+        }
+        made = 1;
+    }
+    return t[f % (600 * 256)];
+}
+static float src_sine1k(unsigned f) { return sine(0.5f, 1000.0f, f); }
+
+// normalized correlation of a[i] and b[i] over n
+static double corr(const float *a, const float *b, unsigned n)
+{
+    double ab = 0, aa = 0, bb = 0;
+    for (unsigned i = 0; i < n; i++) ab += (double)a[i] * b[i], aa += (double)a[i] * a[i], bb += (double)b[i] * b[i];
+    return ab / sqrt(aa * bb + 1e-30);
+}
+
+// the first lag in [lo, hi) at which x repeats itself over [from, to), 0 none
+static unsigned period(const float *x, unsigned from, unsigned to, unsigned lo, unsigned hi)
+{
+    for (unsigned lag = lo; lag < hi && from + lag < to; lag++)
+        if (corr(x + from, x + from + lag, to - from - lag) > 0.8) return lag;
+    return 0;
+}
+
+static void loop_no_jump_on_press(void)
+{
+    qfx_init();
+    defaults();
+    run_punch(ql, qr, kPB, 0, 0, 0, src_saw_noise, ~0u);
+    qfx_init();
+    defaults();
+    run_punch(pl, pr, kPB, 1u << 2, 11, kPB, src_saw_noise, ~0u);   // LOOP 1/16 at frame 2816, slice [0, 5515)
+    float err = 0.0f;
+    for (unsigned i = 11 * kBlock; i < 5514; i++) err = fmaxf(err, fabsf(pl[i] - ql[i]));
+    printf("  loop: before the slice's end, off by %.4f\n", err);
+    assert(err < 0.02f);
+}
+
+static void loop_repeats_grid_slice(void)
+{
+    qfx_init();
+    defaults();
+    run_punch(ql, qr, kPB, 0, 0, 0, src_saw_noise, ~0u);
+    qfx_init();
+    defaults();
+    run_punch(pl, pr, kPB, 1u << 2, 11, kPB, src_saw_noise, ~0u);
+    const double c1 = corr(pl + 5516, ql + 1, 2000), c2 = corr(pl + 2 * 5515 + 1, ql + 1, 2000);
+    printf("  loop: repeats correlate %.3f, %.3f\n", c1, c2);
+    assert(c1 > 0.95 && c2 > 0.95);
+}
+
+static void loop_halves_to_fit(void)
+{
+    static float L[400 * kBlock], R[400 * kBlock];
+    qfx_init();
+    defaults();
+    ms.fpb = 66176.0f;   // 40 BPM: a 1/8 is 33088, halved twice to 8272
+    run_punch(L, R, 400, 1u << 0, 0, 400, src_noise, ~0u);
+    const unsigned p = period(L, 40000, 60000, 1000, 17000);
+    printf("  loop 1/8 at 40 BPM: period %u\n", p);
+    assert(p >= 8262 && p <= 8282);
+}
+
+static void roll_keeps_start(void)
+{
+    qfx_init();
+    defaults();
+    run_punch(ql, qr, kPB, 0, 0, 0, src_noise, ~0u);
+    qfx_init();
+    defaults();
+    for (unsigned b = 0; b < kPB; b++) {   // LOOP 1/8 from block 0, LOOP 1/32 added at block 60
+        memset(bus, 0, sizeof(bus));
+        for (unsigned i = 0; i < kBlock; i++) bus[0][i] = src_noise(b * kBlock + i);
+        ms.punch = b < 60 ? 1u : 9u;
+        ms.bpos = (float)(b * kBlock);
+        block(busp, tr, &ms, -1, pl + b * kBlock, pr + b * kBlock, kBlock);
+    }
+    const float len = 22059 / 8.0f;   // a repeat's start, from 0 on the 1/32 grid
+    const unsigned at = (unsigned)(ceilf(61 * kBlock / len) * len + 0.5f);
+    const double c = corr(pl + at + 2, ql + 2, 2000);
+    printf("  roll: the 1/32 slice from the 1/8's start correlates %.3f\n", c);
+    assert(c > 0.9);
+}
+
+static void priority(void)
+{
+    qfx_init();
+    defaults();
+    run_punch(pl, pr, kPB, 1u << 0 | 1u << 4 | 1u << 14, 0, kPB, src_saw_noise, ~0u);
+    assert(peak(pl, pr, (22059 + 512) / kRate, (kPB * kBlock - 1) / kRate) < 1e-4f);   // TAPE STOP: silent after a beat
+    qfx_init();
+    defaults();
+    run_punch(pl, pr, kPB, 1u << 0 | 1u << 14, 0, kPB, src_noise, ~0u);
+    const unsigned p = period(pl, 22059 + 512, 2 * 22059 - 512, 1000, 12000);   // STUTTER's second beat: a 1/16
+    printf("  priority: STUTTER over LOOP 1/8, period %u\n", p);
+    assert(p >= 5400 && p <= 5630);
+}
+
+static void stutter_accelerates(void)
+{
+    static float L[400 * kBlock], R[400 * kBlock];
+    qfx_init();
+    defaults();
+    run_punch(L, R, 400, 1u << 14, 0, 400, src_noise, ~0u);
+    const float want[4] = {22059 / 2.0f, 22059 / 4.0f, 22059 / 8.0f, 22059 / 16.0f};
+    for (unsigned k = 0; k < 4; k++) {
+        const unsigned from = k * 22059 + 512, to = (k + 1) * 22059 - 512;
+        const unsigned p = period(L, from, to, 200, 12000);
+        printf("  stutter: beat %u period %u (want %.0f)\n", k + 1, p, want[k]);
+        assert(fabsf(p - want[k]) <= 0.02f * want[k]);
+    }
+}
+
+static void stutter_gate_chops(void)
+{
+    qfx_init();
+    defaults();
+    run_punch(pl, pr, kPB, 1u << 15, 0, kPB, src_saw_noise, ~0u);
+    const float q = 22059 / 16.0f;
+    for (unsigned j = 1; j < 20; j++) {
+        assert(rms(pl, (unsigned)(j * q + 100), (unsigned)(j * q + q / 2 - 100)) > 0.01);
+        assert(rms(pl, (unsigned)(j * q + q / 2 + 100), (unsigned)((j + 1) * q - 100)) < 1e-3);
+    }
+}
+
+static void tape_stop_to_silence(void)
+{
+    qfx_init();
+    defaults();
+    run_punch(pl, pr, kPB, 1u << 4, 0, kPB, src_sine1k, ~0u);
+    unsigned zc = 0;
+    const unsigned at = (unsigned)(0.6f * 22059);
+    for (unsigned i = at; i < at + 1000; i++) zc += (pl[i] < 0) != (pl[i + 1] < 0);
+    const float hz = zc / 2.0f * kRate / 1000.0f;
+    printf("  tape stop: %.0f Hz at 60 %%\n", hz);
+    assert(hz < 500.0f && hz > 100.0f);
+    assert(peak(pl, pr, (22059 + 512) / kRate, (kPB * kBlock - 1) / kRate) < 1e-4f);
+}
+
+static void noise_track0(unsigned b)
+{
+    memset(bus, 0, sizeof(bus));
+    for (unsigned i = 0; i < kBlock; i++) bus[0][i] = src_noise(b * kBlock + i);
+}
+
+static void loop_survives_tempo_and_stop(void)
+{
+    qfx_init();
+    defaults();
+    float bp = 0.0f;
+    for (unsigned b = 0; b < 600; b++) {
+        noise_track0(b);
+        ms.punch = 1u;
+        ms.fpb = b < 400 ? ((b & 1) ? 66176.0f : 22059.0f) : 22059.0f;
+        ms.bpos = b < 400 ? fmodf((float)(b * kBlock), 4.0f * ms.fpb) : bp;   // then the free phase
+        if (b >= 400) bp = fmodf(bp + kBlock, 4.0f * ms.fpb);
+        block(busp, tr, &ms, -1, pl, pr, kBlock);
+        for (unsigned i = 0; i < kBlock; i++) assert(isfinite(pl[i]) && fabsf(pl[i]) <= 1.0f && fabsf(pr[i]) <= 1.0f);
+    }
+}
+
+static void all_punches_bounded(void)
+{
+    unsigned seed = 5;
+    qfx_init();
+    defaults();
+    for (int t = 0; t < QFX_TRACKS; t++) tr[t].dsend = tr[t].rsend = 127, tr[t].level = 127;
+    ms.dfb = ms.rsize = 127;
+    ms.punch = 0xFFFF;
+    for (unsigned b = 0; b < 10 * (unsigned)kRate / kBlock; b++) {
+        noise(&seed, 1.0f);
+        ms.bpos = fmodf((float)(b * kBlock), 4.0f * ms.fpb);
+        block(busp, tr, &ms, -1, pl, pr, kBlock);
+        for (unsigned i = 0; i < kBlock; i++) assert(isfinite(pl[i]) && fabsf(pl[i]) <= 1.0f && fabsf(pr[i]) <= 1.0f);
+    }
+}
+
+static void punch_chatter(void)
+{
+    static float L[1100 * kBlock], R[1100 * kBlock];
+    qfx_init();
+    defaults();
+    ms.rsize = 0;
+    const unsigned stop = 345 * kBlock;   // 2 s
+    for (unsigned b = 0; b < 1100; b++) {
+        memset(bus, 0, sizeof(bus));
+        for (unsigned i = 0; i < kBlock; i++) bus[0][i] = b * kBlock + i < stop ? src_saw_noise(b * kBlock + i) : 0.0f;
+        ms.punch = b < 345 && (b & 1) ? (1u << 0 | 1u << 13) : 0;
+        ms.bpos = fmodf((float)(b * kBlock), 4.0f * ms.fpb);
+        block(busp, tr, &ms, -1, L + b * kBlock, R + b * kBlock, kBlock);
+    }
+    for (unsigned i = 0; i < 1100 * kBlock; i++) assert(isfinite(L[i]) && isfinite(R[i]));
+    const float late = peak(L, R, 6.0f, 6.3f);
+    printf("  chatter: %.3g at 6 s\n", late);
+    assert(late < 1e-3f);
+}
+
 int main(void)
 {
     off_is_identity();
@@ -660,6 +869,17 @@ int main(void)
     gate_on_grid();
     delay_throw_tails();
     freeze_holds_tail();
+    loop_no_jump_on_press();
+    loop_repeats_grid_slice();
+    loop_halves_to_fit();
+    roll_keeps_start();
+    priority();
+    stutter_accelerates();
+    stutter_gate_chops();
+    tape_stop_to_silence();
+    loop_survives_tempo_and_stop();
+    all_punches_bounded();
+    punch_chatter();
     printf("qfx_test ok\n");
     return 0;
 }
