@@ -157,6 +157,8 @@ dans une croche ou une noire.
   quantifiées dans des notes permises, la gamme par défaut : SPREAD, BIAS, STEPS, RANGE), DÉJÀ VU et longueur de boucle 1–16. Sur un KIT,
   t1–t3 jouent les pads 1, 2 et 3 ; sur une piste synthé, une sortie T au choix joue la note de X.
 - Les deux suivent l'horloge et la division du pattern. Détail : `2026-11-10-quartz-step4-generators-design.md`.
+- Étape ultérieure (demandée, non planifiée) : un LEN de 1 à 32 pour GRIDS, sur le 4e encodeur libre de MAP ou de DENS ;
+  la boucle repart au pas 1 après LEN, les pas au-delà s'affichent sombres.
 
 ## 7. Contrôles
 
@@ -179,7 +181,7 @@ dans une croche ou une noire.
 | LFO | LFO | — |
 | ARP | arpégiateur | touches = notes tenues (latch) |
 | FX | insert · envois / pan / niveau | punch-ins sur les 16 blanches |
-| SEQ | pas + longueur / division / source (STEP) ; division / source · réglages du générateur (GRIDS, MARBLES) | blanches 1–8 : pattern de la piste |
+| SEQ | pas + longueur / division / source (STEP) ; division / source · réglages du générateur (GRIDS, MARBLES) | blanches 1–8 : pattern de la piste ; noire 1 : CLEAR (vide le pattern affiché) |
 | GLO | tempo / swing / compresseur · delay / reverb · gamme et réglages REC | — |
 | HOME | vue des 4 pistes | blanches 1–4 : mutes ; 9–16 : scènes |
 | SAVE | appui : sauvegarder le projet | blanches 1–8 : ajouter une scène à la chanson |
