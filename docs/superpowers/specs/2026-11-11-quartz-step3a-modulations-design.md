@@ -108,7 +108,7 @@ Tous sont par piste, dans `q_sound`. Valeurs 0..127 sauf mention.
   l'arp.
 - **Projet** : `q_sound` gagne 17 octets ; `LK_*` est étendu aux nouveaux paramètres ; `Q_VERSION` passe à 4. Les
   projets sauvegardés avant ne se rechargent pas (aucune conversion tant que le firmware n'est pas fini).
-- **Mémoire** : quelques centaines d'octets en RAM principale ; le pool ne change pas.
+- **Mémoire** : environ 12 Ko en RAM principale (le tableau statique des événements du rendu, 9 216 octets, les quatre arpégiateurs, 1 952 octets, et le tampon de sortie du rendu, 576 octets) ; le pool ne change pas.
 - **CPU** : estimé à 1–2 % de cœur par voix pour le SVF et l'ADSR, à mesurer ; le résultat va dans `docs/cpu.md`.
 
 ## 7. Tests
