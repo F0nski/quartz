@@ -1382,6 +1382,30 @@ static void stop_clears_fx_locks(void)
     assert(QTR[0].dsend == 10 && QTR[0].pan == 5);
 }
 
+static void fx_lock_not_stuck_by_arp(void)
+{
+    setup();
+    P.sound[0].dsend = 10;
+    P.sound[0].amode = AM_UP;
+    P.sound[0].adiv = DIV_32;
+    P.pat[0][0].steps[1].flags = SF_ON;
+    P.pat[0][0].steps[1].len = 16;  /* two steps: the arp plays it on through step 2 */
+    lock_set(&P.pat[0][0], 1, LK_DSEND, 90);
+    audio_play(1);
+    int seen1 = 0, arp2 = 0;
+    for (int k = 0; k < 4 * 5516 / 256; k++) {
+        int p = audio_pos(0);
+        NLOG = 0;
+        block(256);
+        if (p == 1 && audio_pos(0) == 1) { assert(QTR[0].dsend == 90); seen1 = 1; }
+        if (p >= 2) {
+            assert(QTR[0].dsend == 10);
+            for (int v = 0; v < Q_VOICES; v++) arp2 += p == 2 && count('n', v);
+        }
+    }
+    assert(seen1 && arp2);
+}
+
 static void kit_bd_sets_duck_at(void)
 {
     for (int sn = 0; sn < 2; sn++) {
@@ -1498,6 +1522,7 @@ int main(void)
     fx_lock_on_its_step();
     fx_lock_negative_micro();
     stop_clears_fx_locks();
+    fx_lock_not_stuck_by_arp();
     kit_bd_sets_duck_at();
     duck_follows_kit_membership();
     click_after_fx();

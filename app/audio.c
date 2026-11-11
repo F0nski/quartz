@@ -448,14 +448,11 @@ static int legato(const q_event *e)
     return 1;
 }
 
-/* a step's note-on (255: the keyboard's) takes its effect locks; a KIT's BD marks the duck */
-static void fx_note_on(const q_event *e)
+/* a sequencer's step note-on takes the step's effect locks. Not the arp's: they carry a held note's step, which
+ * would keep its locks past the step */
+static void fx_take(const q_event *e)
 {
     int t = e->track;
-    if (rmodel[t] == M_KIT && duck_at < 0 && !no_pad(t, e->note) && prj->kit[t][e->note - KIT_NOTE].engine == PAD_BD)
-        duck_at = (int)e->offset;
-    if (e->step == 255)
-        return;
     const q_pattern *pt = &prj->pat[t][e->pat];
     fxl_mask[t] = 0;
     fxl_step[t] = e->step;
@@ -477,8 +474,10 @@ static int fx(int t, int k, int track_value)
 
 static void apply(const q_event *e)
 {
-    if (e->track < Q_TRACKS && e->on)
-        fx_note_on(e);
+    int t = e->track;               /* a KIT's BD marks the duck */
+    if (t < Q_TRACKS && e->on && rmodel[t] == M_KIT && duck_at < 0 && !no_pad(t, e->note) &&
+        prj->kit[t][e->note - KIT_NOTE].engine == PAD_BD)
+        duck_at = (int)e->offset;
     if (e->track == Q_CLICK_TRACK) {
         click_start(e->note);
     } else if (e->on && (e->flags & EV_LEGATO) && rmodel[e->track] == M_KIT) {
@@ -758,6 +757,9 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
     seq_click(&seq, recording && (prj->click & 1));
     ne = ncmd + seq_block(&seq, prj, n, ev + ncmd, EV_MAX);
     int ni = ne;
+    for (int i = ncmd; i < ni; i++)   /* by date: the last note-on's step wins */
+        if (ev[i].track < Q_TRACKS && ev[i].on)
+            fx_take(&ev[i]);
     for (int t = 0; t < Q_TRACKS; t++)
         if (arping(t))
             arp_run(t, ni, &ne, n);
