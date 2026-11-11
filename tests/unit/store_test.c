@@ -66,7 +66,7 @@ static void fill_random(q_project *p)
             }
             for (int k = 0; k < Q_LOCKS; k++) {
                 q->locks[k].step = (uint8_t)rnd(0, Q_STEPS - 1); q->locks[k].param = (uint8_t)rnd(0, LK_N - 1);
-                q->locks[k].value = (uint8_t)rnd(0, 255);
+                q->locks[k].value = (uint8_t)(q->locks[k].param == LK_AGATE ? rnd(5, 100) : rnd(1, 2));   /* in every lock's range */
             }
         }
     }
@@ -226,6 +226,13 @@ static void store_clamps_fields(void)
     b.pat[1][2].nlocks = 200;
     b.pat[1][2].locks[3].step = 99;
     b.pat[1][2].locks[3].param = 99;
+    b.pat[1][2].locks[4] = (q_lock){ 1, LK_RATE, 200 };
+    b.pat[1][2].locks[5] = (q_lock){ 1, LK_ADIV, 99 };
+    b.pat[1][2].locks[6] = (q_lock){ 1, LK_AOCT, 0 };
+    b.pat[1][2].locks[7] = (q_lock){ 1, LK_DEPTH, (uint8_t)-100 };
+    b.pat[1][2].locks[8] = (q_lock){ 1, LK_TUNE, (uint8_t)-5 };
+    b.pat[1][2].locks[9] = (q_lock){ 1, LK_AGATE, 1 };
+    b.pat[1][2].locks[10] = (q_lock){ 1, LK_DEST, 250 };
     b.pat[2][5].path = 99; b.pat[2][5].xlen = 0; b.pat[2][5].ylen = 9; b.pat[2][5].ydiv = 99;
     b.pattern[0] = 9;
     b.nsong = 99; b.click = 9;
@@ -237,6 +244,11 @@ static void store_clamps_fields(void)
     assert(a.tempo == 40 && a.sound[1].poly == 1 && a.sound[2].model == M_KIT);
     assert(a.pat[3][0].div == DIV_N - 1 && a.pat[3][0].len == 1);
     assert(a.pat[1][2].nlocks == Q_LOCKS && a.pat[1][2].locks[3].step < Q_STEPS && a.pat[1][2].locks[3].param < LK_N);
+    {
+        const q_lock *l = a.pat[1][2].locks;
+        assert(l[4].value == 75 && l[5].value == DIV_N - 1 && l[6].value == 1 && (int8_t)l[7].value == -64);
+        assert((int8_t)l[8].value == -5 && l[9].value == 5 && l[10].value == LD_LEVEL);
+    }
     assert(a.pat[2][5].path == PATH_N - 1 && a.pat[2][5].xlen == 1 && a.pat[2][5].ylen == 4 && a.pat[2][5].ydiv == DIV_N - 1);
     assert(a.pattern[0] == Q_PATTERNS - 1 && a.nsong == Q_SONG && a.scene[1].pat[2] == Q_PATTERNS - 1);
     assert(a.song[4].scene == Q_SCENES - 1 && a.song[4].reps == 1 && a.song[5].reps == 16);

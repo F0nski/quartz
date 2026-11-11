@@ -20,6 +20,14 @@ static uint32_t chunk_len(int i)                     /* payload bytes of chunk i
 
 static int clampi(int v, int lo, int hi) { return v < lo ? lo : v > hi ? hi : v; }
 
+/* each LK_* lock's value range; a negative lo is a signed field, stored as int8_t */
+static const int8_t lk_range[LK_N][2] = {
+    [LK_HARM] = {0, 127}, [LK_TIMB] = {0, 127}, [LK_MORPH] = {0, 127}, [LK_DECAY] = {0, 127}, [LK_TUNE] = {-24, 24},
+    [LK_GLIDE] = {0, 127}, [LK_ATK] = {0, 127}, [LK_DEC] = {0, 127}, [LK_SUS] = {0, 127}, [LK_REL] = {0, 127},
+    [LK_FTYPE] = {0, FT_BP}, [LK_CUT] = {0, 127}, [LK_RES] = {0, 127}, [LK_ENVAMT] = {-64, 63},
+    [LK_SHAPE] = {0, LS_SH}, [LK_RATE] = {0, 75}, [LK_DEPTH] = {-64, 63}, [LK_DEST] = {0, LD_LEVEL},
+    [LK_AMODE] = {0, AM_ORDER}, [LK_AOCT] = {1, 4}, [LK_ADIV] = {0, DIV_N - 1}, [LK_AGATE] = {5, 100} };
+
 /* a valid-CRC object can still hold out-of-range fields: the render indexes and divides with them */
 static void clamp_project(q_project *p)
 {
@@ -101,6 +109,8 @@ static void clamp_project(q_project *p)
             for (int k = 0; k < Q_LOCKS; k++) {
                 q->locks[k].step = (uint8_t)clampi(q->locks[k].step, 0, Q_STEPS - 1);
                 q->locks[k].param = (uint8_t)clampi(q->locks[k].param, 0, LK_N - 1);
+                const int8_t *r = lk_range[q->locks[k].param];
+                q->locks[k].value = (uint8_t)clampi(r[0] < 0 ? (int8_t)q->locks[k].value : q->locks[k].value, r[0], r[1]);
             }
         }
     }
