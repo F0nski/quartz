@@ -14,7 +14,7 @@ découpée en :
 Donner au séquenceur l'univers visuel des scènes, sans perdre en lisibilité, et faire voir les notes que MARBLES joue
 vraiment. Critères : les pages STEPS et XY montrent le plateau de la maquette H2 (`docs/screens/sequencer.html`,
 « Plateau 4×4 » et « Pas tenu ») avec tout ce que la page montre aujourd'hui ; chaque note d'une piste MARBLES fait
-tomber une bille dans la case de sa note ; le pire cas (section 6) tourne sans bloc perdu. Les réglages fins se feront
+tirer un vaisseau sur le cristal de sa note, qu'il touche quand elle sonne ; le pire cas (section 6) tourne sans bloc perdu. Les réglages fins se feront
 à l'usage.
 
 ## 2. Le plateau SEQ
@@ -53,32 +53,54 @@ actuel jusqu'en 5d.
   en orange.
 - Les notes affichées suivent la gamme du projet (section 9.2).
 
-## 3. La scène MARBLES
+## 3. La scène MARBLES : l'escadrille
 
-Pages MARBLES, T et X d'un pattern MARBLES (la page NOTES garde son clavier).
+Pages MARBLES, T et X d'un pattern MARBLES (la page NOTES garde son clavier). Maquette de référence :
+`docs/screens/marbles.html` (« Escadrille, canyon de rochers taillés »).
 
-- **Décor** : fond `#0c0820`. En haut à gauche la position dans la boucle (`5/16`, `-/16` à l'arrêt), à droite la
-  gamme du projet (`D DORIAN`).
-- **Plots** : 5 rangées de petites croix `#3a2c64` (6 px), en quinconce, de y = 22 à y = 98. Écart horizontal
-  `22 + 8 · SPREAD / 127` px ; chaque rangée décalée de `(X BIAS − 64) / 64 · 7 · rangée / 4` px.
-- **Cases** : une par note permise (les classes de hauteur de `gen_allowed`, jusqu'à 12), réparties sur 224 px en
-  bas. Sous chacune, son nom ; au-dessus, une colonne en prisme low poly (face et dessus) dont la hauteur suit
-  l'historique : +1 à chaque bille reçue, plafonné à 6, et qui redescend d'une unité toutes les 4 s.
-- **Billes** : chaque note jouée par la piste lâche un icosaèdre (20 faces) blanc-gris de rayon 7 px depuis le haut
-  au centre. Il descend en 0,5 s ; à chaque rangée de plots il dévie d'une demi-case, toujours vers la case de sa
-  note, et atterrit dedans. Une note hors des notes permises va à la case la plus proche. À l'arrivée, la case et son
-  nom flashent en rose 150 ms. DEJA VU > 64 : les billes en vol sont orange. 6 billes en vol au plus ; au-delà, la plus
-  ancienne est retirée.
-- Les encodeurs agissent par le son : SPREAD, X BIAS, STEPS, DEJA VU changent les notes jouées, donc les cases où les
-  billes tombent et la forme de l'historique. SPREAD et X BIAS changent aussi les plots.
+- **Synchronisation** : le séquenceur décide chaque pas d'une piste MARBLES un pas avant son heure ; l'écran connaît
+  chaque note et l'instant où elle sonnera. Un tir part de façon à toucher sa cible quand la note sonne (trajet d'un
+  pas, 500 ms au plus).
+- **Décor, un canyon** : ciel nuit `#0c0820` et étoiles dispersées au hasard (positions fixes, trois tailles, les
+  grosses rares et plus rapides) ; horizon à y = 66 dans la zone ; au loin une crête de montagnes en facettes
+  (`#2a1c52`, `#1c1240`) qui glisse lentement ; fond du canyon `#120a28` avec 5 lignes qui avancent ; de chaque côté
+  deux rangées de rochers low poly (blocs cabossés, un sur trois environ une aiguille), tailles, formes et
+  orientations tirées au hasard et gardées tout le trajet, avec des trouées ; des pierres éparses au milieu du fond.
+  Tout avance vers le spectateur au rythme de DIV ; un rocher sort par le côté avant de disparaître.
+- **Les cibles** : un cristal (octaèdre étiré) par note permise (jusqu'à 12), en rangée en bas, sur un socle en bloc
+  isométrique ; nom de la note dessous. Le socle et le cristal grandissent avec l'historique (+1 par note reçue, 6 au
+  plus, −1 toutes les 4 s). Une note écartée par STEPS : cristal en simple contour, socle bas et sombre.
+- **Un tir qui touche** : le cristal passe au rose, éclate en éclats qui retombent, une onde en losange court au sol,
+  puis il repousse en 350 ms.
+- **L'escadrille** : 1 à 3 vaisseaux (flèches en trois tons, cockpit, flamme qui scintille), qui s'inclinent dans les
+  virages et passent au blanc quand ils tirent. Ils volent en boucle au-dessus du canyon. Les tirs sont des traits roses
+  avec une traînée en paliers plus sombres, de la position du vaisseau au moment du tir jusqu'au cristal.
+
+| Encodeur | Effet visible |
+|---|---|
+| DIV | vitesse du décor, durée du trajet des tirs (un pas) |
+| T OUT | nombre de vaisseaux (1 à 3) |
+| LEN | rangée de témoins de boucle en haut, le pas en cours allumé |
+| MODE | formation : ligne, V, colonne, diagonale, vague, triangle, ronde |
+| BIAS | taille du vaisseau de tête par rapport aux autres |
+| JITTER | balancement lent de l'escadrille (1 à 2 px) |
+| DEJA VU | > 64 : vaisseaux, tirs et cristaux à l'orange, traînée orange derrière les vaisseaux, trajet répété tracé |
+| SPREAD | écart entre les vaisseaux |
+| X BIAS | position de la boucle de vol, de gauche à droite |
+| STEPS | cristaux des notes écartées éteints |
+
+- Aucune transparence ni dégradé. Les étoiles de la planète FM (5a) prennent le même tirage au hasard (leur motif en
+  diagonale disparaît).
+- **Budget** : au plus 300 faces visibles ; les rochers les plus lointains (moins de 15 % de la profondeur) sont dessinés
+  en un seul triangle.
 
 ## 4. Architecture
 
 | Fichier | Rôle |
 |---|---|
 | `app/plateau.c`, `plateau.h` (nouveaux) | Le plateau SEQ : décor, cases, blocs, repères, viseur, chemin, pas tenu. Dessiné directement dans chaque bande, du fond vers l'avant (ordre `gx + gy`), pour que le texte posé sur un bloc soit caché par le bloc de devant. |
-| `app/scene.c`, `scene.h` | La scène MARBLES à côté de la planète : billes (`p3d_mesh` de l'icosaèdre), plots, cases. |
-| `app/audio.c`, `audio.h` | Les dernières notes jouées, par piste : un anneau de 16 notes et un compteur ; l'interface lit celles qu'elle n'a pas encore vues. |
+| `app/scene.c`, `scene.h` | La scène MARBLES (escadrille, canyon, cristaux) à côté de la planète. |
+| `app/seq.c`, `seq.h`, `app/audio.c`, `audio.h` | Un pas MARBLES est décidé un pas à l'avance ; ses notes sont gardées avec leur instant (16 par piste) ; l'interface lit celles qu'elle n'a pas encore vues, avec le délai avant qu'elles sonnent. |
 | `app/p3d.c` | Règle de remplissage aux bords horizontaux corrigée : lignes dont le centre est dans [y haut, y bas), plus de 0/0 quand un sommet tombe sur un centre de ligne. |
 | `app/ui.c` | STEPS et XY → plateau ; MARBLES, T, X d'un pattern MARBLES → scène MARBLES ; tous deux animés, redessinés au plus toutes les 30 ms comme la planète. SCENE FPS compte aussi ces pages. |
 
@@ -98,8 +120,7 @@ Pages MARBLES, T et X d'un pattern MARBLES (la page NOTES garde son clavier).
     NaN ;
   - audio : chaque note jouée entre dans l'anneau de sa piste, dans l'ordre, ratchets compris ; l'interface qui lit
     en retard de moins de 16 notes n'en perd aucune ;
-  - MARBLES : une note lâche une bille qui finit dans la case de sa note, la colonne monte, puis redescend avec le
-    temps ; une note hors des notes permises va à la case la plus proche.
+  - MARBLES : une note décidée lance un tir qui touche le cristal de sa note à l'instant où elle sonne ; le socle monte, puis redescend avec le temps ; une note hors des notes permises vise le cristal le plus proche ; T OUT règle le nombre de vaisseaux, MODE la formation ;
 - **Simulateur** : script avec captures du plateau en lecture, pas tenu, chemin SNAKE, page XY, et de MARBLES en jeu.
 - **Appareil** : section 6.
 
