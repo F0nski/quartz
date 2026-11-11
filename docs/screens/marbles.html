@@ -175,7 +175,7 @@ function world(t) {
   return { fly, hist: hist.map(h => Math.min(6, h)), flash, cur: ((k0 % P.len) + P.len) % P.len, deja: P.dejavu > 64 };
 }
 const launcherX = c => P.tout === 1 ? 120 : 120 + (c - (P.tout - 1) / 2) * 60;
-const shake = (t, c) => P.jitter / 127 * 2.5 * Math.sin(t * 47 + c * 2.1);
+const shake = (t, c) => P.jitter / 127 * 1.2 * Math.sin(t * 5 + c * 2.1);     /* JITTER: a slow sway, not a buzz */
 function header(c, t) {
   c.fillStyle = BAR; c.fillRect(0, 0, 240, 30); c.fillRect(0, 196, 240, 44);
   poly(c, [[8, 7], [30, 7], [34, 11], [34, 23], [12, 23], [8, 19]], K[1][1]);
@@ -278,7 +278,7 @@ function turretsPro(c, t) {
   for (let ch = 0; ch < P.tout; ch++) {
     const [x, y] = base(ch), fly = W.fly.filter(e => e.c === ch).sort((a, b) => b.u - a.u)[0];
     const goal = fly ? tx(fly.bin) : aimC + Math.sin(t * 1.1 + ch * 1.7) * sweep * 80, ang = Math.atan2(ty - (y - 10), goal - x);
-    const rec = T.fired[ch] < 0.09 ? (1 - T.fired[ch] / 0.09) * 5 : 0, jx = shake(t, ch) * 1.4, hx = x + jx - Math.cos(ang) * rec * 0.3, hy = y - 12 - Math.sin(ang) * rec * 0.3;
+    const rec = T.fired[ch] < 0.09 ? (1 - T.fired[ch] / 0.09) * 5 : 0, jx = shake(t, ch), hx = x + jx - Math.cos(ang) * rec * 0.3, hy = y - 12 - Math.sin(ang) * rec * 0.3;
     poly(c, [[x - 18, y + 4], [x, y + 13], [x + 18, y + 4], [x, y - 5]], "#05030f");                /* shadow */
     draw3d(c, BASE6, { cx: x, cy: y, s: 14, ay: 0.3, ax: 1.15, tones: ["#4a4466", "#332e4c", "#221d36"] });
     /* the barrel: two flat halves, light above and shade below, recoiling */
@@ -335,7 +335,7 @@ function shipsPro(c, t) {
   /* the fleet flies a loop over the field: X BIAS its middle, SPREAD the gaps, MODE the formation, JITTER the wobble */
   const lead = tt => { const ph = tt * 0.5 * 0.25 / stepDur(); return [mid + Math.sin(ph) * 46, 72 + Math.sin(ph * 2) * 14]; };
   const pos = (ch, tt) => { const [lx, ly] = lead(tt), o = FORM[P.mode][ch], ring = P.mode === 6 ? [Math.cos(tt * 2 + ch * TAU / 3) * gap * 0.8, Math.sin(tt * 2 + ch * TAU / 3) * gap * 0.4] : [o[0] * gap, o[1] * gap * 0.6];
-    return [lx + ring[0] + shake(tt, ch) * 1.5, ly + ring[1] + shake(tt + 0.3, ch)]; };
+    return [lx + ring[0] + shake(tt, ch), ly + ring[1] + shake(tt + 0.3, ch)]; };
   for (let ch = P.tout - 1; ch >= 0; ch--) {
     const [x, y] = pos(ch, t), [x2, y2] = pos(ch, t + 0.04), a = Math.atan2(y2 - y, x2 - x), bank = 0.55 + 0.45 * Math.abs(Math.cos(a));
     if (deja) { const tr = [...Array(10).keys()].map(i => pos(ch, t - (i + 1) * 0.07)); tr.forEach((p, i) => i && stroke(c, [tr[i - 1], p], i < 4 ? K[3][1] : K[3][2], 1, false)); }
