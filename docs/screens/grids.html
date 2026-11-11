@@ -41,7 +41,7 @@ button[aria-pressed=true] { background: var(--hot); color: #fff; border-color: v
 <main>
 <header>
   <h1>GRIDS <em>en scène</em></h1>
-  <p class="lead">Trois pistes pour la scène GRIDS. Grids joue trois voix (grosse caisse, caisse claire, charleston sur
+  <p class="lead">Deux pistes pour la scène GRIDS. Grids joue trois voix (grosse caisse, caisse claire, charleston sur
   un KIT) lues dans une carte de rythmes à la position X/Y. Chaque encodeur des pages GRIDS, MAP et DENS change quelque
   chose à l'écran : tourne les curseurs, ou laisse « auto » les faire bouger.</p>
 </header>
@@ -53,11 +53,9 @@ button[aria-pressed=true] { background: var(--hot); color: #fff; border-color: v
 
 <div class="grid">
   <figure><canvas id="map" width="240" height="240"></canvas><figcaption><span class="tag">A</span><h2>La carte en relief</h2>
-    <p>Le terrain des 25 rythmes de Grids, en facettes ; un drone le survole à la position X/Y et lâche une onde de la couleur de la voix à chaque frappe. DENS hausse les trois colonnes du drone, CHAOS fait trembler le terrain.</p></figcaption></figure>
-  <figure><canvas id="road" width="240" height="240"></canvas><figcaption><span class="tag">B</span><h2>L'autoroute</h2>
-    <p>Trois couloirs, un par voix, entre des rochers ; les frappes à venir arrivent vers toi en blocs et éclatent sur la ligne quand elles sonnent. DENS remplit les couloirs, X/Y changent le motif, CHAOS fait dévier les blocs.</p></figcaption></figure>
+    <p>Le terrain des rythmes de Grids sur tout l'écran, en facettes ; un drone le survole à la position X/Y (la zone sous lui s'éclaire), à l'altitude de NOTE, et lâche une onde de la couleur de la voix à chaque frappe. DENS hausse ses trois colonnes, CHAOS fait trembler le terrain.</p></figcaption></figure>
   <figure><canvas id="guns" width="240" height="240"></canvas><figcaption><span class="tag">C</span><h2>Trois tourelles</h2>
-    <p>Une tourelle par voix (octaèdre, cube, tétraèdre) tire sur sa cible à chaque frappe. DENS règle la cadence visible (le canon chauffe), X/Y déplacent les cibles sur un rail, CHAOS les fait danser.</p></figcaption></figure>
+    <p>Une tourelle par voix (octaèdre, cube, tétraèdre) tire sur sa cible à chaque frappe : recul, éclair, tir plus épais sur un accent, cible qui éclate et se reconstruit, onde au sol. DENS chauffe le canon, X fait glisser les cibles, Y monte le rail, CHAOS les fait osciller, VOICE pose un anneau blanc.</p></figcaption></figure>
 </div>
 
 <section aria-label="Ce que fait chaque encodeur">
@@ -187,93 +185,84 @@ function stars(c, t, sp) {
     c.fillStyle = layer === 2 ? "#fff" : layer === 1 ? "#a99ce0" : "#4a3f78"; c.fillRect((x + 480) % 240, y, layer === 2 ? 2 : 1, layer === 2 ? 2 : 1); }
 }
 
-/* ---- A: the map in relief, a drone over X/Y ---- */
-const waves = [];
+/* ---- shared polish ---- */
+const SHARDV = [[-1.2, -2.2], [1.4, -2.6], [-0.4, -3], [2.2, -1.4], [-2.4, -1.2], [0.8, -1.8]];
+function burst(c, x, y, k, tones, n = 1) { if (k >= 1) return;
+  SHARDV.forEach(([vx, vy], i) => { const px = x + vx * 14 * n * k, py = y + vy * 14 * n * k + 40 * k * k, s = 3.5 * (1 - k) + 1;
+    poly(c, [[px, py - s], [px + s, py + s * 0.4], [px - s * 0.6, py + s]], i % 3 === 0 ? tones[0] : i % 3 === 1 ? tones[1] : HOT[0]); }); }
+function floorWave(c, x, y, k, g0 = 6) { if (k >= 1) return; const g = g0 + k * 34; stroke(c, [[x - g, y], [x, y - g / 2], [x + g, y], [x, y + g / 2]], k < 0.4 ? HOT[1] : HOT[2], 1.5); }
+function bolt(c, x0, y0, x1, y1, u, w = 3) { [[0.2, HOT[2]], [0.11, HOT[1]], [0.05, HOT[0]]].forEach(([len, cc], i) => { const k0 = Math.max(0, u - len);
+  stroke(c, [[lerp(x0, x1, k0), lerp(y0, y1, k0)], [lerp(x0, x1, u), lerp(y0, y1, u)]], cc, i === 2 ? w : w - 1, false); }); }
+
+/* ---- A: the map in relief, filling the screen, a drone over X/Y ---- */
 function mapScene(c, t) {
   autoKnobs(t); const L = lastHits(t), sp = 0.25 / stepDur();
   c.fillStyle = "#0c0820"; c.fillRect(0, 30, 240, 166); stars(c, t, sp * 0.3);
-  /* the terrain: 5 x 5 nodes as a faceted heightfield in isometric; each node's height its rhythm's weight */
-  const A = 20, B = 10, ox = 120, oy = 92, shake = P.chaos / 127 * 1.5;
-  const H = (i, j) => (node(i, j, 0, 0) + node(i, j, 1, 4) + node(i, j, 2, 2)) * 9 + Math.sin(t * 9 + i * 3 + j * 5) * shake;
-  const at = (i, j, h = 0) => [ox + (i - j) * A, oy + (i + j) * B - h];
-  for (let s = 0; s < 8; s++) for (let i = 0; i < 4; i++) { const j = s - i; if (j < 0 || j > 3) continue;
-    const p = [at(i, j, H(i, j)), at(i + 1, j, H(i + 1, j)), at(i + 1, j + 1, H(i + 1, j + 1)), at(i, j + 1, H(i, j + 1))];
-    const tilt = (H(i, j) + H(i, j + 1)) - (H(i + 1, j) + H(i + 1, j + 1)), T = ["#4a2f86", "#35226a", "#22164a"];
-    poly(c, [p[0], p[1], p[2]], tilt > 0 ? T[0] : T[1]); poly(c, [p[0], p[2], p[3]], tilt > 6 ? T[0] : tilt > -6 ? T[1] : T[2]);
-    stroke(c, p, "#5b2f8c"); }
-  /* the drone: over X/Y, its altitude NOTE; three columns under it, DENS high, the VOICE played picked out */
-  const fx = P.x / 127 * 4, fy = P.y / 127 * 4, [gx, gy] = at(fx, fy, 0), alt = 30 + (P.note - 24) / 72 * 30;
-  const ground = at(fx, fy, H(Math.min(4, Math.round(fx)), Math.min(4, Math.round(fy))));
-  poly(c, [[ground[0] - 10, ground[1]], [ground[0], ground[1] - 5], [ground[0] + 10, ground[1]], [ground[0], ground[1] + 5]], "#05030f");
-  [0, 1, 2].forEach(v => { const dx = (v - 1) * 9, h = 4 + DENS()[v] / 127 * 18, k = L[v][0] < 0.1 ? 1 - L[v][0] / 0.1 : 0, sel = v === P.voice - 1;
-    const T = k > 0.3 ? HOT : VCOL[v]; box(c, ground[0] + dx, ground[1] - 2, 3.5, 2, h + k * 4, T);
-    if (sel) stroke(c, [[ground[0] + dx - 5, ground[1] + 4], [ground[0] + dx + 5, ground[1] + 4]], "#f4f1ff", 1, false); });
-  /* hits send square waves over the terrain from the drone, in the voice's colour */
-  L.forEach(([ago, lv], v) => { if (ago < 0.35) { const g = 0.3 + ago / 0.35 * 1.6 * (0.5 + lv); stroke(c, [at(fx - g, fy - g), at(fx + g, fy - g), at(fx + g, fy + g), at(fx - g, fy + g)], ago < 0.12 ? HOT[1] : VCOL[v][2], 1.5); } });
-  const dy = ground[1] - alt + Math.sin(t * 2) * 2;
-  draw3d(c, OCTA, { cx: ground[0], cy: dy, s: 8, ay: t * 1.5, ax: 0.4, tones: L.some(([a]) => a < 0.08) ? HOT : K[2] });
-  stroke(c, [[ground[0], dy + 8], [ground[0], ground[1] - 22]], "#2a1d55", 1, false);
+  /* the terrain: the 5 x 5 nodes' weights, subdivided 2 x 2 between nodes (8 x 8 cells), faceted, CHAOS shaking it */
+  const N = 8, A = 15, B = 7, ox = 120, oy = 74, shake = P.chaos / 127 * 2;
+  const W = (i, j) => node(i, j, 0, 0) + node(i, j, 1, 4) + node(i, j, 2, 2);
+  const H = (u, w) => { const fx = u / 2, fy = w / 2, i = Math.min(3, Math.floor(fx)), j = Math.min(3, Math.floor(fy)), a = fx - i, b = fy - j;
+    return lerp(lerp(W(i, j), W(i + 1, j), a), lerp(W(i, j + 1), W(i + 1, j + 1), a), b) * 13 + Math.sin(t * 7 + u * 3 + w * 5) * shake; };
+  const at = (u, w, h = 0) => [ox + (u - w) * A, oy + (u + w) * B - h];
+  const cu = P.x / 127 * N, cw = P.y / 127 * N;
+  for (let s2 = 0; s2 < 2 * N - 1; s2++) for (let u = 0; u < N; u++) { const w = s2 - u; if (w < 0 || w >= N) continue;
+    const p = [at(u, w, H(u, w)), at(u + 1, w, H(u + 1, w)), at(u + 1, w + 1, H(u + 1, w + 1)), at(u, w + 1, H(u, w + 1))];
+    const near = Math.abs(u + 0.5 - cu) < 1 && Math.abs(w + 0.5 - cw) < 1;
+    const sl = (H(u, w) + H(u, w + 1)) - (H(u + 1, w) + H(u + 1, w + 1)), T = near ? ["#7a52c8", "#5a3a9a", "#3c2672"] : ["#4a2f86", "#35226a", "#22164a"];
+    poly(c, [p[0], p[1], p[2]], sl > 2 ? T[0] : sl > -2 ? T[1] : T[2]); poly(c, [p[0], p[2], p[3]], sl > -2 ? T[0] : T[1]);
+    stroke(c, p, near ? "#9a7ae0" : "#5b2f8c"); }
+  /* hits: square waves over the terrain from the drone's point, in the voice's colour */
+  const gh = H(Math.min(N, cu), Math.min(N, cw)), ground = at(cu, cw, gh);
+  L.forEach(([ago, lv], v) => { if (ago < 0.4) { const g = 0.4 + ago / 0.4 * 3 * (0.5 + lv); stroke(c, [at(cu - g, cw - g, gh), at(cu + g, cw - g, gh), at(cu + g, cw + g, gh), at(cu - g, cw + g, gh)], ago < 0.12 ? HOT[1] : VCOL[v][1], 1.5); } });
+  poly(c, [[ground[0] - 14, ground[1]], [ground[0], ground[1] - 7], [ground[0] + 14, ground[1]], [ground[0], ground[1] + 7]], "#05030f");
+  /* the drone: its altitude NOTE; under it three columns, DENS high, flashing on their hits; the VOICE played has a white base */
+  const alt = 34 + (P.note - 24) / 72 * 34, dy = ground[1] - alt + Math.sin(t * 2) * 2;
+  stroke(c, [[ground[0], dy + 10], [ground[0], ground[1] - 30]], "#2a1d55", 1, false);
+  [0, 1, 2].forEach(v => { const dx = (v - 1) * 12, h = 5 + DENS()[v] / 127 * 24, k = L[v][0] < 0.12 ? 1 - L[v][0] / 0.12 : 0, sel = v === P.voice - 1;
+    if (sel) poly(c, [[ground[0] + dx - 7, ground[1] - 2], [ground[0] + dx, ground[1] - 5.5], [ground[0] + dx + 7, ground[1] - 2], [ground[0] + dx, ground[1] + 1.5]], "#f4f1ff");
+    box(c, ground[0] + dx, ground[1] - 3, 4.5, 2.5, h + k * 6, k > 0.3 ? HOT : VCOL[v]); });
+  draw3d(c, OCTA, { cx: ground[0], cy: dy, s: 11, ay: t * 1.5, ax: 0.4, tones: L.some(([a]) => a < 0.08) ? HOT : K[2] });
   header(c, "MAP", MAPK());
 }
 
-/* ---- B: the highway: three lanes, the coming hits arrive as blocks ---- */
-function roadScene(c, t) {
-  autoKnobs(t); const d = stepDur(), sp = 0.25 / d, k0 = Math.floor(t / d), vx = 120, vy = 66;
-  c.fillStyle = "#0c0820"; c.fillRect(0, 30, 240, 166); stars(c, t, sp * 0.4);
-  poly(c, [[vx - 4, vy], [vx + 4, vy], [236, 196], [4, 196]], "#120a28");
-  const lane = (v, z) => { const w = 4 + z * 210; return vx - w / 2 + w * (v + 0.5) / 3; }, yz = z => vy + z * 130;
-  for (let v = 0; v <= 3; v++) { const w0 = 4, w1 = 214; stroke(c, [[vx - w0 / 2 + w0 * v / 3, vy], [vx - w1 / 2 + w1 * v / 3, 196]], v === 0 || v === 3 ? "#5b2f8c" : "#2a1d55", 1, false); }
-  /* the lane of the VOICE played, lit; NOTE tints it */
-  const sel = P.voice - 1; poly(c, [[lane(sel, 0) - 1, vy], [lane(sel, 0) + 1, vy], [lane(sel, 1) + 34, 196], [lane(sel, 1) - 34, 196]], `hsl(${260 - (P.note - 24) * 1.5} 45% 16%)`);
-  const hitY = yz(0.85); stroke(c, [[10, hitY], [230, hitY]], "#f4f1ff", 1, false);
-  /* blocks for the next 12 steps, z from the horizon (far) to the line (now) */
-  for (let k = k0 + 12; k >= k0 - 1; k--) {
-    const z = 0.85 * (1 - (k * d - t) / (12 * d)); if (z < 0.02 || z > 1) continue;
-    hits(k).forEach((h, v) => { if (!h) return; const x = lane(v, z) + (hash(k * 3 + v) - 0.5) * P.chaos / 127 * 20 * z, y = yz(z), s = 2 + z * 9 * (0.6 + h * 0.6);
-      const past = k * d <= t; if (past && t - k * d > 0.15) return;
-      box(c, x, y, s, s * 0.5, s * 0.9, past ? HOT : VCOL[v]); });
-  }
-  lastHits(t).forEach(([ago], v) => { if (ago < 0.2) { const x = lane(v, 0.85), k = ago / 0.2; for (let i = 0; i < 5; i++) { const a = i * TAU / 5 - 1.2, r = 6 + k * 20; poly(c, [[x + Math.cos(a) * r, hitY + Math.sin(a) * r * 0.6 - 3], [x + Math.cos(a) * r + 3, hitY + Math.sin(a) * r * 0.6], [x + Math.cos(a) * r - 2, hitY + Math.sin(a) * r * 0.6 + 2]], i % 2 ? HOT[0] : HOT[1]); } } });
-  /* rocks along the sides, as the canyon */
-  const dd = travelled(t, sp * 0.6), f = dd % 1, base = Math.floor(dd);
-  for (let k = 0; k < 8; k++) { const id = base - k, p = ((k + f) / 8) ** 1.9; for (const side of [-1, 1]) { if (hash(id * 7 + side) < 0.35) continue;
-    const x = vx + side * (12 + p * 140 + (p ** 4) * 60), y = vy + p * 130, s = p * (12 + hash(id * 3 + side) * 14);
-    draw3d(c, ICO, { cx: x, cy: y - s * 0.5, s, ay: hash(id + side) * 6, ax: 0.3, tones: ["#6a48b0", "#46307e", "#26184e"] }); } }
-  VNAME.forEach((n, v) => text(c, n, lane(v, 1), 190, 10, v === sel ? "#f4f1ff" : UI, "center"));
-  header(c, "DENS", DENSK());
-}
-
-/* ---- C: three turrets, one per voice ---- */
+/* ---- C: three turrets, one per voice, polished ---- */
 const GUN = [OCTA, CUBE, TETRA];
 function gunScene(c, t) {
   autoKnobs(t); const L = lastHits(t), sp = 0.25 / stepDur();
   c.fillStyle = BG; c.fillRect(0, 30, 240, 166);
   c.strokeStyle = RAY; c.lineWidth = 1; for (let k = -8; k <= 8; k++) { c.beginPath(); c.moveTo(120, 30); c.lineTo(120 + k * 40, 120); c.stroke(); }
-  c.fillStyle = "#0e0a26"; c.fillRect(0, 120, 240, 76);
-  const f = travelled(t, sp) % 1; for (let k = 0; k <= 9; k++) { const y = 124 + (k + f) * 9; for (let x = -24 + (k % 2) * 12; x < 264; x += 24) stroke(c, [[x - 12, y], [x, y - 4.5], [x + 12, y], [x, y + 4.5]], "#2a1d55"); }
-  /* the targets on a rail: X moves them along, Y lifts the rail, CHAOS makes them dance */
-  const ry = 64 + P.y / 127 * 26; poly(c, [[8, ry + 8], [232, ry + 8], [228, ry + 12], [12, ry + 12]], "#2a1d55");
-  const tx = v => 50 + v * 70 + (P.x / 127 - 0.5) * 40 + Math.sin(t * 6 + v * 2) * P.chaos / 127 * 10;
-  [0, 1, 2].forEach(v => { const [ago, lv] = L[v], k = ago / 0.4, x = tx(v), tones = ago < 0.4 ? HOT : VCOL[v];
-    if (ago > 0.1) draw3d(c, GUN[v], { cx: x, cy: ry - 4, s: 7 * Math.min(1, (ago - 0.1) / 0.3 + 0.2), ay: t + v, ax: 0.5, tones });
-    if (k < 1) for (let i = 0; i < 6; i++) { const a = i * TAU / 6 + 0.4, px = x + Math.cos(a) * 18 * k, py = ry - 4 + Math.sin(a) * 10 * k + 30 * k * k; poly(c, [[px, py - 3], [px + 3, py + 1], [px - 2, py + 2]], i % 2 ? HOT[0] : tones[1]); }
-    text(c, VNAME[v], x, ry + 22, 10, ago < 0.15 ? HOT[0] : v === P.voice - 1 ? "#f4f1ff" : UI, "center"); });
-  /* the turrets: DENS heats the barrel (more hits, a hotter barrel), the VOICE played wears a white ring */
-  [0, 1, 2].forEach(v => { const x = 50 + v * 70, y = 170, [ago] = L[v], goal = tx(v), ang = Math.atan2(ry - 4 - (y - 12), goal - x);
-    const rec = ago < 0.08 ? (1 - ago / 0.08) * 5 : 0, heat = DENS()[v] / 127, hx = x - Math.cos(ang) * rec * 0.3, hy = y - 12 - Math.sin(ang) * rec * 0.3;
-    poly(c, [[x - 18, y + 4], [x, y + 13], [x + 18, y + 4], [x, y - 5]], "#05030f");
-    draw3d(c, prism(6, 0.45), { cx: x, cy: y, s: 13, ay: 0.3, ax: 1.15, tones: ["#4a4466", "#332e4c", "#221d36"] });
-    if (v === P.voice - 1) stroke(c, [[x - 15, y + 2], [x, y + 10], [x + 15, y + 2], [x, y - 6]], "#f4f1ff");
-    const Lb = 22 - rec, ux = Math.cos(ang), uy = Math.sin(ang), nx = -uy * 2.5, ny = ux * 2.5, ex = hx + ux * Lb, ey = hy + uy * Lb;
+  stars(c, t, sp * 0.2);
+  c.fillStyle = "#0e0a26"; c.fillRect(0, 122, 240, 74);
+  const f = travelled(t, sp) % 1; for (let k = 0; k <= 9; k++) { const y = 126 + (k + f) * 9; for (let x = -24 + (k % 2) * 12; x < 264; x += 24) stroke(c, [[x - 12, y], [x, y - 4.5], [x + 12, y], [x, y + 4.5]], "#2a1d55"); }
+  /* the targets: X slides them along their rail, Y lifts the rail, CHAOS makes them sway; a hit shatters, it builds again */
+  const ry = 62 + P.y / 127 * 28;
+  poly(c, [[8, ry + 10], [232, ry + 10], [228, ry + 14], [12, ry + 14]], "#2a1d55"); poly(c, [[12, ry + 14], [228, ry + 14], [228, ry + 16], [12, ry + 16]], "#160f36");
+  const tx = v => 46 + v * 74 + (P.x / 127 - 0.5) * 44 + Math.sin(t * 2.5 + v * 2) * P.chaos / 127 * 12;
+  [0, 1, 2].forEach(v => { const [ago, lv] = L[v], x = tx(v), sz = [11, 9, 8][v];
+    poly(c, [[x - 6, ry + 10], [x + 6, ry + 10], [x + 4, ry + 5], [x - 4, ry + 5]], "#3a2c64");
+    const grow = ago < 0.1 ? 0 : Math.min(1, (ago - 0.1) / 0.35);
+    if (grow > 0.05) draw3d(c, GUN[v], { cx: x, cy: ry - sz * 0.6, s: sz * grow, ay: t * (0.8 + v * 0.4) + v, ax: 0.5, tones: ago < 0.45 ? HOT : VCOL[v] });
+    burst(c, x, ry - sz * 0.6, ago / 0.45, VCOL[v], 0.8 + lv * 0.6);
+    text(c, VNAME[v], x, ry + 26, 10, ago < 0.15 ? HOT[0] : v === P.voice - 1 ? "#f4f1ff" : UI, "center"); });
+  /* the turrets: the voice's polyhedron as the head; DENS heats the barrel; the VOICE played on a white ring */
+  [0, 1, 2].forEach(v => { const x = 46 + v * 74, y = 172, [ago, lv] = L[v], goal = tx(v), ang = Math.atan2(ry - 6 - (y - 13), goal - x);
+    const rec = ago < 0.09 ? (1 - ago / 0.09) * 6 : 0, heat = DENS()[v] / 127, hx = x - Math.cos(ang) * rec * 0.3, hy = y - 13 - Math.sin(ang) * rec * 0.3;
+    floorWave(c, x, y + 4, ago / 0.45);
+    poly(c, [[x - 20, y + 4], [x, y + 14], [x + 20, y + 4], [x, y - 6]], "#05030f");
+    if (v === P.voice - 1) stroke(c, [[x - 19, y + 3], [x, y + 13], [x + 19, y + 3], [x, y - 7]], "#f4f1ff");
+    draw3d(c, prism(6, 0.45), { cx: x, cy: y, s: 14, ay: 0.3, ax: 1.15, tones: ["#4a4466", "#332e4c", "#221d36"] });
+    const Lb = 24 - rec, ux = Math.cos(ang), uy = Math.sin(ang), nx = -uy * 3, ny = ux * 3, ex = hx + ux * Lb, ey = hy + uy * Lb;
     const barrel = heat > 0.75 ? HOT : heat > 0.4 ? K[3] : K[2];
     poly(c, [[hx + nx, hy + ny], [ex + nx, ey + ny], [ex, ey], [hx, hy]], barrel[2]); poly(c, [[hx - nx, hy - ny], [ex - nx, ey - ny], [ex, ey], [hx, hy]], barrel[0]);
-    draw3d(c, GUN[v], { cx: hx, cy: hy, s: 7, ay: -ang, ax: 0.6, tones: VCOL[v] });
-    if (ago < 0.1) { const k = ago / 0.1, x0 = ex, y0 = ey, x1 = goal, y1 = ry - 4; stroke(c, [[lerp(x0, x1, Math.max(0, k * 1.6 - 0.4)), lerp(y0, y1, Math.max(0, k * 1.6 - 0.4))], [lerp(x0, x1, Math.min(1, k * 1.6)), lerp(y0, y1, Math.min(1, k * 1.6))]], HOT[0], 2, false); }
+    draw3d(c, GUN[v], { cx: hx, cy: hy, s: 8, ay: -ang + 0.5, ax: 0.6, tones: VCOL[v] });
+    if (ago < 0.06) { const k = ago / 0.06, r = 8 * (1 - k) + 2; poly(c, [[ex + ux * r * 1.6, ey + uy * r * 1.6], [ex - uy * r * 0.45, ey + ux * r * 0.45], [ex - ux * r * 0.5, ey - uy * r * 0.5], [ex + uy * r * 0.45, ey - ux * r * 0.45]], HOT[0]); }
+    /* the shot: fast (a drum hits now), thicker on an accent */
+    if (ago < 0.12) bolt(c, ex, ey, goal, ry - 6, Math.min(1, ago / 0.07), lv > 0.8 ? 4 : 3);
   });
   header(c, "GRIDS", [["DIV", ["1/16", "1/8", "1/4"][P.div], P.div / 2], ["VOICE", P.voice, (P.voice - 1) / 2], ["NOTE", P.note, (P.note - 24) / 72]]);
 }
 
-const views = [["map", mapScene], ["road", roadScene], ["guns", gunScene]].map(([id, f]) => [document.getElementById(id).getContext("2d"), f]);
+const views = [["map", mapScene], ["guns", gunScene]].map(([id, f]) => [document.getElementById(id).getContext("2d"), f]);
 function frame(ms) { const t = ms / 1000; views.forEach(([c, f]) => f(c, t)); }
 function loop(ms) { frame(ms + 1310); requestAnimationFrame(loop); }
 document.fonts.ready.then(() => { frame(1310); if (!reduce) requestAnimationFrame(loop); });
