@@ -8,12 +8,15 @@
 #include <new>
 
 #include "plaits/dsp/dsp.h"
+#include "stmlib/dsp/filter.h"
+#include "project.h"
 #include "qvoice.h"
 
 namespace {
 
 const size_t kBufferSize = 16384;   // the engines' buffer, as on the module (plaits.cc)
 const float kSilence = 1e-4f;
+float clamp01(float x) { return x < 0.0f ? 0.0f : x > 1.0f ? 1.0f : x; }
 const unsigned kSilentFrames = static_cast<unsigned>(0.05f * plaits::kSampleRate);
 
 struct Slot {
@@ -21,10 +24,17 @@ struct Slot {
   plaits::Patch patch;
   plaits::Modulations mod;
   plaits::QVoice::Frame block[plaits::kBlockSize];
-  size_t pos;            // next frame to read in block (kBlockSize: empty)
+  float out[plaits::kBlockSize];   // block, filtered, in [-1, 1]
+  stmlib::Svf svf;
+  size_t pos;            // next frame to read in out (kBlockSize: empty)
   bool gate;
   bool retrigger;        // a note-on came while the voice last saw the trigger high
   float target;          // note the glide heads to
+  float note;            // the glided note, without the LFO's pitch offset
+  float harm, timb, morph;   // the patch's values, before the LFO's offsets
+  float vel;
+  float env;             // the ADSR at the last block
+  bool own_env;          // the engine has its own envelope: the gate sets the level, not the ADSR
   float glide;           // one-pole coefficient per block (1: immediate)
   unsigned quiet;        // frames since the output last exceeded kSilence, up to kSilentFrames
   char buffer[kBufferSize];
@@ -46,6 +56,7 @@ extern "C" void pq_init(void) {
     s.patch.harmonics = 0.5f;
     s.patch.timbre = 0.5f;
     s.patch.morph = 0.5f;
+    s.harm = s.timb = s.morph = 0.5f;
     s.patch.frequency_modulation_amount = 0.0f;
     s.patch.timbre_modulation_amount = 0.0f;
     s.patch.morph_modulation_amount = 0.0f;
@@ -69,6 +80,11 @@ extern "C" void pq_init(void) {
     s.gate = false;
     s.retrigger = false;
     s.target = 60.0f;
+    s.note = 60.0f;
+    s.vel = 0.0f;
+    s.env = 0.0f;
+    s.own_env = false;
+    s.svf.Init();
     s.glide = 1.0f;
     s.quiet = kSilentFrames;
   }
@@ -76,14 +92,15 @@ extern "C" void pq_init(void) {
 
 extern "C" void pq_set_engine(int v, int model) {
   slots[v]->patch.engine = model;
+  slots[v]->own_env = model == 2 || model == 3 || model == 4 || model == 19 || model == 20 || (model >= 21 && model <= 23);
   slots[v]->voice.SetEngine(model);
 }
 
 extern "C" void pq_set_patch(int v, float harm, float timb, float morph, float decay, float glide) {
   Slot& s = *slots[v];
-  s.patch.harmonics = harm;
-  s.patch.timbre = timb;
-  s.patch.morph = morph;
+  s.harm = harm;
+  s.timb = timb;
+  s.morph = morph;
   s.patch.decay = decay;
   // glide 1: time constant of 0.5 s
   const float tau = glide * 0.5f * plaits::kSampleRate / plaits::kBlockSize;
@@ -95,13 +112,12 @@ extern "C" void pq_note_on(int v, float note, float vel) {
   s.target = note;
   s.retrigger = s.mod.trigger > 0.5f;   // the trigger last sent, not the gate: off+on between renders
   s.gate = true;
-  s.mod.level = vel;
+  s.vel = vel;
   s.quiet = 0;
 }
 
 extern "C" void pq_note_off(int v) {
-  slots[v]->gate = false;
-  slots[v]->mod.level = 0.0f;
+  slots[v]->gate = false;   // the level falls with the ADSR's release
 }
 
 extern "C" void pq_glide_to(int v, float note) { slots[v]->target = note; }
@@ -110,14 +126,30 @@ extern "C" void pq_render(int v, float* out, unsigned n) {
   Slot& s = *slots[v];
   for (unsigned i = 0; i < n; ++i) {
     if (s.pos >= plaits::kBlockSize) {
-      s.mod.note += s.glide * (s.target - s.mod.note);
+      pq_mod m;
+      mod_voice_block(v, &m);
+      s.env = m.env;
+      s.note += s.glide * (s.target - s.note);
+      s.mod.note = s.note + m.pitch;
+      s.mod.level = s.own_env ? (s.gate ? s.vel : 0.0f) : s.vel * m.env;
+      s.patch.harmonics = clamp01(s.harm + m.harm);
+      s.patch.timbre = clamp01(s.timb + m.timb);
+      s.patch.morph = clamp01(s.morph + m.morph);
       // A retrigger holds the trigger low for one block so that the voice sees a rising edge.
       s.mod.trigger = s.gate && !s.retrigger ? 1.0f : 0.0f;
       s.retrigger = false;
       s.voice.Render(s.patch, s.mod, s.block, plaits::kBlockSize);
+      s.svf.set_f_q<stmlib::FREQUENCY_ACCURATE>(m.cutoff, m.res);
+      for (size_t k = 0; k < plaits::kBlockSize; ++k) {
+        const float x = static_cast<float>(s.block[k].out) * (1.0f / 32768.0f);
+        const float y = (m.type == FT_HP ? s.svf.Process<stmlib::FILTER_MODE_HIGH_PASS>(x)
+                       : m.type == FT_BP ? s.svf.Process<stmlib::FILTER_MODE_BAND_PASS>(x)
+                       : s.svf.Process<stmlib::FILTER_MODE_LOW_PASS>(x)) * m.gain;
+        s.out[k] = y > 1.0f ? 1.0f : y < -1.0f ? -1.0f : y;   // the resonance can overshoot
+      }
       s.pos = 0;
     }
-    const float x = static_cast<float>(s.block[s.pos++].out) * (1.0f / 32768.0f);
+    const float x = s.out[s.pos++];
     out[i] += x;
     if (fabsf(x) > kSilence) {
       s.quiet = 0;
@@ -128,7 +160,7 @@ extern "C" void pq_render(int v, float* out, unsigned n) {
 }
 
 extern "C" int pq_silent(int v) {
-  return !slots[v]->gate && slots[v]->quiet >= kSilentFrames;
+  return !slots[v]->gate && slots[v]->env == 0.0f && slots[v]->quiet >= kSilentFrames;
 }
 
 extern "C" unsigned pq_voice_bytes(void) { return sizeof(Slot); }

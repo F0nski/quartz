@@ -3,10 +3,17 @@
 #include <stdio.h>
 #include <string.h>
 #include "pq.h"
+#include "mod.h"
+#include "project.h"
 
 static const float kRate = 44117.647f;
 static const unsigned kBlock = 256;
 static float buf[kBlock];
+
+// What audio.c does around the voice: the ADSR and LFO (mod.c, defaults after mod_init) beside the Plaits voice.
+static void reset(void) { mod_init(); pq_init(); }
+static void note_on(int v, float note, float vel, int accent = 0) { mod_note_on(v, accent); pq_note_on(v, note, vel); }
+static void note_off(int v) { mod_note_off(v); pq_note_off(v); }
 
 // Renders n samples of voice v in platform-sized blocks; returns the peak, calls fn on each block.
 static float render(int v, unsigned n, void (*fn)(const float *, unsigned) = 0)
@@ -38,10 +45,10 @@ static void count_crossings(const float *b, unsigned n)
 
 static void pitch_is_right(void)
 {
-    pq_init();
+    reset();
     pq_set_engine(0, 8);
     pq_set_patch(0, 0.5f, 0.5f, 0.5f, 1.0f, 0.0f);
-    pq_note_on(0, 69.0f, 1.0f);
+    note_on(0, 69.0f, 1.0f);
     crossings = 0;
     last = 0.0f;
     render(0, (unsigned)kRate, count_crossings);
@@ -52,10 +59,10 @@ static void pitch_is_right(void)
 static void all_models_sound(void)
 {
     for (int m = 0; m < 24; m++) {
-        pq_init();      // a fresh voice per model: no envelope or trigger left from the previous one
+        reset();      // a fresh voice per model: no envelope or trigger left from the previous one
         pq_set_engine(1, m);
         pq_set_patch(1, 0.5f, 0.5f, 0.5f, 0.5f, 0.0f);
-        pq_note_on(1, 60.0f, 1.0f);
+        note_on(1, 60.0f, 1.0f);
         float peak = render(1, (unsigned)(kRate * 0.2f));
         printf("  model %2d peak %.3f\n", m, peak);
         assert(peak > 0.01f);
@@ -64,10 +71,10 @@ static void all_models_sound(void)
 
 static void engine_switch_while_sounding(void)
 {
-    pq_init();
+    reset();
     pq_set_engine(2, 8);
     pq_set_patch(2, 0.5f, 0.5f, 0.5f, 1.0f, 0.0f);
-    pq_note_on(2, 60.0f, 1.0f);
+    note_on(2, 60.0f, 1.0f);
     render(2, (unsigned)(kRate * 0.1f));
     pq_set_engine(2, 17);
     float peak = render(2, (unsigned)(kRate * 0.2f));
@@ -86,21 +93,21 @@ static float frequency(int v, float seconds)
 
 static void glide_slides_between_notes(void)
 {
-    pq_init();
+    reset();
     pq_set_engine(5, 8);
     pq_set_patch(5, 0.5f, 0.5f, 0.5f, 1.0f, 0.0f);
-    pq_note_on(5, 48.0f, 1.0f);
+    note_on(5, 48.0f, 1.0f);
     render(5, (unsigned)(kRate * 0.1f));
     float from = frequency(5, 0.1f);                 // 130.8 Hz
     pq_set_patch(5, 0.5f, 0.5f, 0.5f, 1.0f, 1.0f);   // glide 1: time constant of 0.5 s
-    pq_note_on(5, 72.0f, 1.0f);
+    note_on(5, 72.0f, 1.0f);
     float mid = frequency(5, 0.2f);                  // 523.3 Hz at the end, about 4 to 10 semitones up on the way
     printf("  glide: %.0f Hz, then %.0f Hz\n", from, mid);
     assert(from > 125.0f && from < 137.0f);
     assert(mid > from * 1.2f && mid < 523.0f * 0.8f);
 
     pq_set_patch(5, 0.5f, 0.5f, 0.5f, 1.0f, 0.0f);   // glide 0: the new note at once
-    pq_note_on(5, 48.0f, 1.0f);
+    note_on(5, 48.0f, 1.0f);
     render(5, (unsigned)(kRate * 0.05f));
     float now = frequency(5, 0.2f);
     assert(now > 125.0f && now < 137.0f);
@@ -124,10 +131,10 @@ static float rms(int v, unsigned n)
 static void glide_to_keeps_envelope(void)
 {
     const unsigned ms20 = (unsigned)(kRate * 0.02f);
-    pq_init();
+    reset();
     pq_set_engine(0, 8);
     pq_set_patch(0, 0.5f, 0.5f, 0.5f, 0.1f, 1.0f / 127.0f);
-    pq_note_on(0, 48.0f, 1.0f);
+    note_on(0, 48.0f, 1.0f);
     render(0, (unsigned)(kRate * 0.5f));
     float before = rms(0, ms20);
     pq_glide_to(0, 60.0f);
@@ -141,7 +148,7 @@ static void glide_to_keeps_envelope(void)
     // the VA's level follows the gate, a retrigger would not show: a bass drum's decay would start over
     pq_set_engine(4, 21);
     pq_set_patch(4, 0.5f, 0.5f, 0.5f, 0.1f, 1.0f / 127.0f);
-    pq_note_on(4, 48.0f, 1.0f);
+    note_on(4, 48.0f, 1.0f);
     render(4, (unsigned)(kRate * 0.5f));
     before = rms(4, ms20);
     pq_glide_to(4, 60.0f);
@@ -152,13 +159,13 @@ static void glide_to_keeps_envelope(void)
 
 static void release_goes_silent(void)
 {
-    pq_init();
+    reset();
     pq_set_engine(3, 8);
     pq_set_patch(3, 0.5f, 0.5f, 0.5f, 0.3f, 0.0f);
-    pq_note_on(3, 60.0f, 1.0f);
+    note_on(3, 60.0f, 1.0f);
     render(3, (unsigned)(kRate * 0.1f));
     assert(!pq_silent(3));
-    pq_note_off(3);
+    note_off(3);
     unsigned n = 0;
     while (!pq_silent(3) && n < 5 * (unsigned)kRate) {
         render(3, kBlock);
@@ -170,19 +177,129 @@ static void release_goes_silent(void)
 
 static void off_on_between_renders_retriggers(void)
 {
-    pq_init();
+    reset();
     pq_set_engine(4, 21);
     pq_set_patch(4, 0.5f, 0.5f, 0.5f, 0.3f, 0.0f);
-    pq_note_on(4, 48.0f, 1.0f);
+    note_on(4, 48.0f, 1.0f);
     float first = render(4, (unsigned)(kRate * 0.1f));
     render(4, (unsigned)(kRate * 0.9f));
     float tail = render(4, (unsigned)(kRate * 0.1f));
-    pq_note_off(4);
-    pq_note_on(4, 48.0f, 1.0f);
+    note_off(4);
+    note_on(4, 48.0f, 1.0f);
     float again = render(4, (unsigned)(kRate * 0.1f));
     printf("  bass drum: first %.3f tail %.4f again %.3f\n", first, tail, again);
     assert(tail < first * 0.1f);
     assert(again > first * 0.5f);
+}
+
+// The voice as audio.c drives it: the project's defaults (ADSR 0/64/127/20, LP open) unless v is edited.
+static q_vparam defaults(void)
+{
+    return (q_vparam){ 0, 64, 127, 20, FT_LP, 127, 0, 0, LS_SIN, 0, 5, 0, LD_CUT };
+}
+
+static void start(int v, int model, const q_vparam &p, float note, float vel, int accent = 0)
+{
+    reset();
+    pq_set_engine(v, model);
+    pq_set_patch(v, 0.5f, 0.5f, 0.5f, 0.5f, 0.0f);
+    mod_set(v, &p, 120);
+    note_on(v, note, vel, accent);
+}
+
+static float highs;     // energy of the first difference: the high frequencies
+static void add_diffs(const float *b, unsigned n)
+{
+    for (unsigned i = 1; i < n; i++) highs += (b[i] - b[i - 1]) * (b[i] - b[i - 1]);
+}
+
+// High-frequency energy and peak of a settled VA note 48 for the filter type t and CUTOFF c.
+static void filtered(int t, int c, float *hi, float *peak)
+{
+    q_vparam p = defaults();
+    p.ftype = t; p.cutoff = c;
+    start(0, 8, p, 48.0f, 1.0f);
+    render(0, (unsigned)(kRate * 0.2f));
+    highs = 0.0f;
+    *peak = render(0, (unsigned)(kRate * 0.3f), add_diffs);
+    *hi = highs;
+}
+
+static void lowpass_darkens(void)
+{
+    float ho, po, hc, pc;
+    filtered(FT_LP, 127, &ho, &po);
+    filtered(FT_LP, 30, &hc, &pc);
+    printf("  lowpass: high energy %.2f -> %.2f\n", ho, hc);
+    assert(hc < ho * 0.1f);
+}
+
+static void highpass_thins(void)
+{
+    float ho, po, hc, pc;
+    filtered(FT_LP, 127, &ho, &po);
+    filtered(FT_HP, 90, &hc, &pc);
+    printf("  highpass: peak %.3f -> %.3f\n", po, pc);
+    assert(pc < po * 0.5f);
+}
+
+static void release_holds_voice(void)
+{
+    q_vparam p = defaults();
+    p.rel = 100;                                    // 0.001 * 10000^(100/127) s = 1.4 s
+    start(0, 8, p, 60.0f, 1.0f);
+    render(0, (unsigned)(kRate * 0.2f));
+    note_off(0);
+    for (unsigned n = 0; n < (unsigned)kRate; n += kBlock) {
+        mod_set(0, &p, 120);
+        render(0, kBlock);
+        assert(!pq_silent(0));
+    }
+    float tail = render(0, kBlock);
+    assert(tail > 0.01f);                           // still sounding: the release, not the gate, shuts it
+}
+
+static void enveloped_ignores_adsr_level(void)
+{
+    q_vparam p = defaults();
+    p.atk = 127;                                    // 10 s: the VA would stay mute
+    start(0, 20, p, 48.0f, 1.0f);
+    float peak = render(0, (unsigned)(kRate * 0.01f));
+    printf("  modal with ATTACK 127: peak %.3f in 10 ms\n", peak);
+    assert(peak > 0.01f);
+    start(1, 8, p, 48.0f, 1.0f);
+    assert(render(1, (unsigned)(kRate * 0.01f)) < 0.01f);
+}
+
+static void filter_extremes_stay_finite(void)
+{
+    q_vparam p = defaults();
+    p.res = 127; p.cutoff = 127; p.envamt = 63; p.ldepth = 63; p.ldest = LD_CUT; p.lrate = 70;
+    start(0, 8, p, 36.0f, 1.0f, 1);
+    float peak = 0.0f;
+    for (unsigned n = 0; n < (unsigned)(kRate * 2.0f); n += kBlock) {
+        mod_set(0, &p, 120);
+        float pk = render(0, kBlock);               // render asserts every sample is finite
+        if (pk > peak) peak = pk;
+    }
+    printf("  extremes: peak %.3f\n", peak);
+    assert(peak <= 1.0f);
+}
+
+static const float kOldPeak = 0.6578f;     // the VA at defaults before the per-voice filter and ADSR (374914a)
+
+static void defaults_match_old_level(void)
+{
+    q_vparam p = defaults();
+    start(0, 8, p, 60.0f, 1.0f);
+    float peak = 0.0f;
+    for (unsigned n = 0; n < (unsigned)(kRate * 0.3f); n += kBlock) {
+        mod_set(0, &p, 120);
+        float pk = render(0, kBlock);
+        if (pk > peak) peak = pk;
+    }
+    printf("  defaults: peak %.4f (old %.4f)\n", peak, kOldPeak);
+    assert(peak > kOldPeak * 0.9f && peak < kOldPeak * 1.1f);
 }
 
 static void voice_bytes_reported(void)
@@ -200,6 +317,12 @@ int main(void)
     glide_to_keeps_envelope();
     release_goes_silent();
     off_on_between_renders_retriggers();
+    lowpass_darkens();
+    highpass_thins();
+    release_holds_voice();
+    enveloped_ignores_adsr_level();
+    filter_extremes_stay_finite();
+    defaults_match_old_level();
     voice_bytes_reported();
     printf("pq_test ok\n");
     return 0;

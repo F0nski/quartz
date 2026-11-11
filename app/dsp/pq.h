@@ -16,10 +16,10 @@ void pq_init(void);                                   /* builds the 6 voices, mo
 void pq_set_engine(int v, int model);                 /* 0..23 in Plaits' registration order; resets the voice */
 void pq_set_patch(int v, float harm, float timb, float morph, float decay, float glide); /* 0..1 */
 void pq_note_on(int v, float note, float vel);        /* MIDI note (tune included), vel 0..1 */
-void pq_note_off(int v);
+void pq_note_off(int v);                              /* the gate falls; the level follows the ADSR's release (mod_note_off) */
 void pq_glide_to(int v, float note);                  /* new pitch, no trigger: slides over the voice's glide */
 void pq_render(int v, float *out, unsigned n);        /* adds n mono samples in [-1, 1): 16-bit frames, never NaN */
-int  pq_silent(int v);                                /* 1: released and under 1e-4 for 50 ms */
+int  pq_silent(int v);                                /* 1: released, ADSR at 0 and under 1e-4 for 50 ms */
 unsigned pq_voice_bytes(void);                        /* bytes per voice (object + buffer) */
 void mod_voice_block(int v, pq_mod *m);               /* the app's (mod.c): voice v advanced by one Plaits block, 12 frames */
 #ifdef __cplusplus
