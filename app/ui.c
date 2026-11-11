@@ -112,7 +112,7 @@ typedef struct {
         q_step st[16];
         int32_t cpu[8];                         /* the CPU page's numbers as shown; core 2 -1: OFF */
         uint8_t anim;                           /* an animated scene, redrawn as it moves: 0 none, 1 the planet (v: its ENGINE
-                                                   knobs), 2 the SEQ plateau */
+                                                   knobs), 2 the SEQ plateau, 3 MARBLES (v: SPREAD, X BIAS, DEJA VU) */
         q_trow tr[Q_TRACKS];                    /* TRACKS */
         struct { int8_t n, cursor, first, playing; q_entry e[6]; } song;               /* SONG: the 6 entries shown from first */
     } scene;
@@ -133,6 +133,7 @@ static struct {
     q_view shown;
     int full;                                  /* the next frame draws everything */
     uint32_t scene_ms, fps_ms;                 /* the last scene drawn (every other 16-ms frame: 30 a second); the second being counted */
+    uint32_t notes_seen;                       /* MARBLES: the track's notes already dropped (audio_notes) */
     int frames, fps, fps_mixed;                /* scene frames this second; the last whole second's; a frame without the scene */
 } ui;
 
@@ -1202,8 +1203,14 @@ static void view_now(q_view *v)
         v->scene.src = (int8_t)t->src;
         v->scene.len = (int8_t)gen_loop(t);
         v->scene.pos = (int8_t)(audio_pattern(ui.track) == ui.p->pattern[ui.track] ? audio_pos(ui.track) : -1);
-        if (pid == P_NOTES)
+        if (pid == P_NOTES || pid == P_MARBLES || pid == P_T || pid == P_X)
             v->scene.notes = gen_allowed(ui.p, t);
+        if (pid == P_MARBLES || pid == P_T || pid == P_X) {
+            v->scene.anim = 3;
+            v->scene.v[0] = t->marbles.spread;
+            v->scene.v[1] = t->marbles.xbias;
+            v->scene.v[2] = t->marbles.dejavu;
+        }
     } else if (pid == P_TRACKS) {
         for (k = 0; k < Q_TRACKS; k++) {
             v->scene.tr[k].model = ui.p->sound[k].model;
@@ -1556,6 +1563,31 @@ void ui_frame(void)
                 if (fresh)
                     scene_enter();
                 scene_frame(v.scene.v, audio_hits(ui.track), now);
+            } else if (v.scene.anim == 3) {
+                uint8_t notes[16], k3[3] = {(uint8_t)v.scene.v[0], (uint8_t)v.scene.v[1], (uint8_t)v.scene.v[2]};
+                char tl[12], tr[24];
+                int n, k, j;
+                if (fresh) {
+                    marbles_enter();
+                    ui.notes_seen = audio_hits(ui.track);
+                }
+                n = audio_notes(ui.track, &ui.notes_seen, notes, 16);
+                for (k = 0; k < n; k++)
+                    marbles_drop(notes[k], now);
+                if (v.scene.pos >= 0)
+                    int_text(v.scene.pos + 1, tl);
+                else
+                    tl[0] = '-', tl[1] = 0;
+                for (k = 0; tl[k]; k++) {}
+                tl[k++] = '/';
+                int_text(v.scene.len, tl + k);
+                for (k = 0; TONIC_NAME[ui.p->tonic][k]; k++)
+                    tr[k] = TONIC_NAME[ui.p->tonic][k];
+                tr[k++] = ' ';
+                for (j = 0; MODE_NAME[ui.p->mode][j]; j++)
+                    tr[k++] = MODE_NAME[ui.p->mode][j];
+                tr[k] = 0;
+                marbles_frame(k3, v.scene.notes, tl, tr, now);
             } else {
                 static q_plateau pv;
                 if (fresh)
@@ -1567,6 +1599,8 @@ void ui_frame(void)
                 cv_begin(240, BAND_H, C_BLACK);
                 if (v.scene.anim == 1)
                     scene_band(-BAND_H * b);
+                else if (v.scene.anim == 3)
+                    marbles_band(-BAND_H * b);
                 else
                     plateau_band(-BAND_H * b);
                 cv_blit(0, HEAD_H + BAND_H * b);

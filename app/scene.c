@@ -111,3 +111,187 @@ void scene_band(int32_t oy)
     }
     p3d_draw(oy);
 }
+
+/* ---- MARBLES ---------------------------------------------------------------------------------------------- */
+#define MB_MAX 6                    /* marbles in flight */
+#define MB_FALL 500u                /* ms from the top to the bin */
+#define MB_FLASH 150u
+#define MB_DECAY 4000u              /* a bin's history loses one this often */
+#define MB_FLOOR 146                /* the bins' base */
+#define C_MB_BG RGB(0x0c, 0x08, 0x20)
+#define C_PIN RGB(0x3a, 0x2c, 0x64)
+#define C_BASE RGB(0x2a, 0x20, 0x50)
+#define C_MB_TEXT RGB(0xf4, 0xf1, 0xff)
+#define C_MB_GRAY RGB(0x8b, 0x84, 0xa8)
+static const uint16_t MB_WHITE[3] = {RGB(0xff, 0xff, 0xff), RGB(0xc9, 0xc3, 0xe4), RGB(0x6f, 0x68, 0x90)};
+static const char *const MB_NAME[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+
+static p3_vec ico_v[12];
+static p3_face ico_f[20];
+static p3_mesh ico;
+static struct {
+    struct { uint8_t on, note; uint32_t t0; } m[MB_MAX];
+    uint8_t hist[12], knobs[3];
+    uint32_t flash[12], decay_ms, ms;
+    uint16_t allowed;
+    int started;
+    char top_l[12], top_r[24];
+} mb;
+
+static void ico_build(void)
+{
+    static const int8_t V[12][3] = {{-1, 2, 0}, {1, 2, 0}, {-1, -2, 0}, {1, -2, 0}, {0, -1, 2}, {0, 1, 2},
+                                    {0, -1, -2}, {0, 1, -2}, {2, 0, -1}, {2, 0, 1}, {-2, 0, -1}, {-2, 0, 1}};   /* 2: the golden ratio */
+    static const uint8_t F[20][3] = {{0, 11, 5}, {0, 5, 1}, {0, 1, 7}, {0, 7, 10}, {0, 10, 11}, {1, 5, 9}, {5, 11, 4},
+                                     {11, 10, 2}, {10, 7, 6}, {7, 1, 8}, {3, 9, 4}, {3, 4, 2}, {3, 2, 6}, {3, 6, 8},
+                                     {3, 8, 9}, {4, 9, 5}, {2, 4, 11}, {6, 2, 10}, {8, 6, 7}, {9, 8, 1}};
+    const float phi = 1.618034f, n = 1.0f / fm_sqrtf(1.0f + phi * phi);
+    int i;
+    for (i = 0; i < 12; i++) {
+        float c[3];
+        for (int k = 0; k < 3; k++)
+            c[k] = V[i][k] == 2 ? phi : V[i][k] == -2 ? -phi : (float)V[i][k];
+        ico_v[i] = (p3_vec){c[0] * n, c[1] * n, c[2] * n};
+    }
+    for (i = 0; i < 20; i++) {          /* each face turned to face out */
+        const p3_vec *a = &ico_v[F[i][0]], *b = &ico_v[F[i][1]], *c = &ico_v[F[i][2]];
+        float ux = b->x - a->x, uy = b->y - a->y, uz = b->z - a->z, vx = c->x - a->x, vy = c->y - a->y, vz = c->z - a->z;
+        float d = (uy * vz - uz * vy) * (a->x + b->x + c->x) + (uz * vx - ux * vz) * (a->y + b->y + c->y) +
+                  (ux * vy - uy * vx) * (a->z + b->z + c->z);
+        ico_f[i] = d > 0.0f ? (p3_face){F[i][0], F[i][1], F[i][2]} : (p3_face){F[i][0], F[i][2], F[i][1]};
+    }
+    ico = (p3_mesh){ico_v, ico_f, 12, 20};
+}
+
+int marbles_bin(uint16_t allowed, int note, int *nbins)
+{
+    int pc = note % 12, n = 0, best = 0, bd = 99;
+    for (int c = 0; c < 12; c++)
+        if (allowed >> c & 1u) {
+            int d = c > pc ? c - pc : pc - c;
+            if (12 - d < d)
+                d = 12 - d;
+            if (d < bd)                 /* a tie keeps the lower bin */
+                bd = d, best = n;
+            n++;
+        }
+    *nbins = n;
+    return best;
+}
+
+int marbles_flying(void)
+{
+    int n = 0;
+    for (int i = 0; i < MB_MAX; i++)
+        n += mb.m[i].on;
+    return n;
+}
+
+int marbles_hist(int bin) { return mb.hist[bin]; }
+
+void marbles_enter(void)
+{
+    for (int i = 0; i < MB_MAX; i++)
+        mb.m[i].on = 0;
+}
+
+void marbles_drop(int note, uint32_t ms)
+{
+    int i, k = 0;
+    for (i = 0; i < MB_MAX; i++) {      /* a free slot, else the oldest marble */
+        if (!mb.m[i].on) {
+            k = i;
+            break;
+        }
+        if (mb.m[i].t0 - mb.m[k].t0 > 0x80000000u)
+            k = i;
+    }
+    mb.m[k].on = 1;
+    mb.m[k].note = (uint8_t)note;
+    mb.m[k].t0 = ms;
+}
+
+static float bin_x(int b, int n) { return 8.0f + 224.0f / (float)n * ((float)b + 0.5f); }
+
+void marbles_frame(const uint8_t knobs[3], uint16_t allowed, const char *top_l, const char *top_r, uint32_t ms)
+{
+    float t = (float)(ms % 3600000u) * 0.001f;
+    int i, n;
+    if (!ico.nv)
+        ico_build();
+    if (!mb.started || allowed != mb.allowed) {   /* other notes allowed: the history starts again */
+        __builtin_memset(mb.hist, 0, sizeof mb.hist);
+        mb.decay_ms = ms;
+        mb.allowed = allowed;
+        mb.started = 1;
+    }
+    while (ms - mb.decay_ms >= MB_DECAY) {
+        mb.decay_ms += MB_DECAY;
+        for (i = 0; i < 12; i++)
+            mb.hist[i] -= mb.hist[i] > 0;
+    }
+    __builtin_memcpy(mb.knobs, knobs, sizeof mb.knobs);
+    for (i = 0; top_l[i] && i < (int)sizeof mb.top_l - 1; i++)
+        mb.top_l[i] = top_l[i];
+    mb.top_l[i] = 0;
+    for (i = 0; top_r[i] && i < (int)sizeof mb.top_r - 1; i++)
+        mb.top_r[i] = top_r[i];
+    mb.top_r[i] = 0;
+    mb.ms = ms;
+    p3d_begin();
+    for (i = 0; i < MB_MAX; i++) {
+        uint32_t dt = ms - mb.m[i].t0;
+        int b;
+        if (!mb.m[i].on)
+            continue;
+        b = marbles_bin(allowed, mb.m[i].note, &n);
+        if (!n) {
+            mb.m[i].on = 0;
+            continue;
+        }
+        if (dt >= MB_FALL) {            /* landed */
+            mb.m[i].on = 0;
+            mb.hist[b] += mb.hist[b] < 6;
+            mb.flash[b] = ms;
+            continue;
+        }
+        float u = (float)dt / (float)MB_FALL, y = 140.0f * u, q = fm_clampf((y - 22.0f) / 19.0f, 0.0f, 5.0f);
+        p3_pose pose = {4.0f * t + (float)i, 3.0f * t, 7.0f, 120.0f + (bin_x(b, n) - 120.0f) * q / 5.0f, y};
+        p3d_mesh(&ico, &pose, knobs[2] > 64 ? ORANGE : MB_WHITE);
+    }
+}
+
+void marbles_band(int32_t oy)
+{
+    float gap = 22.0f + 8.0f * (float)mb.knobs[0] / 127.0f, tilt = ((float)mb.knobs[1] - 64.0f) / 64.0f * 7.0f;
+    int i, n, k, deja = mb.knobs[2] > 64;
+    cv_rect(0, oy, 240, 166, C_MB_BG);
+    cv_text(8, oy + 2, &FONT_S, mb.top_l, C_MB_GRAY);
+    cv_text(232 - text_w(&FONT_S, mb.top_r), oy + 2, &FONT_S, mb.top_r, C_MB_GRAY);
+    for (k = 0; k < 5; k++)             /* the pins */
+        for (i = -5; i <= 5; i++) {
+            int32_t x = (int32_t)(120.0f + (float)i * gap + (float)(k % 2) * gap * 0.5f + tilt * (float)k / 4.0f), y = 22 + 19 * k + oy;
+            if (x < 10 || x > 230)
+                continue;
+            cv_rect(x - 3, y, 7, 1, C_PIN);
+            cv_rect(x, y - 3, 1, 7, C_PIN);
+        }
+    marbles_bin(mb.allowed, 0, &n);
+    for (i = 0, k = 0; k < 12; k++) {   /* the bins: base, history column, name */
+        if (!(mb.allowed >> k & 1u))
+            continue;
+        float x = bin_x(i, n), h = 4.0f * (float)mb.hist[i], o = (float)oy, f = (float)MB_FLOOR + o;
+        int hot = mb.ms - mb.flash[i] < MB_FLASH;
+        const uint16_t *T = hot ? PINK3 : deja ? ORANGE : SHIP[0];
+        cv_rect((int32_t)(x - 112.0f / (float)n) + 6, MB_FLOOR + oy, (int32_t)(224.0f / (float)n) - 12, 1, C_BASE);
+        if (h > 0.0f) {
+            p3d_fill(x - 4, f - 1, x + 4, f - 1, x + 4, f - 1 - h, T[1]);
+            p3d_fill(x - 4, f - 1, x + 4, f - 1 - h, x - 4, f - 1 - h, T[1]);
+            p3d_fill(x - 4, f - 1 - h, x + 4, f - 1 - h, x + 2, f - 3 - h, T[0]);
+            p3d_fill(x - 4, f - 1 - h, x + 2, f - 3 - h, x - 6, f - 3 - h, T[0]);
+        }
+        cv_text((int32_t)x - text_w(&FONT_S, MB_NAME[k]) / 2, MB_FLOOR + 4 + oy, &FONT_S, MB_NAME[k], hot ? PINK3[0] : C_MB_TEXT);
+        i++;
+    }
+    p3d_draw(oy);
+}

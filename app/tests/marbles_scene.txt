@@ -1,0 +1,22 @@
+# The MARBLES scene on the MARBLES, T and X pages, not on NOTES
+wait 600
+tap SEQ
+turn K4 2
+expect src 2
+tap PLAY
+wait 100
+expect anim 3
+wait 2000
+shot marbles_play.png
+turn SELECT 1
+expect page 2
+expect anim 3
+turn SELECT 1
+expect page 3
+wait 100
+expect anim 3
+turn SELECT 1
+expect page 4
+wait 100
+expect anim 0
+tap PLAY

@@ -98,6 +98,67 @@ static void no_flash_on_arrival(void)
     assert(is_pink(px(120, 62)));
 }
 
+/* ---- MARBLES ---- */
+static void bins_one_and_twelve(void)
+{
+    int n;
+    assert(marbles_bin(1u << 2, 60, &n) == 0 && n == 1);
+    assert(marbles_bin(1u << 2, 71, &n) == 0);
+    assert(marbles_bin(0xFFF, 61, &n) == 1 && n == 12);
+}
+
+static void nearest_bin(void)
+{
+    int n;
+    assert(marbles_bin(0x2A5, 61, &n) == 0 && n == 5);   /* C D F G A: C# between C and D, the lower */
+    assert(marbles_bin(0x2A5, 64, &n) == 2);             /* E: F */
+    assert(marbles_bin(0x2A5, 70, &n) == 4);             /* A#: A */
+}
+
+static const uint8_t MK[3] = {64, 64, 0};
+
+static void mframe(const uint8_t *k, uint32_t ms) { marbles_frame(k, 0x2A5, "1/16", "C MAJOR", ms); }
+
+static void marble_lands_in_its_bin(void)
+{
+    int n;
+    marbles_enter();
+    mframe(MK, 0);
+    marbles_drop(62, 0);                                  /* D: bin 1 */
+    for (uint32_t ms = 0; ms <= 600; ms += 30) mframe(MK, ms);
+    assert(marbles_flying() == 0);
+    assert(marbles_hist(marbles_bin(0x2A5, 62, &n)) == 1);
+    for (uint32_t ms = 600; ms <= 4700; ms += 100) mframe(MK, ms);
+    assert(marbles_hist(1) == 0);
+}
+
+static void six_marbles_max(void)
+{
+    marbles_enter();
+    mframe(MK, 10000);
+    for (int i = 0; i < 9; i++) marbles_drop(60 + i, 10000);
+    mframe(MK, 10010);
+    assert(marbles_flying() == 6);
+}
+
+static void deja_vu_orange(void)
+{
+    static const uint8_t DV[3] = {64, 64, 100};
+    for (int d = 0; d < 2; d++) {
+        marbles_enter();
+        mframe(d ? DV : MK, 20000);
+        marbles_drop(60, 20000);
+        mframe(d ? DV : MK, 20200);
+        int o = 0;
+        for (int b = 0; b < 2; b++) {
+            cv_begin(240, 83, 0);
+            marbles_band(-83 * b);
+            for (int i = 0; i < 240 * 83; i++) o += swap16(cv_px[i]) == ORANGE[1] || swap16(cv_px[i]) == ORANGE[0];
+        }
+        assert(d ? o > 0 : o == 0);
+    }
+}
+
 int main(void)
 {
     planet_orange_then_pink();
@@ -106,6 +167,11 @@ int main(void)
     time_not_frames();
     scene_has_fm_only();
     no_flash_on_arrival();
+    bins_one_and_twelve();
+    nearest_bin();
+    marble_lands_in_its_bin();
+    six_marbles_max();
+    deja_vu_orange();
     printf("scene ok\n");
     return 0;
 }
