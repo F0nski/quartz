@@ -69,6 +69,9 @@ static void setup(void)
 
 static void block(uint32_t n) { in_render = 1; app_render(LR, n, 4096); in_render = 0; }
 
+/* what the UI does: the model written, then its command */
+static void set_model(int t, int m) { P.sound[t].model = (uint8_t)m; audio_track_model(t); }
+
 static int count(char op, int v)
 {
     int c = 0;
@@ -326,8 +329,8 @@ static int engine_calls(int v, float model)
 static void slot_engine_follows_track(void)
 {
     setup();
-    P.sound[0].model = 8;
-    P.sound[1].model = 13;
+    set_model(0, 8);
+    set_model(1, 13);
     audio_live_note(0, 60, 1);
     block(256);
     assert(count('e', 0) == 0);        /* slot 0 already holds model 8 */
@@ -401,7 +404,7 @@ static void boot_prepared_play_switches_nothing(void)
 {
     setup();
     for (int t = 0; t < Q_TRACKS; t++) {
-        P.sound[t].model = 20;
+        set_model(t, 20);
         P.pat[t][0].steps[0].flags = SF_ON;
     }
     frames(12);
@@ -470,7 +473,7 @@ static void switches_spread_over_blocks(void)
         for (int i = 0; i < 6; i++)
             if (!cancel || i != 2) { exp[ne][0] = SIX[i][0]; exp[ne][1] = SIX[i][1]; ne++; }
         setup();
-        for (int t = 0; t < Q_TRACKS; t++) P.sound[t].model = 20;
+        for (int t = 0; t < Q_TRACKS; t++) set_model(t, 20);
         six_notes();
         for (int k = 0; k < 7; k++) {
             if (cancel && k == 1)
@@ -492,7 +495,7 @@ static void switches_spread_over_blocks(void)
 static void prep_hand_off(void)
 {
     setup();
-    P.sound[0].model = 20;
+    set_model(0, 20);
     audio_prepare();
     assert(preps() == 0 && NLOG == 0);  /* asked: the render answers at its next block */
     block(256);
@@ -520,7 +523,7 @@ static void prep_hand_off(void)
 static void full_queue_keeps_the_hand_off(void)
 {
     setup();
-    P.sound[0].model = 20;
+    set_model(0, 20);
     audio_prepare();
     block(256);
     int s = -1;
@@ -532,7 +535,7 @@ static void full_queue_keeps_the_hand_off(void)
     audio_unmute();
     block(256);
     assert(pool.v[s].state == V_FREE && pool.v[s].model == 20 && preps() == 0);
-    P.sound[1].model = 21;              /* the preparation goes on */
+    set_model(1, 21);                   /* the preparation goes on */
     frames(4);
     int n = 0;
     for (int v = 0; v < Q_VOICES; v++) n += pool.v[v].model == 21 && pool.v[v].state == V_FREE;
@@ -542,7 +545,7 @@ static void full_queue_keeps_the_hand_off(void)
 static void mono_model_change_keeps_its_fade(void)
 {
     setup();
-    P.sound[1].model = 20;
+    set_model(1, 20);
     P.sound[1].poly = 2;
     frames(6);                          /* two engines on 20, built in the main loop */
     audio_live_note(0, 60, 1);
@@ -852,9 +855,9 @@ static void legato_while_tied_note_waits(void)
 {
     setup();
     P.tempo = 240;
-    P.sound[0].model = 20;
+    set_model(0, 20);
     P.sound[0].poly = 2;
-    for (int t = 1; t < Q_TRACKS; t++) P.sound[t].model = (uint8_t)(12 + t);
+    for (int t = 1; t < Q_TRACKS; t++) set_model(t, 12 + t);
     P.pat[0][0].div = DIV_32;
     P.pat[0][0].steps[0].flags = SF_ON | SF_SLIDE;
     P.pat[0][0].steps[1].flags = SF_ON;
@@ -881,7 +884,7 @@ static void legato_while_tied_note_waits(void)
 static void kit_setup(void)
 {
     setup();
-    P.sound[0].model = M_KIT;
+    set_model(0, M_KIT);
     frames(12);
     NLOG = 0;
 }
@@ -962,7 +965,7 @@ static void kit_engine_change_while_sounding(void)
 static void kit_prepares_its_engines(void)
 {
     setup();
-    P.sound[0].model = M_KIT;
+    set_model(0, M_KIT);
     P.pat[0][0].steps[0].flags = SF_ON;
     P.pat[0][0].steps[0].note[0] = KIT_NOTE;
     P.pat[0][0].steps[0].note[1] = KIT_NOTE + 1;
@@ -1001,14 +1004,14 @@ static void kit_legato_strikes(void)
     assert(track_on(0) == 0);
 }
 
-/* a synth note-on waiting for an engine when its track turns KIT (model written before the render takes
- * CMD_MODEL): no pad, dropped; and back, a pad's note-on waiting when the track turns synth plays as a synth note */
+/* a note-on waiting for an engine when its track turns KIT or back: started on the model the render plays at the
+ * block's start, then faded by CMD_MODEL; no pad read for a synth note */
 static void kit_switch_while_waiting(void)
 {
     for (int back = 0; back < 2; back++) {
         setup();
-        P.sound[0].model = back ? M_KIT : 20;
-        P.sound[1].model = 20;
+        set_model(0, back ? M_KIT : 20);
+        set_model(1, 20);
         audio_live_note(1, 60, 1);
         audio_live_note(0, back ? KIT_NOTE : 60, 1);   /* waits behind track 1's switch */
         block(256);
@@ -1022,8 +1025,53 @@ static void kit_switch_while_waiting(void)
         assert(n_later == 0 && track_on(0) == 0);
         int n = 0;
         for (int i = 0; i < NLOG; i++) n += LOG[i].op == 'n';
-        assert(n == back);              /* back: started, then faded by the model change */
+        assert(n == 1);
     }
+}
+
+/* the model written, CMD_MODEL not yet taken (the render ran between the main loop's write and its push): the
+ * render keeps the track's model until CMD_MODEL, its synth note-off ends its voice, its synth note-on plays */
+static void render_model_changes_at_its_command(void)
+{
+    setup();
+    audio_live_note(0, 60, 1);
+    block(256);
+    int v = track_slot(0);
+    assert(v >= 0 && vpad[v] < 0);
+    P.sound[0].model = M_KIT;
+    NLOG = 0;
+    audio_live_note(0, 60, 0);
+    audio_live_note(0, 62, 1);
+    block(256);
+    assert(count('f', v) == 1);
+    int n = 0;
+    for (int i = 0; i < NLOG; i++) {
+        n += LOG[i].op == 'n' && LOG[i].a == 62.0f;
+        if (LOG[i].op == 'e') assert(LOG[i].a <= 23.0f);
+    }
+    assert(n == 1);
+    for (int u = 0; u < Q_VOICES; u++) assert(vpad[u] < 0 && pool.v[u].model <= 23);
+    audio_track_model(0);
+    frames(12);
+    NLOG = 0;
+    audio_live_note(0, KIT_NOTE + 1, 1);   /* SN */
+    block(256);
+    v = track_slot(0);
+    for (int u = 0; u < Q_VOICES; u++) if (pool.v[u].state == V_ON) v = u;
+    assert(pool.v[v].state == V_ON && vpad[v] == 1 && pool.v[v].model == 22);
+}
+
+/* a pad sounds at 48 + its tune + the track's tune */
+static void kit_pad_pitch_adds_track_tune(void)
+{
+    kit_setup();
+    P.sound[0].tune = -5;
+    P.kit[0][4].tune = 12;
+    audio_live_note(0, KIT_NOTE + 4, 1);
+    block(256);
+    int n = 0;
+    for (int i = 0; i < NLOG; i++) if (LOG[i].op == 'n') { assert(LOG[i].a == 48.0f + 12.0f - 5.0f); n++; }
+    assert(n == 1);
 }
 
 int main(void)
@@ -1068,6 +1116,8 @@ int main(void)
     kit_prepares_its_engines();
     kit_legato_strikes();
     kit_switch_while_waiting();
+    render_model_changes_at_its_command();
+    kit_pad_pitch_adds_track_tune();
     puts("audio_test ok");
     return 0;
 }

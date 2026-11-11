@@ -27,6 +27,10 @@ enum { CMD_NOTE, CMD_PLAY, CMD_MODEL, CMD_SCENE, CMD_PREP_REQ, CMD_PREP_DONE };
 typedef struct { uint8_t kind, track, note, on; } q_cmd;
 
 static q_project *prj;
+/* the tracks' models as the render plays them, taken at CMD_MODEL: the main loop writes sound[t].model whenever,
+ * and a voice must keep the model it started on until its track's CMD_MODEL. The main loop's preparation reads
+ * sound[t].model: its request follows the CMD_MODEL in the ring, so the render's answer sees the same model */
+static uint8_t rmodel[Q_TRACKS];
 static q_seq seq;
 static q_voices pool;
 static uint8_t fading[Q_VOICES];    /* a model change: faded out over this block, then freed */
@@ -85,6 +89,8 @@ static int push(uint8_t kind, int track, int note, int on)
 void audio_setup(q_project *p)
 {
     prj = p;
+    for (int t = 0; t < Q_TRACKS; t++)
+        rmodel[t] = p->sound[t].model;
     __builtin_memset(&seq, 0, sizeof seq);
     voices_init(&pool);
     pq_init();
@@ -156,11 +162,11 @@ q_load audio_load(void)
     return l;
 }
 
-/* the engines track t plays on (bit m: model m): a KIT's pads' engines, else its model */
-static uint32_t models(int t)
+/* the engines track t plays on as model m (bit e: engine e): a KIT's pads' engines, else m */
+static uint32_t models(int t, int m)
 {
-    if (prj->sound[t].model != M_KIT)
-        return 1u << prj->sound[t].model;
+    if (m != M_KIT)
+        return 1u << m;
     uint32_t w = 0;
     for (int p = 0; p < Q_PADS; p++)
         w |= 1u << (KIT_MODEL + prj->kit[t][p].engine);
@@ -168,31 +174,32 @@ static uint32_t models(int t)
 }
 
 /* a KIT has one voice per engine: a pad cuts the one sounding on its engine (CH cuts OH) */
-static int note_poly(int t) { return prj->sound[t].model == M_KIT ? 1 : prj->sound[t].poly; }
+static int note_poly(int t, int m) { return m == M_KIT ? 1 : prj->sound[t].poly; }
 
 /* a KIT's note outside its pads: ignored */
 static int no_pad(int t, int note)
 {
-    return prj->sound[t].model == M_KIT && (note < KIT_NOTE || note >= KIT_NOTE + Q_PADS);
+    return rmodel[t] == M_KIT && (note < KIT_NOTE || note >= KIT_NOTE + Q_PADS);
 }
 
 static int note_model(int t, int note)
 {
-    return prj->sound[t].model == M_KIT ? KIT_MODEL + prj->kit[t][note - KIT_NOTE].engine : prj->sound[t].model;
+    return rmodel[t] == M_KIT ? KIT_MODEL + prj->kit[t][note - KIT_NOTE].engine : rmodel[t];
 }
 
 /* A free slot whose engine is spare (no track wants that many of its model) when `model` lacks one, else -1.
  * The tracks want poly slots each on their model; the slots holding it, free or playing, count, V_PREP not.
- * Called by the render and, reading the pool as it stands, by the main loop: the render's answer is the one. */
-static int spare_slot(int model)
+ * Called by the render and, reading the pool as it stands, by the main loop: the render's answer is the one.
+ * mod: the tracks' models, the caller's view. */
+static int spare_slot(int model, const uint8_t *mod)
 {
     static const uint8_t ORDER[Q_VOICES] = {0, 3, 1, 4, 2, 5};   /* the cores in turn */
     int8_t want[24] = {0}, have[24] = {0};
     for (int t = 0; t < Q_TRACKS; t++) {
-        uint32_t w = models(t);
+        uint32_t w = models(t, mod[t]);
         for (int m = 0; m < 24; m++)
             if (w >> m & 1)
-                want[m] += (int8_t)note_poly(t);
+                want[m] += (int8_t)note_poly(t, mod[t]);
     }
     for (int v = 0; v < Q_VOICES; v++)
         if (pool.v[v].state != V_PREP && pool.v[v].model >= 0)
@@ -212,6 +219,7 @@ static int spare_slot(int model)
 void audio_prepare(void)
 {
     int s = prep_slot;
+    uint8_t mod[Q_TRACKS];
     if (s == PREP_WAIT)
         return;
     if (s >= 0) {
@@ -219,10 +227,12 @@ void audio_prepare(void)
         push(CMD_PREP_DONE, s, prep_model, 0);
         prep_slot = -1;
     }
+    for (int t = 0; t < Q_TRACKS; t++)
+        mod[t] = prj->sound[t].model;
     for (int t = 0; t < Q_TRACKS; t++) {
-        uint32_t w = models(t);
+        uint32_t w = models(t, mod[t]);
         for (int m = 0; m < 24; m++)
-            if (w >> m & 1 && spare_slot(m) >= 0) {
+            if (w >> m & 1 && spare_slot(m, mod) >= 0) {
                 prep_model = m;
                 prep_slot = PREP_WAIT;  /* before the request: push publishes both */
                 if (!push(CMD_PREP_REQ, 0, prep_model, 0))
@@ -268,22 +278,22 @@ static uint32_t wanted(void)
 {
     uint32_t w = 0;
     for (int t = 0; t < Q_TRACKS; t++)
-        w |= models(t);
+        w |= models(t, rmodel[t]);
     return w;
 }
 
 static int needs_switch(int track, int note)
 {
     int m = note_model(track, note);
-    return pool.v[voices_pick(&pool, track, note_poly(track), m, wanted())].model != m;
+    return pool.v[voices_pick(&pool, track, note_poly(track, rmodel[track]), m, wanted())].model != m;
 }
 
 /* step -1: the keyboard's, no locks. A KIT's pad sounds at 48 + its tune */
 static void note_on(int track, int note, int vel, int pat, int step)
 {
     const q_sound *s = &prj->sound[track];
-    int m = note_model(track, note), sw = needs_switch(track, note), kit = s->model == M_KIT;
-    int v = voices_note_on(&pool, track, note, note_poly(track), m, wanted());
+    int m = note_model(track, note), sw = needs_switch(track, note), kit = rmodel[track] == M_KIT;
+    int v = voices_note_on(&pool, track, note, note_poly(track, rmodel[track]), m, wanted());
     fading[v] = 0;                  /* (a fading slot taken: the new note at full level) */
     if (sw) {
         pq_set_engine(v, m);
@@ -329,15 +339,12 @@ static void event(int track, int note, int vel, int on, int pat, int step)
         pq_note_off(v);
 }
 
-/* the waiting note-ons, at the block's start: in order, a track's stopping at its first that still waits. The
- * main loop may have turned a track KIT before the render takes its CMD_MODEL: its synth notes go */
+/* the waiting note-ons, at the block's start: in order, a track's stopping at its first that still waits */
 static void start_later(void)
 {
     int n = 0, held = 0;
     for (int i = 0; i < n_later; i++) {
         q_later e = later[i];
-        if (no_pad(e.track, e.note))
-            continue;
         if (!(held >> e.track & 1) && !(switched && needs_switch(e.track, e.note))) {
             note_on(e.track, e.note, e.vel, e.pat, e.step);
         } else {
@@ -391,7 +398,7 @@ static void apply(const q_event *e)
 {
     if (e->track == Q_CLICK_TRACK) {
         click_start(e->note);
-    } else if (e->on && (e->flags & EV_LEGATO) && prj->sound[e->track].model == M_KIT) {
+    } else if (e->on && (e->flags & EV_LEGATO) && rmodel[e->track] == M_KIT) {
         /* a pad does not glide (a retargeted voice could stay on another pad's engine): the tied note, whose
          * note-off is gone, ends, and the new one strikes */
         event(e->track, e->from, 0, 0, e->pat, e->step);
@@ -451,6 +458,7 @@ static void commands(void)
             event(c.track, c.note, 100, c.on, 0, -1);
         } else if (c.kind == CMD_MODEL) {
             int n = 0;
+            rmodel[c.track] = prj->sound[c.track].model;
             for (int v = 0; v < Q_VOICES; v++)   /* released, no longer V_ON: no note-off nor note-on lands on them */
                 if (sounding(v) && pool.v[v].track == c.track) {
                     pool.v[v].state = V_RELEASED;
@@ -463,7 +471,7 @@ static void commands(void)
         } else if (c.kind == CMD_SCENE) {
             seq_launch(&seq, c.note);
         } else if (c.kind == CMD_PREP_REQ) {
-            int v = spare_slot(c.note);
+            int v = spare_slot(c.note, rmodel);
             if (v >= 0) {
                 pool.v[v].state = V_PREP;
                 pool.v[v].model = -1;
