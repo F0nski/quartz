@@ -10,6 +10,7 @@
 #include "store.c"
 #include "p3d.c"
 #include "scene.c"
+#include "plateau.c"
 #include "ui.c"
 
 static uint8_t booted;
