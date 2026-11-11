@@ -5,6 +5,7 @@
 #include "gen.c"
 #include "seq.c"
 #include "voices.c"
+#include "mod.c"
 #include "audio.c"
 #include "store.c"
 #include "ui.c"

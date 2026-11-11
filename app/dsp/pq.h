@@ -5,6 +5,10 @@
 
 #define PQ_VOICES 6
 
+/* a voice's modulations for its next Plaits block: env the ADSR 0..1; cutoff f / sample rate, clamped to
+ * 0.0001..0.45; res the SVF's Q; pitch semitones; harm, timb, morph offsets; gain 0..1; type FT_* */
+typedef struct { float env, cutoff, res, pitch, harm, timb, morph, gain; int type; } pq_mod;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -17,6 +21,7 @@ void pq_glide_to(int v, float note);                  /* new pitch, no trigger: 
 void pq_render(int v, float *out, unsigned n);        /* adds n mono samples in [-1, 1): 16-bit frames, never NaN */
 int  pq_silent(int v);                                /* 1: released and under 1e-4 for 50 ms */
 unsigned pq_voice_bytes(void);                        /* bytes per voice (object + buffer) */
+void mod_voice_block(int v, pq_mod *m);               /* the app's (mod.c): voice v advanced by one Plaits block, 12 frames */
 #ifdef __cplusplus
 }
 #endif
