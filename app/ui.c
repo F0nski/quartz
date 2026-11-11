@@ -12,19 +12,20 @@
 #define FOOT_Y 196
 #define PINK RGB(255, 47, 142)       /* notes playing only */
 
-enum { D_EDIT, D_SEQ, D_GLO, D_HOME, ND };
+enum { D_EDIT, D_SEQ, D_GLO, D_HOME, D_ENV, D_LFO, D_ARP, ND };
 enum { P_ENGINE, P_SOUND, P_STEPS, P_TEMPO, P_SCALE, P_CPU, P_XY, P_TRACKS, P_SONG, P_GRIDS, P_MAP, P_DENS, P_MARBLES, P_T,
-       P_X, P_NOTES, P_PAD, P_KIT };
+       P_X, P_NOTES, P_PAD, P_KIT, P_ADSR, P_FILTER, P_LFO, P_ARP };
 /* what PRESET sets on a held step; the black keys 0..7 pick RATCHET .. MICRO, 8 is CLEAR */
 enum { A_VEL, A_RATCHET, A_PROB, A_COND, A_SLIDE, A_ACCENT, A_NOTE, A_LEN, A_MICRO, A_N };
 #define COND_N 40                    /* NONE, FIRST, !FIRST, PRE, !PRE, then A:B for B = 2..8, A = 1..B */
 
-static const uint8_t DOMAIN_PAGES[ND][4] = {{P_ENGINE, P_SOUND}, {P_STEPS, P_XY}, {P_TEMPO, P_SCALE, P_CPU}, {P_TRACKS, P_SONG}};
-static const uint8_t DOMAIN_N[ND] = {2, 1, 3, 2};      /* SEQ: 2 pages while PATH is XY (pages) */
+static const uint8_t DOMAIN_PAGES[ND][4] = {{P_ENGINE, P_SOUND}, {P_STEPS, P_XY}, {P_TEMPO, P_SCALE, P_CPU}, {P_TRACKS, P_SONG},
+                                                {P_ADSR, P_FILTER}, {P_LFO}, {P_ARP}};
+static const uint8_t DOMAIN_N[ND] = {2, 1, 3, 2, 2, 1, 1};      /* SEQ: 2 pages while PATH is XY (pages) */
 static const uint8_t GEN_PAGES[2][4] = {{P_GRIDS, P_MAP, P_DENS}, {P_MARBLES, P_T, P_X, P_NOTES}};
 static const uint8_t KIT_PAGES[4] = {P_PAD, P_KIT};
-static const uint8_t DOMAIN_BTN[ND] = {B_EDIT, B_SEQ, B_GLO, B_HOME};
-static const char *const DOMAIN_NAME[ND] = {"EDIT", "SEQ", "GLO", "HOME"};
+static const uint8_t DOMAIN_BTN[ND] = {B_EDIT, B_SEQ, B_GLO, B_HOME, B_ENV, B_LFO, B_ARP};
+static const char *const DOMAIN_NAME[ND] = {"EDIT", "SEQ", "GLO", "HOME", "ENV", "LFO", "ARP"};
 
 typedef struct { const char *name, *label[4]; int16_t min[4], max[4]; } q_page;
 static const q_page PAGE[] = {
@@ -46,6 +47,10 @@ static const q_page PAGE[] = {
     {"NOTES", {"NOTE", "RANGE"}, {1, 1}, {127, 4}},
     {"PAD", {"TUNE", "HARM", "TIMB", "DECAY"}, {-24, 0, 0, 0}, {24, 127, 127, 127}},
     {"KIT", {"MODEL", "ENGINE", "LEVEL"}, {0, 0, 0}, {M_KIT, 2, 127}},
+    {"ADSR", {"ATTACK", "DECAY", "SUSTAIN", "RELEASE"}, {0, 0, 0, 0}, {127, 127, 127, 127}},
+    {"FILTER", {"TYPE", "CUTOFF", "RES", "ENV AMT"}, {0, 0, 0, -64}, {2, 127, 127, 63}},
+    {"LFO", {"SHAPE", "RATE", "DEPTH", "DEST"}, {0, 0, -64, 0}, {4, LRATE_SYNC + 63, 63, 6}},
+    {"ARP", {"MODE", "OCT", "DIV", "GATE"}, {0, 1, 0, 5}, {AM_ORDER, 4, DIV_N - 1, 100}},
 };
 
 /* Plaits' registration order (pq.h) */
@@ -55,6 +60,12 @@ static const char *const MODEL_NAME[M_KIT + 1] = {
     "SWARM", "NOISE", "PARTICLE", "STRING", "MODAL", "BASS DRUM", "SNARE", "HI-HAT", "KIT"};
 static const char *const ENGINE_NAME[3] = {"BD", "SN", "HH"};
 static const char *const DIV_NAME[DIV_N] = {"1/32", "1/16T", "1/16", "1/8T", "1/8", "1/4T", "1/4", "1/2", "1/1"};
+static const char *const FTYPE_NAME[3] = {"LP", "HP", "BP"};
+static const char *const LSHAPE_NAME[5] = {"SIN", "TRI", "SAW", "SQR", "S&H"};
+static const char *const LRATE_NAME[LRATE_SYNC] = {"8 BAR", "4 BAR", "2 BAR", "1 BAR", "1/2", "1/4", "1/4T", "1/8", "1/8T",
+                                                   "1/16", "1/16T", "1/32"};
+static const char *const LDEST_NAME[7] = {"HARM", "TIMB", "MORPH", "PITCH", "CUTOFF", "RES", "LEVEL"};
+static const char *const AMODE_NAME[6] = {"OFF", "UP", "DOWN", "UP-DN", "RAND", "ORDER"};
 static const char *const SRC_NAME[SRC_N] = {"STEP", "GRIDS", "MARBLES"};
 /* Marbles' T models, its TGeneratorModel order (gen.c) */
 static const char *const T_MODE_NAME[7] = {"C.BERN", "CLUSTERS", "DRUMS", "I.BERN", "DIVIDER", "3 STATES", "MARKOV"};
@@ -75,8 +86,9 @@ typedef struct { uint8_t model, pat, playing, mute; int8_t pos, len; } q_trow;  
 
 /* what is on the screen, part by part: a part is drawn again when its view changes */
 typedef struct {
-    struct { int8_t track, domain, page, n, msg, pat, playing, scene, pad; } head;   /* pat: P1..P8 asked; playing: the one playing when it differs, else 0;
-                                                                                   pad: a KIT's in EDIT 1..16, else 0 */
+    struct { int8_t track, domain, page, n, msg, pat, playing, scene, pad, ltrig; } head;   /* pat: P1..P8 asked; playing: the one playing when it differs, else 0;
+                                                                                   pad: a KIT's in EDIT 1..16, else 0;
+                                                                                   ltrig: LFO's FREE 1 / TRIG 2, else 0 */
     struct { int8_t pid; uint8_t col, hide; int16_t v[4]; } foot;           /* col: the knobs shown in colour, the rest in grey (a lock page) */
     struct {
         int8_t pid, spage, cursor, pos, len, path, held, attr, showpath, xlen, ylen, src;   /* a generator: pos its rank, len its loop */
@@ -97,7 +109,7 @@ typedef struct {
 static struct {
     q_project *p;
     int domain, page[ND], track, octave, spage, rec, cursor, dirty, entry;   /* entry: the song cursor 1..nsong, 0 none */
-    int held, held_key, edited, attr, lpage, nwrote, seqdown;   /* held: the step held 1..64, 0 none; lpage: the held step's p-lock page;
+    int held, held_key, edited, attr, lpage, nwrote, seqdown, arpdown;   /* held: the step held 1..64, 0 none; lpage: the held step's p-lock page (LPAGE);
                                                                    nwrote: notes of the chord written since the hold began */
     int pad, padheld;                          /* a KIT: its last pad played 0..15; the held pad's key + 1, 0 none */
     int homedown, savedown, seldown, saveused, msg_scene;      /* saveused: a white key came while SAVE was held; msg_scene: 1..8 asked */
@@ -144,8 +156,11 @@ static int page_id(void)
 /* the page K1-K4 set, a step held aside: a KIT's pad held in EDIT gives its PAD page */
 static int knob_page(void) { return ui.domain == D_EDIT && ui.padheld && kit() ? P_PAD : page_id(); }
 
-/* a KIT plays the generators' 3 voices on its pads: no voice, note nor T output to pick */
-static int knob_hidden(int pid, int k) { return kit() && ((pid == P_GRIDS && (k == 1 || k == 2)) || (pid == P_MARBLES && k == 1)); }
+/* a KIT plays the generators' 3 voices on its pads: no voice, note nor T output to pick; no arp either */
+static int knob_hidden(int pid, int k)
+{
+    return kit() && ((pid == P_GRIDS && (k == 1 || k == 2)) || (pid == P_MARBLES && k == 1) || pid == P_ARP);   /* a KIT has no arp */
+}
 
 static int knob_get(int pid, int k)
 {
@@ -195,6 +210,22 @@ static int knob_get(int pid, int k)
     case P_PAD * 4 + 3: return pd->decay;
     case P_KIT * 4 + 1: return pd->engine;
     case P_KIT * 4 + 2: return pd->level;
+    case P_ADSR * 4: return s->atk;
+    case P_ADSR * 4 + 1: return s->dec;
+    case P_ADSR * 4 + 2: return s->sus;
+    case P_ADSR * 4 + 3: return s->rel;
+    case P_FILTER * 4: return s->ftype;
+    case P_FILTER * 4 + 1: return s->cutoff;
+    case P_FILTER * 4 + 2: return s->res;
+    case P_FILTER * 4 + 3: return s->envamt;
+    case P_LFO * 4: return s->lshape;
+    case P_LFO * 4 + 1: return s->lrate;
+    case P_LFO * 4 + 2: return s->ldepth;
+    case P_LFO * 4 + 3: return s->ldest;
+    case P_ARP * 4: return s->amode;
+    case P_ARP * 4 + 1: return s->aoct;
+    case P_ARP * 4 + 2: return s->adiv;
+    case P_ARP * 4 + 3: return s->agate;
     case P_TEMPO * 4: return ui.p->tempo;
     case P_TEMPO * 4 + 1: return ui.p->swing;
     case P_SCALE * 4: return ui.p->tonic;
@@ -268,6 +299,22 @@ static void knob_set(int pid, int k, int v)
     case P_PAD * 4 + 3: pd->decay = (uint8_t)v; break;
     case P_KIT * 4 + 1: pd->engine = (uint8_t)v; break;     /* the render takes it at the pad's next hit */
     case P_KIT * 4 + 2: pd->level = (uint8_t)v; break;
+    case P_ADSR * 4: s->atk = (uint8_t)v; break;
+    case P_ADSR * 4 + 1: s->dec = (uint8_t)v; break;
+    case P_ADSR * 4 + 2: s->sus = (uint8_t)v; break;
+    case P_ADSR * 4 + 3: s->rel = (uint8_t)v; break;
+    case P_FILTER * 4: s->ftype = (uint8_t)v; break;
+    case P_FILTER * 4 + 1: s->cutoff = (uint8_t)v; break;
+    case P_FILTER * 4 + 2: s->res = (uint8_t)v; break;
+    case P_FILTER * 4 + 3: s->envamt = (int8_t)v; break;
+    case P_LFO * 4: s->lshape = (uint8_t)v; break;
+    case P_LFO * 4 + 1: s->lrate = (uint8_t)v; break;
+    case P_LFO * 4 + 2: s->ldepth = (int8_t)v; break;
+    case P_LFO * 4 + 3: s->ldest = (uint8_t)v; break;
+    case P_ARP * 4: s->amode = (uint8_t)v; break;
+    case P_ARP * 4 + 1: s->aoct = (uint8_t)v; break;
+    case P_ARP * 4 + 2: s->adiv = (uint8_t)v; break;
+    case P_ARP * 4 + 3: s->agate = (uint8_t)v; break;
     case P_TEMPO * 4: ui.p->tempo = (uint16_t)v; break;
     case P_TEMPO * 4 + 1: ui.p->swing = (uint8_t)v; break;
     case P_SCALE * 4: ui.p->tonic = (uint8_t)v; break;
@@ -412,25 +459,33 @@ static void attr_turn(q_step *s, int d)
     }
 }
 
-/* the q_sound field the held step's lock page gives knob k, -1 none */
-static int lock_param(int k) { return ui.lpage ? (k == 1 || k == 2 ? LK_TUNE + k - 1 : -1) : k; }
+/* the held step's p-lock pages: a synth track's 6, a KIT's ADSR, FILTER and LFO (ui.lpage counts in the track's own
+   list); LOCK_OF: the LK_* each knob locks, -1 for the ones that do not (MODEL, POLY) */
+static const uint8_t LPAGE[6] = {P_ENGINE, P_SOUND, P_ADSR, P_FILTER, P_LFO, P_ARP};
+static const int8_t LOCK_OF[6][4] = {
+    {LK_HARM, LK_TIMB, LK_MORPH, LK_DECAY}, {-1, LK_TUNE, LK_GLIDE, -1}, {LK_ATK, LK_DEC, LK_SUS, LK_REL},
+    {LK_FTYPE, LK_CUT, LK_RES, LK_ENVAMT}, {LK_SHAPE, LK_RATE, LK_DEPTH, LK_DEST}, {LK_AMODE, LK_AOCT, LK_ADIV, LK_AGATE}};
+static int lpage_n(void) { return kit() ? 3 : 6; }
+static int lpage_row(void) { return ui.lpage + (kit() ? 2 : 0); }
+static int lock_pid(void) { return LPAGE[lpage_row()]; }
+static int lock_param(int k) { return LOCK_OF[lpage_row()][k]; }
 
-static int lock_value(const q_pattern *t, int param, int *locked)
+static int lock_value(const q_pattern *t, int k, int *locked)
 {
-    int i = lock_find(t, ui.held - 1, param), k = param < LK_TUNE ? param : param - LK_TUNE + 1;
+    int param = lock_param(k), i = lock_find(t, ui.held - 1, param);
     *locked = i >= 0;
     if (i < 0)
-        return knob_get(ui.lpage ? P_SOUND : P_ENGINE, k);
-    return param == LK_TUNE ? (int8_t)t->locks[i].value : t->locks[i].value;
+        return knob_get(lock_pid(), k);
+    return param == LK_TUNE || param == LK_ENVAMT || param == LK_DEPTH ? (int8_t)t->locks[i].value : t->locks[i].value;
 }
 
 static void lock_turn(int k, int d)
 {
     q_pattern *t = pat();
-    int pid = ui.lpage ? P_SOUND : P_ENGINE, param = lock_param(k), locked, v;
+    int pid = lock_pid(), param = lock_param(k), locked, v;
     if (!d || param < 0)
         return;
-    v = clamp(lock_value(t, param, &locked) + d, PAGE[pid].min[k], PAGE[pid].max[k]);
+    v = clamp(lock_value(t, k, &locked) + d, PAGE[pid].min[k], PAGE[pid].max[k]);
     ui.edited = 1;                      /* a knob turned on a held step is an edit, the lock fitting or not */
     if (lock_set(t, ui.held - 1, param, v)) {
         ui.locks_until = plat_ms() + MSG_MS;
@@ -475,8 +530,11 @@ static void rec_write(const q_rec *r)
 static void rec_lock(int pid, int k)
 {
     q_pattern *t = pat();
-    int pos = audio_pos(ui.track), param = pid == P_ENGINE ? k : pid == P_SOUND && k > 0 && k < 3 ? LK_TUNE + k - 1 : -1;
-    if (param < 0 || pos < 0 || t->src != SRC_STEP || audio_pattern(ui.track) != ui.p->pattern[ui.track] || !(t->steps[pos].flags & SF_ON))
+    int pos = audio_pos(ui.track), param = -1, r;
+    for (r = 0; r < 6; r++)
+        if (LPAGE[r] == pid)
+            param = LOCK_OF[r][k];
+    if (param < 0 || knob_hidden(pid, k) || pos < 0 || t->src != SRC_STEP || audio_pattern(ui.track) != ui.p->pattern[ui.track] || !(t->steps[pos].flags & SF_ON))
         return;
     if (lock_set(t, pos, param, (uint8_t)knob_get(pid, k)))
         ui.locks_until = plat_ms() + MSG_MS;
@@ -640,7 +698,8 @@ static void key_down(int k)
         if (!s)
             ui.padheld = k + 1;
     }
-    audio_live_note(ui.track, note, s ? 2 : 1);   /* written to the held step: not overdubbed too */
+    /* written to the held step: not overdubbed too; ARP held: the arp keeps the note after its key is released */
+    audio_live_note(ui.track, note, s ? 2 : ui.arpdown && !kit() ? 3 : 1);
     ui.key_note[k] = (int8_t)note;
     ui.key_track[k] = (int8_t)ui.track;
     ui.last_note[ui.track] = (uint8_t)note;
@@ -705,6 +764,7 @@ void ui_input(void)
     ui.homedown = btn >> B_HOME & 1u;
     ui.savedown = btn >> B_SAVE & 1u;
     ui.seldown = btn >> B_SEL & 1u;
+    ui.arpdown = btn >> B_ARP & 1u;
     for (i = 0; i < NB; i++)
         if ((btn & ~ui.btn) >> i & 1u)
             button(i);
@@ -728,7 +788,7 @@ void ui_input(void)
     }
     if ((e = plat_enc(EN_SELECT)) != 0) {
         if (ui.held)                    /* the held step's p-lock page */
-            ui.lpage = ((ui.lpage + e) % 2 + 2) % 2;
+            ui.lpage = ((ui.lpage + e) % lpage_n() + lpage_n()) % lpage_n();
         else
             ui.page[d] = ((ui.page[d] + e) % n + n) % n;
     }
@@ -744,6 +804,9 @@ void ui_input(void)
             knob_turn(P_SOUND, 0, e);
         } else if (ui.domain == D_HOME && page_id() == P_SONG) {
             knob_turn(P_SONG, 0, e);
+        } else if (ui.domain == D_LFO) {        /* FREE / TRIG */
+            ui.p->sound[ui.track].ltrig = (uint8_t)clamp(ui.p->sound[ui.track].ltrig + e, 0, 1);
+            ui.dirty = 1;
         }
     }
     if (ui.page[D_SEQ] >= domain_n(D_SEQ))      /* another pattern or track, no XY page */
@@ -752,8 +815,7 @@ void ui_input(void)
     for (i = 0; i < 4; i++) {
         e = plat_enc(EN_K1 + i);
         if (ui.held) {
-            if (!kit())                 /* a KIT's steps take no p-locks */
-                lock_turn(i, e);
+            lock_turn(i, e);
         } else {
             knob_turn(kpid, i, e);
             if (e && ui.rec && audio_playing())
@@ -810,8 +872,60 @@ static void note_name(int note, char *b)
     int_text(note / 12 - 1, b);
 }
 
+/* a free LFO rate in Hz, 2 significant digits (0.05 .. 30) */
+static void hz_text(int i, char *b)
+{
+    float f = 0.05f * __builtin_powf(600.f, i / 63.f);
+    int dec = f < 0.1f ? 3 : f < 1.f ? 2 : f < 10.f ? 1 : 0, p = 1, n, fr, j;
+    for (j = 0; j < dec; j++)
+        p *= 10;
+    n = (int)(f * (float)p + 0.5f);
+    int_text(n / p, b);
+    while (*b)
+        b++;
+    fr = n % p;
+    if (!fr)
+        return;
+    *b++ = '.';
+    for (p /= 10; p; p /= 10) {         /* the fraction's digits, the trailing zeros dropped */
+        *b++ = (char)('0' + fr / p);
+        fr %= p;
+        if (!fr)
+            break;
+    }
+    *b = 0;
+}
+
+/* the engines with their own envelope: the ADSR shapes only their filter (6-OP, STRING, MODAL, the drums, the KIT) */
+static int own_env(int m) { return (m >= 2 && m <= 4) || m >= 19; }
+
 static void knob_text(int pid, int k, int v, char *b)
 {
+    if (pid >= P_ADSR) {
+        const char *s = 0;
+        switch (pid * 4 + k) {
+        case P_FILTER * 4: s = FTYPE_NAME[v]; break;
+        case P_LFO * 4: s = LSHAPE_NAME[v]; break;
+        case P_LFO * 4 + 1:
+            if (v >= LRATE_SYNC)
+                return hz_text(v - LRATE_SYNC, b);
+            s = LRATE_NAME[v];
+            break;
+        case P_LFO * 4 + 3: s = LDEST_NAME[v]; break;
+        case P_ARP * 4: s = AMODE_NAME[v]; break;
+        case P_ARP * 4 + 2: s = DIV_NAME[v]; break;
+        case P_ARP * 4 + 3:
+            int_text(v, b);
+            while (*b)
+                b++;
+            *b++ = ' ', *b++ = '%', *b = 0;
+            return;
+        }
+        if (s) {
+            while ((*b++ = *s++) != 0) {}
+            return;
+        }
+    }
     if (pid == P_SONG && k == 3) {
         const char *s = v ? "SONG" : "PATTERN";
         while ((*b++ = *s++) != 0) {}
@@ -898,7 +1012,7 @@ static void attr_text(const q_step *s, int a, char *b)
 static void view_now(q_view *v)
 {
     const q_pattern *t = &ui.p->pat[ui.track][ui.p->pattern[ui.track]];
-    int pid = page_id(), k, fpid = ui.held ? (ui.lpage ? P_SOUND : P_ENGINE) : knob_page(), locked;
+    int pid = page_id(), k, fpid = ui.held ? lock_pid() : knob_page(), locked;
     __builtin_memset(v, 0, sizeof *v);  /* the padding too: views are compared whole */
     v->head.track = (int8_t)ui.track;
     v->head.domain = (int8_t)ui.domain;
@@ -913,6 +1027,8 @@ static void view_now(q_view *v)
         v->head.pad = (int8_t)(ui.pad + 1);
     v->foot.pid = (int8_t)fpid;
     v->scene.pid = (int8_t)pid;
+    if (pid == P_LFO)
+        v->head.ltrig = (int8_t)(ui.p->sound[ui.track].ltrig + 1);
     v->foot.col = 15;
     for (k = 0; k < 4; k++) {
         if (PAGE[fpid].label[k])
@@ -920,18 +1036,16 @@ static void view_now(q_view *v)
         if (knob_hidden(fpid, k))
             v->foot.hide |= (uint8_t)(1u << k);
     }
-    if (ui.held && kit())               /* no locks on a KIT's step */
-        v->foot.hide = 15;
-    else if (ui.held)                   /* the lock page: the locked values in colour, the track's in grey */
+    if (ui.held)                   /* the lock page: the locked values in colour, the track's in grey */
         for (v->foot.col = 0, k = 0; k < 4; k++) {
             if (lock_param(k) < 0) {
                 v->foot.hide |= (uint8_t)(1u << k);
                 continue;
             }
-            v->foot.v[k] = (int16_t)lock_value(t, lock_param(k), &locked);
+            v->foot.v[k] = (int16_t)lock_value(t, k, &locked);
             v->foot.col |= (uint8_t)(locked << k);
         }
-    if (pid == P_ENGINE || pid == P_SOUND || pid == P_SCALE || pid == P_PAD) {
+    if (pid == P_ENGINE || pid == P_SOUND || pid == P_SCALE || pid == P_PAD || pid >= P_ADSR) {
         __builtin_memcpy(v->scene.v, v->foot.v, sizeof v->scene.v);
         v->scene.model = pid == P_PAD ? KIT_MODEL + ui.p->kit[ui.track][ui.pad].engine : ui.p->sound[ui.track].model;
     } else if (pid == P_KIT) {
@@ -1024,6 +1138,8 @@ static void draw_head(const q_view *v)
         cv_text(x, 7, &FONT_B, t, C_AMB);
     } else {
         x = cv_text(x + 10, 7, &FONT_B, PAGE[v->foot.pid].name, C_AMB);
+        if (v->head.ltrig)
+            x = cv_text(x + 8, 7, &FONT_B, v->head.ltrig == 2 ? "TRIG" : "FREE", C_AMB);
         if (v->head.pad) {              /* a KIT: the pad its knobs set */
             if (v->foot.pid != P_PAD)
                 x = cv_text(x + 8, 7, &FONT_B, "PAD", C_AMB);
@@ -1049,7 +1165,17 @@ static void draw_scene(const q_view *v, int32_t oy)
     case P_ENGINE:
     case P_SOUND:
     case P_PAD:
+    case P_ADSR:
+    case P_FILTER:
+    case P_LFO:
+    case P_ARP:
         cv_text(10, oy + 8, &FONT_M, MODEL_NAME[v->scene.model], C_WHITE);
+        if (v->scene.pid == P_ARP && v->scene.model == M_KIT) {
+            cv_text(10, oy + 60, &FONT_M, "NO ARP ON KIT", C_GRAY);
+            break;
+        }
+        if (v->scene.pid == P_ADSR && own_env(v->scene.model))      /* its own envelope shapes the level */
+            cv_text(10, oy + 34, &FONT_S, "FILTER ONLY", C_AMB);
         for (k = 0; k < 4; k++) {
             const q_page *pg = &PAGE[v->scene.pid];
             int32_t x = 60 * k + 12, h = 108 * (v->scene.v[k] - pg->min[k]) / (pg->max[k] - pg->min[k]);
@@ -1317,6 +1443,9 @@ int ui_expect(const char *what, int *got)
             *got = i < 0 ? -1 : t->locks[i].value;
         }
         }
+    } else if (!strncmp(what, "lock_", 5)) {     /* lock_P_N: LK_* P's lock on step N, -1 none */
+        int i = n >= 0 && n < LK_N && m >= 1 && m <= Q_STEPS ? lock_find(t, m - 1, n) : -1;
+        *got = i < 0 ? -1 : (int8_t)t->locks[i].value;
     } else if (!strncmp(what, "scene_used_", 11)) *got = m >= 1 && m <= Q_SCENES ? ui.p->scene[m - 1].used : 0;
     else if (!strncmp(what, "song_scene_", 11)) *got = m >= 1 && m <= Q_SONG ? ui.p->song[m - 1].scene + 1 : 0;
     else if (!strncmp(what, "song_reps_", 10)) *got = m >= 1 && m <= Q_SONG ? ui.p->song[m - 1].reps : 0;
@@ -1336,6 +1465,24 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "poly")) *got = s->poly;
     else if (!strcmp(what, "tune")) *got = s->tune;
     else if (!strcmp(what, "harm")) *got = s->harm;
+    else if (!strcmp(what, "atk")) *got = s->atk;
+    else if (!strcmp(what, "dec")) *got = s->dec;
+    else if (!strcmp(what, "sus")) *got = s->sus;
+    else if (!strcmp(what, "rel")) *got = s->rel;
+    else if (!strcmp(what, "ftype")) *got = s->ftype;
+    else if (!strcmp(what, "cutoff")) *got = s->cutoff;
+    else if (!strcmp(what, "res")) *got = s->res;
+    else if (!strcmp(what, "envamt")) *got = s->envamt;
+    else if (!strcmp(what, "lshape")) *got = s->lshape;
+    else if (!strcmp(what, "ltrig")) *got = s->ltrig;
+    else if (!strcmp(what, "lrate")) *got = s->lrate;
+    else if (!strcmp(what, "ldepth")) *got = s->ldepth;
+    else if (!strcmp(what, "ldest")) *got = s->ldest;
+    else if (!strcmp(what, "amode")) *got = s->amode;
+    else if (!strcmp(what, "aoct")) *got = s->aoct;
+    else if (!strcmp(what, "adiv")) *got = s->adiv;
+    else if (!strcmp(what, "agate")) *got = s->agate;
+    else if (!strcmp(what, "lpage")) *got = ui.lpage + 1;
     else if (!strcmp(what, "tempo")) *got = ui.p->tempo;
     else if (!strcmp(what, "swing")) *got = ui.p->swing;
     else if (!strcmp(what, "tonic")) *got = ui.p->tonic;

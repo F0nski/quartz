@@ -1,0 +1,46 @@
+# ARP: its page, the latch (ARP held + a key), a key without ARP ends it, no ARP on a KIT
+wait 600
+tap ARP
+expect domain 6
+turn K1 1
+expect amode 1
+turn K2 9
+expect aoct 4
+turn K3 -4
+expect adiv 0
+turn K3 2
+expect adiv 2
+turn K4 -100
+expect agate 5
+turn K4 45
+wait 100
+shot arp.png
+# the key 7 (C4) latched: it keeps playing after its release, PLAY stopped
+press ARP
+key 7 down
+wait 50
+key 7 up
+release ARP
+wait 200
+expect active >0
+peakreset
+wait 400
+expect peak_db_min -40
+# a key without ARP held ends the latch; once it is released nothing plays (a released voice stays counted by active, and its tail is quiet)
+key 9 down
+wait 50
+key 9 up
+wait 600
+peakreset
+wait 400
+expect peak_db_max -50
+# a KIT has no arp
+turn ALGO 1
+tap EDIT
+turn PRESET 20
+expect model 24
+tap ARP
+turn K1 1
+expect amode 0
+wait 100
+shot arp_kit.png

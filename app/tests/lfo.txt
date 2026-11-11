@@ -1,0 +1,29 @@
+# LFO: its page, the sync/free RATE, PRESET FREE/TRIG, bounds
+wait 600
+tap LFO
+expect domain 5
+expect lrate 5
+turn K2 20
+expect lrate 25
+turn K2 100
+expect lrate 75
+turn K1 3
+expect lshape 3
+turn K4 -2
+expect ldest 2
+turn PRESET 1
+expect ltrig 1
+turn PRESET 5
+expect ltrig 1
+turn PRESET -1
+expect ltrig 0
+turn K3 -100
+expect ldepth -64
+turn K3 200
+expect ldepth 63
+turn K2 -63
+turn K3 -64
+turn K4 2
+turn PRESET 1
+wait 100
+shot lfo.png

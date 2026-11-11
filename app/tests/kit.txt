@@ -47,9 +47,10 @@ key 0 down
 key 0 up
 expect stepnotes_4 1
 expect stepnote_4 38
-# no p-lock on a KIT step
+# a KIT step takes the ADSR, FILTER and LFO locks (ADSR first)
 turn K1 5
-expect locks 0
+expect locks 1
+expect lock_6_4 5
 expect msg_locks_full 0
 wait 100
 shot kit_step_held.png

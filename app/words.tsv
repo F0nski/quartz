@@ -189,3 +189,43 @@ LEVEL	level
 BD	bass drum
 SN	snare
 HH	hi-hat
+ENV	envelope
+LFO	L F O
+ARP	arpeggiator
+ADSR	A D S R
+FILTER	filter
+ATTACK	attack
+SUSTAIN	sustain
+RELEASE	release
+TYPE	type
+CUTOFF	cutoff
+RES	resonance
+ENV AMT	envelope amount
+SHAPE	shape
+RATE	rate
+DEPTH	depth
+DEST	destination
+OCT	octaves
+GATE	gate
+LP	low pass
+HP	high pass
+BP	band pass
+SIN	sine
+TRI	triangle
+SAW	saw
+SQR	square
+S&H	sample and hold
+8 BAR	8 bars
+4 BAR	4 bars
+2 BAR	2 bars
+1 BAR	1 bar
+PITCH	pitch
+UP	up
+DOWN	down
+UP-DN	up and down
+RAND	random
+ORDER	order
+FREE	free
+TRIG	trigger
+FILTER ONLY	filter only
+NO ARP ON KIT	no arpeggiator on kit
