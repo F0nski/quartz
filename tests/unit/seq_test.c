@@ -506,6 +506,27 @@ static void xy_y_is_silent(void)
         assert((int64_t)EV[i].at == (int64_t)ceil_div((uint64_t)i * n1, 2 * (uint64_t)d1));
 }
 
+/* tempo changes rescale X's and Y's clocks each in its own units: a row starting with an X step still applies to it,
+   from the first step on (row -1 would read steps[-4]) */
+static void xy_tempo_change_keeps_rows(void)
+{
+    static const int tempos[] = { 97, 131, 240, 41, 173, 120 };
+    int got[48];
+    setup();
+    q_pattern *pt = &P.pat[0][0];
+    pt->path = PATH_XY; pt->div = DIV_16T; pt->ydiv = DIV_4T;      /* 4 X steps a row */
+    pt->xlen = 4; pt->ylen = 3;
+    seq_start(&S, &P, 0);
+    P.tempo = 97;                                               /* before the first step is planned */
+    for (int i = 0; i < 6; i++) {
+        run(40);
+        P.tempo = (uint16_t)tempos[i];
+    }
+    run(1500);
+    played(0, 48, got);
+    for (int i = 0; i < 48; i++) assert(got[i] == i % 12);
+}
+
 static void xy_lengths_clamp(void)
 {
     int got[20];
@@ -1398,6 +1419,7 @@ int main(void)
     xy_two_clocks();
     xy_y_is_silent();
     xy_lengths_clamp();
+    xy_tempo_change_keeps_rows();
     overflow_stays_queued();
     count_in_delays_tracks();
     click_follows_flag();

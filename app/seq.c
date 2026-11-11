@@ -218,7 +218,8 @@ static void reanchor(q_seq *s, const q_project *p, int t, const q_clock *b)
         tr->h[1] = tr->h[0];
         tr->h[0].step = -1;
     }
-    tr->x = tr->y = *b;
+    tr->x = *b;
+    tr->pos = 0;
     tr->planned = tr->pp = tr->loops = tr->tie = tr->anchor = 0;
     tr->k = tr->row = -1;
     tr->pat = tr->want = sc->pat[t];
@@ -252,7 +253,7 @@ void seq_start(q_seq *s, const q_project *p, int count_in)
     if (count_in) clock_next(&a);
     for (int t = 0; t < Q_TRACKS; t++) {
         q_seq_track *tr = &s->t[t];
-        tr->x = tr->y = a;
+        tr->x = a;
         tr->k = tr->row = -1;
         tr->pat = tr->want = tr->seen = p->pattern[t];
         tr->path = p->pat[t][tr->pat].path;
@@ -339,6 +340,8 @@ static const uint8_t PATHS[4][16] = {
     { 0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15 },      /* COLUMNS */
     { 0, 1, 2, 3, 7, 11, 15, 14, 13, 12, 8, 4, 5, 6, 10, 9 },      /* SPIRAL */
 };
+
+static const uint8_t DIV96[DIV_N] = { 3, 4, 6, 8, 12, 16, 24, 48, 96 };   /* a step of each DIV_*, in 96ths of a bar */
 
 static uint32_t seq_rand(q_seq *s)
 {
@@ -460,12 +463,10 @@ static void plan(q_seq *s, const q_project *p, int t, uint64_t end, const q_cloc
         } else {
             tr->k++;
         }
-        /* XY's rows run on their own clock from the anchor; a row starting with the X step applies to it */
-        clock_set(&tr->y, p->tempo, pt->ydiv);
-        while (not_after(&tr->y, &tr->x)) {
-            tr->row = (tr->row + 1) % pt->ylen;
-            clock_next(&tr->y);
-        }
+        /* XY's rows run on the bar from the anchor, so a tempo change keeps them on the X steps: every division is a
+           whole number of 96ths of a bar. A row starting with the X step applies to it */
+        tr->row = (int)(tr->pos / DIV96[pt->ydiv] % pt->ylen);
+        tr->pos += DIV96[pt->div];
         int gen = src != SRC_STEP, step = gen ? tr->k : step_at(s, tr, pt), acc = 0;
         tr->pp++;
         tr->h[0] = tr->h[1];

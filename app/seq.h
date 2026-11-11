@@ -21,7 +21,8 @@ typedef struct { uint64_t at; uint32_t gate; q_event e; } q_queued;
 typedef struct { int n, ons; q_queued e[SEQ_QUEUE]; } q_queue;           /* by date, offs before ons at a date */
 typedef struct { int step, pat, rank; q_clock c; } q_planned;            /* a step and its clock when planned */
 typedef struct {
-    q_clock x, y;               /* x: the start of the next step not begun; y: XY's row clock */
+    q_clock x;                  /* the start of the next step not begun */
+    uint32_t pos;               /* that step's place since the anchor, in 96ths of a bar: XY's row */
     int planned;                /* the step at x is planned */
     int k, row, pp;             /* rank in the pass; XY row; ping-pong phase */
     int pat, path;              /* taken at the wrap */
