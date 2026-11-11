@@ -194,6 +194,25 @@ static void grids_hit_pink(void)
     assert(gcount(PL_PINK[1]) == 0);
 }
 
+/* the sight sits on the step playing: step 13 is column 5 of row 2 on the 8-column plate */
+static void grids_sight_on_its_step(void)
+{
+    gbase();
+    G.pos = 13;
+    grids_frame(&G, 1000);
+    float cx = 83 + (5.5f - 1.5f) * 18.5f, cy = 42 + (5.5f + 1.5f) * 9.25f;   /* the cell's centre */
+    int in = 0, out = 0;
+    for (int b = 0; b < 2; b++) {
+        gband(b);
+        for (int y = 0; y < 83; y++) for (int x = 0; x < 240; x++) {
+            if (swap16(cv_px[y * 240 + x]) != PL_GREEN[0] || y + 83 * b < 30 || x < 60) continue;   /* (the top text and the row number are green too) */
+            float dx = x - cx, dy = y + 83 * b - cy;
+            if (dx * dx + 4 * dy * dy < 30 * 30) in++; else out++;
+        }
+    }
+    assert(in > 0 && out == 0);
+}
+
 int main(void)
 {
     block_height_follows_vel();
@@ -207,6 +226,7 @@ int main(void)
     grids_stack_order();
     grids_threshold();
     grids_hit_pink();
+    grids_sight_on_its_step();
     printf("plateau ok\n");
     return 0;
 }

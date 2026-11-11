@@ -242,7 +242,10 @@ void seq_start(q_seq *s, const q_project *p, int count_in)
 {
     uint64_t now = s->now;
     q_clock a = { now, 0, 0, 0, 0, 0 };
+    uint32_t gcount[Q_TRACKS];          /* the scenes' readers keep their place in the notes across a restart */
+    __builtin_memcpy(gcount, s->gcount, sizeof gcount);
     __builtin_memset(s, 0, sizeof *s);
+    __builtin_memcpy(s->gcount, gcount, sizeof gcount);
     s->now = now;
     s->running = 1;
     s->rng = (uint32_t)now | 1;         /* xorshift: never 0 */

@@ -1667,6 +1667,27 @@ static void marbles_notes_ahead(void)
     assert(audio_notes(1, &s1, out, in, 16) == 0);
 }
 
+/* stop then play: the reader keeps its place, no note comes back that was not decided after the restart */
+static void notes_survive_restart(void)
+{
+    uint8_t out[16];
+    uint32_t in[16], s = 0;
+    setup();
+    P.pat[0][0].src = SRC_MARBLES;
+    P.pat[0][0].marbles.tout = 3;
+    audio_play(1);
+    for (int b = 0; b < 300; b++) { frames(1); while (audio_notes(0, &s, out, in, 16)) {} }
+    audio_play(0);
+    frames(2);
+    audio_play(1);
+    for (int b = 0; b < 3; b++) {
+        frames(1);
+        int n = audio_notes(0, &s, out, in, 16);
+        assert(n <= 3);                             /* at most a step's worth so far */
+        for (int i = 0; i < n; i++) assert(out[i] >= 1 && out[i] <= 127);
+    }
+}
+
 int main(void)
 {
     reverb_on_core2_once_per_block();
@@ -1742,6 +1763,7 @@ int main(void)
     free_phase_when_stopped();
     hits_count_note_ons();
     marbles_notes_ahead();
+    notes_survive_restart();
     puts("audio_test ok");
     return 0;
 }

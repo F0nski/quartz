@@ -170,9 +170,9 @@ static void block(int i, int32_t oy, int held, int hot, float k)
         }
 }
 
-static void sight(int cell, uint16_t col, float g, int32_t oy)
+static void sight(int cell, int cols, uint16_t col, float g, int32_t oy)   /* cols: the plate's width in cells */
 {
-    float gx = (float)(cell % 4), gy = (float)(cell / 4);
+    float gx = (float)(cell % cols), gy = (float)(cell / cols);
     pl_pt cs[4] = {at(gx - g, gy - g), at(gx + 1 + g, gy - g), at(gx + 1 + g, gy + 1 + g), at(gx - g, gy + 1 + g)};
     for (int k = 0; k < 4; k++) {       /* brackets: each corner and 30 % of its two edges, 2 px */
         pl_pt p = cs[k], a = cs[(k + 3) % 4], b = cs[(k + 1) % 4];
@@ -260,15 +260,14 @@ void plateau_band(int32_t oy)
     if (pl.v.npath)
         path(oy);
     if (pl.v.pos >= 0)
-        sight(pl.v.pos, hit ? PL_PINK[1] : PL_GREEN[0], hit ? 0.02f : 0.12f, oy);
+        sight(pl.v.pos, 4, hit ? PL_PINK[1] : PL_GREEN[0], hit ? 0.02f : 0.12f, oy);
     else if (pl.v.cursor >= 0)
-        sight(pl.v.cursor, PL_TEXT, 0.12f, oy);
+        sight(pl.v.cursor, 4, PL_TEXT, 0.12f, oy);
     cv_text(8, 4 + oy, &FONT_S, pl.v.top_l, pl.v.pos < 0 ? PL_LABEL : hit ? PL_PINK[1] : PL_GREEN[0]);
     cv_text(232 - text_w(&FONT_S, pl.v.top_r), 4 + oy, &FONT_S, pl.v.top_r, hit ? PL_PINK[1] : PL_LABEL);
 }
 
 /* ---- GRIDS: the stacks (spec 5b, 3 bis; docs/screens/backdrops.html, G2) ------------------------------------- */
-#define PL_BLUE_ RGB(0x8f, 0xb4, 0xff)
 static const uint16_t PL_BLUE[3] = {RGB(0x8f, 0xb4, 0xff), RGB(0x3a, 0x6d, 0xff), RGB(0x1c, 0x35, 0x90)};
 static const uint16_t *const GVC[3] = {PL_ORANGE, PL_GREEN, PL_BLUE};      /* BD, SN, HH */
 #define G_PEND 8
@@ -400,7 +399,7 @@ void grids_band(int32_t oy)
             }
         }
     if (v->pos >= 0)
-        sight(v->pos, near < HIT_MS ? PL_PINK[1] : PL_GREEN[0], near < HIT_MS ? 0.02f : 0.12f, oy);
+        sight(v->pos, 8, near < HIT_MS ? PL_PINK[1] : PL_GREEN[0], near < HIT_MS ? 0.02f : 0.12f, oy);
     for (k = 0; k < 3; k++) {           /* the densities: a thin line each, BD on top */
         cv_rect(196, oy + 6 + 6 * k, 36, 2, RGB(0x1c, 0x16, 0x38));
         cv_rect(196, oy + 6 + 6 * k, 36 * v->dens[k] / 127, 2, gr.ms - gr.hit[k] < HIT_MS ? PL_PINK[1] : GVC[k][1]);
