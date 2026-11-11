@@ -1,10 +1,15 @@
 // The four per-track inserts. Each works on mono blocks in place, in chunks of kChunk so that the dry
 // signal can be mixed back in after the effect. Settings are read once per call.
+// Behind them, qfx_block mixes the tracks to stereo with their sends into a ping-pong delay and Clouds'
+// reverb, then ducking, compressor and limiter.
 
 #include "qfx.h"
 
 #include <math.h>
+#include <string.h>
 #include <new>
+
+#include "clouds/dsp/fx/reverb.h"
 
 #include "plaits/dsp/fx/overdrive.h"
 #include "plaits/dsp/fx/sample_rate_reducer.h"
@@ -40,6 +45,37 @@ alignas(Track) char storage[QFX_TRACKS][sizeof(Track)];
 Track* tracks[QFX_TRACKS];
 // CHORUS' and COMB's delay line, per track
 float ibuf[QFX_TRACKS][kDelayMask + 1] __attribute__((section(".pool")));
+
+// The delay runs at half rate: kDlyLen samples per channel hold 0.51 s.
+const unsigned kDlyLen = 11264;
+const float kDlyScale = 8192.0f;   // int16 over +-4: four tracks' sends at full level don't clip
+const float kDb = 6.0206f;         // dB per octave of amplitude: dB = kDb * log2(gain)
+
+// a track's mix gains, at the end of the last block: they ramp from there to this block's
+struct Mix {
+  float g, pl, pr, ds, rs, m;   // LEVEL, PAN's left and right, delay and reverb sends, insert MIX
+};
+
+struct Master {
+  clouds::Reverb reverb;
+  bool primed;      // a block was rendered since qfx_init: the ramps have a start
+  Mix mix[QFX_TRACKS];
+  float dly;        // the delay's time at the end of the last block, in half-rate samples
+  unsigned dpos;    // next write in dbuf
+  float dlp[2];     // feedback low-pass, per channel
+  float dlast[2];   // last half-rate output, per channel, for the upsampling
+  float duck;       // ducking gain
+  float env, comp;  // compressor's detector and gain
+  float lim;        // limiter's gain
+};
+
+alignas(Master) char mstorage[sizeof(Master)];
+Master* master;
+int16_t dbuf[2][kDlyLen] __attribute__((section(".pool")));
+uint16_t rbuf[16384] __attribute__((section(".pool")));   // the reverb's FxEngine<16384>
+// qfx_block's scratch
+float dry[QFX_BLOCK], dsum[QFX_BLOCK], dg[QFX_BLOCK];
+clouds::FloatFrame fx[QFX_BLOCK];   // reverb sends, then the reverb's and the delay's returns
 
 void reset(int t, int type) {
   Track& s = *tracks[t];
@@ -141,6 +177,138 @@ void comb(Track& s, int t, float d, float fb, float a, float* x, unsigned n) {
   }
 }
 
+Mix targets(const qfx_track& tr) {
+  Mix c;
+  c.g = tr.level / 127.0f;
+  c.pl = tr.pan > 0 ? 1.0f - tr.pan / 63.0f : 1.0f;
+  c.pr = tr.pan < 0 ? 1.0f + tr.pan / 64.0f : 1.0f;
+  c.ds = tr.dsend / 127.0f;
+  c.rs = tr.rsend / 127.0f;
+  c.m = tr.mix / 127.0f;
+  return c;
+}
+
+// the int16 line's sample d samples before the write at wpos (1 <= d <= kDlyLen), linearly interpolated
+float dtap(const int16_t* line, unsigned wpos, float d) {
+  const float r = static_cast<float>(wpos + kDlyLen) - d;
+  unsigned i = static_cast<unsigned>(r);
+  const float f = r - static_cast<float>(i);
+  if (i >= kDlyLen) i -= kDlyLen;
+  const unsigned j = i + 1 == kDlyLen ? 0 : i + 1;
+  return (line[i] + (line[j] - line[i]) * f) * (1.0f / kDlyScale);
+}
+
+int16_t dstore(float x) { return static_cast<int16_t>(stmlib::Clip16(static_cast<int32_t>(x * kDlyScale))); }
+
+// track t's insert, LEVEL, sends and PAN, added to l, r, dsum and fx's reverb send
+void track(int t, const qfx_track& tr, float* x, float* l, float* r, unsigned n) {
+  Mix& p = master->mix[t];
+  const Mix c = targets(tr);
+  const float k = 1.0f / n;
+  if (tr.type == IT_OFF || (tr.mix == 0 && p.m == 0.0f)) {
+    qfx_insert(t, tr.type, tr.p1, tr.p2, tr.p3, 0, x, n);
+  } else {   // MIX is ramped here, the insert renders wet only
+    memcpy(dry, x, n * sizeof(float));
+    qfx_insert(t, tr.type, tr.p1, tr.p2, tr.p3, 127, x, n);
+    for (unsigned i = 0; i < n; ++i) x[i] = dry[i] + (x[i] - dry[i]) * (p.m + (c.m - p.m) * k * (i + 1));
+  }
+  for (unsigned i = 0; i < n; ++i) {
+    const float u = k * (i + 1);
+    float y = x[i] * (p.g + (c.g - p.g) * u);
+    dsum[i] += y * (p.ds + (c.ds - p.ds) * u);
+    fx[i].l += y * (p.rs + (c.rs - p.rs) * u);
+    if (tr.duck) y *= dg[i];
+    l[i] += y * (p.pl + (c.pl - p.pl) * u);
+    r[i] += y * (p.pr + (c.pr - p.pr) * u);
+  }
+  p = c;
+}
+
+// the ducking gain per frame into dg: down to the depth at duck_at, then up linearly in dB over 150 ms
+void duck(int depth, int duck_at, unsigned n) {
+  Master& M = *master;
+  if (depth == 0) M.duck = 1.0f;
+  const float db = 24.0f * depth / 127.0f;
+  const float floor = exp2f(-db / kDb), rise = exp2f(db / kDb / (0.15f * kSr));
+  for (unsigned i = 0; i < n; ++i) {
+    if (depth && static_cast<int>(i) == duck_at) {
+      M.duck = floor;
+    } else if (M.duck < 1.0f) {
+      M.duck *= rise;
+      if (M.duck > 1.0f) M.duck = 1.0f;
+    }
+    dg[i] = M.duck;
+  }
+}
+
+// the ping-pong delay at half rate on dsum, its returns added to fx
+void delay(const qfx_master& m, unsigned n) {
+  Master& M = *master;
+  const float d = qfx_delay_fit(m.dly) * 0.5f, fb = 0.95f * m.dfb / 127.0f;
+  const float a = lp_coef(4000.0f * 2.0f);   // 4 kHz at half rate
+  const unsigned h = n / 2;
+  for (unsigned k = 0; k < h; ++k) {
+    const float dk = M.dly + (d - M.dly) * (k + 1) / h;
+    const float yl = dtap(dbuf[0], M.dpos, dk), yr = dtap(dbuf[1], M.dpos, dk);
+    M.dlp[0] += a * (yl - M.dlp[0]);
+    M.dlp[1] += a * (yr - M.dlp[1]);
+    // the input goes left, the feedback crosses over
+    dbuf[0][M.dpos] = dstore(0.5f * (dsum[2 * k] + dsum[2 * k + 1]) + fb * M.dlp[1]);
+    dbuf[1][M.dpos] = dstore(fb * M.dlp[0]);
+    M.dpos = M.dpos + 1 == kDlyLen ? 0 : M.dpos + 1;
+    fx[2 * k].l += 0.5f * (M.dlast[0] + yl);
+    fx[2 * k].r += 0.5f * (M.dlast[1] + yr);
+    fx[2 * k + 1].l += yl;
+    fx[2 * k + 1].r += yr;
+    M.dlast[0] = yl;
+    M.dlast[1] = yr;
+  }
+  M.dly = d;
+  for (int c = 0; c < 2; ++c)   // the low-pass would decay into denormals in silence
+    if (fabsf(M.dlp[c]) < 1e-10f) M.dlp[c] = 0.0f;
+}
+
+// peak stereo-linked compressor: attack 5 ms, release 100 ms, 4:1 above -30 * comp / 127 dB, with
+// makeup gain. The gain is computed every kComp frames and ramped between.
+void compress(int comp, float* l, float* r, unsigned n) {
+  Master& M = *master;
+  const unsigned kComp = 16;
+  const float t = -30.0f * comp / 127.0f, makeup = 0.5f * -t * 0.75f;
+  const float att = 1.0f / (0.005f * kSr), rel = 1.0f / (0.1f * kSr);
+  for (unsigned o = 0; o < n; o += kComp) {
+    const unsigned e = o + kComp < n ? o + kComp : n;
+    for (unsigned i = o; i < e; ++i) {
+      const float p = fmaxf(fabsf(l[i]), fabsf(r[i]));
+      M.env += (p > M.env ? att : rel) * (p - M.env);
+    }
+    if (M.env < 1e-10f) M.env = 0.0f;   // log2f(0) is -inf: no reduction, as wanted
+    const float over = kDb * log2f(M.env) - t;
+    const float g = exp2f(((over > 0.0f ? -0.75f * over : 0.0f) + makeup) / kDb);
+    const float step = (g - M.comp) / (e - o);
+    for (unsigned i = o; i < e; ++i) {
+      M.comp += step;
+      l[i] *= M.comp;
+      r[i] *= M.comp;
+    }
+    M.comp = g;
+  }
+}
+
+// peak stereo-linked limiter at 1.0: immediate attack, release 50 ms; gain exactly 1 below the ceiling
+void limit(float* l, float* r, unsigned n) {
+  Master& M = *master;
+  const float rel = 1.0f / (0.05f * kSr);
+  for (unsigned i = 0; i < n; ++i) {
+    M.lim += rel * (1.0f - M.lim);
+    if (M.lim > 0.9999f) M.lim = 1.0f;
+    const float p = fmaxf(fabsf(l[i]), fabsf(r[i]));
+    if (p * M.lim > 1.0f) M.lim = 1.0f / p;
+    // 1 / p can round a hair above the ceiling
+    l[i] = fminf(fmaxf(l[i] * M.lim, -1.0f), 1.0f);
+    r[i] = fminf(fmaxf(r[i] * M.lim, -1.0f), 1.0f);
+  }
+}
+
 }  // namespace
 
 extern "C" void qfx_init(void) {
@@ -148,6 +316,53 @@ extern "C" void qfx_init(void) {
     tracks[t] = new (storage[t]) Track();
     reset(t, IT_OFF);
   }
+  // Clouds' Reverb and Plaits' FxEngine leave some members to static zeroing: zeroed after the (empty)
+  // constructors, which would let the compiler drop a memset done before them
+  master = new (mstorage) Master();
+  memset(static_cast<void*>(master), 0, sizeof(Master));
+  master->duck = master->lim = 1.0f;
+  memset(dbuf, 0, sizeof(dbuf));
+  memset(rbuf, 0, sizeof(rbuf));
+  master->reverb.Init(rbuf);
+  master->reverb.set_amount(1.0f);
+  master->reverb.set_input_gain(0.2f);
+  master->reverb.set_diffusion(0.625f);
+}
+
+extern "C" float qfx_delay_fit(float frames) {
+  while (frames > 2.0f * kDlyLen) frames *= 0.5f;
+  return frames;
+}
+
+extern "C" void qfx_block(float* const bus[QFX_TRACKS], const qfx_track tr[QFX_TRACKS], const qfx_master* m,
+                          int duck_at, float* l, float* r, unsigned n) {
+  Master& M = *master;
+  if (!M.primed) {   // no fade-in: the first block starts at its own settings
+    for (int t = 0; t < QFX_TRACKS; ++t) M.mix[t] = targets(tr[t]);
+    M.dly = qfx_delay_fit(m->dly) * 0.5f;
+    M.comp = exp2f(0.5f * 30.0f * m->comp / 127.0f * 0.75f / kDb);
+    M.primed = true;
+  }
+  for (unsigned i = 0; i < n; ++i) {
+    l[i] = r[i] = dsum[i] = 0.0f;
+    fx[i].l = 0.0f;
+  }
+  duck(m->duck, duck_at, n);
+  for (int t = 0; t < QFX_TRACKS; ++t) track(t, tr[t], bus[t], l, r, n);
+
+  for (unsigned i = 0; i < n; ++i) fx[i].r = fx[i].l;   // the reverb's input is mono
+  M.reverb.set_time(0.5f + 0.48f * m->rsize / 127.0f);
+  M.reverb.set_lp(0.3f + 0.65f * m->rtone / 127.0f);
+  M.reverb.Process(fx, n);
+  delay(*m, n);
+  for (unsigned i = 0; i < n; ++i) {
+    l[i] += fx[i].l * dg[i];
+    r[i] += fx[i].r * dg[i];
+  }
+
+  if (m->comp) compress(m->comp, l, r, n);
+  else M.comp = 1.0f;
+  limit(l, r, n);
 }
 
 extern "C" void qfx_insert(int t, int type, int p1, int p2, int p3, int mix, float* buf, unsigned n) {
