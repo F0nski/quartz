@@ -59,6 +59,9 @@ void mod_set(int v, const q_vparam *p, int tempo)
     if (!p->ltrig) { s->ph = RPH[p->lrate]; s->cyc = RCYC[p->lrate]; }
 }
 
+/* a slot freed without a note-off (fade, steal across tracks) keeps a stale level: its attack starts from 0 */
+void mod_slot_reset(int v) { MV[v].env = 0; MV[v].stage = E_IDLE; }
+
 void mod_note_on(int v, int accent)
 {
     mvoice *s = &MV[v];
@@ -119,6 +122,9 @@ void mod_voice_block(int v, pq_mod *m)
     s->ph += s->inc;                                 /* TRIG: own phase; FREE: mod_set re-derives it */
     if (s->ph >= 1) { s->ph -= 1; s->cyc++; }
 }
+
+/* Out of line, as seq.c's mul64: inlined 64-bit multiplies among loads corrupt a register (base/bsp/docs/CPU.md) */
+static __attribute__((noinline)) uint64_t mul64u(uint64_t a, uint64_t b) { return a * b; }
 
 /* ---- arpeggiator: per track, over the track's events; offsets are frames of the block ---- */
 
@@ -199,10 +205,10 @@ static void arp_step(q_arp *a, const q_arpp *p, uint32_t num, uint32_t den, uint
     **o = (q_event){ t, (uint8_t)a->track, ln[pos], h->vel, 1, h->pat, h->step, h->flags, 0 };
     (*o)++;
     a->snd = 1; a->sn = ln[pos]; a->sv = h->vel; a->sp = h->pat; a->ss = h->step;
-    uint32_t g = (uint32_t)((uint64_t)num * p->gate / (100ull * den));
+    uint32_t g = (uint32_t)(mul64u(num, p->gate) / mul64u(100, den));
     a->soff = t + (g ? g : 1);
 
-    a->r = (uint32_t)((uint64_t)a->r * den / a->rd); a->rd = den;      /* a tempo change applies from this advance */
+    a->r = (uint32_t)(mul64u(a->r, den) / a->rd); a->rd = den;      /* a tempo change applies from this advance */
     a->i += num / den; a->r += num % den;
     if (a->r >= den) { a->r -= den; a->i++; }
 }
