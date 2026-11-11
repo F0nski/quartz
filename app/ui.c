@@ -112,7 +112,7 @@ typedef struct {
         q_step st[16];
         int32_t cpu[8];                         /* the CPU page's numbers as shown; core 2 -1: OFF */
         uint8_t anim;                           /* an animated scene, redrawn as it moves: 0 none, 1 the planet (v: its ENGINE
-                                                   knobs), 2 the SEQ plateau, 3 MARBLES (v: SPREAD, X BIAS, DEJA VU) */
+                                                   knobs), 2 the SEQ plateau, 3 MARBLES (v: SPREAD, X BIAS, DEJA VU), 4 GRIDS */
         q_trow tr[Q_TRACKS];                    /* TRACKS */
         struct { int8_t n, cursor, first, playing; q_entry e[6]; } song;               /* SONG: the 6 entries shown from first */
     } scene;
@@ -1213,6 +1213,8 @@ static void view_now(q_view *v)
         v->scene.pos = (int8_t)(audio_pattern(ui.track) == ui.p->pattern[ui.track] ? audio_pos(ui.track) : -1);
         if (pid == P_NOTES || pid == P_MARBLES || pid == P_T || pid == P_X)
             v->scene.notes = gen_allowed(ui.p, t);
+        if (pid == P_GRIDS || pid == P_MAP || pid == P_DENS)
+            v->scene.anim = 4;
         if (pid == P_MARBLES || pid == P_T || pid == P_X) {
             v->scene.anim = 3;
             v->scene.v[0] = t->marbles.spread;
@@ -1606,6 +1608,44 @@ void ui_frame(void)
                                gen_kept(v.scene.notes, ui.p->tonic, t->marbles.steps),
                                2500u * DIV96[t->div] / ui.p->tempo};   /* a step in ms: a bar is 240000 / tempo, in 96ths */
                 marbles_frame(&mv, now);
+            } else if (v.scene.anim == 4) {
+                const q_pattern *t = pat();
+                static q_gview gv;
+                uint32_t in[16];
+                uint8_t notes[16];
+                int n, k, st;
+                if (fresh) {
+                    grids_enter();
+                    ui.notes_seen = 0;
+                    while (audio_notes(ui.track, &ui.notes_seen, notes, in, 16) == 16) {}
+                }
+                n = audio_notes(ui.track, &ui.notes_seen, notes, in, 16);
+                for (k = 0; k < n; k++)             /* the voice of a note: a KIT's pad 1..3, else VOICE */
+                    grids_drop(kit() ? notes[k] - KIT_NOTE : t->grids.voice - 1, now + in[k]);
+                for (k = 0; k < 3; k++) {
+                    for (st = 0; st < 32; st++)
+                        gv.level[k][st] = (uint8_t)gen_grids_level(&t->grids, st, k);
+                    gv.dens[k] = t->grids.dens[k];
+                }
+                gv.pos = v.scene.pos;
+                gv.voice = (int8_t)(kit() ? 0 : t->grids.voice);
+                gv.x = t->grids.x, gv.y = t->grids.y, gv.chaos = t->grids.chaos;
+                if (v.scene.pos >= 0) {
+                    __builtin_memcpy(gv.top_l, "STEP ", 5);
+                    gv.top_l[5] = (char)('0' + (v.scene.pos + 1) / 10);
+                    gv.top_l[6] = (char)('0' + (v.scene.pos + 1) % 10);
+                    gv.top_l[7] = 0;
+                } else {
+                    __builtin_memcpy(gv.top_l, "1-32", 5);
+                }
+                if (kit()) {
+                    gv.top_r[0] = 0;
+                } else {                            /* the voice a synth track plays, and its note */
+                    static const char *const VN[3] = {"BD ", "SN ", "HH "};
+                    __builtin_memcpy(gv.top_r, VN[t->grids.voice - 1], 3);
+                    note_name(t->grids.note, gv.top_r + 3);
+                }
+                grids_frame(&gv, now);
             } else {
                 static q_plateau pv;
                 if (fresh)
@@ -1619,6 +1659,8 @@ void ui_frame(void)
                     scene_band(-BAND_H * b);
                 else if (v.scene.anim == 3)
                     marbles_band(-BAND_H * b);
+                else if (v.scene.anim == 4)
+                    grids_band(-BAND_H * b);
                 else
                     plateau_band(-BAND_H * b);
                 cv_blit(0, HEAD_H + BAND_H * b);

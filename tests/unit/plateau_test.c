@@ -142,6 +142,58 @@ static void city_above_horizon(void)
     assert(above > 0 && below == 0);
 }
 
+/* ---- GRIDS stacks ---- */
+static q_gview G;
+static void gbase(void)
+{
+    memset(&G, 0, sizeof G);
+    G.pos = -1; G.voice = 1; G.x = 64; G.y = 64;
+    strcpy(G.top_l, "1-32");
+    grids_enter();
+}
+static void gband(int b) { cv_begin(240, 83, 0); grids_band(-83 * b); }
+static int gcount(uint16_t c) { int n = 0; for (int b = 0; b < 2; b++) { gband(b); for (int i = 0; i < 240 * 83; i++) n += swap16(cv_px[i]) == c; } return n; }
+
+static void grids_stack_order(void)
+{
+    static const uint16_t *T[3] = {PL_ORANGE, PL_GREEN, PL_BLUE};
+    long sy[3] = {0}, n[3] = {0};
+    gbase();
+    for (int v = 0; v < 3; v++) { G.level[v][0] = 200; G.dens[v] = 127; }
+    G.voice = 0;                                   /* (every voice in its own colours: none picked) */
+    grids_frame(&G, 1000);
+    for (int b = 0; b < 2; b++) {
+        gband(b);
+        for (int y = 0; y < 83; y++) for (int x = 0; x < 240; x++)
+            for (int v = 0; v < 3; v++) if (swap16(cv_px[y * 240 + x]) == T[v][2]) { sy[v] += y + 83 * b; n[v]++; }
+    }
+    for (int v = 0; v < 3; v++) assert(n[v] > 0);
+    assert(sy[0] / n[0] > sy[1] / n[1] && sy[1] / n[1] > sy[2] / n[2]);   /* BD lowest, HH on top */
+}
+
+static void grids_threshold(void)
+{
+    gbase();
+    for (int v = 0; v < 3; v++) for (int s2 = 0; s2 < 32; s2++) G.level[v][s2] = 200;
+    grids_frame(&G, 1000);
+    assert(gcount(PL_BLUE[2]) == 0 && gcount(PL_GREEN[2]) == 0 && gcount(PL_ORANGE[2]) == 0);
+    for (int v = 0; v < 3; v++) G.dens[v] = 127;
+    grids_frame(&G, 1000);
+    assert(gcount(PL_BLUE[2]) > 0 && gcount(PL_GREEN[2]) > 0 && gcount(PL_ORANGE[2]) > 0);
+}
+
+static void grids_hit_pink(void)
+{
+    gbase();
+    G.level[0][0] = 200; G.dens[0] = 127; G.pos = 0;
+    grids_frame(&G, 1000);
+    grids_drop(0, 1005);
+    grids_frame(&G, 1010);
+    assert(gcount(PL_PINK[1]) > 0);
+    grids_frame(&G, 1400);
+    assert(gcount(PL_PINK[1]) == 0);
+}
+
 int main(void)
 {
     block_height_follows_vel();
@@ -152,6 +204,9 @@ int main(void)
     no_hit_on_arrival();
     path_drawn();
     city_above_horizon();
+    grids_stack_order();
+    grids_threshold();
+    grids_hit_pink();
     printf("plateau ok\n");
     return 0;
 }

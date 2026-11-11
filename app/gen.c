@@ -59,6 +59,8 @@ static uint8_t grids_read(int step, int inst, uint8_t x, uint8_t y)
                      grids_mix(MAP[i][j + 1][o], MAP[i + 1][j + 1][o], bx), by);
 }
 
+int gen_grids_level(const q_grids *g, int step, int voice) { return grids_read(step % GRIDS_STEPS, voice, grids_u8(g->x), grids_u8(g->y)); }
+
 /* PatternGenerator::EvaluateDrums */
 static int grids_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, int k, uint32_t *rng, q_step *st)
 {

@@ -431,7 +431,7 @@ static void plan_notes(q_seq *s, const q_project *p, int t, const q_step *st, in
             if (vel > 127) vel = 127;
             int tie = (st->flags & SF_SLIDE) && j == r - 1 && !hold;
             int64_t a = (tr->tie || tie) && on < from ? from : on;
-            if (j == 0 && p->pat[t][tr->pat].src == SRC_MARBLES) {   /* for the scene, with its frame */
+            if (j == 0 && p->pat[t][tr->pat].src != SRC_STEP) {      /* a generator's: for its scene, with its frame */
                 uint32_t c = s->gcount[t] % 16u;
                 s->gnote[t][c] = st->note[i];
                 s->gat[t][c] = (uint32_t)a;

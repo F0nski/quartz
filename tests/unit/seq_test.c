@@ -1476,10 +1476,24 @@ static void marbles_notes_known_a_step_ahead(void)
     assert(seq_gen_notes(&S, 1, &s1, notes, at, 16) == 0);  /* a STEP track: none */
 }
 
+/* GRIDS notes reach the scenes' ring too */
+static void grids_notes_in_ring(void)
+{
+    uint32_t seen = 0, at[16];
+    uint8_t notes[16];
+    int got = 0;
+    setup();
+    P.pat[0][0].src = SRC_GRIDS;
+    P.pat[0][0].grids.dens[0] = P.pat[0][0].grids.dens[1] = P.pat[0][0].grids.dens[2] = 127;
+    for (int b = 0; b < 1500; b++) { block(BLK, 64); got += seq_gen_notes(&S, 0, &seen, notes, at, 16); }   /* ~70 steps */
+    assert(got > 5);
+}
+
 int main(void)
 {
     marbles_timing_unchanged();
     marbles_notes_known_a_step_ahead();
+    grids_notes_in_ring();
     bar_frames();
     step_frames_values();
     steps_land_on_exact_frames();

@@ -266,3 +266,154 @@ void plateau_band(int32_t oy)
     cv_text(8, 4 + oy, &FONT_S, pl.v.top_l, pl.v.pos < 0 ? PL_LABEL : hit ? PL_PINK[1] : PL_GREEN[0]);
     cv_text(232 - text_w(&FONT_S, pl.v.top_r), 4 + oy, &FONT_S, pl.v.top_r, hit ? PL_PINK[1] : PL_LABEL);
 }
+
+/* ---- GRIDS: the stacks (spec 5b, 3 bis; docs/screens/backdrops.html, G2) ------------------------------------- */
+#define PL_BLUE_ RGB(0x8f, 0xb4, 0xff)
+static const uint16_t PL_BLUE[3] = {RGB(0x8f, 0xb4, 0xff), RGB(0x3a, 0x6d, 0xff), RGB(0x1c, 0x35, 0x90)};
+static const uint16_t *const GVC[3] = {PL_ORANGE, PL_GREEN, PL_BLUE};      /* BD, SN, HH */
+#define G_PEND 8
+
+static struct {
+    q_gview v;
+    uint32_t ms, hit[3];
+    int8_t hit_step[3], last_pos;
+    uint8_t extra[32];                  /* bit v: voice v played this step this pass above its map's level (CHAOS) */
+    struct { uint8_t on, voice; uint32_t land; } pend[G_PEND];
+} gr;
+
+void grids_enter(void)
+{
+    __builtin_memset(gr.pend, 0, sizeof gr.pend);
+    __builtin_memset(gr.extra, 0, sizeof gr.extra);
+    gr.hit[0] = gr.hit[1] = gr.hit[2] = gr.ms - 100000u;
+}
+
+void grids_drop(int voice, uint32_t land_ms)
+{
+    int i, k = 0;
+    for (i = 0; i < G_PEND; i++)        /* a free slot, else the one sounding first */
+        if (!gr.pend[i].on) {
+            k = i;
+            break;
+        } else if (gr.pend[i].land - gr.pend[k].land > 0x80000000u) {
+            k = i;
+        }
+    gr.pend[k].on = 1;
+    gr.pend[k].voice = (uint8_t)voice;
+    gr.pend[k].land = land_ms;
+}
+
+static int g_on(const q_gview *v, int voice, int step) { return v->level[voice][step] > 255 - v->dens[voice] * 255 / 127; }
+
+void grids_frame(const q_gview *v, uint32_t ms)
+{
+    int i;
+    if (v->pos >= 0 && v->pos < gr.last_pos)   /* a new pass: CHAOS's extras forgotten */
+        __builtin_memset(gr.extra, 0, sizeof gr.extra);
+    gr.last_pos = v->pos;
+    for (i = 0; i < G_PEND; i++)        /* the hits that sound now land on the step playing */
+        if (gr.pend[i].on && (int32_t)(ms - gr.pend[i].land) >= 0) {
+            int vc = gr.pend[i].voice;
+            gr.pend[i].on = 0;
+            if (v->pos < 0 || vc > 2)
+                continue;
+            gr.hit[vc] = gr.pend[i].land;
+            gr.hit_step[vc] = v->pos;
+            if (!g_on(v, vc, v->pos))
+                gr.extra[v->pos] |= (uint8_t)(1u << vc);
+        }
+    gr.v = *v;
+    gr.ms = ms;
+}
+
+void grids_band(int32_t oy)
+{
+    const q_gview *v = &gr.v;
+    const float th = 5.0f, o = (float)oy;
+    int i, s, k;
+    uint32_t near = 9999u;
+    A = 18.5f, B = 9.25f, OX = 83.0f, OY = 42.0f;
+    cv_rect(0, oy, 240, 166, PL_BG);
+    for (k = -6; k <= 14; k++) {        /* the wire floor, dim, all around */
+        line(at((float)k, -8.0f), at((float)k, 12.0f), oy, RGB(0x12, 0x0c, 0x2a));
+        line(at(-8.0f, (float)k - 4.0f), at(16.0f, (float)k - 4.0f), oy, RGB(0x12, 0x0c, 0x2a));
+    }
+    {                                   /* the plate: its shadow and its two front sides */
+        pl_pt a0 = at(0, 4), a1 = at(8, 4), a2 = at(8, 0);
+        p3d_fill(a0.x, a0.y + th + 6 + o, a1.x, a1.y + th + 6 + o, a2.x, a2.y + th + 6 + o, RGB(0x05, 0x03, 0x0f));
+        quad(a0, a1, (pl_pt){a1.x, a1.y + th}, (pl_pt){a0.x, a0.y + th}, oy, RGB(0x22, 0x18, 0x4a));
+        quad(a1, a2, (pl_pt){a2.x, a2.y + th}, (pl_pt){a1.x, a1.y + th}, oy, RGB(0x16, 0x0f, 0x36));
+    }
+    for (i = 0; i < 32; i++) {
+        float gx = (float)(i % 8), gy = (float)(i / 8);
+        pl_pt a = at(gx, gy), b = at(gx + 1, gy), c = at(gx + 1, gy + 1), d = at(gx, gy + 1);
+        quad(a, b, c, d, oy, i % 4 == 0 ? RGB(0x15, 0x10, 0x30) : PL_CELL);
+        outline(a, b, c, d, oy, PL_EDGE);
+    }
+    outline(at(0, 0), at(8, 0), at(8, 4), at(0, 4), oy, PL_PULSE);
+    for (k = 0; k < 8; k += 4)          /* the beats, on the back edge */
+        line(at((float)k, 0), up(at((float)k, 0), 5), oy, PL_LABEL);
+    for (k = 0; k < 4; k++) {           /* the rows' first steps */
+        char t[4];
+        int n = k * 8 + 1;
+        pl_pt p = at(0, (float)k + 0.5f);
+        t[0] = (char)(n < 10 ? '0' + n : '0' + n / 10), t[1] = (char)(n < 10 ? 0 : '0' + n % 10), t[2] = 0;
+        cv_text((int32_t)p.x - 6 - text_w(&FONT_XS, t), (int32_t)p.y - 7 + oy, &FONT_XS, t, v->pos / 8 == k ? PL_GREEN[0] : PL_LABEL);
+    }
+    for (k = 0; k < 3; k++)
+        if (gr.ms - gr.hit[k] < near)
+            near = gr.ms - gr.hit[k];
+    for (s = 0; s <= 10; s++)           /* far to near: the stacks, BD at the base */
+        for (i = 0; i < 32; i++) {
+            if (i % 8 + i / 8 != s)
+                continue;
+            float gx = (float)(i % 8), gy = (float)(i / 8), z = 0.0f, top;
+            pl_pt c = at(gx + 0.5f, gy + 0.5f);
+            for (k = 0; k < 3; k++) {
+                uint32_t dt = gr.ms - gr.hit[k];
+                int hot = dt < HIT_MS && gr.hit_step[k] == i, sel = v->voice == 0 || v->voice - 1 == k;
+                float lift = hot ? 4.0f * (1.0f - (float)dt / (float)HIT_MS) : 0.0f;
+                const uint16_t *T = GVC[k];
+                uint16_t t0 = hot ? PL_PINK[0] : sel ? T[0] : T[1], t1 = hot ? PL_PINK[1] : sel ? T[1] : T[2], t2 = hot ? PL_PINK[2] : sel ? T[2] : RGB(0x16, 0x0f, 0x36);
+                if (g_on(v, k, i) || hot) {
+                    float h = 4.0f + (float)v->level[k][i] / 255.0f * 9.0f, sx = A * 0.36f, sy = B * 0.36f, y = c.y - z - lift;
+                    quad((pl_pt){c.x - sx, y}, (pl_pt){c.x, y + sy}, (pl_pt){c.x, y + sy - h}, (pl_pt){c.x - sx, y - h}, oy, t1);
+                    quad((pl_pt){c.x, y + sy}, (pl_pt){c.x + sx, y}, (pl_pt){c.x + sx, y - h}, (pl_pt){c.x, y + sy - h}, oy, t2);
+                    quad((pl_pt){c.x, y - sy - h}, (pl_pt){c.x + sx, y - h}, (pl_pt){c.x, y + sy - h}, (pl_pt){c.x - sx, y - h}, oy, t0);
+                    outline((pl_pt){c.x, y - sy - h}, (pl_pt){c.x + sx, y - h}, (pl_pt){c.x, y + sy - h}, (pl_pt){c.x - sx, y - h}, oy, t2);
+                    z += h;
+                } else if (gr.extra[i] >> k & 1u) {   /* played by CHAOS: an outline */
+                    float y = c.y - z;
+                    outline((pl_pt){c.x - 6, y - 2}, (pl_pt){c.x, y - 5}, (pl_pt){c.x + 6, y - 2}, (pl_pt){c.x, y + 1}, oy, T[0]);
+                    z += 4.0f;
+                }
+            }
+            top = c.y - z;
+            if (i == v->pos && near < 300u) {          /* the hit: a square wave on the floor, shards from the top */
+                float kk = (float)near / 300.0f, g = 0.5f + kk * 1.4f;
+                outline(at(gx + 0.5f - g, gy + 0.5f - g), at(gx + 0.5f + g, gy + 0.5f - g), at(gx + 0.5f + g, gy + 0.5f + g), at(gx + 0.5f - g, gy + 0.5f + g), oy,
+                        kk < 0.4f ? PL_PINK[1] : PL_PINK[2]);
+                for (k = 0; k < 3; k++) {
+                    float sx = c.x + (float)(k - 1) * 9.0f * kk * 1.4f, sy = top - 6.0f - kk * 20.0f - (float)k * 3.0f + o, z2 = 3.0f * (1.0f - kk) + 1.0f;
+                    p3d_fill(sx, sy - z2, sx + z2, sy + z2 * 0.4f, sx - z2 * 0.6f, sy + z2, k % 2 ? PL_PINK[0] : PL_PINK[1]);
+                }
+            }
+        }
+    if (v->pos >= 0)
+        sight(v->pos, near < HIT_MS ? PL_PINK[1] : PL_GREEN[0], near < HIT_MS ? 0.02f : 0.12f, oy);
+    for (k = 0; k < 3; k++) {           /* the densities: a thin line each, BD on top */
+        cv_rect(196, oy + 6 + 6 * k, 36, 2, RGB(0x1c, 0x16, 0x38));
+        cv_rect(196, oy + 6 + 6 * k, 36 * v->dens[k] / 127, 2, gr.ms - gr.hit[k] < HIT_MS ? PL_PINK[1] : GVC[k][1]);
+    }
+    {                                   /* the map's place: 5 x 5 dots, the cursor shaking with CHAOS */
+        float j = (float)v->chaos / 127.0f * 1.5f * fm_sinf((float)(gr.ms % 100000u) * 0.009f), cx = 12.0f + (float)v->x / 127.0f * 16.0f + j + 1.0f;
+        float cy = 138.0f + (float)v->y / 127.0f * 14.0f + 1.0f + o;
+        for (i = 0; i < 5; i++)
+            for (k = 0; k < 5; k++)
+                cv_rect(12 + i * 4, oy + 138 + (int32_t)((float)k * 3.5f), 1, 1, RGB(0x3a, 0x2c, 0x64));
+        p3d_fill(cx - 3, cy, cx, cy - 3, cx + 3, cy, PL_TEXT);
+        p3d_fill(cx - 3, cy, cx + 3, cy, cx, cy + 3, PL_TEXT);
+    }
+    cv_text(8, 4 + oy, &FONT_S, v->top_l, v->pos < 0 ? PL_LABEL : near < HIT_MS ? PL_PINK[1] : PL_GREEN[0]);
+    cv_text(8, 20 + oy, &FONT_XS, v->top_r, PL_LABEL);
+}

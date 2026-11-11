@@ -343,8 +343,33 @@ static void marbles_divider_ratchets(void)
     assert(t3 == 8);
 }
 
+/* the screen's levels are the ones grids_step uses: without CHAOS a voice plays a step iff its level clears DENS */
+static void grids_level_matches_step(void)
+{
+    static q_project P2;
+    q_gen g;
+    uint32_t rng = 1;
+    project_defaults(&P2);
+    P2.sound[0].model = M_KIT;
+    q_pattern *pt = &P2.pat[0][0];
+    pt->src = SRC_GRIDS;
+    pt->grids = (q_grids){ 40, 90, 0, { 70, 90, 110 }, 1, 60 };
+    gen_reset(&g, &rng);
+    for (int k = 0; k < 32; k++) {
+        q_step st;
+        memset(&st, 0, sizeof st);
+        gen_step(&g, &P2, 0, pt, k, &rng, &st);
+        for (int v = 0; v < 3; v++) {
+            int plays = 0;
+            for (int n = 0; n < 4; n++) plays |= st.note[n] == KIT_NOTE + v;
+            assert(plays == (gen_grids_level(&pt->grids, k, v) > 255 - pt->grids.dens[v] * 255 / 127));
+        }
+    }
+}
+
 int main(void)
 {
+    grids_level_matches_step();
     corner_follows_node();
     dens0_silent();
     interpolates();
