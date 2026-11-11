@@ -229,3 +229,29 @@ FREE	free
 TRIG	trigger
 FILTER ONLY	filter only
 NO ARP ON KIT	no arpeggiator on kit
+FX	effects
+INSERT OFF	insert off
+OVERDRIVE	overdrive
+WAVEFOLD	wave fold
+BITCRUSH	bit crusher
+CHORUS	chorus
+PHASER	phaser
+RING MOD	ring modulator
+COMB	comb filter
+DRIVE	drive
+TONE	tone
+FOLD	fold
+BITS	bits
+FREQ	frequency
+FEEDBK	feedback
+DAMP	damping
+MIX	mix
+DELAY	delay
+REVERB	reverb
+PAN	pan
+COMP	compressor
+DUCK	duck
+DLY TIME	delay time
+DLY FB	delay feedback
+REV SIZE	reverb size
+REV TONE	reverb tone

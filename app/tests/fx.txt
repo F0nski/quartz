@@ -1,0 +1,22 @@
+# FX: the INSERT page (type by PRESET, knobs by type) and the MIX page
+wait 600
+tap FX
+expect domain 7
+turn PRESET 7
+expect itype 7
+turn PRESET 5
+expect itype 7
+wait 100
+shot fx_insert.png
+turn K1 -10
+expect i1 54
+turn K4 -127
+expect imix 0
+turn SELECT 1
+expect page 2
+turn K3 -100
+expect pan -64
+turn K4 10
+expect level 110
+wait 100
+shot fx_mix.png

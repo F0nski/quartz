@@ -22,3 +22,17 @@ expect swing 75
 expect mode 2
 expect quant 0
 expect click 3
+# COMP, DUCK and the FX page
+tap GLO
+turn K3 30
+expect comp 30
+turn K4 5
+expect duck 5
+turn SELECT 2
+expect page 3
+turn K1 -2
+expect dtime 2
+wait 100
+shot glo_fx.png
+turn SELECT 1
+expect page 4
