@@ -124,7 +124,7 @@ static void marble_lands_in_its_bin(void)
     int n;
     marbles_enter();
     mframe(MK, 0);
-    marbles_drop(62, 0);                                  /* D: bin 1 */
+    marbles_drop(62, 0, 500);                             /* D: bin 1, sounds at 500 ms */
     for (uint32_t ms = 0; ms <= 600; ms += 30) mframe(MK, ms);
     assert(marbles_flying() == 0);
     assert(marbles_hist(marbles_bin(0x2A5, 62, &n)) == 1);
@@ -136,7 +136,7 @@ static void six_marbles_max(void)
 {
     marbles_enter();
     mframe(MK, 10000);
-    for (int i = 0; i < 9; i++) marbles_drop(60 + i, 10000);
+    for (int i = 0; i < 9; i++) marbles_drop(60 + i, 10000, 10500);
     mframe(MK, 10010);
     assert(marbles_flying() == 6);
 }
@@ -147,7 +147,7 @@ static void deja_vu_orange(void)
     for (int d = 0; d < 2; d++) {
         marbles_enter();
         mframe(d ? DV : MK, 20000);
-        marbles_drop(60, 20000);
+        marbles_drop(60, 20000, 20500);
         mframe(d ? DV : MK, 20200);
         int o = 0;
         for (int b = 0; b < 2; b++) {
@@ -157,6 +157,19 @@ static void deja_vu_orange(void)
         }
         assert(d ? o > 0 : o == 0);
     }
+}
+
+/* a marble lands when its note sounds, not before: here 300 ms after it was dropped */
+static void lands_when_it_sounds(void)
+{
+    marbles_enter();
+    mframe(MK, 30000);
+    int h = marbles_hist(1);
+    marbles_drop(62, 30000, 30300);
+    mframe(MK, 30290);
+    assert(marbles_flying() == 1 && marbles_hist(1) == h);
+    mframe(MK, 30300);
+    assert(marbles_flying() == 0 && marbles_hist(1) == h + 1);
 }
 
 int main(void)
@@ -172,6 +185,7 @@ int main(void)
     marble_lands_in_its_bin();
     six_marbles_max();
     deja_vu_orange();
+    lands_when_it_sounds();
     printf("scene ok\n");
     return 0;
 }

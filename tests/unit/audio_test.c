@@ -1643,36 +1643,28 @@ static void hits_count_note_ons(void)
     assert(sum - sum0 == 1);
 }
 
-/* the scenes' notes: each note sounded, per track, in order; a reader more than 16 behind gets the last 16 */
-static void notes_in_order(void)
+/* the MARBLES scene's notes: decided a step ahead, with the ms until they sound; not a STEP track's */
+static void marbles_notes_ahead(void)
 {
     uint8_t out[16];
+    uint32_t in[16], s = 0, s1 = 0;
+    int got = 0, ahead = 0;
     setup();
-    uint32_t s = audio_hits(2), s1 = audio_hits(1);
-    audio_live_note(2, 60, 1);
-    audio_live_note(2, 64, 1);
-    audio_live_note(2, 67, 1);
-    block(256);
-    assert(audio_notes(2, &s, out, 8) == 3);
-    assert(out[0] == 60 && out[1] == 64 && out[2] == 67);
-    assert(audio_notes(2, &s, out, 8) == 0);
-    assert(audio_notes(1, &s1, out, 8) == 0);
-}
-
-static void ring_overrun_skips_oldest(void)
-{
-    uint8_t out[16];
-    setup();
-    uint32_t s = audio_hits(0), first = s;
-    for (int k = 0; k < 20; k++) {
-        audio_live_note(0, 40 + k, 1);
-        block(256);
-        audio_live_note(0, 40 + k, 0);
-        block(256);
+    P.pat[0][0].src = SRC_MARBLES;
+    P.pat[0][0].marbles.tout = 1;
+    for (int k = 0; k < 16; k++) P.pat[1][0].steps[k].flags = SF_ON;
+    audio_play(1);
+    for (int b = 0; b < 400; b++) {
+        frames(1);
+        int n = audio_notes(0, &s, out, in, 16);
+        for (int i = 0; i < n; i++, got++) {
+            assert(out[i] >= 1 && out[i] <= 127);
+            assert(in[i] <= 130);       /* a step at 1/16, 120 BPM: 125 ms */
+            ahead += in[i] >= 100;
+        }
     }
-    assert(audio_notes(0, &s, out, 16) == 16);
-    assert(out[0] == 44 && out[15] == 59);
-    assert(s == first + 20);
+    assert(got >= 8 && ahead > got / 2);   /* T OUT 1 does not play every step */
+    assert(audio_notes(1, &s1, out, in, 16) == 0);
 }
 
 int main(void)
@@ -1749,8 +1741,7 @@ int main(void)
     recorded_punch_follows_pattern();
     free_phase_when_stopped();
     hits_count_note_ons();
-    notes_in_order();
-    ring_overrun_skips_oldest();
+    marbles_notes_ahead();
     puts("audio_test ok");
     return 0;
 }

@@ -42,6 +42,10 @@ typedef struct {
     q_seq_track t[Q_TRACKS];
     q_gen g[Q_TRACKS];              /* a generator pattern's state, per track */
     q_queue q[Q_TRACKS + 1];        /* [Q_CLICK_TRACK]: the clicks */
+    /* a MARBLES track's notes as they are decided, a step ahead, with their frame: the last 16 per track, note n at
+       n % 16, gcount[t] notes so far (the render writes, the main loop reads: seq_gen_notes) */
+    uint8_t gnote[Q_TRACKS][16];
+    uint32_t gat[Q_TRACKS][16], gcount[Q_TRACKS];
 } q_seq;
 
 /* frames per step as num / den, exact: the FM-1's rate is 750000/17 Hz */
@@ -55,6 +59,9 @@ int  seq_song_entry(const q_seq *s);                          /* the song entry 
 void seq_stop(q_seq *s, q_event *out, int *n);                /* out holds Q_TRACKS * SEQ_QUEUE */
 /* Events of the next nframes, sorted by offset; what does not fit in max stays queued for the next block. */
 int  seq_block(q_seq *s, const q_project *p, uint32_t nframes, q_event *out, int max);
+/* the MARBLES notes decided after the *seen-th, oldest first, max at most, with the frame each sounds at (low 32 bits);
+   *seen moves on. More than 16 behind: the last 16 */
+int  seq_gen_notes(const q_seq *s, int track, uint32_t *seen, uint8_t *notes, uint32_t *at, int max);
 int  lock_find(const q_pattern *pt, int step, int param);              /* index, -1 none */
 int  lock_set(q_pattern *pt, int step, int param, int value);          /* 0; -1 full (nothing written) */
 void lock_clear_step(q_pattern *pt, int step);                         /* the main loop writes; the render reads */

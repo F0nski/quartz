@@ -130,7 +130,7 @@ static p3_vec ico_v[12];
 static p3_face ico_f[20];
 static p3_mesh ico;
 static struct {
-    struct { uint8_t on, note; uint32_t t0; } m[MB_MAX];
+    struct { uint8_t on, note; uint32_t land; } m[MB_MAX];   /* land: when its note sounds */
     uint8_t hist[12], knobs[3];
     uint32_t flash[12], decay_ms, ms;
     uint16_t allowed;
@@ -195,20 +195,21 @@ void marbles_enter(void)
         mb.m[i].on = 0;
 }
 
-void marbles_drop(int note, uint32_t ms)
+void marbles_drop(int note, uint32_t ms, uint32_t land_ms)
 {
+    (void)ms;
     int i, k = 0;
     for (i = 0; i < MB_MAX; i++) {      /* a free slot, else the oldest marble */
         if (!mb.m[i].on) {
             k = i;
             break;
         }
-        if (mb.m[i].t0 - mb.m[k].t0 > 0x80000000u)
+        if (mb.m[i].land - mb.m[k].land > 0x80000000u)
             k = i;
     }
     mb.m[k].on = 1;
     mb.m[k].note = (uint8_t)note;
-    mb.m[k].t0 = ms;
+    mb.m[k].land = land_ms;
 }
 
 static float bin_x(int b, int n) { return 8.0f + 224.0f / (float)n * ((float)b + 0.5f); }
@@ -240,7 +241,7 @@ void marbles_frame(const uint8_t knobs[3], uint16_t allowed, const char *top_l, 
     mb.ms = ms;
     p3d_begin();
     for (i = 0; i < MB_MAX; i++) {
-        uint32_t dt = ms - mb.m[i].t0;
+        int32_t left = (int32_t)(mb.m[i].land - ms);     /* ms before it lands */
         int b;
         if (!mb.m[i].on)
             continue;
@@ -249,13 +250,15 @@ void marbles_frame(const uint8_t knobs[3], uint16_t allowed, const char *top_l, 
             mb.m[i].on = 0;
             continue;
         }
-        if (dt >= MB_FALL) {            /* landed */
+        if (left <= 0) {                /* landed: its note sounds */
             mb.m[i].on = 0;
             mb.hist[b] += mb.hist[b] < 6;
             mb.flash[b] = ms;
             continue;
         }
-        float u = (float)dt / (float)MB_FALL, y = 140.0f * u, q = fm_clampf((y - 22.0f) / 19.0f, 0.0f, 5.0f);
+        if (left >= (int32_t)MB_FALL)   /* not yet falling: it falls for the last MB_FALL ms */
+            continue;
+        float u = 1.0f - (float)left / (float)MB_FALL, y = 140.0f * u, q = fm_clampf((y - 22.0f) / 19.0f, 0.0f, 5.0f);
         p3_pose pose = {4.0f * t + (float)i, 3.0f * t, 7.0f, 120.0f + (bin_x(b, n) - 120.0f) * q / 5.0f, y};
         p3d_mesh(&ico, &pose, knobs[2] > 64 ? ORANGE : MB_WHITE);
     }

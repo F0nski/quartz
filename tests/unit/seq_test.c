@@ -1417,8 +1417,69 @@ static void bar_frames(void)
     assert(fabsf(seq_bar_frames(&S) - 512.0f) <= 2.0f);
 }
 
+/* a MARBLES track's notes, decided a step ahead for the scene, sound at the frames they always did: the hash of
+   (frame, note, velocity, on) over 600 blocks. With two MARBLES tracks (T OUT 1 at 1/16 and 3 at 1/8) the frames
+   alone (the tracks share the random draws, whose order the earlier planning changes); one track alone, the notes too */
+static uint32_t marbles_hash(int frames_only, int tracks)
+{
+    uint32_t h = 2166136261u;
+    setup();
+    for (int t = 0; t < tracks; t++) {
+        P.pat[t][0].src = SRC_MARBLES;
+        P.pat[t][0].marbles.tout = (uint8_t)(t ? 3 : 1);
+        P.pat[t][0].marbles.spread = 90;
+    }
+    if (tracks > 1) P.pat[1][0].div = DIV_8;
+    run(600);
+    for (int i = 0; i < NEV; i++) {
+        if (EV[i].e.track > 1) continue;
+        uint32_t v[4] = {(uint32_t)EV[i].at, frames_only ? 0u : EV[i].e.note, frames_only ? 0u : EV[i].e.vel, EV[i].e.on};
+        for (int k = 0; k < 4; k++) h = (h ^ v[k]) * 16777619u;
+    }
+    return h;
+}
+
+static void marbles_timing_unchanged(void)
+{
+    assert(marbles_hash(1, 2) == 0xbef1ab75u);      /* the values before the notes were decided a step ahead */
+    assert(marbles_hash(0, 1) == 0x628f3206u);
+}
+
+/* the scene's notes: a MARBLES note is known with its frame at least a step (less a block) before it sounds */
+static void marbles_notes_known_a_step_ahead(void)
+{
+    uint32_t seen = 0, at[16], kat[64];
+    uint8_t notes[16], knote[64];
+    int got = 0;
+    setup();
+    P.pat[0][0].src = SRC_MARBLES;
+    P.pat[0][0].marbles.tout = 1;
+    seq_step_ratio(P.tempo, P.pat[0][0].div, &N16, &D16);
+    while (got < 32) {                  /* read after every block */
+        block(BLK, 64);
+        int n = seq_gen_notes(&S, 0, &seen, notes, at, 16);
+        for (int i = 0; i < n; i++, got++) {
+            if (at[i] >= N16 / D16)       /* (the first step is planned at the start: no step before it) */
+                assert((uint64_t)at[i] >= T + N16 / D16 - BLK);
+            knote[got] = notes[i];
+            kat[got] = at[i];
+        }
+    }
+    run_to(kat[got - 1] + 1);
+    for (int k = 0; k < got; k++) {     /* each sounds at its frame */
+        int found = 0;
+        for (int e = 0; e < NEV; e++)
+            found |= EV[e].e.track == 0 && EV[e].e.on && EV[e].at == kat[k] && EV[e].e.note == knote[k];
+        assert(found);
+    }
+    uint32_t s1 = 0;
+    assert(seq_gen_notes(&S, 1, &s1, notes, at, 16) == 0);  /* a STEP track: none */
+}
+
 int main(void)
 {
+    marbles_timing_unchanged();
+    marbles_notes_known_a_step_ahead();
     bar_frames();
     step_frames_values();
     steps_land_on_exact_frames();

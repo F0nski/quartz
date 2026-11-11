@@ -12,7 +12,7 @@ void scene_enter(void);                           /* the scene appears (or shows
 /* MARBLES (spec 5b): a marble for every note played, falling through the pins into its note's bin */
 int  marbles_bin(uint16_t allowed, int note, int *nbins);   /* the bin of note's pitch class (nearest allowed one) */
 void marbles_enter(void);                                   /* no marble in flight, history kept */
-void marbles_drop(int note, uint32_t ms);
+void marbles_drop(int note, uint32_t ms, uint32_t land_ms);  /* lands at land_ms, when its note sounds */
 /* knobs: SPREAD, X BIAS, DEJA VU 0..127; allowed: gen_allowed; top_l "5/16", top_r "D DORIAN" */
 void marbles_frame(const uint8_t knobs[3], uint16_t allowed, const char *top_l, const char *top_r, uint32_t ms);
 void marbles_band(int32_t oy);

@@ -1581,16 +1581,18 @@ void ui_frame(void)
                     scene_enter();
                 scene_frame(v.scene.v, audio_hits(ui.track), now);
             } else if (v.scene.anim == 3) {
+                uint32_t in[16];
                 uint8_t notes[16], k3[3] = {(uint8_t)v.scene.v[0], (uint8_t)v.scene.v[1], (uint8_t)v.scene.v[2]};
                 char tl[12], tr[24];
                 int n, k, j;
-                if (fresh) {
+                if (fresh) {                /* the notes decided before: no marble */
                     marbles_enter();
-                    ui.notes_seen = audio_hits(ui.track);
+                    ui.notes_seen = 0;
+                    while (audio_notes(ui.track, &ui.notes_seen, notes, in, 16) == 16) {}
                 }
-                n = audio_notes(ui.track, &ui.notes_seen, notes, 16);
+                n = audio_notes(ui.track, &ui.notes_seen, notes, in, 16);
                 for (k = 0; k < n; k++)
-                    marbles_drop(notes[k], now);
+                    marbles_drop(notes[k], now, now + in[k]);
                 if (v.scene.pos >= 0)
                     int_text(v.scene.pos + 1, tl);
                 else

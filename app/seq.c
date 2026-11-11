@@ -116,10 +116,11 @@ static int64_t date(const q_clock *c, int64_t f)
     return (int64_t)c->next_i + (x >= 0 ? (x + d - 1) / d : -(-x / d));
 }
 
-/* the step at c is planned half a step ahead: its start minus half a step falls before end */
-static int due(const q_clock *c, uint64_t end)
+/* the step at c is planned half a step ahead (whole: a step ahead): its start minus half a step falls before end. A
+   MARBLES step is planned a whole step ahead, so that its scene's marble falls for a step before the note sounds */
+static int due(const q_clock *c, uint64_t end, int whole)
 {
-    return mul64((int64_t)c->next_i - (int64_t)end, 2 * (int64_t)c->den) + 2 * (int64_t)c->next_r < (int64_t)c->num;
+    return mul64((int64_t)c->next_i - (int64_t)end, 2 * (int64_t)c->den) + 2 * (int64_t)c->next_r < (int64_t)c->num * (whole ? 2 : 1);
 }
 
 /* a's start <= b's, exactly */
@@ -430,6 +431,12 @@ static void plan_notes(q_seq *s, const q_project *p, int t, const q_step *st, in
             if (vel > 127) vel = 127;
             int tie = (st->flags & SF_SLIDE) && j == r - 1 && !hold;
             int64_t a = (tr->tie || tie) && on < from ? from : on;
+            if (j == 0 && p->pat[t][tr->pat].src == SRC_MARBLES) {   /* for the scene, with its frame */
+                uint32_t c = s->gcount[t] % 16u;
+                s->gnote[t][c] = st->note[i];
+                s->gat[t][c] = (uint32_t)a;
+                s->gcount[t]++;
+            }
             if (queue_push_on(q, (uint64_t)a, tie ? TIED : off > a ? (uint32_t)(off - a) : 0,
                     (q_event){ 0, (uint8_t)t, st->note[i], (uint8_t)vel, 1, (uint8_t)tr->pat, (uint8_t)step,
                                (uint8_t)((tr->tie ? EV_LEGATO : 0) | (acc >> i & 1 ? EV_ACCENT : 0) | (j ? EV_REPEAT : 0)), 0 })) {
@@ -464,7 +471,7 @@ static void plan(q_seq *s, const q_project *p, int t, uint64_t end, const q_cloc
             tr->planned = 0;
             continue;
         }
-        if (!due(&tr->x, end)) return;
+        if (!due(&tr->x, end, src == SRC_MARBLES)) return;
         if (wrap) {                     /* the pattern and its path are taken at the wrap */
             if (tr->want != tr->pat || pt->path != tr->path) tr->pp = 0;
             if (tr->want != tr->pat) gen_reset(&s->g[t], &s->rng);
@@ -494,6 +501,20 @@ static void plan(q_seq *s, const q_project *p, int t, uint64_t end, const q_cloc
         else if (tr->tie) untie(s, t);
         tr->planned = 1;
     }
+}
+
+int seq_gen_notes(const q_seq *s, int track, uint32_t *seen, uint8_t *notes, uint32_t *at, int max)
+{
+    uint32_t end = s->gcount[track], k = *seen;
+    int n = 0;
+    if (end - k > 16u)                  /* too far behind: the ring holds the last 16 */
+        k = end - 16u;
+    for (; k != end && n < max; k++, n++) {
+        notes[n] = s->gnote[track][k % 16u];
+        at[n] = s->gat[track][k % 16u];
+    }
+    *seen = k;
+    return n;
 }
 
 static void emit(q_event *out, int *n, uint64_t now, const q_queued *q)
