@@ -321,7 +321,10 @@ static void note_on(int track, int note, int vel, int pat, int step, int accent)
     const q_sound *s = &prj->sound[track];
     q_vparam q;
     int m = note_model(track, note), sw = needs_switch(track, note), kit = rmodel[track] == M_KIT;
+    int pv = voices_pick(&pool, track, note_poly(track, rmodel[track]), m, wanted());
+    int fresh = pool.v[pv].state == V_FREE || pool.v[pv].track != track;
     int v = voices_note_on(&pool, track, note, note_poly(track, rmodel[track]), m, wanted());
+    if (fresh) mod_slot_reset(v);   /* (a retrigger of the track's own voice attacks from its level) */
     fading[v] = 0;                  /* (a fading slot taken: the new note at full level) */
     if (sw) {
         pq_set_engine(v, m);

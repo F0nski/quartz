@@ -543,6 +543,29 @@ static void full_queue_keeps_the_hand_off(void)
     assert(n == 1 && preps() == 0);
 }
 
+/* a slot freed by a model-change fade never saw its note-off: the next note's attack still starts from 0 */
+static void reused_slot_attack_starts_at_zero(void)
+{
+    setup();
+    P.sound[0].atk = 80;
+    audio_live_note(0, 60, 1);
+    block(256);
+    int v0 = -1;
+    for (int v = 0; v < Q_VOICES; v++) if (pool.v[v].track == 0 && pool.v[v].state == V_ON) v0 = v;
+    assert(v0 >= 0);
+    pq_mod m;                                          /* pq_render is a double here: the envelope is advanced by hand */
+    for (int i = 0; i < 3000; i++) mod_voice_block(v0, &m);
+    assert(MV[v0].stage == E_DEC && MV[v0].env > 0.5f);
+    audio_track_model(0);
+    block(256);
+    assert(pool.v[v0].state == V_FREE);
+    audio_live_note(0, 64, 1);
+    block(24);
+    int v1 = -1;
+    for (int v = 0; v < Q_VOICES; v++) if (pool.v[v].track == 0 && pool.v[v].state == V_ON) v1 = v;
+    assert(v1 == v0 && MV[v1].stage == E_ATK && MV[v1].env < 0.1f);
+}
+
 static void mono_model_change_keeps_its_fade(void)
 {
     setup();
@@ -1247,6 +1270,7 @@ int main(void)
     play_while_playing_restarts();
     full_queue_keeps_note_off();
     model_change_fades_then_frees();
+    reused_slot_attack_starts_at_zero();
     level_master_and_clip();
     load_fields();
     free_voices_skipped();

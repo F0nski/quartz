@@ -29,6 +29,7 @@ extern "C" {
 void mod_init(void);
 void mod_set(int v, const q_vparam *p, int tempo);   /* core 1, each block before the render, and before a note-on */
 void mod_note_on(int v, int accent);                 /* attack from the current level; TRIG: LFO phase 0 */
+void mod_slot_reset(int v);                          /* before a note-on on a slot that was free or another track's */
 void mod_note_off(int v);                            /* release from the current level */
 void mod_clock(int tempo, uint32_t n);               /* after each block: the FREE LFOs' clock */
 void mod_restart(void);                              /* at PLAY: the FREE LFOs from 0 */
