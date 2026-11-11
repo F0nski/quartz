@@ -226,10 +226,16 @@ scène ; chaque note déclenche un mouvement.
 | MARBLES | pachinko, billes icosaèdres, notes de la gamme sous les cases avec petits plots d'historique | validée |
 | MODAL | figure de Chladni en relief low poly, posée ; une frappe la fait frémir | validée |
 | SPEECH | tête low poly qui parle, grille de scan | idée validée ; visage à modéliser à la main |
-| GRIDS | la carte des rythmes en relief 3D, curseur X/Y | à concevoir à l'étape 5 |
-| autres familles | une scène chacune | à concevoir à l'étape 5 |
+| VA VCF, VA, WAVESHAPE, PHASE DIST | survol d'un relief à facettes dont chaque crête suit la forme d'onde du moteur, décalée d'une crête à l'autre ; un vaisseau tire sur la crête de devant à chaque note ; lune taillée, chaînes lointaines (`docs/screens/analog.html`) | validée |
+| WAVETABLE, WAVE TERRAIN | un rider en hoverboard dans un bowl de métal quadrillé de néon : half-pipe dont les parois portent la forme d'onde (WAVETABLE), bowl ayant la forme du terrain, roulé sur le cercle lu (WAVE TERRAIN) ; traînée rose à chaque note, petit kickflip une note sur deux (`docs/screens/wavetable.html`) | validée |
+| ADDITIVE, GRAIN FORM | jardin de fleurs de cristal sous le dôme néon d'une station : 16 fleurs, une par harmonique, dont la hauteur et l'ouverture suivent le spectre ; lucioles ; à chaque note, les fleurs ouvertes s'ouvrent davantage, cœur rose et pollen (`docs/screens/spectral.html`) | validée |
+| CHORDS, STRING MACH | chorale d'androïdes sur une scène-grille, orgue à tubes néon et rideaux d'hologramme : un androïde par voix, chacun sur une marche aussi haute que sa note (l'accord en escalier), partition en main ; un chef en queue-de-pie, de dos sur son podium, bat la mesure ; à chaque note, bouches et antennes roses, quelques notes s'envolent (`docs/screens/chords.html`) | validée |
+| STRING | un acrobate androïde sur une corde laser, sous un chapiteau filaire ouvert sur les étoiles ; à chaque note, il fait un petit saut qui pince la corde sous lui, elle vibre selon HARM (raideur), TIMB (brillance) et MORPH (amortissement) (`docs/screens/string.html`) | validée |
+| NOISE, PARTICLE, SWARM | dancefloor néon : les grains allument les dalles (neige continue pour NOISE, éclats épars pour PARTICLE, essaim qui se promène pour SWARM), en violet, cyan ou vert selon leur hauteur ; DJ androïde devant un mur de LED, trois danseurs, boule à facettes ; à chaque note, éclair rose sur les dalles allumées et rayons roses de la boule (`docs/screens/noise.html`) | validée |
+| CHIPTUNE | un robot cube saute de bloc en bloc : un bloc par note de l'accord, à sa hauteur, pris dans l'ordre de l'arpège (TIMB), plus étroits quand l'impulsion s'affine (MORPH) ; lune et nuages en voxels ; à chaque note, bloc visé rose, pièce rose qui tourne, score qui avance (`docs/screens/chiptune.html`) | validée |
+| GRIDS | les piles sur un sol filaire (spec 5b, section 3 bis ; `docs/screens/backdrops.html`) | validée |
 
-Les maquettes de référence sont dans `docs/screens/scenes.html` (à ouvrir dans un navigateur).
+Les maquettes de référence sont dans `docs/screens/` (à ouvrir dans un navigateur) : `scenes.html`, puis une page par famille.
 
 Page SEQ (maquette H2 de `docs/screens/sequencer.html`) : les 16 pas de la page en plateau 4×4 isométrique de blocs
 low poly (hauteur = vélocité, note sur le dessus, un repère orange pour un pas qui a d'autres attributs), sur un sol
