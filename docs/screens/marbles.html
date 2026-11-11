@@ -41,7 +41,7 @@ button[aria-pressed=true] { background: var(--hot); color: #fff; border-color: v
 <main>
 <header>
   <h1>MARBLES <em>autrement</em></h1>
-  <p class="lead">Cinq pistes pour la scène MARBLES. Ce qui part (cristal, rayon, comète, tir) part un pas avant sa note et
+  <p class="lead">Tourelles et escadrille, en version soignée, avec leur premier jet pour comparer. Ce qui part (cristal, rayon, comète, tir) part un pas avant sa note et
   arrive quand la note sonne. Chaque encodeur des pages MARBLES, T et X change quelque chose à l'écran : tourne les
   curseurs, ou laisse « auto » les faire bouger.</p>
 </header>
@@ -52,16 +52,12 @@ button[aria-pressed=true] { background: var(--hot); color: #fff; border-color: v
 </section>
 
 <div class="grid">
-  <figure><canvas id="keys" width="240" height="240"></canvas><figcaption><span class="tag">1</span><h2>Pluie sur un clavier</h2>
-    <p>Des cristaux tombent des émetteurs sur les touches de la gamme ; la touche s'enfonce en rose quand la note sonne. X BIAS déplace les émetteurs, SPREAD ouvre le cône.</p></figcaption></figure>
-  <figure><canvas id="prism" width="240" height="240"></canvas><figcaption><span class="tag">2</span><h2>Prisme</h2>
-    <p>Les faisceaux entrent dans un prisme et repartent en rayons vers les barres des notes. X BIAS tourne le prisme, SPREAD règle la dispersion, MODE sa section.</p></figcaption></figure>
-  <figure><canvas id="moons" width="240" height="240"></canvas><figcaption><span class="tag">3</span><h2>Lunes</h2>
-    <p>Une lune par note, plus aiguë plus loin ; une comète part d'une station et percute sa lune quand la note sonne. X BIAS incline les orbites, SPREAD les écarte.</p></figcaption></figure>
-  <figure><canvas id="turrets" width="240" height="240"></canvas><figcaption><span class="tag">4</span><h2>Tourelles</h2>
-    <p>Une à trois tourelles tirent sur la rangée des cibles ; la cible éclate quand la note sonne puis se reconstruit. X BIAS règle la visée, SPREAD le balayage.</p></figcaption></figure>
-  <figure><canvas id="ships" width="240" height="240"></canvas><figcaption><span class="tag">5</span><h2>Escadrille</h2>
-    <p>Les vaisseaux de la planète FM, en formation au-dessus du sol quadrillé, tirent sur les cristaux des notes. X BIAS déplace la formation, SPREAD l'écarte, MODE sa trajectoire.</p></figcaption></figure>
+  <figure><canvas id="turretsPro" width="240" height="240"></canvas><figcaption><span class="tag">4 soigné</span><h2>Tourelles</h2>
+    <p>Des tourelles sur un sol isométrique qui défile visent la rangée de cubes-cibles. Le canon recule à chaque tir avec un éclair, le tir arrive quand la note sonne, le cube éclate en éclats qui retombent puis se reconstruit, plus gros s'il est souvent touché.</p></figcaption></figure>
+  <figure><canvas id="shipsPro" width="240" height="240"></canvas><figcaption><span class="tag">5 soigné</span><h2>Escadrille</h2>
+    <p>L'escadrille vole en boucle au-dessus du sol quadrillé, dans la formation de MODE (ligne, V, colonne, diagonale, vague, triangle, ronde). Les tirs frappent les cristaux sur leurs socles, qui montent avec l'historique ; une onde court au sol à chaque note.</p></figcaption></figure>
+  <figure><canvas id="turrets" width="240" height="240"></canvas><figcaption><span class="tag">4</span><h2>Tourelles, premier jet</h2><p>Pour comparer.</p></figcaption></figure>
+  <figure><canvas id="ships" width="240" height="240"></canvas><figcaption><span class="tag">5</span><h2>Escadrille, premier jet</h2><p>Pour comparer.</p></figcaption></figure>
 </div>
 
 <section aria-label="Ce que fait chaque encodeur">
@@ -225,6 +221,136 @@ function starfield(c, t) {
     c.fillStyle = big ? "#fff" : "#6c5fa0"; c.fillRect((x + 480) % 240, y, big ? 2 : 1, big ? 2 : 1); }
 }
 
+/* ---- polished pieces ---- */
+const FALLING = [[-1.2, -2.2], [1.4, -2.6], [-0.4, -3], [2.2, -1.4], [-2.4, -1.2], [0.8, -1.8]];
+/* shards of a hit k (0..1) after it: they fly out and fall back */
+function burst(c, x, y, k, tones) {
+  if (k >= 1) return;
+  FALLING.forEach(([vx, vy], i) => { const px = x + vx * 14 * k, py = y + vy * 14 * k + 40 * k * k, s = 3.5 * (1 - k) + 1;
+    poly(c, [[px, py - s], [px + s, py + s * 0.4], [px - s * 0.6, py + s]], i % 3 === 0 ? tones[0] : i % 3 === 1 ? tones[1] : HOT[0]); });
+}
+/* a ring on the floor from a hit: an iso diamond growing, pink then dark */
+function wave(c, x, y, k) { if (k >= 1) return; const g = 6 + k * 34; stroke(c, [[x - g, y], [x, y - g / 2], [x + g, y], [x, y + g / 2]], k < 0.4 ? HOT[1] : HOT[2], 1.5); }
+/* a bolt: bright core and a stepped trail in darker tones (no transparency) */
+function bolt(c, x0, y0, x1, y1, u, col) {
+  const seg = [[0.18, col[2]], [0.1, col[1]], [0.05, col[0]]];
+  seg.forEach(([len, cc]) => { const k0 = Math.max(0, u - len); stroke(c, [[lerp(x0, x1, k0), lerp(y0, y1, k0)], [lerp(x0, x1, u), lerp(y0, y1, u)]], cc, cc === col[0] ? 3 : 2, false); });
+}
+const BOLT = [HOT[0], HOT[1], HOT[2]], BOLT_DV = [K[3][0], K[3][1], K[3][2]];
+/* when each bin was last hit and when each output last fired (s ago) */
+function times(t) {
+  const hit = new Array(BINS).fill(9), fired = [9, 9, 9], d = stepDur(), fall = Math.min(d, 0.5), k1 = Math.floor(t / d) + 2;
+  for (let k = k1 - 12; k <= k1; k++) stepEvents(k).forEach(e => {
+    if (e.at <= t) hit[e.bin] = Math.min(hit[e.bin], t - e.at);
+    if (e.at - fall <= t) fired[e.c] = Math.min(fired[e.c], t - (e.at - fall));
+  });
+  return { hit, fired };
+}
+function isoFloor(c, t, y0, rows, col = "#2a1d55") {
+  const sp = 0.25 / stepDur(), f = (t * sp) % 1;
+  for (let k = 0; k <= rows; k++) { const y = y0 + (k + f) * 9; if (y > 196) break; for (let x = -24 + ((k % 2) * 12); x < 264; x += 24) stroke(c, [[x - 12, y], [x, y - 4.5], [x + 12, y], [x, y + 4.5]], col); }
+}
+
+/* ---- 4+: turrets ---- */
+const BASE6 = prism(6, 0.45);
+function turretsPro(c, t) {
+  autoKnobs(t); const W = world(t), T = times(t), deja = W.deja, aimC = 120 + (P.xbias - 64) / 64 * 70, sweep = P.spread / 127;
+  c.fillStyle = BG; c.fillRect(0, 30, 240, 166);
+  /* the back wall: rays to a vanishing point, then the targets' rail */
+  c.strokeStyle = RAY; c.lineWidth = 1; for (let k = -8; k <= 8; k++) { c.beginPath(); c.moveTo(120, 30); c.lineTo(120 + k * 40, 120); c.stroke(); }
+  c.fillStyle = "#0e0a26"; c.fillRect(0, 120, 240, 76); isoFloor(c, t, 124, 9);
+  loopLights(c, 40, 40, 160, W);
+  const tx = b => 28 + b * 30.7, ty = 88;
+  poly(c, [[8, ty + 8], [232, ty + 8], [228, ty + 12], [12, ty + 12]], "#2a1d55"); poly(c, [[12, ty + 12], [228, ty + 12], [228, ty + 14], [12, ty + 14]], "#160f36");
+  for (let b = 0; b < BINS; b++) {
+    const on = kept().includes(b), h = T.hit[b], tones = tonesOf(W, b, K[0]), x = tx(b);
+    poly(c, [[x - 5, ty + 8], [x + 5, ty + 8], [x + 3, ty + 4], [x - 3, ty + 4]], "#3a2c64");     /* its stand */
+    if (!on) { stroke(c, [[x, ty - 9], [x + 6, ty - 3], [x, ty + 3], [x - 6, ty - 3]], "#2a2050"); }
+    else {
+      const grow = h < 0.12 ? 0 : Math.min(1, (h - 0.12) / 0.35), s = (7 + W.hist[b] * 1.1) * grow;
+      if (s > 0.5) draw3d(c, CUBE, { cx: x, cy: ty - 4 - s * 0.4, s, ay: t * 0.9 + b, ax: 0.55, tones: h < 0.5 ? HOT : tones });
+      burst(c, x, ty - 4, h / 0.45, tones);
+    }
+    text(c, SCALE[b], x, ty + 22, 10, h < 0.15 ? HOT[0] : on ? "#f4f1ff" : "#4a4466", "center");
+  }
+  /* the turrets */
+  const base = ch => [120 + (ch - (P.tout - 1) / 2) * 62, 168];
+  for (let ch = 0; ch < P.tout; ch++) {
+    const [x, y] = base(ch), fly = W.fly.filter(e => e.c === ch).sort((a, b) => b.u - a.u)[0];
+    const goal = fly ? tx(fly.bin) : aimC + Math.sin(t * 1.1 + ch * 1.7) * sweep * 80, ang = Math.atan2(ty - (y - 10), goal - x);
+    const rec = T.fired[ch] < 0.09 ? (1 - T.fired[ch] / 0.09) * 5 : 0, jx = shake(t, ch) * 1.4, hx = x + jx - Math.cos(ang) * rec * 0.3, hy = y - 12 - Math.sin(ang) * rec * 0.3;
+    poly(c, [[x - 18, y + 4], [x, y + 13], [x + 18, y + 4], [x, y - 5]], "#05030f");                /* shadow */
+    draw3d(c, BASE6, { cx: x, cy: y, s: 14, ay: 0.3, ax: 1.15, tones: ["#4a4466", "#332e4c", "#221d36"] });
+    /* the barrel: two flat halves, light above and shade below, recoiling */
+    const L = 22 - rec, ux = Math.cos(ang), uy = Math.sin(ang), nx = -uy * 2.5, ny = ux * 2.5, ex = hx + ux * L, ey = hy + uy * L;
+    poly(c, [[hx + nx, hy + ny], [ex + nx, ey + ny], [ex, ey], [hx, hy]], deja ? K[3][2] : K[2][2]);
+    poly(c, [[hx - nx, hy - ny], [ex - nx, ey - ny], [ex, ey], [hx, hy]], deja ? K[3][0] : K[2][0]);
+    draw3d(c, SHAPES[P.mode], { cx: hx, cy: hy, s: emitterSize(ch, 6, 5), ay: -ang + Math.PI / 2, ax: 0.6, tones: deja ? K[3] : K[ch % 2] });
+    if (T.fired[ch] < 0.06) { const k = T.fired[ch] / 0.06, r = 7 * (1 - k) + 2;      /* muzzle flash: a 4-point star */
+      poly(c, [[ex + ux * r * 1.6, ey + uy * r * 1.6], [ex - uy * r * 0.4, ey + ux * r * 0.4], [ex - ux * r * 0.5, ey - uy * r * 0.5], [ex + uy * r * 0.4, ey - ux * r * 0.4]], HOT[0]); }
+  }
+  /* the shots, from the muzzle to the target, landing when the note sounds */
+  W.fly.forEach(e => {
+    const [x, y] = base(e.c), x1 = tx(e.bin), y1 = ty - 4, ang = Math.atan2(y1 - (y - 12), x1 - x), x0 = x + Math.cos(ang) * 22, y0 = y - 12 + Math.sin(ang) * 22;
+    if (e.repeat && deja) stroke(c, [[x0, y0], [x1, y1]], "#3a1a08", 1, false);
+    bolt(c, x0, y0, x1, y1, e.u, deja ? BOLT_DV : BOLT);
+  });
+  header(c, t);
+}
+
+/* ---- 5+: ships ---- */
+/* MODE: the formation, as offsets of each ship from the leader (in units of SPREAD) */
+const FORM = [[[0, 0], [-1, 0.3], [1, 0.3]], [[0, 0], [-1, 0.7], [1, 0.7]], [[0, 0], [0, 0.8], [0, 1.6]], [[0, 0], [-0.8, 0.5], [-1.6, 1]],
+  [[0, 0], [-1, 0.4], [1, -0.4]], [[0, 0.6], [-1, 0], [1, 0]], [[0, 0], [0, 0], [0, 0]]];
+function ship3(c, x, y, a, bank, tones, s, flame) {
+  const f = (dx, dy) => [x + (Math.cos(a) * dx - Math.sin(a) * dy * bank) * s, y + (Math.sin(a) * dx + Math.cos(a) * dy * bank) * s];
+  poly(c, [f(-6, 0), f(-11, 2.5), f(-9 - flame * 6, 0), f(-11, -2.5)], flame > 0.5 ? HOT[0] : HOT[1]);     /* the flame */
+  poly(c, [f(10, 0), f(-6, 7), f(-3, 0)], tones[1]); poly(c, [f(10, 0), f(-3, 0), f(-6, -7)], tones[0]);
+  poly(c, [f(4, 0), f(-3, 2), f(-3, -2)], tones[2]);                                                       /* the cockpit */
+}
+function shipsPro(c, t) {
+  autoKnobs(t); const W = world(t), T = times(t), deja = W.deja, mid = 120 + (P.xbias - 64) / 64 * 55, gap = 16 + P.spread / 127 * 26;
+  c.fillStyle = "#120b26"; c.fillRect(0, 30, 240, 166);
+  for (let i = 0; i < 40; i++) { const layer = i % 3, x = ((i * 73) - t * (4 + layer * 5) * 0.25 / stepDur()) % 240, y = 34 + (i * 37) % 100;
+    c.fillStyle = layer === 2 ? "#fff" : layer === 1 ? "#a99ce0" : "#4a3f78"; c.fillRect((x + 480) % 240, y, layer === 2 ? 2 : 1, layer === 2 ? 2 : 1); }
+  const hz = 134; c.fillStyle = "#1a0f33"; c.fillRect(0, hz, 240, 196 - hz); c.fillStyle = "#5b2f8c"; c.fillRect(0, hz, 240, 1);
+  c.strokeStyle = "#3b1f66"; c.lineWidth = 1;
+  for (let i = -12; i <= 12; i++) { c.beginPath(); c.moveTo(120 + i * 8, hz); c.lineTo(120 + i * 60, 196); c.stroke(); }
+  for (let k = 0; k < 6; k++) { const p = ((k + (t * 0.25 / stepDur()) % 1) / 6) ** 2, y = Math.round(hz + p * 62) + .5; c.beginPath(); c.moveTo(0, y); c.lineTo(240, y); c.stroke(); }
+  loopLights(c, 40, 40, 160, W);
+  /* the crystals on their pedestals: the notes */
+  const cx = b => 28 + b * 30.7, cy = 168;
+  for (let b = 0; b < BINS; b++) {
+    const on = kept().includes(b), h = T.hit[b], tones = tonesOf(W, b, K[0]), x = cx(b), ped = on ? 4 + W.hist[b] * 1.5 : 2;
+    wave(c, x, cy + 4, h / 0.5);
+    box(c, x, cy + 4, 9, 4.5, ped, on ? ["#3a2c64", "#2a1d55", "#1a1438"] : DIM3);
+    if (!on) stroke(c, [[x, cy - ped - 12], [x + 4, cy - ped - 6], [x, cy - ped], [x - 4, cy - ped - 6]], "#2a2050");
+    else {
+      const grow = h < 0.1 ? 0 : Math.min(1, (h - 0.1) / 0.35), s = (8 + W.hist[b] * 0.8) * grow;
+      if (s > 0.5) draw3d(c, { v: OCTA.v.map(([a, b2, d]) => [a * 0.7, b2 * 1.4, d * 0.7]), f: OCTA.f }, { cx: x, cy: cy - ped - 11, s, ay: t * 1.4 + b, ax: 0.15, tones: h < 0.45 ? HOT : tones });
+      burst(c, x, cy - ped - 8, h / 0.45, tones);
+    }
+    text(c, SCALE[b], x, 189, 10, h < 0.15 ? HOT[0] : on ? "#f4f1ff" : "#4a4466", "center");
+  }
+  /* the fleet flies a loop over the field: X BIAS its middle, SPREAD the gaps, MODE the formation, JITTER the wobble */
+  const lead = tt => { const ph = tt * 0.5 * 0.25 / stepDur(); return [mid + Math.sin(ph) * 46, 72 + Math.sin(ph * 2) * 14]; };
+  const pos = (ch, tt) => { const [lx, ly] = lead(tt), o = FORM[P.mode][ch], ring = P.mode === 6 ? [Math.cos(tt * 2 + ch * TAU / 3) * gap * 0.8, Math.sin(tt * 2 + ch * TAU / 3) * gap * 0.4] : [o[0] * gap, o[1] * gap * 0.6];
+    return [lx + ring[0] + shake(tt, ch) * 1.5, ly + ring[1] + shake(tt + 0.3, ch)]; };
+  for (let ch = P.tout - 1; ch >= 0; ch--) {
+    const [x, y] = pos(ch, t), [x2, y2] = pos(ch, t + 0.04), a = Math.atan2(y2 - y, x2 - x), bank = 0.55 + 0.45 * Math.abs(Math.cos(a));
+    if (deja) { const tr = [...Array(10).keys()].map(i => pos(ch, t - (i + 1) * 0.07)); tr.forEach((p, i) => i && stroke(c, [tr[i - 1], p], i < 4 ? K[3][1] : K[3][2], 1, false)); }
+    const flame = 0.5 + 0.5 * Math.sin(t * 50 + ch * 2), fire = T.fired[ch] < 0.06;
+    ship3(c, x, y, a, bank, deja ? K[3] : fire ? K[2] : K[ch % 2], emitterSize(ch, 1.05, 0.6), flame);
+  }
+  /* the shots: from where the ship was when it fired, landing on the crystal when the note sounds */
+  W.fly.forEach(e => {
+    const [x0, y0] = pos(e.c, e.at - Math.min(stepDur(), 0.5)), x1 = cx(e.bin), y1 = cy - 14;
+    if (e.repeat && deja) stroke(c, [[x0, y0], [x1, y1]], "#3a1a08", 1, false);
+    bolt(c, x0, y0, x1, y1, e.u, deja ? BOLT_DV : BOLT);
+  });
+  header(c, t);
+}
+
 /* ---- 1: rain on a keyboard ---- */
 function keys(c, t) {
   autoKnobs(t); const W = world(t), H = lastHit(W, t), cx0 = 120 + (P.xbias - 64) / 64 * 50, cone = 10 + P.spread / 127 * 40;
@@ -379,7 +505,7 @@ function ships(c, t) {
   header(c, t);
 }
 
-const views = [["keys", keys], ["prism", prismScene], ["moons", moons], ["turrets", turrets], ["ships", ships]].map(([id, f]) => [document.getElementById(id).getContext("2d"), f]);
+const views = [["turretsPro", turretsPro], ["shipsPro", shipsPro], ["turrets", turrets], ["ships", ships]].map(([id, f]) => [document.getElementById(id).getContext("2d"), f]);
 function frame(ms) { const t = ms / 1000; views.forEach(([c, f]) => f(c, t)); }
 function loop(ms) { frame(ms + 1310); requestAnimationFrame(loop); }
 document.fonts.ready.then(() => { frame(1310); if (!reduce) requestAnimationFrame(loop); });
