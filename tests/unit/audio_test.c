@@ -1116,6 +1116,116 @@ static void kit_pad_pitch_adds_track_tune(void)
     assert(n == 1);
 }
 
+/* the note-ons (frame, pitch) of the next n frames, rendered a frame at a time */
+static int note_ons(uint32_t n, int *at, float *pitch, int max)
+{
+    int k = 0;
+    for (uint32_t f = 0; f < n; f++) {
+        NLOG = 0;                   /* (the log is short) */
+        block(1);
+        for (int i = 0; i < NLOG; i++)
+            if (LOG[i].op == 'n' && k < max) { at[k] = (int)f; pitch[k++] = LOG[i].a; }
+    }
+    return k;
+}
+
+/* track 0's step 0: a chord C E G over its whole length, the arp at 1/32 (2757 frames at 120) */
+static void chord_step(void)
+{
+    q_step *st = &P.pat[0][0].steps[0];
+    st->flags = SF_ON;
+    st->len = 8;
+    st->note[0] = 60; st->note[1] = 64; st->note[2] = 67;
+    P.sound[0].poly = 4;
+    P.sound[0].adiv = DIV_32;
+}
+
+static void arp_plays_step_chord(void)
+{
+    int at[16], dat[16];
+    float pc[16], dpc[16];
+    setup();
+    chord_step();
+    audio_play(1);
+    assert(note_ons(5000, dat, dpc, 16) == 3);      /* ARP OFF: the chord, direct */
+    setup();
+    chord_step();
+    P.sound[0].amode = AM_UP;
+    audio_play(1);
+    assert(note_ons(5000, at, pc, 16) == 2);        /* one note per arp step */
+    assert(at[0] == dat[0] && pc[0] == 60.0f && at[1] >= 2756 && at[1] <= 2758 && pc[1] == 64.0f);
+}
+
+/* step 2 starts in the middle of a 256-frame block: its MODE OFF lock switches the arp there, the chord of step 1
+ * (still held at that frame) is not struck again */
+static void arp_mode_lock_off(void)
+{
+    int at[16];
+    float pc[16];
+    setup();
+    chord_step();
+    for (int i = 1; i < 3; i++) P.pat[0][0].steps[i] = P.pat[0][0].steps[0];
+    P.sound[0].amode = AM_UP;
+    lock_set(&P.pat[0][0], 2, LK_AMODE, AM_OFF);
+    audio_play(1);
+    note_ons(43 * 256, at, pc, 16);                 /* frames 0..11007 */
+    NLOG = 0;
+    block(256);                                     /* step 2 at frame ~11028, in this block */
+    int n = 0;
+    for (int i = 0; i < NLOG; i++) if (LOG[i].op == 'n') pc[n++] = LOG[i].a;
+    assert(n == 4 && pc[1] == 60.0f && pc[2] == 64.0f && pc[3] == 67.0f);   /* (pc[0]: the arp's last note) */
+}
+
+static void arp_keyboard_latch(void)
+{
+    int at[16];
+    float pc[16];
+    setup();
+    P.sound[0].amode = AM_UP;
+    P.sound[0].adiv = DIV_32;
+    audio_live_note(0, 60, 3);
+    audio_live_note(0, 60, 0);                      /* the key released: the latch goes on */
+    assert(note_ons(9000, at, pc, 16) >= 3 && pc[2] == 60.0f);
+    audio_live_note(0, 62, 1);                      /* a key without latch ends it: only 62 */
+    audio_live_note(0, 62, 0);
+    note_ons(300, at, pc, 16);
+    assert(note_ons(9000, at, pc, 16) == 0 && track_on(0) == 0);
+}
+
+static void arp_stop_and_kit_end_notes(void)
+{
+    int at[16];
+    float pc[16];
+    setup();
+    chord_step();
+    P.sound[0].amode = AM_UP;
+    audio_live_note(0, 72, 3);
+    audio_live_note(0, 72, 0);
+    audio_play(1);
+    note_ons(1000, at, pc, 16);
+    audio_play(0);                                  /* the step's notes end, the latch goes on */
+    note_ons(300, at, pc, 16);
+    int n = note_ons(9000, at, pc, 16);
+    assert(n >= 3);
+    for (int i = 0; i < n; i++) assert(pc[i] == 72.0f);
+    set_model(0, M_KIT);                            /* out of the arp: its notes end, no arp note-on after */
+    block(256);
+    assert(track_on(0) == 0);
+    assert(note_ons(9000, at, pc, 16) == 0);
+}
+
+static void arp_ignored_on_kit(void)
+{
+    kit_setup();
+    P.sound[0].amode = AM_UP;
+    audio_live_note(0, KIT_NOTE + 4, 1);
+    audio_live_note(0, KIT_NOTE + 5, 1);
+    block(256);
+    int n = 0;
+    for (int i = 0; i < NLOG; i++) n += LOG[i].op == 'n';
+    assert(n == 2);
+}
+
 int main(void)
 {
     splits_block_at_events();
@@ -1163,6 +1273,11 @@ int main(void)
     kit_switch_while_waiting();
     render_model_changes_at_its_command();
     kit_pad_pitch_adds_track_tune();
+    arp_plays_step_chord();
+    arp_mode_lock_off();
+    arp_keyboard_latch();
+    arp_stop_and_kit_end_notes();
+    arp_ignored_on_kit();
     puts("audio_test ok");
     return 0;
 }

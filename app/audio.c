@@ -12,6 +12,8 @@
 #define OFF_ROOM 32                 /* kept for note-offs, one per held key (27), and the preparation's request (1): the
                                      * render drains the ring each block. The last place is the hand-back's (push) */
 #define EV_MAX 64                   /* more stays in the sequencer's queues for the next block */
+#define EV_ALL (CMD_N + Q_TRACKS * SEQ_QUEUE + EV_MAX + 2 * Q_TRACKS * ARP_OUT)   /* the main loop's keys and the
+                                     * stop's note-offs, the sequencer's, each track's arp's (two runs at most) */
 #define LATER_N 16                  /* note-ons waiting for an engine switch: beyond, a note-on is dropped */
 #define HELD_N 8                    /* live notes held, followed for the overdub */
 #define REC_N 32                    /* recorded notes waiting for the main loop, a power of two */
@@ -38,6 +40,13 @@ static uint8_t fading[Q_VOICES];    /* a model change: faded out over this block
 /* one engine switch per block in the render: the note-ons needing another wait here, in order */
 typedef struct { uint8_t track, note, vel, pat, accent; int8_t step; } q_later;   /* step -1: the keyboard's */
 static q_later later[LATER_N];
+/* a track not on M_KIT plays through its arp (MODE OFF: a pass-through). apat/astep: the step of the last note-on
+ * it was given, whose locks are its MODE, OCT, DIV and GATE; -1 for the keyboard's */
+static q_arp arp[Q_TRACKS];
+static uint8_t apat[Q_TRACKS];
+static int8_t astep[Q_TRACKS];
+static q_event ev[EV_ALL];          /* the block's events: off the render's stack */
+static int ncmd;                    /* the commands' events (keys, the stop's note-offs), at the start of ev: they play with the block, in order */
 static int n_later, switched;
 static volatile int prep_slot;      /* render -> main loop: the V_PREP slot, -1 none, PREP_WAIT */
 static int prep_model;              /* the main loop's own: the model it asked for */
@@ -97,6 +106,10 @@ void audio_setup(q_project *p)
     voices_init(&pool);
     pq_init();
     mod_init();
+    for (int t = 0; t < Q_TRACKS; t++) {
+        arp_reset(&arp[t]);
+        astep[t] = -1;
+    }
     for (int v = 0; v < Q_VOICES; v++)
         pool.v[v].model = 8;        /* pq_init's model */
     __builtin_memset(fading, 0, sizeof fading);
@@ -469,6 +482,89 @@ static void rec_note(int track, int note, int on)
         }
 }
 
+static int arping(int t) { return t < Q_TRACKS && rmodel[t] != M_KIT; }
+
+/* an event of a track in arp: into the arp, in the order it came */
+static void arp_feed(const q_event *e)
+{
+    if (e->on) {
+        apat[e->track] = e->pat;
+        astep[e->track] = (int8_t)e->step;   /* 255, the keyboard's: -1 */
+    }
+    arp_input(&arp[e->track], e);
+}
+
+/* the track's arp settings: the locks of a note-on's step (step -1: the keyboard's), else the track's */
+static q_arpp arp_params(int t, int pat, int step)
+{
+    const q_sound *s = &prj->sound[t];
+    q_arpp p = { s->amode, s->aoct, s->adiv, s->agate };
+    if (step >= 0) {
+        const q_pattern *pt = &prj->pat[t][pat];
+        int i;
+        if ((i = lock_find(pt, step, LK_AMODE)) >= 0) p.mode = pt->locks[i].value;
+        if ((i = lock_find(pt, step, LK_AOCT)) >= 0) p.oct = pt->locks[i].value;
+        if ((i = lock_find(pt, step, LK_ADIV)) >= 0) p.div = pt->locks[i].value;
+        if ((i = lock_find(pt, step, LK_AGATE)) >= 0) p.gate = pt->locks[i].value;
+    }
+    return p;
+}
+
+/* A note-on changing the arp's MODE sits after the note-offs of its own offset, but the arp switches mode at the
+ * start of its run: the run is cut after that offset, so the notes still held are not struck again by a switch to
+ * OFF (nor the new chord arpeggiated by the old mode). The event's index, -1 when there is no cut: none changes the
+ * mode, or it is the block's last frame */
+static int arp_cut(int t, int ne, uint32_t n)
+{
+    int mode = arp[t].mode;
+    for (int i = 0; i < ne; i++) {
+        const q_event *e = &ev[i];
+        if (e->track != t || !e->on)
+            continue;
+        int m = arp_params(t, e->pat, (int8_t)e->step).mode;
+        if (m != mode && e->offset + 1 < n)
+            return i;
+        mode = m;
+    }
+    return -1;
+}
+
+/* track t's events through its arp: its own events leave ev, the arp's join it at ev + *ne. They are kept when the
+ * arp is a pass-through (MODE OFF before and after: its events as they came, in order with the other tracks') */
+static void arp_run(int t, int ni, int *ne, uint32_t n)
+{
+    static q_event sink[ARP_OUT];
+    int cut = arp_cut(t, ni, n), pass, k;
+    uint32_t num, den, n1 = cut < 0 ? n : ev[cut].offset + 1;
+    q_arpp p;
+    for (int i = 0; i < (cut < 0 ? ni : cut); i++)
+        if (ev[i].track == t)
+            arp_feed(&ev[i]);
+    p = arp_params(t, apat[t], astep[t]);
+    pass = cut < 0 && p.mode == AM_OFF && arp[t].mode == AM_OFF;
+    seq_step_ratio(prj->tempo, p.div, &num, &den);
+    k = arp_block(&arp[t], &p, num, den, n1, pass ? sink : ev + *ne);
+    *ne += pass ? 0 : k;
+    if (cut >= 0) {
+        for (int i = cut; i < ni; i++)
+            if (ev[i].track == t) {
+                q_event e = ev[i];
+                e.offset = e.offset >= n1 ? e.offset - n1 : 0;
+                arp_feed(&e);
+            }
+        p = arp_params(t, apat[t], astep[t]);
+        seq_step_ratio(prj->tempo, p.div, &num, &den);
+        k = arp_block(&arp[t], &p, num, den, n - n1, ev + *ne);
+        for (int i = 0; i < k; i++)
+            ev[*ne + i].offset += n1;
+        *ne += k;
+    }
+    if (!pass)
+        for (int i = 0; i < ni; i++)
+            if (ev[i].track == t)
+                ev[i].track = 255;
+}
+
 static void commands(void)
 {
     while (cmd_r != cmd_w) {
@@ -476,9 +572,12 @@ static void commands(void)
         q_cmd c = cmd[cmd_r % CMD_N];
         cmd_r++;
         if (c.kind == CMD_NOTE) {
-            if (c.on != 2)
+            if (c.on < 2)
                 rec_note(c.track, c.note, c.on);
-            event(c.track, c.note, 100, c.on, 0, -1, 0);
+            if (arping(c.track) && (c.on == 1 || c.on == 2))
+                arp_unlatch(&arp[c.track]);   /* a key without latch ends the latch */
+            ev[ncmd++] = (q_event){ 0, (uint8_t)c.track, (uint8_t)c.note, 100, (uint8_t)(c.on != 0), 0, 255,
+                                    c.on == 3 ? EV_LATCH : 0, 0 };
         } else if (c.kind == CMD_MODEL) {
             int n = 0;
             rmodel[c.track] = prj->sound[c.track].model;
@@ -491,6 +590,10 @@ static void commands(void)
                 if (later[i].track != c.track)
                     later[n++] = later[i];
             n_later = n;
+            if (!arping(c.track)) {              /* a KIT's pads play direct: its arp ends, its notes with the fade */
+                arp_reset(&arp[c.track]);
+                astep[c.track] = -1;
+            }
         } else if (c.kind == CMD_SCENE) {
             seq_launch(&seq, c.note);
         } else if (c.kind == CMD_PREP_REQ) {
@@ -514,8 +617,9 @@ static void commands(void)
                     held[i].on = 0;
                 }
             seq_stop(&seq, off, &n);
-            for (int i = 0; i < n; i++)
-                apply(&off[i]);
+            for (int i = 0; i < n; i++) {
+                ev[ncmd++] = off[i];             /* (an arp ends the step's notes; a keyboard latch goes on) */
+            }
             if (c.on) {
                 mod_restart();
                 seq_start(&seq, prj, recording && (prj->click & 2));
@@ -577,7 +681,6 @@ static void render_segment(void)
 
 void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
 {
-    q_event ev[EV_MAX];
     uint32_t t0 = plat_ticks24(), pos = 0;
     int ne, ei = 0;
     float target = 8388607.0f * (float)master_q12 / 4096.0f, g = out_gain, dg;
@@ -591,9 +694,26 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
     dg = (target - g) * inv_n;      /* MASTER ramped across the block: no zipper noise */
     switched = 0;
     start_later();
+    ncmd = 0;
     commands();
     seq_click(&seq, recording && (prj->click & 1));
-    ne = seq_block(&seq, prj, n, ev, EV_MAX);
+    ne = ncmd + seq_block(&seq, prj, n, ev + ncmd, EV_MAX);
+    int ni = ne;
+    for (int t = 0; t < Q_TRACKS; t++)
+        if (arping(t))
+            arp_run(t, ni, &ne, n);
+    int m = 0;
+    for (int i = 0; i < ne; i++)
+        if (ev[i].track != 255)
+            ev[m++] = ev[i];
+    ne = m;
+    for (int i = 1; i < ne; i++) {  /* by offset, stable */
+        q_event e = ev[i];
+        int j = i;
+        for (; j > 0 && ev[j - 1].offset > e.offset; j--)
+            ev[j] = ev[j - 1];
+        ev[j] = e;
+    }
     int sc = seq_scene_started(&seq);
     if (sc >= 0 && scene_w == scene_r) {
         scene_v = sc;
