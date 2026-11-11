@@ -132,6 +132,8 @@ void arp_reset(q_arp *a) { __builtin_memset(a, 0, sizeof *a); a->rng = 1; }
 int arp_sounding(const q_arp *a) { return a->snd; }
 void arp_unlatch(q_arp *a) { a->unlatch = 1; }
 
+static int held_off(q_arp *a, int note);
+
 void arp_input(q_arp *a, const q_event *e)
 {
     a->track = e->track;
@@ -139,7 +141,7 @@ void arp_input(q_arp *a, const q_event *e)
         if (e->on) return;
         int j = ARP_IN - 1;                          /* a note-off takes the room of the newest note-on */
         while (j >= 0 && !a->in[j].on) j--;
-        if (j < 0) return;
+        if (j < 0) { held_off(a, e->note); return; }   /* all note-offs: the held note ends now, not at its date */
         for (; j + 1 < ARP_IN; j++) a->in[j] = a->in[j + 1];
         a->nin--;
     }

@@ -334,6 +334,17 @@ static void arp_noteoff_survives_overflow(void)
     for (int i = 0; i < NLOG; i++) on62 += LOG[i].e.note == 62 && LOG[i].e.on;
     assert(on62 == 1);
 }
+/* the queue holds nothing but note-offs: one more for a held key still ends that note */
+static void arp_noteoff_survives_full_of_offs(void)
+{
+    q_arp a; asetup(&a, 120); q_arpp p = ap(AM_UP, 1, 50); ain(&a, 1, 62, 0, 0); arun(&a, &p, 100, 100);
+    for (int i = 0; i < ARP_IN; i++) ain(&a, 0, 100 + i, 10, 0);
+    ain(&a, 0, 62, 50, 0);
+    arun(&a, &p, 20000, 100);
+    int on62 = 0;
+    for (int i = 0; i < NLOG; i++) on62 += LOG[i].e.note == 62 && LOG[i].e.on;
+    assert(on62 == 1);
+}
 /* 9 keys sounded directly in OFF, only 8 tracked: after the switch to UP the 9th key's note-off still comes out */
 static void arp_untracked_noteoff_passes(void)
 {
@@ -355,7 +366,7 @@ int main(void)
     arp_up_two_octaves(); arp_down(); arp_updown_no_repeat(); arp_order_follows_arrival(); arp_rand_in_set();
     arp_single_note_repeats(); arp_starts_at_first_note(); arp_gate_min(); arp_stops_when_empty(); arp_latch();
     arp_mode_change_no_stuck(); arp_passthrough_keeps_legato(); arp_tempo_change(); arp_ninth_note_ignored();
-    arp_noteoff_survives_overflow(); arp_untracked_noteoff_passes();
+    arp_noteoff_survives_overflow(); arp_untracked_noteoff_passes(); arp_noteoff_survives_full_of_offs();
     puts("mod tests ok");
     return 0;
 }
