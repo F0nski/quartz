@@ -6,6 +6,7 @@
 #include "dsp/pq.h"
 #include "gen.h"
 #include "scene.h"
+#include "plateau.h"
 
 #define MSG_MS 1500u
 #define HEAD_H 30
@@ -110,7 +111,8 @@ typedef struct {
         uint16_t tempo;
         q_step st[16];
         int32_t cpu[8];                         /* the CPU page's numbers as shown; core 2 -1: OFF */
-        uint8_t s3d;                            /* the model's scene is drawn (v: its ENGINE knobs), redrawn as it moves */
+        uint8_t anim;                           /* an animated scene, redrawn as it moves: 0 none, 1 the planet (v: its ENGINE
+                                                   knobs), 2 the SEQ plateau */
         q_trow tr[Q_TRACKS];                    /* TRACKS */
         struct { int8_t n, cursor, first, playing; q_entry e[6]; } song;               /* SONG: the 6 entries shown from first */
     } scene;
@@ -1168,7 +1170,7 @@ static void view_now(q_view *v)
         __builtin_memcpy(v->scene.v, v->foot.v, sizeof v->scene.v);
         v->scene.model = pid == P_PAD ? KIT_MODEL + ui.p->kit[ui.track][ui.pad].engine : ui.p->sound[ui.track].model;
         if ((pid == P_ENGINE || pid == P_SOUND) && scene_has(v->scene.model)) {
-            v->scene.s3d = 1;
+            v->scene.anim = 1;
             if (pid == P_SOUND)         /* the scene shows the sound's ENGINE knobs on both pages */
                 for (k = 0; k < 4; k++)
                     v->scene.v[k] = (int16_t)knob_get(P_ENGINE, k);
@@ -1178,6 +1180,7 @@ static void view_now(q_view *v)
         for (k = 0; k < Q_PADS; k++)
             v->scene.eng[k] = ui.p->kit[ui.track][k].engine;
     } else if (pid == P_STEPS || pid == P_XY) {
+        v->scene.anim = 2;
         v->scene.spage = (int8_t)ui.spage;
         v->scene.path = (int8_t)t->path;
         v->scene.showpath = pid == P_STEPS && plat_ms() < ui.path_until;
@@ -1236,6 +1239,68 @@ static void view_now(q_view *v)
         v->scene.cpu[5] = (int32_t)l.cpu2_stack;
         v->scene.cpu[6] = (int32_t)l.fx_pct;
         v->scene.cpu[7] = ui.fps;
+    }
+}
+
+/* the plateau's view of the SEQ page: its cells, texts and marks, from what the page shows */
+static void plateau_view(const q_view *v, q_plateau *p)
+{
+    int first = v->scene.spage * 16, i, k;
+    __builtin_memset(p, 0, sizeof *p);
+    for (i = 0; i < 16; i++) {
+        const q_step *st = &v->scene.st[i];
+        q_pcell *c = &p->c[i];
+        c->on = st->flags & SF_ON;
+        c->vel = st->vel;
+        c->len = st->len;
+        c->extra = STEP_RATCHET(st) > 1 || st->prob < 20 || st->cond || st->flags & (SF_SLIDE | SF_ACCENT) || st->micro ||
+                   (v->scene.locks >> i & 1u);
+        if (v->scene.model == M_KIT)        /* its first pad */
+            int_text(st->note[0] - KIT_NOTE + 1, c->name);
+        else
+            for (k = 0; TONIC_NAME[st->note[0] % 12][k]; k++)
+                c->name[k] = TONIC_NAME[st->note[0] % 12][k];
+        if (first + i < v->scene.len && i % 4 < v->scene.xlen && i / 4 < v->scene.ylen)
+            p->live |= (uint16_t)(1u << i);
+    }
+    p->pos = (int8_t)(v->scene.pos >= first && v->scene.pos < first + 16 ? v->scene.pos - first : -1);
+    p->cursor = (int8_t)(v->scene.cursor - 1 >= first && v->scene.cursor - 1 < first + 16 ? v->scene.cursor - 1 - first : -1);
+    p->end = (int8_t)(v->scene.len - 1 >= first && v->scene.len - 1 < first + 15 ? v->scene.len - 1 - first : -1);
+    p->held = (int8_t)(v->scene.held - 1 >= first && v->scene.held - 1 < first + 16 ? v->scene.held - 1 - first : -1);
+    if (v->scene.showpath && v->scene.path != PATH_RANDOM && v->scene.path != PATH_XY) {
+        int m = v->scene.path == PATH_SNAKE ? 1 : v->scene.path == PATH_COLUMNS ? 2 : v->scene.path == PATH_SPIRAL ? 3 : 0;
+        p->npath = 16;
+        for (i = 0; i < 16; i++)
+            p->path[i] = PATHS[m][v->scene.path == PATH_REV ? 15 - i : i];
+    }
+    if (p->pos >= 0) {
+        const q_step *st = &v->scene.st[p->pos];
+        __builtin_memcpy(p->top_l, "STEP ", 5);
+        p->top_l[5] = (char)('0' + (v->scene.pos + 1) / 10);
+        p->top_l[6] = (char)('0' + (v->scene.pos + 1) % 10);
+        if (st->flags & SF_ON)
+            note_name(st->note[0], p->top_r);
+        else
+            p->top_r[0] = p->top_r[1] = '-';
+    } else {
+        int_text(first + 1, p->top_l);
+        for (k = 0; p->top_l[k]; k++) {}
+        p->top_l[k++] = '-';
+        int_text(first + 16, p->top_l + k);
+    }
+    if (p->held >= 0) {
+        for (i = 0; i < A_N; i++) {
+            int a = ATTR_ROW[i];
+            for (k = 0; ATTR_NAME[a][k]; k++)
+                p->rows[i][0][k] = ATTR_NAME[a][k];
+            attr_text(&v->scene.hst, a, p->rows[i][1]);
+            if (a == v->scene.attr)
+                p->attr = (int8_t)i;
+        }
+        if (v->scene.model == M_KIT)
+            int_text(v->scene.hst.note[0] - KIT_NOTE + 1, p->held_name);
+        else
+            note_name(v->scene.hst.note[0], p->held_name);
     }
 }
 
@@ -1314,62 +1379,6 @@ static void draw_scene(const q_view *v, int32_t oy)
             int32_t x = 60 * k + 12, h = 108 * (v->scene.v[k] - pg->min[k]) / (pg->max[k] - pg->min[k]);
             cv_rect(x, oy + 48, 36, 108, C_LINE);
             cv_rect(x, oy + 156 - h, 36, h, KCOL[k]);
-        }
-        break;
-    case P_STEPS:
-    case P_XY:
-        if (v->scene.held) {            /* the held step's attributes, the one PRESET sets on K4's colour */
-            for (i = 0; i < A_N; i++) {
-                int a = ATTR_ROW[i];
-                int32_t y = oy + 2 + 18 * i;
-                uint16_t c = a == v->scene.attr ? C_WHITE : C_GRAY;
-                if (a == v->scene.attr)
-                    cv_rect(0, y - 1, 240, 18, KCOL[3]);
-                cv_text(10, y + 2, &FONT_S, ATTR_NAME[a], c);
-                attr_text(&v->scene.hst, a, t);
-                cv_text(230 - text_w(&FONT_S, t), y + 2, &FONT_S, t, a == v->scene.attr ? C_WHITE : C_HI);
-            }
-            break;
-        }
-        t[0] = 0;
-        int_text(v->scene.spage * 16 + 1, t);
-        for (i = 0; t[i]; i++) {}
-        t[i++] = '-';
-        int_text(v->scene.spage * 16 + 16, t + i);
-        cv_text(8, oy + 2, &FONT_XS, t, C_GRAY);
-        for (i = 0; i < 16; i++) {          /* 4 x 4, steps 1-4 on the first row */
-            int s = v->scene.spage * 16 + i;
-            int32_t x = 6 + 58 * (i % 4), y = oy + 18 + 37 * (i / 4);
-            const q_step *st = &v->scene.st[i];
-            uint16_t c = s == v->scene.pos ? PINK : s >= v->scene.len || i % 4 >= v->scene.xlen || i / 4 >= v->scene.ylen ? C_LINE
-                         : st->flags & SF_ON ? C_HI : C_DIM;
-            if (s == v->scene.cursor - 1) {
-                cv_rect(x, y, 54, 33, C_WHITE);
-                cv_rect(x + 2, y + 2, 50, 29, c);
-            } else {
-                cv_rect(x, y, 54, 33, c);
-            }
-            if (st->flags & SF_ON) {
-                if (v->scene.model == M_KIT)        /* its first pad */
-                    int_text(st->note[0] - KIT_NOTE + 1, t);
-                else
-                    note_name(st->note[0], t);
-                cv_text(x + (54 - text_w(&FONT_T, t)) / 2, y + 20, &FONT_T, t, C_BLACK);
-            }
-            if (v->scene.locks >> i & 1u)
-                cv_rect(x + 44, y + 4, 6, 6, KCOL[3]);
-        }
-        if (v->scene.showpath && v->scene.path != PATH_RANDOM && v->scene.path != PATH_XY) {
-            int m = v->scene.path == PATH_SNAKE ? 1 : v->scene.path == PATH_COLUMNS ? 2 : v->scene.path == PATH_SPIRAL ? 3 : 0;
-            int first = PATHS[m][v->scene.path == PATH_REV ? 15 : 0];
-            for (i = 0; i < 15; i++) {
-                int a = PATHS[m][i], b = PATHS[m][i + 1];
-                int32_t x0 = 33 + 58 * (a % 4), y0 = oy + 34 + 37 * (a / 4), x1 = 33 + 58 * (b % 4), y1 = oy + 34 + 37 * (b / 4);
-                cv_line(x0, y0, x1, y1, C_WHITE);
-                cv_line(x0 + 1, y0, x1 + 1, y1, C_WHITE);
-                cv_line(x0, y0 + 1, x1, y1 + 1, C_WHITE);
-            }
-            cv_rect(33 + 58 * (first % 4) - 4, oy + 34 + 37 * (first / 4) - 4, 9, 9, KCOL[3]);
         }
         break;
     case P_KIT:                         /* the 16 pads, 4 x 4 as the steps, the one the knobs set lit */
@@ -1535,17 +1544,31 @@ void ui_frame(void)
     view_now(&v);
     if (ui.full || __builtin_memcmp(&v.head, &ui.shown.head, sizeof v.head))
         draw_head(&v);
-    if (v.scene.s3d) {
+    if (v.scene.anim) {
         uint32_t now = plat_ms();
         if (ui.full || now - ui.scene_ms >= 30u || __builtin_memcmp(&v.scene, &ui.shown.scene, sizeof v.scene)) {
+            /* shown anew (another scene, track, pattern or page of steps): the notes before do not hit */
+            int fresh = ui.full || ui.shown.scene.anim != v.scene.anim || ui.shown.head.track != v.head.track ||
+                        ui.shown.head.pat != v.head.pat || ui.shown.scene.spage != v.scene.spage;
             ui.scene_ms = now;
             ui.frames++;
-            if (!ui.shown.scene.s3d || ui.shown.head.track != v.head.track || ui.full)
-                scene_enter();
-            scene_frame(v.scene.v, audio_hits(ui.track), now);
+            if (v.scene.anim == 1) {
+                if (fresh)
+                    scene_enter();
+                scene_frame(v.scene.v, audio_hits(ui.track), now);
+            } else {
+                static q_plateau pv;
+                if (fresh)
+                    plateau_enter();
+                plateau_view(&v, &pv);
+                plateau_frame(&pv, audio_hits(ui.track), now);
+            }
             for (b = 0; b < 2; b++) {
                 cv_begin(240, BAND_H, C_BLACK);
-                scene_band(-BAND_H * b);
+                if (v.scene.anim == 1)
+                    scene_band(-BAND_H * b);
+                else
+                    plateau_band(-BAND_H * b);
                 cv_blit(0, HEAD_H + BAND_H * b);
             }
         }
@@ -1557,7 +1580,7 @@ void ui_frame(void)
         }
     if (ui.full || __builtin_memcmp(&v.foot, &ui.shown.foot, sizeof v.foot))
         draw_foot(&v);
-    ui.fps_mixed |= !v.scene.s3d;
+    ui.fps_mixed |= !v.scene.anim;
     if (plat_ms() - ui.fps_ms >= 1000u) {      /* SCENE FPS: a second spent wholly on a scene */
         if (!ui.fps_mixed)
             ui.fps = ui.frames;
@@ -1649,7 +1672,8 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "pan")) *got = s->pan;
     else if (!strcmp(what, "level")) *got = s->level;
     else if (!strcmp(what, "dtime")) *got = ui.p->dtime;
-    else if (!strcmp(what, "scene3d")) *got = ui.shown.scene.s3d;
+    else if (!strcmp(what, "scene3d")) *got = ui.shown.scene.anim == 1;
+    else if (!strcmp(what, "anim")) *got = ui.shown.scene.anim;
     else if (!strcmp(what, "hits")) *got = (int)audio_hits(ui.track);
     else if (!strcmp(what, "fps")) *got = ui.fps;
     else if (!strcmp(what, "dfb")) *got = ui.p->dfb;

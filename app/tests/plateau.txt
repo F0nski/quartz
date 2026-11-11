@@ -1,0 +1,58 @@
+# The SEQ plateau: stopped, playing, a held step, the path, a short LEN, XY, then page 3 of 64 steps
+wait 600
+tap SEQ
+expect anim 2
+key 0 down
+key 0 up
+key 4 down
+key 4 up
+key 7 down
+key 7 up
+key 11 down
+key 11 up
+key 14 down
+turn K1 20
+key 14 up
+wait 100
+shot plateau_stopped.png
+tap PLAY
+wait 420
+shot plateau_play.png
+key 4 down
+wait 100
+expect anim 2
+shot plateau_held.png
+key 4 up
+turn K3 3
+wait 50
+shot plateau_path.png
+turn K3 -3
+turn K1 -11
+expect len 5
+wait 100
+shot plateau_len5.png
+turn K1 11
+turn K3 7
+turn SELECT 1
+expect page 2
+turn K1 -1
+turn K3 -1
+wait 100
+expect anim 2
+shot plateau_xy.png
+turn SELECT -1
+turn K3 -7
+tap PLAY
+turn K1 48
+expect len 64
+tap OCT+
+tap OCT+
+key 0 down
+wait 100
+shot plateau_page3_held.png
+key 0 up
+wait 100
+expect anim 2
+shot plateau_page3.png
+tap EDIT
+expect anim 0
