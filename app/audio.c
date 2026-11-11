@@ -63,9 +63,11 @@ static uint32_t lk_mask[Q_VOICES];
 static uint8_t lk_val[Q_VOICES][LK_N];
 static int8_t vpad[Q_VOICES];       /* the KIT pad each voice plays, -1 none: taken at its note-on */
 /* each track's effect locks (bit k of mask: LK_I1 + k), taken at a step's note-on (fxl_step). They hold until a
- * block starts past that step once a block has started on it (fxl_seen): a note early by its micro keeps them */
+ * block starts past that step once a block has started on it (fxl_seen): a note early by its micro keeps them.
+ * fxl_pos: the step at the block's start */
 static uint8_t fxl_val[Q_TRACKS][FX_N];
 static uint8_t fxl_mask[Q_TRACKS], fxl_step[Q_TRACKS], fxl_seen[Q_TRACKS];
+static int fxl_pos[Q_TRACKS];
 static int duck_at;                 /* the block's first KIT BD note-on, -1 none */
 static float clk_c, clk_s, clk_cw, clk_sw, clk_env;   /* the click: a phasor turning by (clk_cw, clk_sw) a frame */
 /* live notes held while recording; now: the render's clock, since audio_setup */
@@ -449,14 +451,15 @@ static int legato(const q_event *e)
 }
 
 /* a sequencer's step note-on takes the step's effect locks. Not the arp's: they carry a held note's step, which
- * would keep its locks past the step */
+ * would keep its locks past the step. Nor a ratchet's repeat: late by micro or swing, it can fall in the next step */
 static void fx_take(const q_event *e)
 {
     int t = e->track;
     const q_pattern *pt = &prj->pat[t][e->pat];
+    if (e->flags & EV_REPEAT) return;
     fxl_mask[t] = 0;
     fxl_step[t] = e->step;
-    fxl_seen[t] = 0;
+    fxl_seen[t] = fxl_pos[t] == e->step;    /* late by its micro, in the block where the next step begins */
     for (int k = 0; k < FX_N; k++) {
         int i = lock_find(pt, e->step, LK_I1 + k);
         if (i >= 0) {
@@ -749,7 +752,7 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
     ncmd = 0;
     commands();
     for (int t = 0; t < Q_TRACKS; t++)    /* seq_pos: the block's start */
-        if (seq_pos(&seq, t) == fxl_step[t])
+        if ((fxl_pos[t] = seq_pos(&seq, t)) == fxl_step[t])
             fxl_seen[t] = 1;
         else if (fxl_seen[t])
             fxl_mask[t] = 0;

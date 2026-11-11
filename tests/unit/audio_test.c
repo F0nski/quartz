@@ -1372,6 +1372,42 @@ static void fx_lock_negative_micro(void)
     fx_lock_run(0);
 }
 
+/* step 1 late by micro and swing, step 2 off: its note-on in the block where step 2 begins, the lock gone from
+ * step 2 on */
+static void fx_lock_positive_micro_clears(void)
+{
+    fx_lock_setup(11);
+    P.swing = 75;
+    P.pat[0][0].steps[2].flags = 0;
+    block(32);                      /* the note-on in the block where step 2 begins */
+    int edge = 0, seen2 = 0;
+    for (int k = 0; k < 4 * 5516 / 256; k++) {
+        int p = audio_pos(0), was = QTR[0].dsend == 90;
+        block(256);
+        if (!was && QTR[0].dsend == 90) edge = p == 1 && audio_pos(0) == 2;
+        if (p >= 2) { assert(QTR[0].dsend == 10 && QTR[0].pan == 5); seen2 = 1; }
+    }
+    assert(edge && seen2);
+}
+
+/* step 1 (DSEND 90) ratchet 4, late by micro: its last hit in step 2, locked to DSEND 50 */
+static void fx_lock_ratchet_swing_not_rearmed(void)
+{
+    fx_lock_setup(11);
+    P.swing = 75;
+    P.pat[0][0].steps[1].flags |= 3 << 3;
+    lock_set(&P.pat[0][0], 2, LK_DSEND, 50);
+    int seen1 = 0, seen2 = 0, seen3 = 0;
+    for (int k = 0; k < 4 * 5516 / 256; k++) {
+        int p = audio_pos(0);
+        block(256);
+        seen1 |= QTR[0].dsend == 90;
+        if (p == 2) { assert(QTR[0].dsend == 50); seen2 = 1; }
+        if (p >= 3) { assert(QTR[0].dsend == 10); seen3 = 1; }
+    }
+    assert(seen1 && seen2 && seen3);
+}
+
 static void stop_clears_fx_locks(void)
 {
     fx_lock_setup(-11);
@@ -1521,6 +1557,8 @@ int main(void)
     level_moves_to_fx();
     fx_lock_on_its_step();
     fx_lock_negative_micro();
+    fx_lock_positive_micro_clears();
+    fx_lock_ratchet_swing_not_rearmed();
     stop_clears_fx_locks();
     fx_lock_not_stuck_by_arp();
     kit_bd_sets_duck_at();

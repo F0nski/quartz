@@ -5,7 +5,7 @@
 
 #define Q_CLICK_TRACK Q_TRACKS          /* q_event.track of a metronome click: note 1 on a bar's first beat */
 #define SEQ_QUEUE 64                    /* per track */
-enum { EV_LEGATO = 1, EV_ACCENT = 2 };
+enum { EV_LEGATO = 1, EV_ACCENT = 2, EV_REPEAT = 8 };    /* EV_REPEAT: a ratchet's hits after the first; 4: EV_LATCH */
 /* from: an EV_LEGATO note-on's tied note, which it replaces; 0 otherwise */
 typedef struct { uint32_t offset; uint8_t track, note, vel, on, pat, step, flags, from; } q_event;
 

@@ -316,6 +316,18 @@ static void ratchet_repeats(void)
     assert(nth(0, 1, 3) < 0);
 }
 
+static void repeat_flag_on_ratchet_repeats(void)
+{
+    setup();
+    only_step(0, 0);
+    P.pat[0][0].steps[0].flags |= 3 << 3;                       /* ratchet 4 */
+    run(40);
+    int k = 0;
+    for (int i = 0; i < NEV; i++)
+        if (EV[i].e.track == 0 && EV[i].e.on) assert(!(EV[i].e.flags & EV_REPEAT) == (k++ % 4 == 0));
+    assert(k >= 4);
+}
+
 static void poly_step_plays_all_notes(void)
 {
     static const uint8_t notes[4] = { 60, 64, 67, 0 };
@@ -1374,6 +1386,7 @@ int main(void)
     micro_shifts_note();
     swing_delays_odd_steps();
     ratchet_repeats();
+    repeat_flag_on_ratchet_repeats();
     poly_step_plays_all_notes();
     same_note_retrigger_not_cut();
     tempo_change_with_queue();

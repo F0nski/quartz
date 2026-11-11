@@ -417,7 +417,7 @@ static void plan_notes(q_seq *s, const q_project *p, int t, const q_step *st, in
             int64_t a = (tr->tie || tie) && on < from ? from : on;
             if (queue_push_on(q, (uint64_t)a, tie ? TIED : off > a ? (uint32_t)(off - a) : 0,
                     (q_event){ 0, (uint8_t)t, st->note[i], (uint8_t)vel, 1, (uint8_t)tr->pat, (uint8_t)step,
-                               (uint8_t)((tr->tie ? EV_LEGATO : 0) | (acc >> i & 1 ? EV_ACCENT : 0)), 0 })) {
+                               (uint8_t)((tr->tie ? EV_LEGATO : 0) | (acc >> i & 1 ? EV_ACCENT : 0) | (j ? EV_REPEAT : 0)), 0 })) {
                 tr->tie = 0;
                 hold |= tie;
             }
