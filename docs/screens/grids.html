@@ -52,12 +52,12 @@ button[aria-pressed=true] { background: var(--hot); color: #fff; border-color: v
 </section>
 
 <div class="grid">
-  <figure><canvas id="floors" width="240" height="240"></canvas><figcaption><span class="tag">R1</span><h2>Trois étages</h2>
-    <p>Un plateau isométrique de 8 × 4 pas par voix, HH en haut, BD en bas. Les blocs montent avec le niveau de la carte ; le viseur avance sur les trois à la fois ; la jauge à droite de chaque étage donne DENS.</p></figcaption></figure>
-  <figure><canvas id="pads" width="240" height="240"></canvas><figcaption><span class="tag">R2</span><h2>Pads</h2>
-    <p>Une grille plate comme une boîte à rythmes : trois rangées de 16 pads pour les pas 1–16, trois pour 17–32. Un pad plus épais est plus accentué ; la mini-carte en haut à droite montre X/Y.</p></figcaption></figure>
-  <figure><canvas id="stacks" width="240" height="240"></canvas><figcaption><span class="tag">R3</span><h2>Piles</h2>
-    <p>Un seul plateau de 8 × 4 pas ; chaque pas porte une pile de blocs, BD en bas, SN au milieu, HH en haut, chacun plus haut s'il est accentué. VOICE éclaire sa couleur dans les piles.</p></figcaption></figure>
+  <figure><canvas id="floors2" width="240" height="240"></canvas><figcaption><span class="tag">R1 soigné</span><h2>Trois étages</h2>
+    <p>Trois plateaux réguliers de 8 × 4 pas, HH en haut ; le bloc qui joue saute en rose avec une onde et des éclats. À droite de chaque étage, l'étiquette de la voix et sa densité en jauge à crans ; VOICE éclaire son étage.</p></figcaption></figure>
+  <figure><canvas id="stacks2" width="240" height="240"></canvas><figcaption><span class="tag">R3 soigné</span><h2>Piles, en grand</h2>
+    <p>Le plateau de 8 × 4 pas sur toute la largeur ; chaque pas porte sa pile BD, SN, HH. Le sol pulse près du viseur à chaque temps ; les densités en haut à droite, la mini-carte X/Y en bas à gauche.</p></figcaption></figure>
+  <figure><canvas id="floors" width="240" height="240"></canvas><figcaption><span class="tag">R1</span><h2>Avant</h2><p>Pour comparer.</p></figcaption></figure>
+  <figure><canvas id="stacks" width="240" height="240"></canvas><figcaption><span class="tag">R3</span><h2>Avant</h2><p>Pour comparer.</p></figcaption></figure>
 </div>
 
 <section aria-label="Ce que fait chaque encodeur">
@@ -443,7 +443,76 @@ function stacksScene(c, t) {
   header(c, "GRIDS", [["DIV", ["1/16", "1/8", "1/4"][P.div], P.div / 2], ["VOICE", P.voice, (P.voice - 1) / 2], ["NOTE", P.note, (P.note - 24) / 72]]);
 }
 
-const views = [["floors", floorsScene], ["pads", padsScene], ["stacks", stacksScene]].map(([id, f]) => [document.getElementById(id).getContext("2d"), f]);
+/* ---- improved readable views ---- */
+const SHV = [[-1.2, -2.2], [1.4, -2.6], [-0.4, -3]];
+function hitFx(c, at, gx, gy, x, top, ago) {             /* a hit: square wave on the floor, three shards from the top */
+  if (ago >= 0.3) return; const k = ago / 0.3, g = 0.5 + k * 1.4;
+  stroke(c, [at(gx + 0.5 - g, gy + 0.5 - g), at(gx + 0.5 + g, gy + 0.5 - g), at(gx + 0.5 + g, gy + 0.5 + g), at(gx + 0.5 - g, gy + 0.5 + g)], k < 0.4 ? HOT[1] : HOT[2], 1.5);
+  SHV.forEach(([vx, vy], i) => { const px = x + vx * 8 * k, py = top + vy * 8 * k, s2 = 3 * (1 - k) + 1; poly(c, [[px, py - s2], [px + s2, py + s2 * 0.4], [px - s2 * 0.6, py + s2]], i % 2 ? HOT[0] : HOT[1]); });
+}
+function densGauge(c, x, y, h, v, hot) {                  /* a stepped column: 8 segments, the lit ones DENS */
+  const n = Math.round(DENS()[v] / 127 * 8);
+  for (let i = 0; i < 8; i++) { const yy = y + h - (i + 1) * h / 8; poly(c, [[x, yy + 1], [x + 6, yy + 1], [x + 6, yy + h / 8 - 1], [x, yy + h / 8 - 1]], i < n ? (hot ? HOT[1] : VCOL[v][1]) : "#221a44"); }
+}
+function mapChip(c, x, y, w, h, t) {                     /* the map's place: a 5 x 5 of dots, the cursor a diamond, CHAOS shaking it */
+  const j = P.chaos / 127 * 1.5 * Math.sin(t * 9);
+  for (let i = 0; i < 5; i++) for (let k = 0; k < 5; k++) { c.fillStyle = "#3a2c64"; c.fillRect(x + i * w / 4, y + k * h / 4, 2, 2); }
+  const cx = x + P.x / 127 * w + j + 1, cy = y + P.y / 127 * h + 1; poly(c, [[cx - 4, cy], [cx, cy - 4], [cx + 4, cy], [cx, cy + 4]], "#f4f1ff");
+}
+
+/* R1+: three floors */
+function floors2(c, t) {
+  autoKnobs(t); const { cur, base } = curPass(t), L = lastHits(t); rays(c, t, 36);
+  [2, 1, 0].forEach((v, fl) => {
+    const A = 9.5, B = 4.6, ox = 104, oy = 44 + fl * 50, at = (gx, gy) => [ox + (gx - gy) * A, oy + (gx + gy) * B];
+    const sel = v === P.voice - 1, hot = L[v][0] < 0.15;
+    for (let i = 0; i < 32; i++) { const gx = i % 8, gy = Math.floor(i / 8), q = [at(gx, gy), at(gx + 1, gy), at(gx + 1, gy + 1), at(gx, gy + 1)];
+      poly(c, q, gx % 4 === 0 ? "#130d2e" : "#0e0a26"); stroke(c, q, sel ? "#3a2870" : "#22184a"); }
+    stroke(c, [at(0, 0), at(8, 0), at(8, 4), at(0, 4)], sel ? "#f4f1ff" : "#3a2c64");
+    const order = [...Array(32).keys()].sort((p, q) => (p % 8 + Math.floor(p / 8)) - (q % 8 + Math.floor(q / 8)));
+    order.forEach(s2 => { const gx = s2 % 8, gy = Math.floor(s2 / 8), st = stepState(v, s2, base + s2), [x, y] = at(gx + 0.5, gy + 0.5), isCur = s2 === cur, h2 = isCur && hot;
+      if (st.on || h2) { const lift = h2 ? 4 * (1 - L[v][0] / 0.15) : 0, hh = 3 + st.lv * 12; box(c, x, y - lift, A * 0.36, B * 0.36, hh, h2 ? HOT : sel ? VCOL[v] : [VCOL[v][1], VCOL[v][2], "#160f36"]);
+        if (isCur) hitFx(c, at, gx, gy, x, y - lift - hh, L[v][0]); }
+      else if (st.extra && s2 <= cur) stroke(c, [[x - 4, y - 3], [x, y - 5], [x + 4, y - 3], [x, y - 1]], VCOL[v][0]); });
+    sightIso(c, at, cur % 8, Math.floor(cur / 8), hot ? HOT[1] : K[1][0]);
+    /* the voice's label and its density, on the right of its floor */
+    const lx = 206, ly = oy + 6;
+    poly(c, [[lx, ly], [lx + 22, ly], [lx + 25, ly + 3], [lx + 25, ly + 13], [lx + 3, ly + 13], [lx, ly + 10]], hot ? HOT[1] : sel ? VCOL[v][1] : "#2a2050");
+    text(c, VNAME[v], lx + 12.5, ly + 7, 10, hot || sel ? BAR : UI, "center");
+    densGauge(c, lx + 9, ly + 16, 24, v, hot);
+  });
+  text(c, "STEP " + String(cur + 1).padStart(2, "0"), 8, 40, 10, K[1][0], "left"); noteLabel(c);
+  header(c, "MAP", MAPK());
+}
+
+/* R3+: one big plate of stacks */
+function stacks2(c, t) {
+  autoKnobs(t); const { cur, base } = curPass(t), L = lastHits(t), anyHot = Math.min(...L.map(([a]) => a)); rays(c, t, 40);
+  const A = 18.5, B = 9.25, ox = 83, oy = 76, at = (gx, gy) => [ox + (gx - gy) * A, oy + (gx + gy) * B];
+  const pulse = (t / stepDur()) % 4 < 1;                  /* the floor pulses on each beat near the playhead */
+  for (let i = 0; i < 32; i++) { const gx = i % 8, gy = Math.floor(i / 8), q = [at(gx, gy), at(gx + 1, gy), at(gx + 1, gy + 1), at(gx, gy + 1)];
+    const near = Math.abs(gx - cur % 8) + Math.abs(gy - Math.floor(cur / 8)) < 2;
+    poly(c, q, gx % 4 === 0 ? "#130d2e" : "#0e0a26"); stroke(c, q, pulse && near ? "#5b2f8c" : "#2a1d55"); }
+  stroke(c, [at(0, 0), at(8, 0), at(8, 4), at(0, 4)], "#5b2f8c");
+  const order = [...Array(32).keys()].sort((p, q) => (p % 8 + Math.floor(p / 8)) - (q % 8 + Math.floor(q / 8)));
+  order.forEach(s2 => { const gx = s2 % 8, gy = Math.floor(s2 / 8), [x, y] = at(gx + 0.5, gy + 0.5), isCur = s2 === cur; let z = 0;
+    const lift = isCur && anyHot < 0.15 ? 5 * (1 - anyHot / 0.15) : 0;
+    [0, 1, 2].forEach(v => { const st = stepState(v, s2, base + s2), hot = isCur && L[v][0] < 0.15, sel = v === P.voice - 1;
+      if (st.on || hot) { const h = 4 + st.lv * 9; box(c, x, y - z - lift, A * 0.36, B * 0.36, h, hot ? HOT : sel ? VCOL[v] : [VCOL[v][1], VCOL[v][2], "#160f36"]); z += h; }
+      else if (st.extra && s2 <= cur) { stroke(c, [[x - 6, y - z - lift - 2], [x, y - z - lift - 5], [x + 6, y - z - lift - 2], [x, y - z - lift + 1]], VCOL[v][0]); z += 4; } });
+    if (isCur) hitFx(c, at, gx, gy, x, y - z - lift, anyHot); });
+  sightIso(c, at, cur % 8, Math.floor(cur / 8), anyHot < 0.12 ? HOT[1] : K[1][0]);
+  /* corners: the densities (top right) and the map's place (bottom left) */
+  [2, 1, 0].forEach((v, i) => { const x = 178 + i * 20, y = 34, hot = L[v][0] < 0.15, sel = v === P.voice - 1;
+    densGauge(c, x + 4, y + 12, 22, v, hot); text(c, VNAME[v], x + 7, y + 4, 8, hot ? HOT[0] : sel ? "#f4f1ff" : UI, "center"); });
+  mapChip(c, 10, 160, 28, 24, t);
+  text(c, "STEP " + String(cur + 1).padStart(2, "0"), 8, 40, 10, K[1][0], "left");
+  const n = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"][P.note % 12] + (Math.floor(P.note / 12) - 1);
+  text(c, VNAME[P.voice - 1] + " " + n, 8, 54, 9, UI, "left");
+  header(c, "GRIDS", [["DIV", ["1/16", "1/8", "1/4"][P.div], P.div / 2], ["VOICE", P.voice, (P.voice - 1) / 2], ["NOTE", P.note, (P.note - 24) / 72]]);
+}
+
+const views = [["floors2", floors2], ["stacks2", stacks2], ["floors", floorsScene], ["stacks", stacksScene]].map(([id, f]) => [document.getElementById(id).getContext("2d"), f]);
 function frame(ms) { const t = ms / 1000; views.forEach(([c, f]) => f(c, t)); }
 function loop(ms) { frame(ms + 1310); requestAnimationFrame(loop); }
 document.fonts.ready.then(() => { frame(1310); if (!reduce) requestAnimationFrame(loop); });
