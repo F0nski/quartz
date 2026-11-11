@@ -12,6 +12,7 @@ core's load and LOST BLOCKS; a step is validated only with zero lost blocks in i
 | Step 3a (filter, LFO, arp; played by ear, worst case not run) | not recorded | not recorded |
 | Step 3b: MODAL x 6 (two POLY 3 tracks), delay and reverb | 82 % / 74 % (effects 6 %) | 0 |
 | Step 3b: the same, two PHASER inserts, COMP | 87 % / 71 % (effects 13 %) | 0 |
+| Step 3c: the 16 punch-ins held one by one, recorded and played back (with step 5a's case) | see step 5a | 0 |
 | Step 5a: MODAL and 6-OP A (POLY 3 each, 6 voices), delay, reverb, two PHASER, COMP, the planet on ENGINE (29 fps) | 64 % / 43 % (effects 12 %) | 0 |
 
 One Plaits voice costs 5 to 11 % of a core for the light models, 12 to 16 % for the common ones and 20 to 21 % for
