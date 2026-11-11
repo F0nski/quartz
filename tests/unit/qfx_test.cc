@@ -356,6 +356,60 @@ static void duck_dips_and_recovers(void)
     for (unsigned i = 0; i < N; i++) assert(r[i] == 0.2f);
 }
 
+// track 0, a KIT track (DUCK off), a 220 Hz sine at LEVEL 127 into REVERB rsend, DUCK depth: duck_at in block 8
+static void duck_kit_run(int rsend, int depth, float *l)
+{
+    static float r[kBlock];
+    qfx_init();
+    defaults();
+    tr[0].level = 127;
+    tr[0].rsend = rsend;
+    ms.duck = depth;
+    for (unsigned b = 0; b < 16; b++) {
+        for (unsigned i = 0; i < kBlock; i++) bus[0][i] = sine(0.2f, 220.0f, b * kBlock + i);
+        qfx_block(busp, tr, &ms, b == 8 ? 0 : -1, l + b * kBlock, r, kBlock);
+    }
+}
+
+static void duck_dips_returns(void)
+{
+    enum { N = 16 * 256, AT = 8 * 256, W = 441 };
+    static float a[N], b[N], dry[N];
+    duck_kit_run(0, 127, a);
+    duck_kit_run(0, 0, dry);
+    assert(!memcmp(a, dry, sizeof(a)));   // the KIT track's dry is not ducked
+    duck_kit_run(127, 127, a);
+    duck_kit_run(127, 0, b);
+    assert(!memcmp(a, b, AT * sizeof(float)));
+    double ea = 0, eb = 0;   // the return's energy over 10 ms from duck_at
+    for (unsigned i = AT; i < AT + W; i++) {
+        ea += (double)(a[i] - dry[i]) * (a[i] - dry[i]);
+        eb += (double)(b[i] - dry[i]) * (b[i] - dry[i]);
+    }
+    printf("  duck: return %.2f dB at duck_at\n", 10.0 * log10(ea / eb));
+    assert(eb > 1e-6 && ea < eb * 0.02);
+}
+
+// DUCK 127 dips, then 0 from the next block: the dip recovers at its rate, no jump
+static void duck_off_mid_dip_recovers(void)
+{
+    enum { N = 40 * 256 };
+    static float l[N], r[N];
+    qfx_init();
+    defaults();
+    tr[0].level = 127;
+    tr[0].pan = -64;   // track 0 on L only
+    tr[0].duck = 1;
+    for (unsigned b = 0; b < N / kBlock; b++) {
+        ms.duck = b == 0 ? 127 : 0;
+        for (unsigned i = 0; i < kBlock; i++) bus[0][i] = 0.2f;
+        qfx_block(busp, tr, &ms, b == 0 ? 0 : -1, l + b * kBlock, r + b * kBlock, kBlock);
+    }
+    const unsigned rec = (unsigned)(0.15f * kRate) + 2;
+    for (unsigned i = 1; i < N; i++) assert(l[i] >= l[i - 1] && 20.0f * log10f(l[i] / l[i - 1]) <= 1.0f);
+    assert(l[kBlock] < 0.2f && l[rec] == 0.2f);
+}
+
 static void duck_zero_is_bypass(void)
 {
     enum { N = 20 * 256 };
@@ -448,7 +502,9 @@ int main(void)
     delay_time_change_stays_finite();
     reverb_tail();
     duck_dips_and_recovers();
+    duck_dips_returns();
     duck_zero_is_bypass();
+    duck_off_mid_dip_recovers();
     compressor_reduces_loud();
     master_extremes_bounded();
     printf("qfx_test ok\n");

@@ -65,6 +65,7 @@ struct Master {
   float dlp[2];     // feedback low-pass, per channel
   float dlast[2];   // last half-rate output, per channel, for the upsampling
   float duck;       // ducking gain
+  float rise;       // its recovery per frame, set by the dip
   float env, comp;  // compressor's detector and gain
   float lim;        // limiter's gain
 };
@@ -224,17 +225,17 @@ void track(int t, const qfx_track& tr, float* x, float* l, float* r, unsigned n)
   p = c;
 }
 
-// the ducking gain per frame into dg: down to the depth at duck_at, then up linearly in dB over 150 ms
+// the ducking gain per frame into dg: down to the depth at duck_at, then up linearly in dB over 150 ms. Depth 0
+// starts no dip, a running one recovers on
 void duck(int depth, int duck_at, unsigned n) {
   Master& M = *master;
-  if (depth == 0) M.duck = 1.0f;
   const float db = 24.0f * depth / 127.0f;
-  const float floor = exp2f(-db / kDb), rise = exp2f(db / kDb / (0.15f * kSr));
   for (unsigned i = 0; i < n; ++i) {
     if (depth && static_cast<int>(i) == duck_at) {
-      M.duck = floor;
+      M.duck = exp2f(-db / kDb);
+      M.rise = exp2f(db / kDb / (0.15f * kSr));
     } else if (M.duck < 1.0f) {
-      M.duck *= rise;
+      M.duck *= M.rise;
       if (M.duck > 1.0f) M.duck = 1.0f;
     }
     dg[i] = M.duck;
