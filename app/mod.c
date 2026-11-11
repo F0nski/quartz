@@ -119,3 +119,134 @@ void mod_voice_block(int v, pq_mod *m)
     s->ph += s->inc;                                 /* TRIG: own phase; FREE: mod_set re-derives it */
     if (s->ph >= 1) { s->ph -= 1; s->cyc++; }
 }
+
+/* ---- arpeggiator: per track, over the track's events; offsets are frames of the block ---- */
+
+void arp_reset(q_arp *a) { __builtin_memset(a, 0, sizeof *a); a->rng = 1; }
+int arp_sounding(const q_arp *a) { return a->snd; }
+void arp_unlatch(q_arp *a) { a->unlatch = 1; }
+
+void arp_input(q_arp *a, const q_event *e)
+{
+    a->track = e->track;
+    if (a->nin == ARP_IN) {
+        if (e->on) return;
+        int j = ARP_IN - 1;                          /* a note-off takes the room of the newest note-on */
+        while (j >= 0 && !a->in[j].on) j--;
+        if (j < 0) return;
+        for (; j + 1 < ARP_IN; j++) a->in[j] = a->in[j + 1];
+        a->nin--;
+    }
+    a->in[a->nin++] = *e;
+}
+
+static void held_drop(q_arp *a, int j)
+{
+    for (a->nh--; j < a->nh; j++) a->h[j] = a->h[j + 1];
+    if (!a->nh) a->run = 0;                          /* the sounding note still ends at its gate */
+}
+
+static void held_off(q_arp *a, int note)             /* a latched note outlives its key */
+{
+    for (int j = 0; j < a->nh; j++) if (a->h[j].note == note && !a->h[j].latched) { held_drop(a, j); return; }
+}
+
+static void held_on(q_arp *a, const q_event *e, int mode)
+{
+    int j = 0;
+    while (j < a->nh && a->h[j].note != e->note) j++;
+    if (j == a->nh) {
+        if (j == ARP_HELD) return;
+        if (!j) { a->run = mode != AM_OFF; a->i = e->offset; a->r = 0; a->rd = 1; a->idx = 0; }   /* the first step falls here */
+        a->nh++;
+    }
+    a->h[j] = (q_arpn){ e->note, e->vel, e->pat, e->step, (uint8_t)(e->flags & EV_ACCENT),
+                        (uint8_t)(mode != AM_OFF && (e->flags & EV_LATCH)) };
+}
+
+static void arp_note_off(q_arp *a, uint32_t t, q_event **o)
+{
+    **o = (q_event){ t, (uint8_t)a->track, a->sn, a->sv, 0, a->sp, a->ss, 0, 0 };
+    (*o)++; a->snd = 0;
+}
+
+/* the step due at frame t: note, then the clock's advance */
+static void arp_step(q_arp *a, const q_arpp *p, uint32_t num, uint32_t den, uint32_t t, q_event **o)
+{
+    uint8_t ord[ARP_HELD], ln[ARP_HELD * 4], lj[ARP_HELD * 4];
+    int L = 0;
+    for (int j = 0; j < a->nh; j++) {                /* by pitch, or by arrival for ORDER */
+        int k = j;
+        if (p->mode != AM_ORDER) while (k > 0 && a->h[ord[k - 1]].note > a->h[j].note) { ord[k] = ord[k - 1]; k--; }
+        ord[k] = (uint8_t)j;
+    }
+    for (int oc = 0; oc < p->oct; oc++)
+        for (int m = 0; m < a->nh; m++) {
+            int nt = a->h[ord[m]].note + 12 * oc;
+            if (nt <= 127) { ln[L] = (uint8_t)nt; lj[L++] = ord[m]; }
+        }
+    uint32_t P = p->mode == AM_UPDN && L > 1 ? 2 * L - 2 : L, pos = a->idx % P;
+    if (p->mode == AM_DOWN) pos = L - 1 - pos;
+    else if (p->mode == AM_UPDN && pos >= (uint32_t)L) pos = 2 * L - 2 - pos;
+    else if (p->mode == AM_RAND) {
+        a->rng ^= a->rng << 13; a->rng ^= a->rng >> 17; a->rng ^= a->rng << 5;
+        pos = a->rng % L;
+    }
+    a->idx = a->idx % P + 1;
+    if (a->snd) arp_note_off(a, t, o);
+    const q_arpn *h = &a->h[lj[pos]];
+    **o = (q_event){ t, (uint8_t)a->track, ln[pos], h->vel, 1, h->pat, h->step, h->flags, 0 };
+    (*o)++;
+    a->snd = 1; a->sn = ln[pos]; a->sv = h->vel; a->sp = h->pat; a->ss = h->step;
+    uint32_t g = (uint32_t)((uint64_t)num * p->gate / (100ull * den));
+    a->soff = t + (g ? g : 1);
+
+    a->r = (uint32_t)((uint64_t)a->r * den / a->rd); a->rd = den;      /* a tempo change applies from this advance */
+    a->i += num / den; a->r += num % den;
+    if (a->r >= den) { a->r -= den; a->i++; }
+}
+
+int arp_block(q_arp *a, const q_arpp *p, uint32_t num, uint32_t den, uint32_t n, q_event *out)
+{
+    q_event *o = out;
+    int k = 0;
+    if (p->mode != a->mode) {
+        if (a->snd) arp_note_off(a, 0, &o);
+        if (p->mode == AM_OFF) {                     /* the held keys sound directly; latched ones have no key */
+            for (int j = a->nh - 1; j >= 0; j--) if (a->h[j].latched) held_drop(a, j);
+            for (int j = 0; j < a->nh; j++)
+                *o++ = (q_event){ 0, (uint8_t)a->track, a->h[j].note, a->h[j].vel, 1, a->h[j].pat, a->h[j].step, a->h[j].flags, 0 };
+            a->run = 0;                              /* the keys stay tracked, for the way back */
+        } else if (a->mode == AM_OFF) {
+            for (int j = 0; j < a->nh; j++)
+                *o++ = (q_event){ 0, (uint8_t)a->track, a->h[j].note, a->h[j].vel, 0, a->h[j].pat, a->h[j].step, 0, 0 };
+            a->run = a->nh > 0; a->i = a->r = 0; a->rd = 1; a->idx = 0;
+        }
+        a->mode = p->mode;
+    }
+    if (a->unlatch) {
+        for (int j = a->nh - 1; j >= 0; j--) if (a->h[j].latched) held_drop(a, j);
+        a->unlatch = 0;
+    }
+    for (;;) {                                       /* by date: the note-off, then the inputs, then the step */
+        uint32_t t = n;
+        if (k < a->nin && a->in[k].offset < t) t = a->in[k].offset;
+        if (a->snd && a->soff < t) t = a->soff;
+        if (a->run && a->i < t) t = a->i;
+        if (t >= n) break;
+        if (a->snd && a->soff == t) arp_note_off(a, t, &o);
+        else if (k < a->nin && a->in[k].offset == t) {
+            const q_event *e = &a->in[k++];
+            if (p->mode == AM_OFF) *o++ = *e;
+            if (!e->on) held_off(a, e->note);
+            else {
+                if (e->flags & EV_LEGATO) held_off(a, e->from);
+                held_on(a, e, p->mode);
+            }
+        } else arp_step(a, p, num, den, t, &o);
+    }
+    a->nin = 0;
+    if (a->run) a->i -= n;
+    if (a->snd) a->soff -= n;
+    return (int)(o - out);
+}
