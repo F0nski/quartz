@@ -311,7 +311,8 @@ function ship3(c, x, y, a, bank, tones, s, flame) {
 function shipsPro(c, t) {
   autoKnobs(t); const W = world(t), T = times(t), deja = W.deja, mid = 120 + (P.xbias - 64) / 64 * 55, gap = 16 + P.spread / 127 * 26;
   c.fillStyle = "#120b26"; c.fillRect(0, 30, 240, 166);
-  for (let i = 0; i < 40; i++) { const layer = i % 3, x = ((i * 73) - t * (4 + layer * 5) * 0.25 / stepDur()) % 240, y = 34 + (i * 37) % 100;
+  for (let i = 0; i < 40; i++) { const layer = hash(i * 3 + 1) < 0.15 ? 2 : hash(i * 3 + 2) < 0.4 ? 1 : 0;   /* scattered at random, fixed; the near ones fewer and faster */
+    const x = (hash(i * 7 + 11) * 240 - t * (4 + layer * 5) * 0.25 / stepDur()) % 240, y = 34 + hash(i * 13 + 5) * 98;
     c.fillStyle = layer === 2 ? "#fff" : layer === 1 ? "#a99ce0" : "#4a3f78"; c.fillRect((x + 480) % 240, y, layer === 2 ? 2 : 1, layer === 2 ? 2 : 1); }
   const hz = 134; c.fillStyle = "#1a0f33"; c.fillRect(0, hz, 240, 196 - hz); c.fillStyle = "#5b2f8c"; c.fillRect(0, hz, 240, 1);
   c.strokeStyle = "#3b1f66"; c.lineWidth = 1;
