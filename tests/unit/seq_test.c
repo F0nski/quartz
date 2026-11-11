@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -1392,8 +1393,33 @@ static void lock_full_refused(void)
     assert(lock_set(pt, 0, LK_HARM, 77) == 0);                  /* an overwrite still works when full */
 }
 
+/* the bar's position at the block's start, from the beat clock */
+static void bar_frames(void)
+{
+    setup();
+    assert(P.tempo == 120);
+    block(BLK, 64);                         /* the first block sets the beat clock */
+    run(2);
+    assert(fabsf(seq_bar_frames(&S) - 768.0f) <= 1.0f);
+    run_to(88236);                          /* 4 beats of 22058.8 */
+    assert(seq_bar_frames(&S) >= 0.0f && seq_bar_frames(&S) <= 2.0f);
+    run_to(88236 + 22059);
+    assert(fabsf(seq_bar_frames(&S) - 22059.0f) <= 2.0f);
+    S.running = 0;
+    assert(seq_bar_frames(&S) == -1.0f);
+    setup();
+    seq_start(&S, &P, 1);                   /* a bar of count-in */
+    for (int k = 0; k < 340; k++) {         /* 340 x 256 < 88235 */
+        assert(seq_bar_frames(&S) == -1.0f);
+        block(BLK, 64);
+    }
+    run_to(88236 + 512);
+    assert(fabsf(seq_bar_frames(&S) - 512.0f) <= 2.0f);
+}
+
 int main(void)
 {
+    bar_frames();
     step_frames_values();
     steps_land_on_exact_frames();
     polyrhythm();

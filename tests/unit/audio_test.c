@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include "gen.c"
@@ -1525,6 +1526,96 @@ static void reverb_on_core2_once_per_block(void)
     cpu2_mode = 1;
 }
 
+static void held_punch_reaches_qfx(void)
+{
+    setup();
+    audio_punch(0x0021);
+    block(256);
+    assert(QM.punch == 0x0021);
+    audio_punch(0);
+    block(256);
+    assert(QM.punch == 0);
+}
+
+/* through 4 steps of track 1, its step 2 locked: the punch-ins seen on the blocks starting in each step */
+static void punch_run(uint16_t want, int on_held)
+{
+    int seen = 0;
+    for (int k = 0; k < 4 * 5516 / 256; k++) {
+        int p = audio_pos(1);
+        block(256);
+        if (p == 2) { assert(QM.punch == (want | on_held)); seen = 1; }
+        else assert(QM.punch == on_held);
+    }
+    assert(seen || !want);
+}
+
+static void recorded_punch_on_its_step(void)
+{
+    setup();
+    lock_set(&P.pat[1][0], 2, LK_PUNCH_HI, 0x04);   /* an empty step */
+    audio_play(1);
+    punch_run(0x0400, 0);
+    audio_play(0);
+}
+
+static void muted_track_no_punch(void)
+{
+    setup();
+    P.mute = 2;
+    lock_set(&P.pat[1][0], 2, LK_PUNCH_HI, 0x04);
+    audio_play(1);
+    punch_run(0, 0);
+    audio_play(0);
+}
+
+static void held_and_recorded_or(void)
+{
+    setup();
+    lock_set(&P.pat[1][0], 2, LK_PUNCH_HI, 0x04);
+    audio_punch(1);
+    audio_play(1);
+    punch_run(0x0400, 1);
+    audio_play(0);
+    audio_punch(0);
+}
+
+static void recorded_punch_follows_pattern(void)
+{
+    setup();
+    for (int k = 0; k < 16; k++) lock_set(&P.pat[1][0], k, LK_PUNCH_LO, 0x01);
+    audio_play(1);
+    block(256);                             /* the play's block: no step planned at its start yet */
+    block(256);
+    assert(QM.punch == 1);
+    P.pattern[1] = 1;                       /* taken at the wrap */
+    for (int k = 0; k < 20 * 5516 / 256; k++) {
+        block(256);
+        if (audio_pattern(1) == 1 && audio_pos(1) >= 1) assert(QM.punch == 0);
+    }
+    assert(audio_pattern(1) == 1 && QM.punch == 0);
+    audio_play(0);
+}
+
+static void free_phase_when_stopped(void)
+{
+    setup();
+    audio_punch(1);
+    block(256);
+    assert(QM.bpos == 0.0f);
+    assert(fabsf(QM.fpb - 22058.8f) <= 0.5f);
+    block(256);
+    assert(QM.bpos == 256.0f);
+    block(256);
+    assert(QM.bpos == 512.0f);
+    audio_punch(0);
+    block(256);
+    audio_punch(1);
+    block(256);
+    assert(QM.bpos == 0.0f);                /* from the press again */
+    audio_punch(0);
+}
+
 int main(void)
 {
     reverb_on_core2_once_per_block();
@@ -1592,6 +1683,12 @@ int main(void)
     duck_follows_kit_membership();
     click_after_fx();
     stereo_out();
+    held_punch_reaches_qfx();
+    recorded_punch_on_its_step();
+    muted_track_no_punch();
+    held_and_recorded_or();
+    recorded_punch_follows_pattern();
+    free_phase_when_stopped();
     puts("audio_test ok");
     return 0;
 }

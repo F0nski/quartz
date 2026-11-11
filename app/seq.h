@@ -58,6 +58,7 @@ int  seq_block(q_seq *s, const q_project *p, uint32_t nframes, q_event *out, int
 int  lock_find(const q_pattern *pt, int step, int param);              /* index, -1 none */
 int  lock_set(q_pattern *pt, int step, int param, int value);          /* 0; -1 full (nothing written) */
 void lock_clear_step(q_pattern *pt, int step);                         /* the main loop writes; the render reads */
+float seq_bar_frames(const q_seq *s);                         /* frames since the bar's first beat at the block's start; -1 stopped or counting in */
 int  seq_pos(const q_seq *s, int track);                      /* step whose grid span holds the block's start; -1 stopped or counting in */
 int  seq_pattern(const q_seq *s, int track);                  /* the pattern playing */
 /* the nearest step to the block's start, -1 if none; micro -11..11, pat its pattern (the next one's, past a wrap) */

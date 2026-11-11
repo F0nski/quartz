@@ -69,6 +69,9 @@ static uint8_t fxl_val[Q_TRACKS][FX_N];
 static uint8_t fxl_mask[Q_TRACKS], fxl_step[Q_TRACKS], fxl_seen[Q_TRACKS];
 static int fxl_pos[Q_TRACKS];
 static int duck_at;                 /* the block's first KIT BD note-on, -1 none */
+static volatile uint16_t punch_held;  /* audio_punch's: the main loop writes, the render reads */
+static uint16_t punch_last;         /* the last block's punch-ins */
+static float punch_free;            /* stopped: the bar's position since the punch-ins began */
 static float clk_c, clk_s, clk_cw, clk_sw, clk_env;   /* the click: a phasor turning by (clk_cw, clk_sw) a frame */
 /* live notes held while recording; now: the render's clock, since audio_setup */
 typedef struct { uint8_t on, track, note, pat, step; int8_t micro; uint32_t t0; } q_held;
@@ -160,6 +163,7 @@ void audio_mute(void) { muted = 1; }
 void audio_unmute(void) { muted = 0; }
 int audio_playing(void) { return playing; }
 int audio_pos(int track) { return seq_pos(&seq, track); }
+void audio_punch(uint16_t mask) { punch_held = mask; }
 int audio_pattern(int track) { return seq_pattern(&seq, track); }
 int audio_song_entry(void) { return seq_song_entry(&seq); }
 void audio_rec(int on) { recording = on; }
@@ -766,6 +770,24 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
             fxl_seen[t] = 1;
         else if (fxl_seen[t])
             fxl_mask[t] = 0;
+    uint16_t punch = punch_held;    /* the keys held, and the steps' punch-ins of the tracks heard */
+    for (int t = 0; t < Q_TRACKS; t++) {
+        int k = fxl_pos[t], i;
+        if (k < 0 || seq.mute >> t & 1)
+            continue;
+        const q_pattern *pt = &prj->pat[t][seq_pattern(&seq, t)];
+        if ((i = lock_find(pt, k, LK_PUNCH_LO)) >= 0) punch |= pt->locks[i].value;
+        if ((i = lock_find(pt, k, LK_PUNCH_HI)) >= 0) punch |= (uint16_t)(pt->locks[i].value << 8);
+    }
+    uint32_t bnum, bden;
+    seq_step_ratio(prj->tempo, DIV_4, &bnum, &bden);
+    float fpb = (float)bnum / (float)bden, bpos = seq_bar_frames(&seq);
+    if (bpos < 0.0f) {              /* stopped or counting in: a bar from the punch-ins' start */
+        if (punch && !punch_last) punch_free = 0.0f;
+        bpos = punch_free;
+        for (punch_free += (float)n; punch_free >= 4.0f * fpb; punch_free -= 4.0f * fpb) {}
+    }
+    punch_last = punch;
     duck_at = -1;
     seq_click(&seq, recording && (prj->click & 1));
     ne = ncmd + seq_block(&seq, prj, n, ev + ncmd, EV_MAX);
@@ -833,7 +855,7 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
     }
     uint32_t num, den;
     seq_step_ratio(prj->tempo, prj->dtime, &num, &den);
-    fm = (qfx_master){ (float)num / (float)den, prj->dfb, prj->rsize, prj->rtone, prj->comp, prj->duck, 0, 0.0f, 0.0f };
+    fm = (qfx_master){ (float)num / (float)den, prj->dfb, prj->rsize, prj->rtone, prj->comp, prj->duck, punch, fpb, bpos };
     uint32_t tfx = plat_ticks24();
     qfx_block(b, tr, &fm, duck_at, l, r, n);
     sumfx += plat_ticks24() - tfx;

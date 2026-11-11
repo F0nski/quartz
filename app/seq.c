@@ -299,6 +299,18 @@ static const q_planned *current(const q_seq *s, int track)
     return tr->h[0].step < 0 ? 0 : &tr->h[0];
 }
 
+float seq_bar_frames(const q_seq *s)
+{
+    if (!s->running) return -1.0f;
+    if (!s->beat.den) return s->count ? -1.0f : 0.0f;   /* before the first block: its first beat starts now */
+    int64_t next = date(&s->beat, 0);
+    int beat = next > (int64_t)s->now ? s->beats - 1 : s->beats;   /* the beat in progress */
+    if (beat < s->count) return -1.0f;
+    float fpb = (float)s->beat.num / (float)s->beat.den;
+    float in = next > (int64_t)s->now ? fpb - (float)(next - (int64_t)s->now) : 0.0f;
+    return (float)(beat % 4) * fpb + (in > 0.0f ? in : 0.0f);
+}
+
 int seq_pos(const q_seq *s, int track)
 {
     const q_planned *c = current(s, track);
