@@ -160,7 +160,7 @@ extern "C" void qfx_insert(int t, int type, int p1, int p2, int p3, int mix, flo
 
   const float m = mix / 127.0f;
   const float lfo = e(0.05f, 5.0f, p1) / kSr;
-  const float overdrive = p1 / 127.0f;
+  const float overdrive = 0.5f + 0.5f * p1 / 127.0f;   // 0.5: Overdrive's near-unity point
   const float fold_gain = e(1.0f, 16.0f, p1), fold_bias = (p2 - 64) / 64.0f;
   const float chorus_depth = 8.0f * p2 / 127.0f;
   const float octaves = 5.0f * p2 / 127.0f, phaser_fb = 0.9f * p3 / 127.0f;

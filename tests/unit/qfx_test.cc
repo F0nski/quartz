@@ -124,6 +124,22 @@ static void type_switch_resets_state(void)
     for (unsigned i = 0; i < kBlock; i++) assert(b[i] == 0.0f);
 }
 
+// DRIVE at K1 0 stays close to unity for a small signal: it must not mute the track
+static void drive_zero_not_silent(void)
+{
+    static float b[8832];
+    const unsigned n = (unsigned)(kRate * 0.2f);
+    double in = 0.0, out = 0.0;
+    qfx_init();
+    for (unsigned i = 0; i < n; i++) b[i] = 0.1f * sinf(6.2831853f * 220.0f * i / kRate);
+    for (unsigned i = 0; i < n; i++) in += (double)b[i] * b[i];
+    for (unsigned i = 0; i < n; i += kBlock) qfx_insert(0, IT_DRIVE, 0, 127, 0, 127, b + i, n - i < kBlock ? n - i : kBlock);
+    for (unsigned i = 0; i < n; i++) out += (double)b[i] * b[i];
+    const double db = 10.0 * log10(out / in);
+    printf("  drive 0: %.2f dB\n", db);
+    assert(fabs(db) <= 3.0);
+}
+
 int main(void)
 {
     off_is_identity();
@@ -132,6 +148,7 @@ int main(void)
     comb_tunes_to_note();
     crush_bits();
     type_switch_resets_state();
+    drive_zero_not_silent();
     printf("qfx_test ok\n");
     return 0;
 }
