@@ -299,6 +299,60 @@ static void store_v2_gives_defaults(void)
     check_defaults();
 }
 
+static void store_roundtrip_v4(void)
+{
+    static q_project a, b;
+    project_defaults(&a);
+    q_sound *s = &a.sound[2];
+    s->atk = 11; s->dec = 22; s->sus = 33; s->rel = 44; s->ftype = FT_BP; s->cutoff = 55; s->res = 66; s->envamt = -33;
+    s->lshape = LS_SH; s->ltrig = 1; s->lrate = 70; s->ldepth = -20; s->ldest = LD_LEVEL;
+    s->amode = AM_ORDER; s->aoct = 3; s->adiv = DIV_8T; s->agate = 77;
+    assert(store_save(&a) == 0);
+    memset(&b, 0xAA, sizeof b);
+    assert(store_load(&b) == 0);
+    assert(!memcmp(&a, &b, sizeof a));
+}
+
+static void store_clamps_v4(void)
+{
+    static q_project a, b;
+    project_defaults(&a);
+    store_save(&a);
+    b = a;
+    q_sound *s = &b.sound[1];
+    s->ftype = 7; s->lshape = 9; s->lrate = 200; s->ldest = 9; s->amode = 9; s->aoct = 0; s->adiv = 20; s->agate = 0;
+    s->ltrig = 5; s->envamt = -128; s->ldepth = -128;
+    s = &b.sound[3];
+    s->envamt = 100; s->ldepth = 100; s->aoct = 9; s->agate = 200; s->cutoff = 250; s->res = 200;
+    write_raw(&b);
+    memset(&a, 0xAA, sizeof a);
+    assert(store_load(&a) == 0);
+    s = &a.sound[1];
+    assert(s->ftype == FT_BP && s->lshape == LS_SH && s->lrate == 75 && s->ldest == LD_LEVEL && s->amode == AM_ORDER);
+    assert(s->aoct == 1 && s->adiv == DIV_N - 1 && s->agate == 5 && s->ltrig == 1);
+    assert(s->envamt == -64 && s->ldepth == -64);
+    s = &a.sound[3];
+    assert(s->envamt == 63 && s->ldepth == 63 && s->aoct == 4 && s->agate == 100 && s->cutoff == 127 && s->res == 127);
+}
+
+/* a project saved before v4 has another layout: the defaults (the v4 ones too), not a misread */
+static void store_v3_gives_defaults(void)
+{
+    q_project a;
+    project_defaults(&a);
+    store_save(&a);
+    for (int i = 0; i < Q_CHUNKS; i++) mem[i][2] = 3;
+    check_defaults();
+    store_load(&a);
+    for (int t = 0; t < Q_TRACKS; t++) {
+        const q_sound *s = &a.sound[t];
+        assert(s->atk == 0 && s->dec == 64 && s->sus == 127 && s->rel == 20);
+        assert(s->ftype == FT_LP && s->cutoff == 127 && s->res == 0 && s->envamt == 0);
+        assert(s->lshape == LS_SIN && s->ltrig == 0 && s->lrate == 5 && s->ldepth == 0 && s->ldest == LD_CUT);
+        assert(s->amode == AM_OFF && s->aoct == 1 && s->adiv == DIV_16 && s->agate == 50);
+    }
+}
+
 static void save_refused_while_playing(void)
 {
     q_project a;
@@ -323,6 +377,9 @@ int main(void)
     store_roundtrip_v3();
     store_clamps_v3();
     store_v2_gives_defaults();
+    store_roundtrip_v4();
+    store_clamps_v4();
+    store_v3_gives_defaults();
     save_refused_while_playing();
     puts("store ok");
     return 0;

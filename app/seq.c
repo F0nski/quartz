@@ -24,6 +24,8 @@ void project_defaults(q_project *p)
         q_sound *s = &p->sound[i];
         s->model = 8; s->poly = 1; s->level = 100;
         s->harm = s->timb = s->morph = s->decay = 64;
+        s->dec = 64; s->sus = 127; s->rel = 20; s->cutoff = 127;    /* the rest of the new fields: 0 (LP, SIN, FREE, OFF...) */
+        s->lrate = 5; s->ldest = LD_CUT; s->aoct = 1; s->adiv = DIV_16; s->agate = 50;
         for (int k = 0; k < Q_PADS; k++) p->kit[i][k] = KIT_DEFAULT[k];
         for (int n = 0; n < Q_PATTERNS; n++) {
             q_pattern *pt = &p->pat[i][n];

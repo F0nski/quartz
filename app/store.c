@@ -48,6 +48,16 @@ static void clamp_project(q_project *p)
         s->timb = (uint8_t)clampi(s->timb, 0, 127);
         s->morph = (uint8_t)clampi(s->morph, 0, 127);
         s->decay = (uint8_t)clampi(s->decay, 0, 127);
+        s->atk = (uint8_t)clampi(s->atk, 0, 127); s->dec = (uint8_t)clampi(s->dec, 0, 127);
+        s->sus = (uint8_t)clampi(s->sus, 0, 127); s->rel = (uint8_t)clampi(s->rel, 0, 127);
+        s->ftype = (uint8_t)clampi(s->ftype, 0, FT_BP);
+        s->cutoff = (uint8_t)clampi(s->cutoff, 0, 127); s->res = (uint8_t)clampi(s->res, 0, 127);
+        s->envamt = (int8_t)clampi(s->envamt, -64, 63);
+        s->lshape = (uint8_t)clampi(s->lshape, 0, LS_SH); s->ltrig = (uint8_t)clampi(s->ltrig, 0, 1);
+        s->lrate = (uint8_t)clampi(s->lrate, 0, 75); s->ldepth = (int8_t)clampi(s->ldepth, -64, 63);
+        s->ldest = (uint8_t)clampi(s->ldest, 0, LD_LEVEL); s->amode = (uint8_t)clampi(s->amode, 0, AM_ORDER);
+        s->aoct = (uint8_t)clampi(s->aoct, 1, 4); s->adiv = (uint8_t)clampi(s->adiv, 0, DIV_N - 1);
+        s->agate = (uint8_t)clampi(s->agate, 5, 100);
         p->pattern[i] = (uint8_t)clampi(p->pattern[i], 0, Q_PATTERNS - 1);
         for (int k = 0; k < Q_PADS; k++) {
             q_pad *pd = &p->kit[i][k];
