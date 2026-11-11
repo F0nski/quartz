@@ -5,6 +5,7 @@
 #include "audio.h"
 #include "dsp/pq.h"
 #include "gen.h"
+#include "scene.h"
 
 #define MSG_MS 1500u
 #define HEAD_H 30
@@ -108,7 +109,8 @@ typedef struct {
         uint8_t eng[Q_PADS];                    /* KIT: the pads' engines */
         uint16_t tempo;
         q_step st[16];
-        int32_t cpu[7];                         /* the CPU page's numbers as shown; core 2 -1: OFF */
+        int32_t cpu[8];                         /* the CPU page's numbers as shown; core 2 -1: OFF */
+        uint8_t s3d;                            /* the model's scene is drawn (v: its ENGINE knobs), redrawn as it moves */
         q_trow tr[Q_TRACKS];                    /* TRACKS */
         struct { int8_t n, cursor, first, playing; q_entry e[6]; } song;               /* SONG: the 6 entries shown from first */
     } scene;
@@ -128,6 +130,8 @@ static struct {
     uint32_t btn, keys, msg_until, locks_until, path_until, punch_until;
     q_view shown;
     int full;                                  /* the next frame draws everything */
+    uint32_t scene_ms, fps_ms;                 /* the last scene drawn (every other 16-ms frame: 30 a second); the second being counted */
+    int frames, fps, fps_mixed;                /* scene frames this second; the last whole second's; a frame without the scene */
 } ui;
 
 static q_pattern *pat(void) { return &ui.p->pat[ui.track][ui.p->pattern[ui.track]]; }
@@ -1163,6 +1167,12 @@ static void view_now(q_view *v)
     if (pid == P_ENGINE || pid == P_SOUND || pid == P_SCALE || pid == P_PAD || pid >= P_ADSR) {
         __builtin_memcpy(v->scene.v, v->foot.v, sizeof v->scene.v);
         v->scene.model = pid == P_PAD ? KIT_MODEL + ui.p->kit[ui.track][ui.pad].engine : ui.p->sound[ui.track].model;
+        if ((pid == P_ENGINE || pid == P_SOUND) && scene_has(v->scene.model)) {
+            v->scene.s3d = 1;
+            if (pid == P_SOUND)         /* the scene shows the sound's ENGINE knobs on both pages */
+                for (k = 0; k < 4; k++)
+                    v->scene.v[k] = (int16_t)knob_get(P_ENGINE, k);
+        }
     } else if (pid == P_KIT) {
         v->scene.pad = (uint8_t)ui.pad;
         for (k = 0; k < Q_PADS; k++)
@@ -1225,6 +1235,7 @@ static void view_now(q_view *v)
         v->scene.cpu[4] = (int32_t)pq_voice_bytes();
         v->scene.cpu[5] = (int32_t)l.cpu2_stack;
         v->scene.cpu[6] = (int32_t)l.fx_pct;
+        v->scene.cpu[7] = ui.fps;
     }
 }
 
@@ -1449,9 +1460,10 @@ static void draw_scene(const q_view *v, int32_t oy)
         cv_text((240 - text_w(&FONT_M, MODE_NAME[v->scene.v[1]])) / 2, oy + 100, &FONT_M, MODE_NAME[v->scene.v[1]], C_GRAY);
         break;
     case P_CPU: {
-        static const char *const ROW[7] = {"CORE 1", "CORE 2", "LOST BLOCKS", "VOICES", "BYTES/VOICE", "CORE 2 STACK", "EFFECTS"};
-        for (i = 0; i < 7; i++) {
-            int32_t y = oy + 6 + 22 * i;
+        static const char *const ROW[8] = {"CORE 1", "CORE 2", "LOST BLOCKS", "VOICES", "BYTES/VOICE", "CORE 2 STACK", "EFFECTS",
+                                           "SCENE FPS"};
+        for (i = 0; i < 8; i++) {
+            int32_t y = oy + 4 + 20 * i;
             cv_text(16, y, &FONT_S, ROW[i], C_GRAY);
             if (i == 1 && v->scene.cpu[1] < 0) {
                 t[0] = 'O', t[1] = 'F', t[2] = 'F', t[3] = 0;
@@ -1523,7 +1535,19 @@ void ui_frame(void)
     view_now(&v);
     if (ui.full || __builtin_memcmp(&v.head, &ui.shown.head, sizeof v.head))
         draw_head(&v);
-    if (ui.full || __builtin_memcmp(&v.scene, &ui.shown.scene, sizeof v.scene))
+    if (v.scene.s3d) {
+        uint32_t now = plat_ms();
+        if (ui.full || now - ui.scene_ms >= 30u || __builtin_memcmp(&v.scene, &ui.shown.scene, sizeof v.scene)) {
+            ui.scene_ms = now;
+            ui.frames++;
+            scene_frame(v.scene.v, audio_hits(ui.track), now);
+            for (b = 0; b < 2; b++) {
+                cv_begin(240, BAND_H, C_BLACK);
+                scene_band(-BAND_H * b);
+                cv_blit(0, HEAD_H + BAND_H * b);
+            }
+        }
+    } else if (ui.full || __builtin_memcmp(&v.scene, &ui.shown.scene, sizeof v.scene))
         for (b = 0; b < 2; b++) {
             cv_begin(240, BAND_H, C_BLACK);
             draw_scene(&v, -BAND_H * b);
@@ -1531,6 +1555,13 @@ void ui_frame(void)
         }
     if (ui.full || __builtin_memcmp(&v.foot, &ui.shown.foot, sizeof v.foot))
         draw_foot(&v);
+    ui.fps_mixed |= !v.scene.s3d;
+    if (plat_ms() - ui.fps_ms >= 1000u) {      /* SCENE FPS: a second spent wholly on a scene */
+        if (!ui.fps_mixed)
+            ui.fps = ui.frames;
+        ui.fps_ms = plat_ms();
+        ui.frames = ui.fps_mixed = 0;
+    }
     ui.shown = v;
     ui.full = 0;
 }
@@ -1616,6 +1647,9 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "pan")) *got = s->pan;
     else if (!strcmp(what, "level")) *got = s->level;
     else if (!strcmp(what, "dtime")) *got = ui.p->dtime;
+    else if (!strcmp(what, "scene3d")) *got = ui.shown.scene.s3d;
+    else if (!strcmp(what, "hits")) *got = (int)audio_hits(ui.track);
+    else if (!strcmp(what, "fps")) *got = ui.fps;
     else if (!strcmp(what, "dfb")) *got = ui.p->dfb;
     else if (!strcmp(what, "rsize")) *got = ui.p->rsize;
     else if (!strcmp(what, "rtone")) *got = ui.p->rtone;
