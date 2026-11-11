@@ -1,0 +1,253 @@
+<title>Chiptune Scene</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+/* Layout: knob sliders on top, then one row of four live device screens per direction (one screen per engine). */
+:root {
+  --bg: #efedf5; --fg: #1c1830; --muted: #5d5873; --line: #d9d5e6; --device: #151320; --hot: #d4247a; --panel: #e4e1ee;
+  --display: "Chakra Petch", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --line: #2a2440; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --line: #2a2440; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 48px }
+main { max-width: 1000px; margin: 0 auto; display: grid; gap: 22px }
+h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; line-height: 1.1; margin: 0; text-transform: uppercase; letter-spacing: .02em }
+h1 em { font-style: normal; color: var(--hot) }
+.lead { color: var(--muted); max-width: 70ch; margin: 8px 0 0 }
+.knobs { position: sticky; top: 0; z-index: 1; background: var(--panel); border-radius: 10px; padding: 10px 14px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px 18px; align-items: center }
+.knobs label { display: grid; font-family: var(--display); font-size: .78rem; letter-spacing: .06em; text-transform: uppercase }
+.knobs input[type=range] { width: 100% }
+.knobs .auto { display: flex; gap: 8px; align-items: center }
+h2 { font-family: var(--display); font-size: 1.25rem; margin: 6px 0 0; text-transform: uppercase; letter-spacing: .04em }
+section > p { margin: 2px 0 10px; color: var(--muted); max-width: 80ch; font-size: .92rem }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px }
+figure { margin: 0; display: grid; gap: 6px; align-content: start; min-width: 0 }
+canvas { width: 100%; max-width: 100%; aspect-ratio: 1; background: #000; border: 12px solid var(--device); border-radius: 16px; box-sizing: border-box }
+h3 { font-family: var(--display); font-size: 1rem; margin: 0; text-transform: uppercase; letter-spacing: .04em }
+figcaption p { margin: 2px 0 0; font-size: .85rem; color: var(--muted) }
+figcaption b { color: var(--fg); font-weight: 600 }
+</style>
+
+<main style="max-width: 560px">
+  <header>
+    <h1>8-bit <em>les plateformes</em></h1>
+    <p class="lead">CHIPTUNE joue un accord en arpège : <b>HARM</b> choisit l'accord, <b>TIMB</b> le motif d'arpège (montant, descendant, aller-retour, au hasard), <b>MORPH</b> rend l'onde carrée plus fine. Leurs noms s'affichent en haut à droite. Un robot saute sur la note que joue l'arpège.</p>
+  </header>
+
+  <div class="knobs">
+    <label>HARM <input type="range" id="k0" min="0" max="100" value="80"></label>
+    <label>TIMB <input type="range" id="k1" min="0" max="100" value="60"></label>
+    <label>MORPH <input type="range" id="k2" min="0" max="100" value="40"></label>
+    <label>DECAY <input type="range" id="k3" min="0" max="100" value="40"></label>
+    <label class="auto"><input type="checkbox" id="auto"> encodeurs qui bougent seuls</label>
+  </div>
+
+  <section>
+    <div class="grid">
+      <figure><canvas id="platforms" width="240" height="240"></canvas><figcaption><h3>Les plateformes</h3><p>Un robot cube saute de bloc en bloc, un bloc par note de l'accord à sa hauteur, dans l'ordre de l'arpège, sous une lune et des nuages en voxels. <b>MORPH</b> rétrécit les blocs (la largeur d'impulsion). À chaque note, le bloc visé passe en rose, une pièce rose monte en tournant et le score avance.</p></figcaption></figure>
+    </div>
+  </section>
+</main>
+
+<script>
+const TAU = Math.PI * 2;
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+/* flat tones: [lit, base, shade] */
+const K = [["#8fb4ff", "#3a6dff", "#1c3590"], ["#8ff5c8", "#22d58e", "#0f6d48"], ["#ffffff", "#c9c3e4", "#6f6890"], ["#ffc196", "#ff7a2e", "#a3410c"]];
+const HOT = ["#ffb8dc", "#ff2f8e", "#8a1050"];
+const UI = "#8b84a8", BAR = "#06041a";
+const BEAT = 0.5;
+const NAMES = ["VA VCF", "VA", "WAVESHAPE", "PHASE DIST"];
+const font = (px, w = 700) => `${w} ${px}px "Chakra Petch", sans-serif`;
+const poly = (c, pts, fill) => { c.fillStyle = fill; c.beginPath(); pts.forEach(([x, y]) => c.lineTo(x, y)); c.closePath(); c.fill(); };
+const line = (c, pts, col, w = 1) => { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); pts.forEach(([x, y]) => c.lineTo(x, y)); c.stroke(); };
+const mix = (a, b, k) => "#" + [1, 3, 5].map(i => Math.round(parseInt(a.substr(i, 2), 16) * (1 - k) + parseInt(b.substr(i, 2), 16) * k).toString(16).padStart(2, "0")).join("");
+
+function knobs(t) {
+  if (document.getElementById("auto").checked)
+    return [0, 1, 2, 3].map(i => 0.5 + 0.45 * Math.sin(t * (0.3 + i * 0.11) + i * 1.9));
+  return [0, 1, 2, 3].map(i => document.getElementById("k" + i).value / 100);
+}
+
+function chrome(c, name, v, hit) {
+  c.fillStyle = BAR; c.fillRect(0, 0, 240, 30); c.fillRect(0, 196, 240, 44);
+  poly(c, [[8, 7], [30, 7], [34, 11], [34, 23], [12, 23], [8, 19]], hit ? HOT[1] : K[1][1]);
+  c.fillStyle = BAR; c.font = font(13); c.textBaseline = "middle"; c.fillText("1", 17, 15.5);
+  c.fillStyle = "#f4f1ff"; c.font = font(15); c.fillText(name, 42, 15.5);
+  c.fillStyle = UI; c.font = font(10, 500); c.textAlign = "right"; c.fillText("ENGINE", 232, 15.5); c.textAlign = "left";
+  ["HARM", "TIMB", "MORPH", "DECAY"].forEach((l, i) => {
+    const x = 8 + i * 58, w = 52, segs = 7, on = Math.round(v[i] * segs);
+    for (let s = 0; s < segs; s++) poly(c, [[x + s * 5, 214], [x + s * 5 + 4, 204], [x + s * 5 + 7, 204], [x + s * 5 + 3, 214]], s < on ? K[i][1] : "#221a3a");
+    c.fillStyle = "#f4f1ff"; c.font = font(11); c.textAlign = "right"; c.fillText(String(Math.round(v[i] * 127)), x + w, 210); c.textAlign = "left";
+    c.fillStyle = UI; c.font = font(9, 500); c.fillText(l, x, 228);
+  });
+}
+
+/* ---- a small perspective renderer: view = yaw, then camera height and pitch ---- */
+const unit = l => { const n = Math.hypot(...l); return l.map(x => x / n); };
+function camera(o) {
+  const cy = Math.cos(o.yaw), sy = Math.sin(o.yaw), cp = Math.cos(o.pitch), sp = Math.sin(o.pitch);
+  return {
+    view([x, y, z]) {
+      const X = x * cy - z * sy, Z = x * sy + z * cy + o.dist, Y = y - o.h;
+      return [X, Y * cp + Z * sp, Z * cp - Y * sp];
+    },
+    scr([X, Y, Z]) { return [120 + X * o.f / Z, o.cy - Y * o.f / Z]; },
+  };
+}
+/* items: {pts:[world], tones, edge?} faces, or {line:[world], col, w} — drawn far to near, fogged with distance */
+/* wire: a neon colour stroked over every face (an item's own wire wins, null for none) */
+function render(c, cam, items, fogCol, far, LV, wire) {
+  const out = [];
+  for (const it of items) {
+    const P = (it.pts || it.line).map(p => cam.view(p));
+    if (P.some(p => p[2] < 0.3)) continue;
+    const z = P.reduce((s, p) => s + p[2], 0) / P.length - (it.bias || 0);   /* bias: drawn as if nearer */
+    if (it.line) { out.push({ z, it, P }); continue; }
+    const a = P[1].map((x, k) => x - P[0][k]), b = P[2].map((x, k) => x - P[0][k]);
+    let n = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+    const ln = Math.hypot(...n) || 1; n = n.map(x => x / ln);
+    if (n[0] * P[0][0] + n[1] * P[0][1] + n[2] * P[0][2] > 0) n = n.map(x => -x);   /* light the side we see */
+    out.push({ z, it, P, d: n[0] * LV[0] + n[1] * LV[1] + n[2] * LV[2] });
+  }
+  out.sort((p, q) => q.z - p.z);
+  for (const { z, it, P, d } of out) {
+    const fog = Math.min(0.85, Math.max(0, (z - far * 0.35) / (far * 0.65)));
+    const S = P.map(p => cam.scr(p));
+    if (it.line) { line(c, S, mix(it.col, fogCol, fog), it.w || 1); continue; }
+    const col = it.flat || (d > 0.6 ? it.tones[0] : d > 0.2 ? it.tones[1] : it.tones[2]);   /* flat: a tone chosen by the scene */
+    poly(c, S, mix(col, fogCol, fog));
+    const wc = it.wire !== undefined ? it.wire : wire;
+    if (wc) { c.strokeStyle = mix(wc, fogCol, fog); c.lineWidth = 1; c.stroke(); }   /* the fine wire over every face */
+    else if (!it.edge) { c.strokeStyle = mix(col, fogCol, fog); c.lineWidth = 0.6; c.stroke(); }   /* hide the seams between facets */
+    if (it.edge) { c.strokeStyle = mix(it.edge, fogCol, fog); c.lineWidth = 1; c.beginPath(); S.forEach(([x, y]) => c.lineTo(x, y)); c.closePath(); c.stroke(); }
+  }
+}
+const rnd = (i, k) => { const x = Math.sin(i * 127.1 + k * 311.7) * 43758.5453; return x - Math.floor(x); };
+const STARS = Array.from({ length: 30 }, (_, i) => [rnd(i, 1) * 240, 33 + rnd(i, 2) * 56, rnd(i, 3) < 0.2]);
+function stars(c, t, bottom) {
+  STARS.forEach(([x, y, big]) => { if (y < bottom) { c.fillStyle = big ? "#fff" : "#6c5fa0"; c.fillRect((x - t * (big ? 3 : 1.5) + 480) % 240, y, big ? 2 : 1, big ? 2 : 1); } });
+}
+const notes = (t, v) => { const last = Math.floor(t / BEAT), since = t - last * BEAT; return { last, since, heat: Math.exp(-since / (0.05 + v[3] * 0.4)) }; };
+
+/* ---- small mesh helpers ---- */
+/* a wire floor: lines every step over a rectangle at height y */
+function gridFloor(items, y, x0, x1, z0, z1, step, col) {
+  for (let x = x0; x <= x1 + 1e-6; x += step) items.push({ line: [[x, y, z0], [x, y, z1]], col, bias: -50 });
+  for (let z = z0; z <= z1 + 1e-6; z += step) items.push({ line: [[x0, y, z], [x1, y, z]], col, bias: -50 });
+}
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const rotY = ([x, y, z], a, [ox, oy, oz] = [0, 0, 0]) => [ox + x * Math.cos(a) + z * Math.sin(a), oy + y, oz - x * Math.sin(a) + z * Math.cos(a)];
+/* a box from its centre and half sizes, turned by a around y, then moved to o */
+function box(items, [cx, cy, cz], [sx, sy, sz], tones, a = 0, o = [0, 0, 0]) {
+  const P = (dx, dy, dz) => rotY([cx + dx * sx, cy + dy * sy, cz + dz * sz], a, o);
+  const v = [P(-1, -1, -1), P(1, -1, -1), P(1, 1, -1), P(-1, 1, -1), P(-1, -1, 1), P(1, -1, 1), P(1, 1, 1), P(-1, 1, 1)];
+  [[0, 1, 2, 3], [4, 5, 6, 7], [0, 1, 5, 4], [3, 2, 6, 7], [0, 3, 7, 4], [1, 2, 6, 5]].forEach(f => items.push({ pts: f.map(i => v[i]), tones }));
+}
+/* a square beam from a to b, half width w */
+function beam(items, a, b, w, tones) {
+  const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], u = unit(d);
+  const n1 = unit(cross(u, Math.abs(u[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0])), n2 = cross(u, n1);
+  const C = (p, s1, s2) => [0, 1, 2].map(k => p[k] + (n1[k] * s1 + n2[k] * s2) * w);
+  const A = [C(a, -1, -1), C(a, 1, -1), C(a, 1, 1), C(a, -1, 1)], B = [C(b, -1, -1), C(b, 1, -1), C(b, 1, 1), C(b, -1, 1)];
+  for (let k = 0; k < 4; k++) items.push({ pts: [A[k], A[(k + 1) % 4], B[(k + 1) % 4], B[k]], tones });
+  items.push({ pts: A, tones }); items.push({ pts: B, tones });
+}
+const square = (items, [x, y, z], r, col, w = 1) => {
+  const q = [[-1, -1], [1, -1], [1, 1], [-1, 1], [-1, -1]].map(([a, b]) => [x + a * r, y, z + b * r]);
+  for (let k = 0; k < 4; k++) items.push({ line: [q[k], q[k + 1]], col, w, bias: 0.2 });
+};
+const sky = (c, bands) => bands.forEach(([col, y]) => { c.fillStyle = col; c.fillRect(0, y, 240, 196 - y); });
+const begin = c => { c.save(); c.beginPath(); c.rect(0, 30, 240, 166); c.clip(); };
+/* sparks: n small pink shards thrown from a screen point */
+function sparks(c, [x, y], since, n = 6, seed = 1) {
+  if (since > 0.35) return;
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI * (0.15 + 0.7 * rnd(i, seed)), sp = 60 + 70 * rnd(i, seed + 1);
+    const px = x + Math.cos(a) * sp * since, py = y + Math.sin(a) * sp * since + 160 * since * since;
+    poly(c, [[px, py - 2.5], [px + 2.5, py + 1.5], [px - 2, py + 2]], i % 2 ? HOT[0] : HOT[1]);
+  }
+}
+
+/* ---- the chord (HARM) and its arpeggio (TIMB): which note the step plays ---- */
+const CHORDS = [["OCT", [0, 12]], ["5", [0, 7, 12]], ["SUS4", [0, 5, 7, 12]], ["m", [0, 3, 7, 12]], ["m7", [0, 3, 7, 10]], ["m9", [0, 3, 10, 14]],
+  ["m11", [0, 3, 10, 17]], ["69", [0, 2, 9, 16]], ["M9", [0, 4, 11, 14]], ["M7", [0, 4, 7, 11]], ["M", [0, 4, 7, 12]]];
+const ARP = ["UP", "DOWN", "UP DOWN", "RANDOM"];
+function arp(v, step) {
+  const [name, notes] = CHORDS[Math.min(10, Math.floor(v[0] * 11))], m = Math.min(3, Math.floor(v[1] * 4)), N = notes.length;
+  let i;
+  if (m === 0) i = step % N; else if (m === 1) i = N - 1 - step % N;
+  else if (m === 2) { const p = step % (2 * N - 2 || 1); i = p < N ? p : 2 * N - 2 - p; }
+  else i = Math.floor(rnd(step, 13) * N);
+  return { name, notes, i, mode: ARP[m] };
+}
+const NAME7 = "CHIPTUNE", CYAN = ["#c8f4ff", "#5fe0ff", "#1d7fa8"], METAL = ["#2b3070", "#1f2458", "#151840"];
+const wired = (items, from, col) => items.slice(from).forEach(it => { if (it.pts) it.wire = col; });
+/* the hero's hop: from the previous note's spot to this one's, over the step */
+function hopAt(v, n, place) {
+  const a = arp(v, n.last), b = arp(v, n.last - 1), k = Math.min(1, n.since / 0.22);
+  const [x0, y0] = place(b.i, b.notes), [x1, y1] = place(a.i, a.notes);
+  return { x: x0 + (x1 - x0) * k, y: y0 + (y1 - y0) * k + Math.sin(Math.PI * k) * 0.5, land: k >= 1, a };
+}
+function labels(c, a) { c.fillStyle = "#c9c3e4"; c.font = font(11); c.textAlign = "right"; c.fillText(a.name + "  " + a.mode, 232, 42); c.textAlign = "left"; }
+
+/* ---- the platforms ---- */
+const VOX = ["#e4ddff", "#b3a6e8", "#6f5fb4"];
+/* a voxel cloud: a few cubes in a lump */
+function cloud(items, [x, y, z], s) {
+  [[0, 0], [1, 0], [2, 0], [0.5, 1], [1.5, 1], [3, 0]].slice(0, 5 + (Math.round(x * 3) & 1)).forEach(([i, j]) => box(items, [x + i * s * 2, y + j * s * 2, z], [s, s, s], ["#3a2c90", "#2e2470", "#211a55"]));
+}
+function platforms(c, t, n, v) {
+  begin(c); sky(c, [["#05031a", 30], ["#0a0626", 150]]);
+  /* square stars, twinkling */
+  for (let k = 0; k < 26; k++) if (Math.sin(t * 2 + k * 1.7) > -0.5) { c.fillStyle = k % 4 ? "#6c5fa0" : "#ffffff"; const s = k % 4 ? 1 : 2; c.fillRect(rnd(k, 1) * 240, 34 + rnd(k, 2) * 110, s, s); }
+  const cam = camera({ yaw: 0.08 * Math.sin(t * 0.3), pitch: 0.2, dist: 3.4, h: 1.6, f: 210, cy: 126 });
+  const items = [];
+  gridFloor(items, -0.9, -5, 5, -1.5, 6, 0.5, "#22186a");
+  /* a big voxel moon and drifting voxel clouds, far behind */
+  for (let i = -2; i <= 2; i++) for (let j = -2; j <= 2; j++) if (i * i + j * j <= 5) box(items, [-2.2 + i * 0.16, 2.2 + j * 0.16, 3.5], [0.08, 0.08, 0.08], (i + j) < 0 ? VOX : ["#b3a6e8", "#8f80d0", "#5e4f9a"]);
+  [[-2.4, 1.8, 3], [0.2, 2.4, 3.6], [2.8, 1.4, 2.8]].forEach(([x, y, z], k) => cloud(items, [((x + t * 0.15 + 4) % 8) - 4, y, z], 0.1));
+  const a = arp(v, n.last), place = (i, notes) => [-1.6 + 3.2 * (i + 0.5) / notes.length, 0.1 + notes[i] / 17 * 1.4], W = 0.1 + 0.3 * (1 - v[2]);
+  a.notes.forEach((p, i) => {
+    const [x, y] = place(i, a.notes), hit = i === a.i && n.since < 0.15;
+    let from = items.length;
+    box(items, [x, y - 0.08, 0], [W, 0.08, 0.25], hit ? HOT : ["#3a2c90", "#2e2470", "#211a55"]); wired(items, from, hit ? HOT[0] : "#7a5cff");
+    from = items.length;
+    box(items, [x, y + 0.005, 0], [W, 0.012, 0.25], hit ? HOT : K[1]);                     /* the neon top */
+    for (let k = -1; k <= 1; k += 2) items.push({ line: [[x + k * W * 0.5, y - 0.15, -0.252], [x + k * W * 0.5, y - 0.01, -0.252]], col: "#5a48a0", bias: 0.05 });   /* brick joints */
+    items.push({ line: [[x - W, y - 0.08, -0.252], [x + W, y - 0.08, -0.252]], col: "#5a48a0", bias: 0.05 });
+    items.push({ line: [[x, y - 0.16, 0], [x, -0.9, 0]], col: "#2a1f78" });
+  });
+  /* the robot: squashed on landing, stretched in the air, a trail of squares behind its hop */
+  const h = hopAt(v, n, place), k = Math.min(1, n.since / 0.22);
+  const sq = h.land ? 0.035 * Math.exp(-(n.since - 0.22) * 18) : -0.02 * Math.sin(Math.PI * k), hw = 0.12 + sq, hh = 0.12 - sq;
+  if (!h.land) for (let j = 1; j <= 4; j++) { const kk = Math.max(0, k - j * 0.08), b = arp(v, n.last - 1), [x0, y0] = place(b.i, b.notes), [x1, y1] = place(a.i, a.notes);
+    box(items, [x0 + (x1 - x0) * kk, y0 + (y1 - y0) * kk + Math.sin(Math.PI * kk) * 0.5 + 0.12, 0], [0.025, 0.025, 0.025], [CYAN[0], CYAN[1], CYAN[1]]); }
+  items.push({ pts: [[h.x - 0.12, place(a.i, a.notes)[1] + 0.02, -0.12], [h.x + 0.12, place(a.i, a.notes)[1] + 0.02, -0.12], [h.x + 0.12, place(a.i, a.notes)[1] + 0.02, 0.12], [h.x - 0.12, place(a.i, a.notes)[1] + 0.02, 0.12]], tones: Array(3).fill("#1a6a50"), bias: 0.1 });   /* its shadow on the platform it aims at */
+  let from = items.length;
+  box(items, [h.x, h.y + hh + 0.06, 0], [hw, hh, 0.11], CYAN); wired(items, from, "#ffffff");
+  [-1, 1].forEach(s => beam(items, [h.x + s * 0.05, h.y + 0.07, 0], [h.x + s * 0.06, h.y, 0], 0.02, METAL));
+  box(items, [h.x + 0.05, h.y + hh + 0.1, -0.115], [0.02, 0.025, 0.003], ["#05060f", "#05060f", "#05060f"]); box(items, [h.x - 0.04, h.y + hh + 0.1, -0.115], [0.02, 0.025, 0.003], ["#05060f", "#05060f", "#05060f"]);
+  beam(items, [h.x, h.y + 2 * hh + 0.06, 0], [h.x + 0.04, h.y + 2 * hh + 0.2, 0], 0.008, METAL); box(items, [h.x + 0.04, h.y + 2 * hh + 0.22, 0], [0.022, 0.022, 0.022], n.since < 0.15 ? HOT : CYAN);
+  /* a note: a spinning pink coin rises */
+  if (n.since < 0.4) { const cy = h.y + 0.6 + n.since * 1.2, cw = 0.07 * Math.abs(Math.cos(n.since * 18)) + 0.01; items.push({ pts: [[h.x, cy, -0.05], [h.x + cw, cy + 0.08, -0.05], [h.x, cy + 0.16, -0.05], [h.x - cw, cy + 0.08, -0.05]], tones: HOT, wire: HOT[0], bias: 1 }); }
+  render(c, cam, items, "#0a0626", 12, unit([-0.5, 0.75, -0.45]));
+  /* the score, ten points a note */
+  c.fillStyle = "#ffd25a"; c.font = font(11); c.fillText(String(n.last * 10).padStart(5, "0"), 10, 42);
+  labels(c, a);
+  c.restore(); chrome(c, NAME7, v, n.heat > 0.5);
+}
+
+const SCENES = [["platforms", platforms]];
+const views = SCENES.map(([id, f]) => [document.getElementById(id).getContext("2d"), f]);
+function frame(ms) { const t = ms / 1000; views.forEach(([c, f]) => { const v = knobs(t); f(c, t, notes(t, v), v); }); }
+const T0 = 1310;
+frame(T0);
+function loop(ms) { frame(ms + T0); requestAnimationFrame(loop); }
+document.fonts.ready.then(() => { frame(T0); if (!reduce) requestAnimationFrame(loop); });
+document.querySelectorAll(".knobs input").forEach(i => i.addEventListener("input", () => { if (reduce) frame(performance.now() + T0); }));
+</script>

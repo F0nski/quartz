@@ -1,0 +1,289 @@
+<title>Noise Scene</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+/* Layout: knob sliders on top, then one row of four live device screens per direction (one screen per engine). */
+:root {
+  --bg: #efedf5; --fg: #1c1830; --muted: #5d5873; --line: #d9d5e6; --device: #151320; --hot: #d4247a; --panel: #e4e1ee;
+  --display: "Chakra Petch", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --line: #2a2440; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --line: #2a2440; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 48px }
+main { max-width: 1000px; margin: 0 auto; display: grid; gap: 22px }
+h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; line-height: 1.1; margin: 0; text-transform: uppercase; letter-spacing: .02em }
+h1 em { font-style: normal; color: var(--hot) }
+.lead { color: var(--muted); max-width: 70ch; margin: 8px 0 0 }
+.knobs { position: sticky; top: 0; z-index: 1; background: var(--panel); border-radius: 10px; padding: 10px 14px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px 18px; align-items: center }
+.knobs label { display: grid; font-family: var(--display); font-size: .78rem; letter-spacing: .06em; text-transform: uppercase }
+.knobs input[type=range] { width: 100% }
+.knobs .auto { display: flex; gap: 8px; align-items: center }
+h2 { font-family: var(--display); font-size: 1.25rem; margin: 6px 0 0; text-transform: uppercase; letter-spacing: .04em }
+section > p { margin: 2px 0 10px; color: var(--muted); max-width: 80ch; font-size: .92rem }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px }
+figure { margin: 0; display: grid; gap: 6px; align-content: start; min-width: 0 }
+canvas { width: 100%; max-width: 100%; aspect-ratio: 1; background: #000; border: 12px solid var(--device); border-radius: 16px; box-sizing: border-box }
+h3 { font-family: var(--display); font-size: 1rem; margin: 0; text-transform: uppercase; letter-spacing: .04em }
+figcaption p { margin: 2px 0 0; font-size: .85rem; color: var(--muted) }
+figcaption b { color: var(--fg); font-weight: 600 }
+</style>
+
+<main>
+  <header>
+    <h1>Bruits <em>le dancefloor</em></h1>
+    <p class="lead">NOISE, PARTICLE et SWARM font une nuée de grains. NOISE : une neige continue, tenue à la vitesse de <b>TIMB</b>, rangée dans une bande de hauteur (<b>HARM</b>, le filtre) que <b>MORPH</b> resserre. PARTICLE : des grains épars qui éclatent un à un, <b>TIMB</b> leur densité, <b>HARM</b> leur étalement, <b>MORPH</b> flou ou net. SWARM : un essaim qui bouge d'un bloc, <b>TIMB</b> combien, <b>HARM</b> son étalement, <b>MORPH</b> la longueur des traînées. Les curseurs règlent les trois écrans à la fois.</p>
+  </header>
+
+  <div class="knobs">
+    <label>HARM <input type="range" id="k0" min="0" max="100" value="45"></label>
+    <label>TIMB <input type="range" id="k1" min="0" max="100" value="45"></label>
+    <label>MORPH <input type="range" id="k2" min="0" max="100" value="40"></label>
+    <label>DECAY <input type="range" id="k3" min="0" max="100" value="40"></label>
+    <label class="auto"><input type="checkbox" id="auto"> encodeurs qui bougent seuls</label>
+  </div>
+
+  <section>
+    <h2>Le dancefloor</h2>
+    <p>Un sol de dalles sous une boule à facettes, entre deux enceintes, un DJ androïde à sa console devant un mur de LED, trois danseurs, des faisceaux qui balaient la piste : les grains allument les dalles, en violet, cyan ou vert selon leur hauteur. Les dalles allumées se soulèvent un peu. À chaque note, elles flashent un instant en rose et la boule lance des rayons roses.</p>
+    <div class="grid">
+      <figure><canvas id="dance0" width="240" height="240"></canvas><figcaption><h3>NOISE</h3></figcaption></figure>
+      <figure><canvas id="dance1" width="240" height="240"></canvas><figcaption><h3>PARTICLE</h3></figcaption></figure>
+      <figure><canvas id="dance2" width="240" height="240"></canvas><figcaption><h3>SWARM</h3></figcaption></figure>
+    </div>
+  </section>
+</main>
+
+<script>
+const TAU = Math.PI * 2;
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+/* flat tones: [lit, base, shade] */
+const K = [["#8fb4ff", "#3a6dff", "#1c3590"], ["#8ff5c8", "#22d58e", "#0f6d48"], ["#ffffff", "#c9c3e4", "#6f6890"], ["#ffc196", "#ff7a2e", "#a3410c"]];
+const HOT = ["#ffb8dc", "#ff2f8e", "#8a1050"];
+const UI = "#8b84a8", BAR = "#06041a";
+const BEAT = 0.5;
+const NAMES = ["VA VCF", "VA", "WAVESHAPE", "PHASE DIST"];
+const font = (px, w = 700) => `${w} ${px}px "Chakra Petch", sans-serif`;
+const poly = (c, pts, fill) => { c.fillStyle = fill; c.beginPath(); pts.forEach(([x, y]) => c.lineTo(x, y)); c.closePath(); c.fill(); };
+const line = (c, pts, col, w = 1) => { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); pts.forEach(([x, y]) => c.lineTo(x, y)); c.stroke(); };
+const mix = (a, b, k) => "#" + [1, 3, 5].map(i => Math.round(parseInt(a.substr(i, 2), 16) * (1 - k) + parseInt(b.substr(i, 2), 16) * k).toString(16).padStart(2, "0")).join("");
+
+function knobs(t) {
+  if (document.getElementById("auto").checked)
+    return [0, 1, 2, 3].map(i => 0.5 + 0.45 * Math.sin(t * (0.3 + i * 0.11) + i * 1.9));
+  return [0, 1, 2, 3].map(i => document.getElementById("k" + i).value / 100);
+}
+
+function chrome(c, name, v, hit) {
+  c.fillStyle = BAR; c.fillRect(0, 0, 240, 30); c.fillRect(0, 196, 240, 44);
+  poly(c, [[8, 7], [30, 7], [34, 11], [34, 23], [12, 23], [8, 19]], hit ? HOT[1] : K[1][1]);
+  c.fillStyle = BAR; c.font = font(13); c.textBaseline = "middle"; c.fillText("1", 17, 15.5);
+  c.fillStyle = "#f4f1ff"; c.font = font(15); c.fillText(name, 42, 15.5);
+  c.fillStyle = UI; c.font = font(10, 500); c.textAlign = "right"; c.fillText("ENGINE", 232, 15.5); c.textAlign = "left";
+  ["HARM", "TIMB", "MORPH", "DECAY"].forEach((l, i) => {
+    const x = 8 + i * 58, w = 52, segs = 7, on = Math.round(v[i] * segs);
+    for (let s = 0; s < segs; s++) poly(c, [[x + s * 5, 214], [x + s * 5 + 4, 204], [x + s * 5 + 7, 204], [x + s * 5 + 3, 214]], s < on ? K[i][1] : "#221a3a");
+    c.fillStyle = "#f4f1ff"; c.font = font(11); c.textAlign = "right"; c.fillText(String(Math.round(v[i] * 127)), x + w, 210); c.textAlign = "left";
+    c.fillStyle = UI; c.font = font(9, 500); c.fillText(l, x, 228);
+  });
+}
+
+/* ---- a small perspective renderer: view = yaw, then camera height and pitch ---- */
+const unit = l => { const n = Math.hypot(...l); return l.map(x => x / n); };
+function camera(o) {
+  const cy = Math.cos(o.yaw), sy = Math.sin(o.yaw), cp = Math.cos(o.pitch), sp = Math.sin(o.pitch);
+  return {
+    view([x, y, z]) {
+      const X = x * cy - z * sy, Z = x * sy + z * cy + o.dist, Y = y - o.h;
+      return [X, Y * cp + Z * sp, Z * cp - Y * sp];
+    },
+    scr([X, Y, Z]) { return [120 + X * o.f / Z, o.cy - Y * o.f / Z]; },
+  };
+}
+/* items: {pts:[world], tones, edge?} faces, or {line:[world], col, w} — drawn far to near, fogged with distance */
+/* wire: a neon colour stroked over every face (an item's own wire wins, null for none) */
+function render(c, cam, items, fogCol, far, LV, wire) {
+  const out = [];
+  for (const it of items) {
+    const P = (it.pts || it.line).map(p => cam.view(p));
+    if (P.some(p => p[2] < 0.3)) continue;
+    const z = P.reduce((s, p) => s + p[2], 0) / P.length - (it.bias || 0);   /* bias: drawn as if nearer */
+    if (it.line) { out.push({ z, it, P }); continue; }
+    const a = P[1].map((x, k) => x - P[0][k]), b = P[2].map((x, k) => x - P[0][k]);
+    let n = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+    const ln = Math.hypot(...n) || 1; n = n.map(x => x / ln);
+    if (n[0] * P[0][0] + n[1] * P[0][1] + n[2] * P[0][2] > 0) n = n.map(x => -x);   /* light the side we see */
+    out.push({ z, it, P, d: n[0] * LV[0] + n[1] * LV[1] + n[2] * LV[2] });
+  }
+  out.sort((p, q) => q.z - p.z);
+  for (const { z, it, P, d } of out) {
+    const fog = Math.min(0.85, Math.max(0, (z - far * 0.35) / (far * 0.65)));
+    const S = P.map(p => cam.scr(p));
+    if (it.line) { line(c, S, mix(it.col, fogCol, fog), it.w || 1); continue; }
+    const col = it.flat || (d > 0.6 ? it.tones[0] : d > 0.2 ? it.tones[1] : it.tones[2]);   /* flat: a tone chosen by the scene */
+    poly(c, S, mix(col, fogCol, fog));
+    const wc = it.wire !== undefined ? it.wire : wire;
+    if (wc) { c.strokeStyle = mix(wc, fogCol, fog); c.lineWidth = 1; c.stroke(); }   /* the fine wire over every face */
+    else if (!it.edge) { c.strokeStyle = mix(col, fogCol, fog); c.lineWidth = 0.6; c.stroke(); }   /* hide the seams between facets */
+    if (it.edge) { c.strokeStyle = mix(it.edge, fogCol, fog); c.lineWidth = 1; c.beginPath(); S.forEach(([x, y]) => c.lineTo(x, y)); c.closePath(); c.stroke(); }
+  }
+}
+const rnd = (i, k) => { const x = Math.sin(i * 127.1 + k * 311.7) * 43758.5453; return x - Math.floor(x); };
+const STARS = Array.from({ length: 30 }, (_, i) => [rnd(i, 1) * 240, 33 + rnd(i, 2) * 56, rnd(i, 3) < 0.2]);
+function stars(c, t, bottom) {
+  STARS.forEach(([x, y, big]) => { if (y < bottom) { c.fillStyle = big ? "#fff" : "#6c5fa0"; c.fillRect((x - t * (big ? 3 : 1.5) + 480) % 240, y, big ? 2 : 1, big ? 2 : 1); } });
+}
+const notes = (t, v) => { const last = Math.floor(t / BEAT), since = t - last * BEAT; return { last, since, heat: Math.exp(-since / (0.05 + v[3] * 0.4)) }; };
+
+/* ---- small mesh helpers ---- */
+/* a wire floor: lines every step over a rectangle at height y */
+function gridFloor(items, y, x0, x1, z0, z1, step, col) {
+  for (let x = x0; x <= x1 + 1e-6; x += step) items.push({ line: [[x, y, z0], [x, y, z1]], col, bias: -50 });
+  for (let z = z0; z <= z1 + 1e-6; z += step) items.push({ line: [[x0, y, z], [x1, y, z]], col, bias: -50 });
+}
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const rotY = ([x, y, z], a, [ox, oy, oz] = [0, 0, 0]) => [ox + x * Math.cos(a) + z * Math.sin(a), oy + y, oz - x * Math.sin(a) + z * Math.cos(a)];
+/* a box from its centre and half sizes, turned by a around y, then moved to o */
+function box(items, [cx, cy, cz], [sx, sy, sz], tones, a = 0, o = [0, 0, 0]) {
+  const P = (dx, dy, dz) => rotY([cx + dx * sx, cy + dy * sy, cz + dz * sz], a, o);
+  const v = [P(-1, -1, -1), P(1, -1, -1), P(1, 1, -1), P(-1, 1, -1), P(-1, -1, 1), P(1, -1, 1), P(1, 1, 1), P(-1, 1, 1)];
+  [[0, 1, 2, 3], [4, 5, 6, 7], [0, 1, 5, 4], [3, 2, 6, 7], [0, 3, 7, 4], [1, 2, 6, 5]].forEach(f => items.push({ pts: f.map(i => v[i]), tones }));
+}
+/* a square beam from a to b, half width w */
+function beam(items, a, b, w, tones) {
+  const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], u = unit(d);
+  const n1 = unit(cross(u, Math.abs(u[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0])), n2 = cross(u, n1);
+  const C = (p, s1, s2) => [0, 1, 2].map(k => p[k] + (n1[k] * s1 + n2[k] * s2) * w);
+  const A = [C(a, -1, -1), C(a, 1, -1), C(a, 1, 1), C(a, -1, 1)], B = [C(b, -1, -1), C(b, 1, -1), C(b, 1, 1), C(b, -1, 1)];
+  for (let k = 0; k < 4; k++) items.push({ pts: [A[k], A[(k + 1) % 4], B[(k + 1) % 4], B[k]], tones });
+  items.push({ pts: A, tones }); items.push({ pts: B, tones });
+}
+const square = (items, [x, y, z], r, col, w = 1) => {
+  const q = [[-1, -1], [1, -1], [1, 1], [-1, 1], [-1, -1]].map(([a, b]) => [x + a * r, y, z + b * r]);
+  for (let k = 0; k < 4; k++) items.push({ line: [q[k], q[k + 1]], col, w, bias: 0.2 });
+};
+const sky = (c, bands) => bands.forEach(([col, y]) => { c.fillStyle = col; c.fillRect(0, y, 240, 196 - y); });
+const begin = c => { c.save(); c.beginPath(); c.rect(0, 30, 240, 166); c.clip(); };
+/* sparks: n small pink shards thrown from a screen point */
+function sparks(c, [x, y], since, n = 6, seed = 1) {
+  if (since > 0.35) return;
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI * (0.15 + 0.7 * rnd(i, seed)), sp = 60 + 70 * rnd(i, seed + 1);
+    const px = x + Math.cos(a) * sp * since, py = y + Math.sin(a) * sp * since + 160 * since * since;
+    poly(c, [[px, py - 2.5], [px + 2.5, py + 1.5], [px - 2, py + 2]], i % 2 ? HOT[0] : HOT[1]);
+  }
+}
+
+/* ---- the three engines' grains, in a unit cube: {p: [x, y, z] in [-1, 1], b: brightness, q: previous position for trails} ---- */
+/* NOISE: steady static held at a rate (TIMB), sitting in a band (HARM, a filter) narrowed by MORPH (resonance)
+   PARTICLE: sparse grains popping one by one (TIMB density), spread in height by HARM, blurred or sharp with MORPH
+   SWARM: a flock moving as one (TIMB how many), spread by HARM, trails as long as MORPH */
+function grains(eng, v, t) {
+  const out = [], N = Math.round(10 + 50 * v[1]);
+  if (eng === 0) {
+    const f = Math.floor(t * (3 + 25 * v[1])), c = -0.7 + 1.4 * v[0], w = 0.15 + 0.85 * (1 - v[2]);
+    for (let i = 0; i < N; i++) out.push({ p: [rnd(i, f) * 2 - 1, Math.max(-1, Math.min(1, c + (rnd(i, f + 33) * 2 - 1) * w)), rnd(i, f + 77) * 2 - 1], b: 1 });
+  } else if (eng === 1) {
+    for (let i = 0; i < N; i++) {
+      const per = 0.4 + rnd(i, 5) * 0.9, ph = t / per + rnd(i, 6), cyc = Math.floor(ph), a = ph - cyc;
+      out.push({ p: [rnd(i, cyc) * 2 - 1, (rnd(i, cyc + 9) * 2 - 1) * (0.15 + 0.85 * v[0]), rnd(i, cyc + 17) * 2 - 1], b: Math.exp(-a * 7), blur: v[2] < 0.5 ? (0.5 - v[2]) * 2 * a : 0 });
+    }
+  } else {
+    const at = s => [0.45 * Math.sin(s * 0.7), 0.3 * Math.sin(s * 1.1), 0.45 * Math.cos(s * 0.5)], R = 0.12 + 0.7 * v[0];
+    const pos = (i, s) => { const C = at(s), a = s * (1 + rnd(i, 1)) + i, b = Math.sin(s * (0.8 + rnd(i, 2)) + i * 2); return [C[0] + R * Math.cos(a) * Math.cos(b), C[1] + R * 0.6 * Math.sin(b), C[2] + R * Math.sin(a) * Math.cos(b)]; };
+    for (let i = 0; i < Math.round(8 + 24 * v[1]); i++) out.push({ p: pos(i, t), q: pos(i, t - 0.05 - 0.3 * v[2]), b: 1 });
+  }
+  return out;
+}
+const DIM = ["#3b3170", "#2e2658", "#1f1946"], NAMES6 = ["NOISE", "PARTICLE", "SWARM"], CYAN = ["#c8f4ff", "#5fe0ff", "#1d7fa8"], METAL = ["#2b3070", "#1f2458", "#151840"];
+const wired = (items, from, col) => items.slice(from).forEach(it => { if (it.pts) it.wire = col; });
+/* a little neon city: towers wired in cyan */
+function city(items, n, x0, x1, z, seed, hmax = 1.0) {
+  const from = items.length;
+  for (let k = 0; k < n; k++) { const x = x0 + (x1 - x0) * (k + 0.5) / n, h = 0.25 + hmax * rnd(k, seed); box(items, [x, h / 2, z + (k % 2) * 0.25], [(x1 - x0) / n * 0.38, h / 2, 0.14], METAL); }
+  wired(items, from, "#3fa8ff");
+}
+
+/* ---- 4. the dancefloor ---- */
+function dancer(items, [x, z], t, i, hot) {
+  /* three styles: a bounce, a side step, a twist */
+  const bob = Math.abs(Math.sin(t * 6.3 + i)) * (i === 0 ? 0.1 : 0.05), sway = Math.sin(t * (i === 1 ? 3.1 : 1.6) + i) * (i === 1 ? 0.14 : 0.06), tones = [K[0], K[1], K[3]][i % 3];
+  beam(items, [x - 0.07, 0, z], [x + sway * 0.5, 0.3 + bob, z], 0.03, DIM); beam(items, [x + 0.07, 0, z], [x + sway * 0.5, 0.3 + bob, z], 0.03, DIM);
+  box(items, [x + sway, 0.45 + bob, z], [0.1, 0.15, 0.07], tones);
+  const up = hot ? 0.2 : 0.05 * Math.sin(t * 6.3 + i);
+  beam(items, [x + sway - 0.08, 0.55 + bob, z], [x + sway - 0.18, 0.75 + bob + up, z], 0.02, tones);
+  beam(items, [x + sway + 0.08, 0.55 + bob, z], [x + sway + 0.18, 0.62 + bob + up * 0.5, z], 0.02, tones);
+  box(items, [x + sway, 0.69 + bob, z], [0.07, 0.07, 0.07], K[2]);
+  box(items, [x + sway + 0.05, 0.7 + bob, z - 0.05], [0.02, 0.015, 0.025], CYAN);
+}
+function dance(c, t, eng) {
+  const v = knobs(t), n = notes(t, v), hot = n.heat > 0.4;
+  begin(c); sky(c, [["#05031a", 30], ["#0a0626", 150]]);
+  const cam = camera({ yaw: 0.0, pitch: 0.36, dist: 3.1, h: 2.2, f: 215, cy: 132 });
+  const items = [], NX = 8, NZ = 6, X = 1.9, Z = 1.4;
+  const lit = new Map();
+  grains(eng, v, t).forEach(g => {
+    const i = Math.min(NX - 1, Math.floor((g.p[0] + 1) / 2 * NX)), j = Math.min(NZ - 1, Math.floor((g.p[2] + 1) / 2 * NZ)), k = i + j * NX;
+    if (g.b > (lit.get(k) || [0])[0]) lit.set(k, [g.b, g.p[1]]);
+  });
+  const TILE = [["#9a7cff", "#6a4ee0", "#3a2a8a"], CYAN, K[1]], litTiles = [];
+  for (let i = 0; i < NX; i++) for (let j = 0; j < NZ; j++) {
+    const x = -X + 2 * X * i / NX, z = -Z + 2 * Z * j / NZ, L = lit.get(i + j * NX), dx = 2 * X / NX * 0.92, dz = 2 * Z / NZ * 0.92;
+    const on = L && L[0] > 0.15, flash = n.since < 0.08, tones = on ? (flash ? HOT : TILE[Math.min(2, Math.floor((L[1] + 1) / 2 * 3))]) : METAL;
+    if (on) litTiles.push([x + dx / 2, 0.05, z + dz / 2]);
+    if (on) { const from = items.length; box(items, [x + dx / 2, 0.025, z + dz / 2], [dx / 2, 0.025, dz / 2], tones); wired(items, from, tones[0]); }   /* lit tiles rise a little */
+    else items.push({ pts: [[x, 0, z], [x + dx, 0, z], [x + dx, 0, z + dz], [x, 0, z + dz]], tones, wire: "#2c3a90" });
+  }
+  /* speaker stacks either side, their woofers octagons */
+  [-1, 1].forEach(s => { const from = items.length; box(items, [s * 2.35, 0.55, 0.6], [0.28, 0.55, 0.28], METAL); wired(items, from, "#7a5cff");
+    [0.35, 0.8].forEach(y => { const o = Array.from({ length: 9 }, (_, k) => [s * 2.35 + Math.cos(k * TAU / 8) * 0.16 * (1 + (hot ? 0.15 : 0)), y + Math.sin(k * TAU / 8) * 0.16, 0.31]); for (let k = 0; k < 8; k++) items.push({ line: [o[k], o[k + 1]], col: "#5fe0ff", bias: 0.3 }); }); });
+  /* the back of the club: an LED wall with a slow wave, a neon frame, a lighting truss, neon strips on the side walls */
+  const WX = 2.6, WY0 = 0.2, WY1 = 2.5, WZ = 2.4, CX = 14, CY = 6;
+  for (let i = 0; i < CX; i++) for (let j = 0; j < CY; j++) {
+    const x = -WX + 2 * WX * (i + 0.08) / CX, y = WY0 + (WY1 - WY0) * (j + 0.08) / CY, w = 2 * WX / CX * 0.84, h = (WY1 - WY0) / CY * 0.84;
+    const wave = 0.5 + 0.5 * Math.sin(i * 0.6 - t * 2 + Math.sin(j * 0.8 + t));
+    const col = mix(j % 2 ? "#3fa8ff" : "#7a5cff", "#0d0a2a", 0.4 + 0.5 * (1 - wave));
+    items.push({ pts: [[x, y, WZ], [x + w, y, WZ], [x + w, y + h, WZ], [x, y + h, WZ]], tones: [col, col, col], wire: null, bias: -20 });
+  }
+  [[-WX - 0.08, WY0 - 0.08], [WX + 0.08, WY0 - 0.08], [WX + 0.08, WY1 + 0.08], [-WX - 0.08, WY1 + 0.08], [-WX - 0.08, WY0 - 0.08]].reduce((a, b) => { items.push({ line: [[a[0], a[1], WZ - 0.01], [b[0], b[1], WZ - 0.01]], col: "#5fe0ff", w: 2, bias: -19 }); return b; });
+  beam(items, [-2.6, 2.95, 1.2], [2.6, 2.95, 1.2], 0.04, METAL);
+  for (let k = 0; k < 5; k++) { const x = -2 + k; box(items, [x, 2.82, 1.2], [0.07, 0.09, 0.07], k % 2 ? CYAN : ["#e4ddff", "#b3a6e8", "#6f5fb4"]); }
+  [-1, 1].forEach(s => { for (let k = 0; k < 3; k++) items.push({ line: [[s * 2.85, 0, 0.2 + k * 0.7], [s * 2.85, 2.6, 0.2 + k * 0.7]], col: k % 2 ? "#7a5cff" : "#3fa8ff", w: 1, bias: -18 }); });
+  /* the DJ at the back, behind a neon deck, nodding to the beat */
+  let from = items.length;
+  box(items, [0, 0.35, 1.75], [0.6, 0.35, 0.18], METAL); wired(items, from, "#5fe0ff");
+  [-0.3, 0.3].forEach(x => { const o = Array.from({ length: 9 }, (_, k) => [x + Math.cos(k * TAU / 8 + t * 4) * 0.12, 0.71, 1.75 + Math.sin(k * TAU / 8 + t * 4) * 0.1]); for (let k = 0; k < 8; k++) items.push({ line: [o[k], o[k + 1]], col: "#9a7cff", bias: 0.2 }); });   /* two turning platters */
+  const nod = Math.abs(Math.sin(t * 6.3)) * 0.04;
+  box(items, [0, 0.95, 1.95], [0.14, 0.2, 0.08], ["#9a7cff", "#6a4ee0", "#3a2a8a"]);
+  box(items, [0, 1.25 - nod, 1.95], [0.09, 0.09, 0.08], K[2]); box(items, [0, 1.26 - nod, 1.86], [0.07, 0.02, 0.01], CYAN);
+  [-1, 1].forEach(s => box(items, [s * 0.11, 1.25 - nod, 1.95], [0.02, 0.06, 0.06], DIM));   /* headphones */
+  /* three android dancers on the floor */
+  dancer(items, [-0.7, 0.05], t, 0, hot); dancer(items, [0.65, -0.3], t, 1, hot); dancer(items, [0.05, -0.75], t, 2, hot);
+  /* spotlight beams sweeping the floor from the two top corners */
+  [[-2.4, "#3fa8ff"], [2.4, "#7a5cff"]].forEach(([x, col], k) => { const a = Math.sin(t * 0.9 + k * 2), q = [a * 1.4, 0, Math.cos(t * 0.7 + k) * 0.8]; items.push({ line: [[x, 2.6, 1.4], q], col, bias: 0.6 }); });
+  /* the mirror ball, turning */
+  const p = (1 + Math.sqrt(5)) / 2, vv = [[-1, p, 0], [1, p, 0], [-1, -p, 0], [1, -p, 0], [0, -1, p], [0, 1, p], [0, -1, -p], [0, 1, -p], [p, 0, -1], [p, 0, 1], [-p, 0, -1], [-p, 0, 1]].map(q => { const m = Math.hypot(...q); return q.map(x => x / m); });
+  const F = [[0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11], [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8], [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9], [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]];
+  const B = [-1.0, 2.1, 0.6], br = 0.32;
+  F.forEach(f => items.push({ pts: f.map(k => rotY(vv[k].map(x => x * br), t * 0.8, B)), tones: ["#ffffff", "#c9c3e4", "#6f6890"], wire: "#3fa8ff" }));
+  items.push({ line: [[B[0], B[1] + br, B[2]], [B[0], 4, B[2]]], col: "#6f6890" });
+  /* on a note, pink beams from the ball to the lit tiles */
+  if (n.since < 0.2) litTiles.slice(0, 6).forEach(q => items.push({ line: [B, q], col: HOT[1], bias: 0.5 }));
+  render(c, cam, items, "#0a0626", 12, unit([-0.5, 0.75, -0.45]));
+  for (let k = 0; k < 16; k++) { const x = (rnd(k, 9) * 240 + t * 25) % 240, y = 36 + rnd(k, 10) * 40; c.fillStyle = "#5fe0ff"; c.fillRect(x, y, 2, 2); }
+  c.restore(); chrome(c, NAMES6[eng], v, n.heat > 0.5);
+}
+
+const SCENES = [["dance", dance]];
+const views = [];
+SCENES.forEach(([id, f]) => { for (let e = 0; e < 3; e++) views.push([document.getElementById(id + e).getContext("2d"), f, e]); });
+function frame(ms) { const t = ms / 1000; views.forEach(([c, f, e]) => f(c, t, e)); }
+const T0 = 1310;
+frame(T0);
+function loop(ms) { frame(ms + T0); requestAnimationFrame(loop); }
+document.fonts.ready.then(() => { frame(T0); if (!reduce) requestAnimationFrame(loop); });
+document.querySelectorAll(".knobs input").forEach(i => i.addEventListener("input", () => { if (reduce) frame(performance.now() + T0); }));
+</script>
