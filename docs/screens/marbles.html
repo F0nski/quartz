@@ -332,14 +332,17 @@ function rock(c, x, y, w, h, lean, side) {
   poly(c, side < 0 ? [sh, peak, br] : [bl, peak, sh], side < 0 ? T[2] : T[0]);
   stroke(c, [bl, peak, br], "#6a45b0", 1, false);
 }
+/* the distance run so far: integrated frame by frame, so that a change of DIV changes the pace, not the place */
+const run = { t: null, d: 0 };
+function travelled(t, sp) { if (run.t !== null && t > run.t && t - run.t < 0.5) run.d += (t - run.t) * sp; run.t = t; return run.d; }
 function decorCanyon(c, t) {
-  const vx = 120, vy = 96, sp = 0.5 * 0.25 / stepDur(), f = (t * sp) % 1, base = Math.floor(t * sp), N = 11;
+  const vx = 120, vy = 96, d = travelled(t, 0.5 * 0.25 / stepDur()), f = d % 1, base = Math.floor(d), N = 11;
   c.fillStyle = "#0c0820"; c.fillRect(0, 30, 240, 166); starsBg(c, t);
   poly(c, [[0, vy], [240, vy], [240, 196], [0, 196]], "#120a28");                                         /* the canyon floor */
   for (let k = 0; k < 5; k++) { const p = ((k + f) / 5) ** 2, y = vy + p * 100; stroke(c, [[vx - 20 - p * 150, y], [vx + 20 + p * 150, y]], "#1e1240", 1, false); }
   stroke(c, [[0, vy], [240, vy]], "#2e1c5a", 1, false);
   for (let k = N - 1; k >= 0; k--) {                                                                         /* far to near */
-    const id = base - k, p = 0.7 * ((k + 1 - f) / N) ** 1.9;     /* the nearest stop behind the crystals */
+    const id = base - k, p = 0.7 * ((k + f) / N) ** 1.9;     /* towards the viewer; a rock keeps its id; the nearest stop behind the crystals */
     for (const side of [-1, 1]) {
       const r = q => hash(id * 17 + (side > 0 ? 7 : 0) + q * 31);
       if (r(0) < 0.3) continue;                                                                              /* a gap */
