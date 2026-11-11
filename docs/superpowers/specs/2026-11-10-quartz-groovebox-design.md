@@ -86,7 +86,7 @@ touche est tenue. Avec REC armé et PLAY, ils sont enregistrés dans les pattern
 
 1–4 LOOP 1/8, 1/12, 1/16, 1/32 · 5 TAPE STOP · 6 LOW-PASS · 7 HIGH-PASS · 8 SWEEP résonant ·
 9 BITCRUSH · 10 DOWNSAMPLE · 11 GATE 1/16 · 12 AUTO-PAN · 13 DELAY THROW · 14 REVERB FREEZE ·
-15 RING MOD · 16 KILL LOWS.
+15 STUTTER · 16 STUTTER GATE. Détail : `2026-11-11-quartz-step3c-punchins-design.md`.
 
 Les LOOP utilisent un tampon stéréo de 0,37 s échantillonné à 22 kHz ; une boucle plus longue que le tampon
 est divisée par deux jusqu'à y tenir.
