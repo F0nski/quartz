@@ -1,0 +1,49 @@
+# Punch-ins: FX held + white keys, no note played; recorded on the step playing in overdub, cleared with the step
+wait 600
+press FX
+key 0 down
+expect punch 1
+key 9 down
+expect punch 33
+key 0 up
+expect punch 32
+release FX
+expect punch 0
+key 9 up
+expect punch 0
+expect active 0
+press FX
+key 21 down
+wait 100
+shot punch_msg.png
+key 21 up
+release FX
+# overdub: tempo 60, a step is 250 ms; white 13 in step 5 only
+tap GLO
+turn K1 -100
+turn K1 20
+expect tempo 60
+tap EDIT
+tap REC
+tap PLAY
+expect overdub 1
+wait 1100
+press FX
+key 21 down
+wait 50
+key 21 up
+release FX
+wait 20
+expect lock_31_5 16
+expect locks 1
+expect stepon_5 0
+tap PLAY
+expect overdub 0
+# CLEAR on the step removes it
+tap SEQ
+key 7 down
+key 20 down
+key 20 up
+key 7 up
+expect lock_31_5 -1
+expect locks 0

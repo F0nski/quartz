@@ -93,7 +93,7 @@ typedef struct { uint8_t model, pat, playing, mute; int8_t pos, len; } q_trow;  
 
 /* what is on the screen, part by part: a part is drawn again when its view changes */
 typedef struct {
-    struct { int8_t track, domain, page, n, msg, pat, playing, scene, pad, ltrig, itype; } head;   /* pat: P1..P8 asked; playing: the one playing when it differs, else 0;
+    struct { int8_t track, domain, page, n, msg, pat, playing, scene, pad, ltrig, itype, punch; } head;   /* pat: P1..P8 asked; playing: the one playing when it differs, else 0;
                                                                                    pad: a KIT's in EDIT 1..16, else 0;
                                                                                    ltrig: LFO's FREE 1 / TRIG 2, else 0; itype: the insert's, in the page name */
     struct { int8_t pid; uint8_t col, hide, itype; int16_t v[4]; } foot;           /* col: the knobs shown in colour, the rest in grey (a lock page);
@@ -121,9 +121,11 @@ static struct {
                                                                    nwrote: notes of the chord written since the hold began */
     int pad, padheld;                          /* a KIT: its last pad played 0..15; the held pad's key + 1, 0 none */
     int homedown, savedown, seldown, saveused, msg_scene;      /* saveused: a white key came while SAVE was held; msg_scene: 1..8 asked */
+    int fxdown, msg_punch;                     /* msg_punch: the punch-in last pressed 1..16, shown until punch_until */
+    uint16_t punch;                            /* the punch-ins held under FX, bit k = white key k + 1 */
     uint8_t last_note[Q_TRACKS];               /* a step switched on by hand takes it */
     int8_t key_note[NKEYS], key_track[NKEYS];  /* what each held key sounds, for its note-off; -1 none */
-    uint32_t btn, keys, msg_until, locks_until, path_until;
+    uint32_t btn, keys, msg_until, locks_until, path_until, punch_until;
     q_view shown;
     int full;                                  /* the next frame draws everything */
 } ui;
@@ -681,6 +683,31 @@ static void notes_toggle(int c)
     ui.dirty = 1;
 }
 
+static const char *const PUNCH_NAME[16] = {"LOOP 1/8", "LOOP 1/12", "LOOP 1/16", "LOOP 1/32", "TAPE STOP", "LOW-PASS",
+    "HIGH-PASS", "SWEEP", "BITCRUSH", "DOWNSAMPLE", "GATE 1/16", "AUTO-PAN", "DELAY THROW", "FREEZE", "STUTTER",
+    "STUT GATE"};
+
+/* overdub: the punch-ins held join the step playing's, empty steps too (as rec_lock otherwise) */
+static void punch_rec(void)
+{
+    q_pattern *t = pat();
+    int pos = audio_pos(ui.track), h, i, v;
+    if (!ui.punch || !ui.rec || !audio_playing() || pos < 0 || t->src != SRC_STEP ||
+        audio_pattern(ui.track) != ui.p->pattern[ui.track])
+        return;
+    for (h = 0; h < 2; h++) {
+        int bits = ui.punch >> 8 * h & 0xFF;
+        i = lock_find(t, pos, LK_PUNCH_LO + h);
+        v = (i >= 0 ? t->locks[i].value : 0) | bits;
+        if (!bits || (i >= 0 && v == t->locks[i].value))
+            continue;
+        if (lock_set(t, pos, LK_PUNCH_LO + h, v))
+            ui.locks_until = plat_ms() + MSG_MS;
+        else
+            ui.dirty = 1;
+    }
+}
+
 static void key_down(int k)
 {
     q_pattern *t = pat();
@@ -689,6 +716,15 @@ static void key_down(int k)
     for (w = 0; w < 16 && WHITE[w] != k; w++) {}
     if (w < 16 && ui.homedown) {
         home_key(w);
+        return;
+    }
+    if (ui.fxdown) {                    /* FX held: the white keys are the punch-ins, the black ones nothing */
+        if (w < 16) {
+            ui.punch |= (uint16_t)(1u << w);
+            audio_punch(ui.punch);
+            ui.msg_punch = w + 1;
+            ui.punch_until = plat_ms() + MSG_MS;
+        }
         return;
     }
     if (w < 16 && ui.savedown) {        /* SAVE held: the white keys 1..8 add the scene to the song */
@@ -761,6 +797,12 @@ static void key_down(int k)
 
 static void key_up(int k)
 {
+    int w;
+    for (w = 0; w < 16 && WHITE[w] != k; w++) {}
+    if (w < 16 && ui.punch >> w & 1) {
+        ui.punch &= (uint16_t)~(1u << w);
+        audio_punch(ui.punch);
+    }
     if (ui.held && k == ui.held_key) {  /* nothing edited: the step toggles */
         q_step *s = &pat()->steps[ui.held - 1];
         if (!ui.edited) {
@@ -803,6 +845,11 @@ void ui_input(void)
     ui.savedown = btn >> B_SAVE & 1u;
     ui.seldown = btn >> B_SEL & 1u;
     ui.arpdown = btn >> B_ARP & 1u;
+    ui.fxdown = btn >> B_FX & 1u;
+    if (!ui.fxdown && ui.punch) {       /* FX let go: every punch-in with it */
+        ui.punch = 0;
+        audio_punch(0);
+    }
     for (i = 0; i < NB; i++)
         if ((btn & ~ui.btn) >> i & 1u)
             button(i);
@@ -816,6 +863,7 @@ void ui_input(void)
     }
     ui.btn = btn;
     ui.keys = keys;
+    punch_rec();
     d = ui.domain;                      /* after the buttons: SELECT turns the page of the domain just picked */
     n = domain_n(d);
     if ((e = plat_enc(EN_ALGO)) != 0) {
@@ -1085,6 +1133,7 @@ static void view_now(q_view *v)
     v->head.msg = plat_ms() < ui.msg_until ? 1 : plat_ms() < ui.locks_until ? 2 : 0;
     v->head.pat = (int8_t)(ui.p->pattern[ui.track] + 1);
     v->head.scene = (int8_t)ui.msg_scene;
+    v->head.punch = (int8_t)(plat_ms() < ui.punch_until ? ui.msg_punch : 0);
     if (audio_playing() && audio_pattern(ui.track) != ui.p->pattern[ui.track])
         v->head.playing = (int8_t)(audio_pattern(ui.track) + 1);
     if (ui.domain == D_EDIT && kit())
@@ -1190,6 +1239,8 @@ static void draw_head(const q_view *v)
     x = cv_text(34, 7, &FONT_B, DOMAIN_NAME[v->head.domain], C_WHITE);
     if (v->head.msg)
         cv_text(x + 10, 7, &FONT_B, v->head.msg == 1 ? "STOP TO SAVE" : "LOCKS FULL", KCOL[3]);
+    else if (v->head.punch)
+        cv_text(x + 10, 7, &FONT_B, PUNCH_NAME[v->head.punch - 1], C_AMB);
     else if (v->head.domain == D_HOME && v->head.scene) {       /* the scene asked, until it starts */
         t[0] = (char)('0' + v->head.scene), t[1] = 0;
         x = cv_text(x + 10, 7, &FONT_B, "SCENE", C_AMB);
@@ -1516,7 +1567,7 @@ int ui_expect(const char *what, int *got)
         }
         }
     } else if (!strncmp(what, "lock_", 5)) {     /* lock_P_N: LK_* P's lock on step N, -1 none */
-        int i = n >= 0 && n < LK_N && m >= 1 && m <= Q_STEPS ? lock_find(t, m - 1, n) : -1;
+        int i = n >= 0 && n <= LK_PUNCH_HI && m >= 1 && m <= Q_STEPS ? lock_find(t, m - 1, n) : -1;
         *got = i < 0 ? -1 : (int8_t)t->locks[i].value;
     } else if (!strncmp(what, "scene_used_", 11)) *got = m >= 1 && m <= Q_SCENES ? ui.p->scene[m - 1].used : 0;
     else if (!strncmp(what, "song_scene_", 11)) *got = m >= 1 && m <= Q_SONG ? ui.p->song[m - 1].scene + 1 : 0;
@@ -1589,6 +1640,7 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "pattern")) *got = ui.p->pattern[ui.track] + 1;
     else if (!strcmp(what, "playpat")) *got = audio_pattern(ui.track) + 1;
     else if (!strcmp(what, "locks")) *got = t->nlocks;
+    else if (!strcmp(what, "punch")) *got = ui.punch;
     else if (!strcmp(what, "msg_locks_full")) *got = plat_ms() < ui.locks_until;
     else if (!strcmp(what, "dirty")) *got = ui.dirty;
     else if (!strcmp(what, "msg_stop_to_save")) *got = plat_ms() < ui.msg_until;

@@ -256,3 +256,18 @@ DLY TIME	delay time
 DLY FB	delay feedback
 REV SIZE	reverb size
 REV TONE	reverb tone
+LOOP 1/8	loop one eighth
+LOOP 1/12	loop one twelfth
+LOOP 1/16	loop one sixteenth
+LOOP 1/32	loop one thirty-second
+TAPE STOP	tape stop
+LOW-PASS	low pass
+HIGH-PASS	high pass
+SWEEP	sweep
+DOWNSAMPLE	downsample
+GATE 1/16	gate one sixteenth
+AUTO-PAN	auto pan
+DELAY THROW	delay throw
+FREEZE	freeze
+STUTTER	stutter
+STUT GATE	stutter gate
