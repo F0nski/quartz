@@ -1,0 +1,322 @@
+<title>MARBLES Scenes</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+/* Three directions for the MARBLES scene at the device's 240x240, driven by the same 11 knobs below. */
+:root {
+  --bg: #efedf5; --fg: #1c1830; --muted: #5d5873; --line: #d9d5e6; --device: #151320; --hot: #d4247a; --panel: #e4e1ee;
+  --display: "Chakra Petch", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --line: #2a2440; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --line: #2a2440; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.5; margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 48px }
+main { max-width: 1040px; margin: 0 auto; display: grid; gap: 22px }
+h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; line-height: 1.1; margin: 0; text-transform: uppercase; letter-spacing: .02em }
+h1 em { font-style: normal; color: var(--hot) }
+.lead { color: var(--muted); max-width: 70ch; margin: 8px 0 0 }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px }
+figure { margin: 0; display: grid; gap: 8px; align-content: start; min-width: 0 }
+canvas { width: 100%; max-width: 100%; aspect-ratio: 1; background: #000; border: 12px solid var(--device); border-radius: 16px; box-sizing: border-box; image-rendering: pixelated }
+h2 { font-family: var(--display); font-size: 1.1rem; margin: 0; text-transform: uppercase; letter-spacing: .04em }
+.tag { font-family: var(--display); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--hot) }
+figcaption p { margin: 2px 0 0; font-size: .88rem; color: var(--muted) }
+.knobs { background: var(--panel); border-radius: 12px; padding: 14px 16px; display: grid; gap: 12px }
+.knobs header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between }
+.knobs header b { font-family: var(--display); text-transform: uppercase; letter-spacing: .04em }
+.pages { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 20px }
+.page h3 { font-family: var(--display); font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 0 4px }
+label { display: grid; grid-template-columns: 6.5em 1fr 4.6em; gap: 8px; align-items: center; font-size: .85rem }
+label span:last-child { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted) }
+input[type=range] { width: 100%; accent-color: var(--hot) }
+button { font: inherit; font-family: var(--display); text-transform: uppercase; letter-spacing: .04em; border: 1px solid var(--line); background: var(--bg); color: var(--fg); border-radius: 8px; padding: 4px 12px; cursor: pointer }
+button[aria-pressed=true] { background: var(--hot); color: #fff; border-color: var(--hot) }
+.map { font-size: .85rem; color: var(--muted); margin: 0; padding-left: 1.1em }
+.map li { margin: 2px 0 }
+.map b { color: var(--fg) }
+</style>
+
+<main>
+<header>
+  <h1>MARBLES <em>en relief</em></h1>
+  <p class="lead">Trois pistes pour la scène MARBLES, dans l'univers du plateau SEQ. La bille part un pas avant sa note et
+  atterrit quand la note sonne. Chaque encodeur des pages MARBLES, T et X change quelque chose à l'écran : tourne les
+  curseurs, ou laisse « auto » les faire bouger.</p>
+</header>
+
+<section class="knobs" aria-label="Encodeurs">
+  <header><b>Encodeurs</b><button id="auto" aria-pressed="true">Auto</button></header>
+  <div class="pages" id="pages"></div>
+</section>
+
+<div class="grid">
+  <figure><canvas id="iso" width="240" height="240"></canvas><figcaption><span class="tag">A</span><h2>Pachinko en relief</h2>
+    <p>La planche en isométrique comme le plateau SEQ. Plots en prismes, cases en blocs qui montent avec l'historique, lanceurs au fond.</p></figcaption></figure>
+  <figure><canvas id="well" width="240" height="240"></canvas><figcaption><span class="tag">B</span><h2>Le puits</h2>
+    <p>On regarde vers le bas : des cadres de plots en fil de fer s'enfoncent vers le fond, découpé en cases. La bille rapetisse en tombant.</p></figcaption></figure>
+  <figure><canvas id="rails" width="240" height="240"></canvas><figcaption><span class="tag">C</span><h2>Rails</h2>
+    <p>Un arbre de rails lumineux : la bille bifurque à chaque nœud jusqu'à une cible en losange qui éclate quand la note sonne.</p></figcaption></figure>
+</div>
+
+<section aria-label="Ce que fait chaque encodeur">
+  <h2>Ce que fait chaque encodeur</h2>
+  <ul class="map">
+    <li><b>DIV</b> : vitesse de chute (un pas) et défilement du décor.</li>
+    <li><b>T OUT</b> : nombre de lanceurs (1 à 3), donc de billes par pas.</li>
+    <li><b>LEN</b> : la rangée de témoins de la boucle (1 à 16), le pas en cours allumé.</li>
+    <li><b>MODE</b> : la forme des lanceurs (un polyèdre par mode).</li>
+    <li><b>BIAS</b> : la taille relative des lanceurs, le plus probable le plus gros.</li>
+    <li><b>JITTER</b> : les lanceurs tremblent, les billes partent en décalé.</li>
+    <li><b>DEJA VU</b> : la scène vire à l'orange, et le trajet qui se répète reste tracé.</li>
+    <li><b>SPREAD</b> : l'écartement des plots, donc l'éventail des chutes.</li>
+    <li><b>X BIAS</b> : l'inclinaison de la planche, du puits ou de l'arbre.</li>
+    <li><b>STEPS</b> : les cases éteintes et aplaties quand la quantification ne garde que quelques notes.</li>
+    <li><b>NOTE</b> (page NOTES, rappel) : les noms sous les cases.</li>
+  </ul>
+</section>
+</main>
+
+<script>
+const TAU = Math.PI * 2;
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const K = [["#8fb4ff", "#3a6dff", "#1c3590"], ["#8ff5c8", "#22d58e", "#0f6d48"], ["#ffffff", "#c9c3e4", "#6f6890"], ["#ffc196", "#ff7a2e", "#a3410c"]];
+const HOT = ["#ffb8dc", "#ff2f8e", "#8a1050"];
+const BG = "#07041a", UI = "#8b84a8", BAR = "#06041a", RAY = "#160f36", WIRE = "#2a1d55";
+const font = (px, w = 700) => `${w} ${px}px "Chakra Petch", sans-serif`;
+const poly = (c, pts, fill) => { c.fillStyle = fill; c.beginPath(); pts.forEach(([x, y]) => c.lineTo(x, y)); c.closePath(); c.fill(); };
+const stroke = (c, pts, col, w = 1, close = true) => { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); pts.forEach(([x, y]) => c.lineTo(x, y)); if (close) c.closePath(); c.stroke(); };
+const text = (c, s, x, y, px, col, align = "left", w = 700) => { c.fillStyle = col; c.font = font(px, w); c.textAlign = align; c.textBaseline = "middle"; c.fillText(s, x, y); };
+const lerp = (a, b, k) => a + (b - a) * k, clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+
+/* ---- flat-shaded 3D ---- */
+const LIGHT = (() => { const l = [-0.5, -0.65, 0.6], n = Math.hypot(...l); return l.map(x => x / n); })();
+function rot([x, y, z], ay, ax = 0) {
+  const cy = Math.cos(ay), sy = Math.sin(ay); [x, z] = [x * cy + z * sy, -x * sy + z * cy];
+  const cx = Math.cos(ax), sx = Math.sin(ax); [y, z] = [y * cx - z * sx, y * sx + z * cx];
+  return [x, y, z];
+}
+function draw3d(c, mesh, o) {
+  const P = mesh.v.map(p => rot(p, o.ay, o.ax || 0));
+  mesh.f.map(f => {
+    const q = f.map(i => P[i]), a = q[1].map((x, k) => x - q[0][k]), b = q[2].map((x, k) => x - q[0][k]);
+    let n = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+    const ln = Math.hypot(...n) || 1; n = n.map(x => x / ln);
+    return { q, n, z: q.reduce((s, p) => s + p[2], 0) / q.length };
+  }).filter(f => f.n[2] > 0).sort((p, q) => p.z - q.z).forEach(f => {
+    const d = f.n[0] * LIGHT[0] + f.n[1] * LIGHT[1] + f.n[2] * LIGHT[2];
+    poly(c, f.q.map(([x, y]) => [o.cx + x * o.s, o.cy + y * o.s]), d > 0.55 ? o.tones[0] : d > 0.15 ? o.tones[1] : o.tones[2]);
+  });
+}
+const out = m => ({ v: m.v, f: m.f.map(f => { const P = f.map(i => m.v[i]), a = P[1].map((x, k) => x - P[0][k]), b = P[2].map((x, k) => x - P[0][k]);
+  const n = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]], cc = [0, 1, 2].map(k => P.reduce((s, p) => s + p[k], 0));
+  return n[0] * cc[0] + n[1] * cc[1] + n[2] * cc[2] > 0 ? f : f.slice().reverse(); }) });
+const TETRA = out({ v: [[1, 1, 1], [-1, -1, 1], [-1, 1, -1], [1, -1, -1]], f: [[0, 1, 2], [0, 3, 1], [0, 2, 3], [1, 3, 2]] });
+const CUBE = out({ v: [[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1], [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]].map(p => p.map(x => x * 0.7)),
+  f: [[4, 5, 6], [4, 6, 7], [1, 0, 3], [1, 3, 2], [5, 1, 2], [5, 2, 6], [0, 4, 7], [0, 7, 3], [3, 7, 6], [3, 6, 2], [0, 1, 5], [0, 5, 4]] });
+const OCTA = out({ v: [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]], f: [[0, 4, 2], [4, 1, 2], [1, 5, 2], [5, 0, 2], [4, 0, 3], [1, 4, 3], [5, 1, 3], [0, 5, 3]] });
+const ICO = (() => { const p = (1 + Math.sqrt(5)) / 2, v = [[-1, p, 0], [1, p, 0], [-1, -p, 0], [1, -p, 0], [0, -1, p], [0, 1, p], [0, -1, -p], [0, 1, -p], [p, 0, -1], [p, 0, 1], [-p, 0, -1], [-p, 0, 1]].map(q => { const n = Math.hypot(...q); return q.map(x => x / n); });
+  return out({ v, f: [[0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11], [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8], [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9], [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]] }); })();
+const prism = (n, h) => { const v = [], f = []; for (let i = 0; i < n; i++) { const a = i * TAU / n; v.push([Math.cos(a), -h, Math.sin(a)], [Math.cos(a), h, Math.sin(a)]); }
+  for (let i = 0; i < n; i++) { const j = (i + 1) % n; f.push([2 * i, 2 * j, 2 * j + 1, 2 * i + 1]); }
+  f.push([...Array(n).keys()].map(i => 2 * i)); f.push([...Array(n).keys()].map(i => 2 * i + 1).reverse()); return out({ v, f }); };
+const SHAPES = [TETRA, CUBE, OCTA, ICO, prism(3, 0.8), prism(5, 0.6), prism(6, 0.4)];
+const T_MODE = ["C.BERN", "CLUSTERS", "DRUMS", "I.BERN", "DIVIDER", "3 STATES", "MARKOV"];
+
+/* ---- the knobs ---- */
+const PAGES = [["MARBLES", [["div", "DIV", 0, 2, 1, ["1/16", "1/8", "1/4"]], ["tout", "T OUT", 1, 3, 2], ["len", "LEN", 1, 16, 8]]],
+  ["T", [["mode", "MODE", 0, 6, 0, T_MODE], ["bias", "BIAS", 0, 127, 64], ["jitter", "JITTER", 0, 127, 20], ["dejavu", "DEJA VU", 0, 127, 30]]],
+  ["X", [["spread", "SPREAD", 0, 127, 64], ["xbias", "X BIAS", 0, 127, 64], ["steps", "STEPS", 0, 127, 100]]]];
+const P = {}, INPUTS = {};
+const pagesEl = document.getElementById("pages");
+PAGES.forEach(([name, ks]) => {
+  const d = document.createElement("div"); d.className = "page"; d.innerHTML = `<h3>${name}</h3>`;
+  ks.forEach(([id, label, lo, hi, def, names]) => {
+    P[id] = def;
+    const l = document.createElement("label"), r = document.createElement("input"), v = document.createElement("span");
+    r.type = "range"; r.min = lo; r.max = hi; r.value = def; r.setAttribute("aria-label", label);
+    const show = () => { v.textContent = names ? names[P[id]] : P[id]; };
+    r.oninput = () => { P[id] = +r.value; show(); autoBtn.setAttribute("aria-pressed", "false"); };
+    l.append(Object.assign(document.createElement("span"), { textContent: label }), r, v); show();
+    INPUTS[id] = { r, show, lo, hi }; d.append(l);
+  });
+  pagesEl.append(d);
+});
+const autoBtn = document.getElementById("auto");
+autoBtn.onclick = () => autoBtn.setAttribute("aria-pressed", autoBtn.getAttribute("aria-pressed") === "true" ? "false" : "true");
+function autoKnobs(t) {
+  if (autoBtn.getAttribute("aria-pressed") !== "true") return;
+  Object.entries(INPUTS).forEach(([id, k], i) => {
+    const s = 0.5 + 0.5 * Math.sin(t * (0.09 + i * 0.023) + i * 1.7), v = Math.round(k.lo + s * (k.hi - k.lo));
+    if (v !== P[id]) { P[id] = v; k.r.value = v; k.show(); }
+  });
+}
+
+/* ---- a stand-in for the generator: a step's marbles, deterministic per step ---- */
+const SCALE = ["D", "E", "F", "G", "A", "B", "C"];
+const hash = n => { n = Math.imul(n ^ 0x9e3779b9, 0x85ebca6b); n ^= n >>> 13; n = Math.imul(n, 0xc2b2ae35); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
+const stepDur = () => [0.125, 0.25, 0.5][P.div];
+const kept = () => P.steps < 30 ? [0, 4] : P.steps < 70 ? [0, 2, 4] : P.steps < 100 ? [0, 2, 3, 4, 6] : [0, 1, 2, 3, 4, 5, 6];
+function stepEvents(k) {
+  /* deja vu: the step replays its place in the loop instead of drawing anew */
+  const loopK = ((k % P.len) + P.len) % P.len, seedK = hash(k * 7 + 3) < P.dejavu / 127 ? 10000 + loopK : k, ev = [];
+  for (let c = 0; c < P.tout; c++) {
+    const r = hash(seedK * 31 + c * 101 + P.mode * 977), w = c === 0 ? 0.5 + P.bias / 254 : 1 - P.bias / 254;
+    if (r > 0.25 + 0.55 * w) continue;
+    let x = 0; for (let j = 0; j < 3; j++) x += hash(seedK * 13 + c * 7 + j * 53) - 0.5;
+    const deg = clamp(Math.round(3 + (P.xbias - 64) / 64 * 2.5 + x * 2 * (0.2 + P.spread / 64)), 0, 6);
+    const ks = kept(), q = ks.reduce((b, d) => Math.abs(d - deg) < Math.abs(b - deg) ? d : b, ks[0]);
+    const at = k * stepDur() + (hash(seedK * 5 + c) - 0.5) * P.jitter / 127 * stepDur() * 0.6;
+    ev.push({ k, c, bin: q, at, path: [0, 1, 2, 3, 4].map(j => hash(seedK * 17 + c * 3 + j) < 0.5 ? -1 : 1), repeat: seedK >= 10000 });
+  }
+  return ev;
+}
+/* the marbles in flight (falling for one step, half a second at most, before their note) and the recent landings */
+function world(t) {
+  const d = stepDur(), fall = Math.min(d, 0.5), k0 = Math.floor(t / d), fly = [], hist = new Array(7).fill(0), flash = new Array(7).fill(0);
+  for (let k = k0 - 40; k <= k0 + 2; k++) stepEvents(k).forEach(e => {
+    if (e.at > t && e.at - t < fall) fly.push({ ...e, u: 1 - (e.at - t) / fall });
+    if (e.at <= t && t - e.at < 8) { hist[e.bin] += 1 - (t - e.at) / 8; if (t - e.at < 0.15) flash[e.bin] = 1; }
+  });
+  return { fly, hist: hist.map(h => Math.min(6, h)), flash, cur: ((k0 % P.len) + P.len) % P.len, deja: P.dejavu > 64 };
+}
+const launcherX = c => P.tout === 1 ? 120 : 120 + (c - (P.tout - 1) / 2) * 60;
+const shake = (t, c) => P.jitter / 127 * 2.5 * Math.sin(t * 47 + c * 2.1);
+function header(c, t) {
+  c.fillStyle = BAR; c.fillRect(0, 0, 240, 30); c.fillRect(0, 196, 240, 44);
+  poly(c, [[8, 7], [30, 7], [34, 11], [34, 23], [12, 23], [8, 19]], K[1][1]);
+  text(c, "2", 21, 15.5, 13, BAR, "center"); text(c, "SEQ", 42, 15.5, 15, "#f4f1ff"); text(c, "MARBLES", 76, 15.5, 15, K[3][1]);
+  text(c, "1/3", 232, 15.5, 10, UI, "right", 500);
+  [["DIV", ["1/16", "1/8", "1/4"][P.div], P.div / 2], ["T OUT", P.tout, (P.tout - 1) / 2], ["LEN", P.len, P.len / 16], ["SOURCE", "MARBLES", 1]].forEach(([l, v, k], i) => {
+    const x = 6 + 60 * i, col = [K[0][1], K[1][1], "#f4f1ff", K[3][1]][i];
+    text(c, l, x, 205, 9, col, "left", 500); text(c, String(v), x, 220, i === 3 ? 11 : 15, col);
+    c.fillStyle = "#221a3a"; c.fillRect(x, 235, 48, 2); c.fillStyle = col; c.fillRect(x, 235, 48 * k, 2);
+  });
+}
+function backdrop(c, t, vy = 34) {
+  c.fillStyle = BG; c.fillRect(0, 30, 240, 166);
+  c.strokeStyle = RAY; c.lineWidth = 1;
+  for (let k = -8; k <= 8; k++) { c.beginPath(); c.moveTo(120, vy); c.lineTo(120 + k * 40, 196); c.stroke(); }
+  const sp = 0.25 / stepDur();
+  for (let k = 0; k < 6; k++) { const p = ((k + (t * sp) % 1) / 6) ** 2, y = Math.round(vy + p * (196 - vy)) + .5; c.beginPath(); c.moveTo(0, y); c.lineTo(240, y); c.stroke(); }
+}
+function loopLights(c, x0, y, w, W) {
+  const n = P.len, g = Math.min(12, w / n);
+  for (let i = 0; i < n; i++) { const x = x0 + (w - n * g) / 2 + i * g; poly(c, [[x + 1, y], [x + g - 1, y], [x + g - 3, y + 4], [x - 1, y + 4]], i === W.cur ? (W.deja ? K[3][0] : K[1][0]) : "#2a2050"); }
+}
+
+/* ---- A: isometric pachinko ---- */
+function iso(c, t) {
+  autoKnobs(t); const W = world(t), tilt = (P.xbias - 64) / 64, gap = 0.55 + P.spread / 127 * 0.5, deja = W.deja, ks = kept();
+  backdrop(c, t);
+  /* the board: a plane in isometric, rows from the back (y 0) to the bins (y 5) */
+  const A = 17, B = 8.5, at = (x, y) => [120 + (x - y * tilt * 0.25) * A - (y - 2.5) * 0, 56 + y * B * 1.8 + x * 0 + (x * tilt * 1.4)];
+  poly(c, [at(-6, -0.4), at(6, -0.4), at(6, 5.6), at(-6, 5.6)], "#0e0a26");
+  stroke(c, [at(-6, -0.4), at(6, -0.4), at(6, 5.6), at(-6, 5.6)], WIRE);
+  for (let y = 0; y <= 5; y++) stroke(c, [at(-6, y + 0.3), at(6, y + 0.3)], "#160f36", 1, false);
+  /* the loop's lights along the back edge */
+  loopLights(c, 40, 40, 160, W);
+  /* launchers: one polyhedron per output, MODE's shape, BIAS's size, JITTER's shake */
+  for (let ch = 0; ch < P.tout; ch++) {
+    const x = (launcherX(ch) - 120) / A, [px, py] = at(x, -0.6), size = 5 + 4 * (ch === 0 ? P.bias / 127 : 1 - P.bias / 127);
+    draw3d(c, SHAPES[P.mode], { cx: px + shake(t, ch), cy: py - 4, s: size, ay: t * 1.2 + ch, ax: 0.5, tones: deja ? K[3] : K[0] });
+  }
+  /* pins: small hexagonal prisms, SPREAD apart */
+  for (let r = 0; r < 5; r++) for (let i = -6; i <= 6; i++) {
+    const x = i * gap * 1.6 + (r % 2) * gap * 0.8; if (Math.abs(x) > 5.6) continue;
+    const [px, py] = at(x, r + 0.5); poly(c, [[px - 2, py], [px, py - 1], [px + 2, py], [px, py + 1]], "#3a2c64");
+    poly(c, [[px - 2, py], [px, py + 1], [px, py + 4], [px - 2, py + 3]], "#22184a"); poly(c, [[px, py + 1], [px + 2, py], [px + 2, py + 3], [px, py + 4]], "#160f36");
+  }
+  /* bins: blocks rising with the history; those STEPS drops are flat and dim */
+  for (let b = 0; b < 7; b++) {
+    const x = -5.1 + b * 1.7, on = ks.includes(b), h = on ? 3 + W.hist[b] * 5 : 1, T = W.flash[b] ? HOT : !on ? ["#2a2050", "#1c1638", "#120e26"] : deja ? K[3] : K[2];
+    const [x0, y0] = at(x - 0.6, 5.3), [x1, y1] = at(x + 0.6, 5.3), [x2, y2] = at(x + 0.6, 5.9), [x3, y3] = at(x - 0.6, 5.9);
+    poly(c, [[x3, y3], [x2, y2], [x2, y2 - h], [x3, y3 - h]], T[1]); poly(c, [[x1, y1], [x2, y2], [x2, y2 - h], [x1, y1 - h]], T[2]);
+    poly(c, [[x0, y0 - h], [x1, y1 - h], [x2, y2 - h], [x3, y3 - h]], T[0]);
+    text(c, SCALE[b], (x2 + x3) / 2, y3 + 9, 10, W.flash[b] ? HOT[0] : on ? "#f4f1ff" : "#4a4466", "center");
+  }
+  /* the marbles: from their launcher, through the pins, onto their bin when the note sounds */
+  W.fly.sort((a, b) => a.u - b.u).forEach(e => {
+    const lx = (launcherX(e.c) - 120) / A, tx = -5.1 + e.bin * 1.7, y = e.u * 5.5, r = Math.min(5, Math.floor(y));
+    let x = lx; for (let j = 0; j < 5; j++) if (y > j + 0.5) x += e.path[j] * gap * 0.25 * Math.min(1, y - j - 0.5);
+    x = lerp(x, tx, clamp((y - 0.2) / 5.3, 0, 1) ** 1.5); const [px, py] = at(x, y);
+    if (e.repeat && deja) { c.strokeStyle = "#5a2a10"; c.lineWidth = 1; c.beginPath(); c.moveTo(...at(lx, 0)); c.lineTo(px, py - 5); c.stroke(); }
+    draw3d(c, ICO, { cx: px, cy: py - 5, s: 4.5, ay: t * 4 + e.c, ax: t * 3, tones: deja ? K[3] : K[2] });
+  });
+  text(c, "D DORIAN", 232, 40, 9, UI, "right", 500);
+  header(c, t);
+}
+
+/* ---- B: the well ---- */
+function well(c, t) {
+  autoKnobs(t); const W = world(t), deja = W.deja, ks = kept(), tilt = (P.xbias - 64) / 64;
+  c.fillStyle = BG; c.fillRect(0, 30, 240, 166);
+  /* frames at depth z (0 the rim, 1 the bottom), the vanishing point leaning with X BIAS */
+  const vx = 120 + tilt * 30, vy = 113, frame = z => { const s = 1 / (1 + z * 1.4), w = 104 * s, h = 76 * s, cx = lerp(120, vx, 1 - s), cy = lerp(113, vy, 1 - s);
+    const wob = P.jitter / 127 * 2 * Math.sin(t * 9 + z * 12); return [[cx - w + wob, cy - h], [cx + w + wob, cy - h], [cx + w - wob, cy + h], [cx - w - wob, cy + h]]; };
+  const scroll = (t / stepDur()) % 1;
+  for (let k = 0; k <= 6; k++) { const z = (k + 1 - scroll) / 7; stroke(c, frame(z), z > 0.85 ? "#120c2c" : WIRE); }
+  [0, 1, 2, 3].forEach(i => { const a = frame(0)[i], b = frame(1)[i]; stroke(c, [a, b], RAY, 1, false); });
+  /* the bottom: 7 cases across, STEPS's dropped ones dark */
+  const bot = frame(1), bx = (b, k) => lerp(bot[0][0], bot[1][0], (b + k) / 7);
+  for (let b = 0; b < 7; b++) {
+    const on = ks.includes(b), lvl = W.hist[b] / 6, col = W.flash[b] ? HOT[1] : !on ? "#0a0720" : deja ? `rgba(255,122,46,${0.25 + lvl * 0.75})` : `rgba(58,109,255,${0.25 + lvl * 0.75})`;
+    poly(c, [[bx(b, 0.08), bot[0][1] + 2], [bx(b, 0.92), bot[0][1] + 2], [bx(b, 0.92), bot[2][1] - 2], [bx(b, 0.08), bot[2][1] - 2]], col);
+  }
+  /* pins on four frames: SPREAD apart */
+  for (let r = 0; r < 4; r++) { const f = frame((r + 1) / 5), n = Math.round(3 + P.spread / 127 * 6);
+    for (let i = 0; i < n; i++) { const x = lerp(f[0][0], f[1][0], (i + 0.5 + (r % 2) * 0.5) / (n + 0.5)), y = lerp(f[0][1], f[3][1], 0.5), s = 3 / (1 + (r + 1) / 5 * 1.4) + 1;
+      poly(c, [[x, y - s], [x + s, y], [x, y + s], [x - s, y]], "#3a2c64"); } }
+  /* the rim: the loop's lights and the launchers */
+  loopLights(c, 30, 40, 180, W);
+  for (let ch = 0; ch < P.tout; ch++) draw3d(c, SHAPES[P.mode], { cx: launcherX(ch) + shake(t, ch), cy: 54, s: 5 + 4 * (ch === 0 ? P.bias / 127 : 1 - P.bias / 127), ay: t + ch, ax: 0.4, tones: deja ? K[3] : K[0] });
+  W.fly.sort((a, b) => b.u - a.u).forEach(e => {
+    const z = e.u, f = frame(z), x0 = launcherX(e.c), tx = bx(e.bin, 0.5), s = 1 / (1 + z * 1.4);
+    let wig = 0; for (let j = 0; j < 4; j++) if (z > (j + 1) / 5) wig += e.path[j] * 8 * s;
+    const x = lerp(lerp(x0, 120, 0.4), tx, z ** 1.3) + wig * (1 - z), y = lerp(56, lerp(f[0][1], f[3][1], 0.5), Math.min(1, z * 3));
+    draw3d(c, ICO, { cx: x, cy: y, s: 8 * s + 1.5, ay: t * 4 + e.c, ax: t * 3, tones: deja ? K[3] : K[2] });
+  });
+  for (let b = 0; b < 7; b++) {         /* the names along the rim's foot, a leader down to each case */
+    const nx = 26 + b * 31.3, on = ks.includes(b);
+    stroke(c, [[bx(b, 0.5), bot[2][1]], [nx, 180]], on ? "#2a1d55" : "#160f36", 1, false);
+    text(c, SCALE[b], nx, 188, 10, W.flash[b] ? HOT[0] : on ? "#f4f1ff" : "#4a4466", "center");
+  }
+  header(c, t);
+}
+
+/* ---- C: rails ---- */
+function rails(c, t) {
+  autoKnobs(t); const W = world(t), deja = W.deja, ks = kept(), tilt = (P.xbias - 64) / 64, fan = 0.6 + P.spread / 127 * 0.6;
+  backdrop(c, t, 30);
+  loopLights(c, 40, 40, 160, W);
+  /* nodes: rows 0..4, row r has r + 1 nodes, leaning with X BIAS; row 5 the 7 targets */
+  const node = (r, i) => { const w = r * 30 * fan; return [120 + (r ? -w / 2 + i * w / r : 0) + tilt * r * 7 + P.jitter / 127 * 1.5 * Math.sin(t * 11 + r * 3 + i), 62 + r * 22]; };
+  const target = b => [26 + b * 31.3, 172];
+  const lit = new Set(); W.fly.forEach(e => { let i = 0; for (let r = 0; r < 4; r++) { const ni = clamp(i + (e.path[r] > 0 ? 1 : 0), 0, r + 1); if (e.u * 5 > r) lit.add(r + ":" + i + ">" + ni); i = ni; } });
+  for (let r = 0; r < 4; r++) for (let i = 0; i <= r; i++) for (const ni of [i, i + 1]) {
+    const on = lit.has(r + ":" + i + ">" + ni); stroke(c, [node(r, i), node(r + 1, ni)], on ? (deja ? K[3][1] : K[1][1]) : WIRE, on ? 2 : 1, false); }
+  for (let i = 0; i <= 4; i++) for (const b of [Math.floor(i * 1.5), Math.ceil(i * 1.5)]) stroke(c, [node(4, i), target(b)], RAY, 1, false);
+  for (let r = 0; r <= 4; r++) for (let i = 0; i <= r; i++) { const [x, y] = node(r, i); poly(c, [[x, y - 3], [x + 3, y], [x, y + 3], [x - 3, y]], "#3a2c64"); }
+  for (let b = 0; b < 7; b++) {
+    const [x, y] = target(b), on = ks.includes(b), s = on ? 7 + W.hist[b] : 4, T = W.flash[b] ? HOT : !on ? ["#2a2050", "#1c1638", "#120e26"] : deja ? K[3] : K[0];
+    poly(c, [[x, y - s], [x + s * 0.8, y], [x, y], [x - s * 0.8, y]], T[0]); poly(c, [[x, y], [x + s * 0.8, y], [x, y + s]], T[2]); poly(c, [[x, y], [x, y + s], [x - s * 0.8, y]], T[1]);
+    if (W.flash[b]) for (let k = 0; k < 4; k++) { const a = k * TAU / 4 + 0.6, d = 12; poly(c, [[x + Math.cos(a) * d, y + Math.sin(a) * d - 2], [x + Math.cos(a) * d + 3, y + Math.sin(a) * d + 1], [x + Math.cos(a) * d - 2, y + Math.sin(a) * d + 2]], HOT[0]); }
+    text(c, SCALE[b], x, 189, 10, W.flash[b] ? HOT[0] : on ? "#f4f1ff" : "#4a4466", "center");
+  }
+  for (let ch = 0; ch < P.tout; ch++) draw3d(c, SHAPES[P.mode], { cx: launcherX(ch) * 0.5 + 60 + shake(t, ch), cy: 50, s: 4 + 3 * (ch === 0 ? P.bias / 127 : 1 - P.bias / 127), ay: t + ch, ax: 0.4, tones: deja ? K[3] : K[0] });
+  W.fly.forEach(e => {
+    let i = 0; const pos = e.u * 5, r = Math.min(4, Math.floor(pos)), f = pos - r;
+    for (let j = 0; j < r; j++) i = clamp(i + (e.path[j] > 0 ? 1 : 0), 0, j + 1);
+    const a = node(r, i), b = r < 4 ? node(r + 1, clamp(i + (e.path[r] > 0 ? 1 : 0), 0, r + 1)) : target(e.bin);
+    draw3d(c, ICO, { cx: lerp(a[0], b[0], f), cy: lerp(a[1], b[1], f) - 2, s: 4.5, ay: t * 4, ax: t * 3, tones: deja ? K[3] : K[2] });
+  });
+  header(c, t);
+}
+
+const views = [["iso", iso], ["well", well], ["rails", rails]].map(([id, f]) => [document.getElementById(id).getContext("2d"), f]);
+function frame(ms) { const t = ms / 1000; views.forEach(([c, f]) => f(c, t)); }
+function loop(ms) { frame(ms + 1310); requestAnimationFrame(loop); }
+document.fonts.ready.then(() => { frame(1310); if (!reduce) requestAnimationFrame(loop); });
+frame(1310);
+</script>
