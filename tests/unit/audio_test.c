@@ -1616,6 +1616,33 @@ static void free_phase_when_stopped(void)
     audio_punch(0);
 }
 
+/* the scenes' note counter: note-ons that sound, per track; a deferred note-on counts in the block it sounds */
+static void hits_count_note_ons(void)
+{
+    uint32_t h[Q_TRACKS];
+    setup();
+    for (int t = 0; t < Q_TRACKS; t++) h[t] = audio_hits(t);
+    audio_live_note(1, 64, 1);
+    block(256);
+    for (int t = 0; t < Q_TRACKS; t++) assert(audio_hits(t) - h[t] == (t == 1));
+    audio_live_note(1, 65, 1);
+    audio_live_note(1, 67, 1);
+    block(256);
+    assert(audio_hits(1) - h[1] == 3);
+    audio_live_note(1, 64, 0);
+    block(256);
+    assert(audio_hits(1) - h[1] == 3);
+
+    setup();
+    for (int t = 0; t < Q_TRACKS; t++) set_model(t, 20);
+    uint32_t sum0 = 0, sum = 0;
+    for (int t = 0; t < Q_TRACKS; t++) sum0 += audio_hits(t);
+    six_notes();
+    block(256);                         /* one engine switch per block: one note sounds */
+    for (int t = 0; t < Q_TRACKS; t++) sum += audio_hits(t);
+    assert(sum - sum0 == 1);
+}
+
 int main(void)
 {
     reverb_on_core2_once_per_block();
@@ -1689,6 +1716,7 @@ int main(void)
     held_and_recorded_or();
     recorded_punch_follows_pattern();
     free_phase_when_stopped();
+    hits_count_note_ons();
     puts("audio_test ok");
     return 0;
 }

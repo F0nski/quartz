@@ -34,5 +34,6 @@ void audio_unmute(void);
 void audio_punch(uint16_t mask);                        /* the punch-ins held, bit k = white key k + 1: from the next block on */
 int audio_playing(void);
 int audio_pos(int track);                               /* step in progress, -1 when stopped */
+uint32_t audio_hits(int track);                         /* note-ons the track sounded since boot (compare by difference) */
 
 #endif

@@ -86,6 +86,7 @@ static volatile uint32_t cmd_w, cmd_r;
 static q_rec rec[REC_N];
 static volatile uint32_t rec_w, rec_r;
 static volatile int scene_v;
+static volatile uint32_t hits[Q_TRACKS];   /* note-ons sounded per track: the render counts, the scenes read */
 static volatile uint32_t scene_w, scene_r;
 
 /* bus[0]: core 1's voices, bus[1]: core 2's (or core 1's in its place), each in its track's bus; added up at the
@@ -163,6 +164,7 @@ void audio_mute(void) { muted = 1; }
 void audio_unmute(void) { muted = 0; }
 int audio_playing(void) { return playing; }
 int audio_pos(int track) { return seq_pos(&seq, track); }
+uint32_t audio_hits(int track) { return hits[track]; }
 void audio_punch(uint16_t mask) { punch_held = mask; }
 int audio_pattern(int track) { return seq_pattern(&seq, track); }
 int audio_song_entry(void) { return seq_song_entry(&seq); }
@@ -359,6 +361,7 @@ static void note_on(int track, int note, int vel, int pat, int step, int accent)
     mod_set(v, &q, prj->tempo);
     mod_note_on(v, accent);
     pq_note_on(v, (float)(kit ? 48 + prj->kit[track][vpad[v]].tune + s->tune : note + tune(v, s)), vel / 127.0f);
+    hits[track]++;
 }
 
 static int waits(int track)
