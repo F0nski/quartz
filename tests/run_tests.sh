@@ -6,9 +6,12 @@ cd "$(dirname "$0")/.."
 OUT=app/build/tests
 mkdir -p "$OUT"
 
+# first: it generates app/build/gen/felucca_font.h, which the canvas tests include
+./build.sh --host
+
 for t in tests/unit/*_test.c; do
     [ -e "$t" ] || continue
-    cc -std=gnu11 -O1 -Iapp -Ibase/include "$t" -o "$OUT/$(basename "$t" .c)" -lm
+    cc -std=gnu11 -O1 -fsanitize=address -Iapp -Ibase/include -Ibase/device -Iapp/build/gen "$t" -o "$OUT/$(basename "$t" .c)" -lm
     echo "run $t"
     "$OUT/$(basename "$t" .c)"
 done
@@ -27,7 +30,6 @@ for t in tests/unit/*_test.cc; do
     "$OUT/$(basename "$t" .cc)"
 done
 
-./build.sh --host
 for s in app/tests/*.txt; do
     echo "run $s"
     app/build/host/quartz_host "$s" app/build/host
