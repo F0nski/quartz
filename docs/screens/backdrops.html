@@ -61,9 +61,9 @@ button[aria-pressed=true] { background: var(--hot); color: #fff; border-color: v
 
 <h2>GRIDS en piles</h2>
 <div class="grid">
-  <figure><canvas id="gSpeakers" width="240" height="240"></canvas><figcaption><span class="tag">D</span><h2>Enceintes</h2><p>Deux colonnes d'enceintes low poly : le woofer carré pompe sur BD, le médium sur SN, le tweeter scintille sur HH.</p></figcaption></figure>
-  <figure><canvas id="gDance" width="240" height="240"></canvas><figcaption><span class="tag">E</span><h2>Piste de danse</h2><p>Le plateau flotte au-dessus d'un damier isométrique dont des dalles s'allument aux couleurs des voix à chaque frappe.</p></figcaption></figure>
-  <figure><canvas id="gEq" width="240" height="240"></canvas><figcaption><span class="tag">F</span><h2>Mur d'égaliseur</h2><p>Au fond, trois groupes de barres (BD, SN, HH) qui montent à chaque frappe et retombent par crans.</p></figcaption></figure>
+  <figure><canvas id="gStars" width="240" height="240"></canvas><figcaption><span class="tag">G1</span><h2>Étoiles</h2><p>Un ciel nuit à peine étoilé et une ligne d'horizon basse.</p></figcaption></figure>
+  <figure><canvas id="gFloor" width="240" height="240"></canvas><figcaption><span class="tag">G2</span><h2>Sol filaire</h2><p>Le plateau posé sur un sol en fil de fer très sombre, qui s'étend tout autour.</p></figcaption></figure>
+  <figure><canvas id="gBeacons" width="240" height="240"></canvas><figcaption><span class="tag">G3</span><h2>Balises</h2><p>Trois petites pyramides sur l'horizon, une par voix, qui s'allument en rose à chaque frappe.</p></figcaption></figure>
 </div>
 </main>
 
@@ -586,53 +586,32 @@ function stacks3(c, t, under) {
       else if (st.extra && s2 <= cur) { stroke(c, [[x - 6, y - z - 2], [x, y - z - 5], [x + 6, y - z - 2], [x, y - z + 1]], VCOL[v][0]); z += 4; } });
     if (isCur) hitFx(c, at, gx, gy, x, top, Math.min(...L.map(([a]) => a))); });
   sightIso(c, at, cur % 8, cur >> 3, Math.min(...L.map(([a]) => a)) < 0.12 ? HOT[1] : K[1][0]);
-  [0, 1, 2].forEach((v, i) => { const x = 178 + i * 20, y = 34, hot = L[v][0] < 0.15, sel = v === P.voice - 1;
-    densGauge(c, x + 4, y + 12, 22, v, hot); text(c, VNAME[v], x + 7, y + 4, 8, hot ? HOT[0] : sel ? "#f4f1ff" : UI, "center"); });
-  mapChip(c, 10, 160, 28, 24, t);
+  [0, 1, 2].forEach(v => { const x = 196, y = 36 + v * 6, hot = L[v][0] < 0.15;          /* the densities: one thin line each */
+    c.fillStyle = "#1c1638"; c.fillRect(x, y, 36, 2); c.fillStyle = hot ? HOT[1] : VCOL[v][1]; c.fillRect(x, y, 36 * DENS()[v] / 127, 2); });
+  if (!under || under.chip !== false) mapChip(c, 12, 168, 16, 14, t);
   text(c, "STEP " + String(cur + 1).padStart(2, "0"), 8, 40, 10, K[1][0], "left");
   const n = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"][P.note % 12] + (Math.floor(P.note / 12) - 1);
   text(c, VNAME[P.voice - 1] + " " + n, 8, 54, 9, UI, "left");
   header(c, "GRIDS", [["DIV", ["1/16", "1/8", "1/4"][P.div], P.div / 2], ["VOICE", P.voice, (P.voice - 1) / 2], ["NOTE", P.note, (P.note - 24) / 72]]);
 }
-/* D: speakers */
-function cone(c, x, y, s2, pump, T) {                    /* a square, faceted cone seen from the front */
-  const o = s2, i2 = s2 * (0.45 - pump * 0.15);
-  poly(c, [[x - o, y - o], [x + o, y - o], [x + i2, y - i2], [x - i2, y - i2]], T[0]); poly(c, [[x + o, y - o], [x + o, y + o], [x + i2, y + i2], [x + i2, y - i2]], T[2]);
-  poly(c, [[x + o, y + o], [x - o, y + o], [x - i2, y + i2], [x + i2, y + i2]], T[2]); poly(c, [[x - o, y + o], [x - o, y - o], [x - i2, y - i2], [x - i2, y + i2]], T[1]);
-  poly(c, [[x - i2, y - i2], [x + i2, y - i2], [x + i2, y + i2], [x - i2, y + i2]], pump > 0.3 ? HOT[1] : "#0a0618");
-}
-function gSpeakers(c, t) {
-  const L = lastHits(t); c.fillStyle = "#07041a"; c.fillRect(0, 30, 240, 166);
-  for (let k = 0; k < 7; k++) { const y = 40 + k * 10, on = L[1][0] < 0.12 && k % 2 === 0; stroke(c, [[50, y], [190, y]], on ? "#3a2870" : "#140e30", 2, false); }   /* slats lit on SN */
-  c.fillStyle = "#0a0620"; c.fillRect(0, 120, 240, 76);
-  [[22, 1], [218, -1]].forEach(([x, side]) => {
-    poly(c, [[x - 20, 44], [x + 20, 44], [x + 20, 186], [x - 20, 186]], "#130d2c"); stroke(c, [[x - 20, 44], [x + 20, 44], [x + 20, 186], [x - 20, 186]], "#2a1d55");
-    poly(c, side > 0 ? [[x + 20, 44], [x + 26, 48], [x + 26, 182], [x + 20, 186]] : [[x - 20, 44], [x - 26, 48], [x - 26, 182], [x - 20, 186]], "#0c0822");
-    const pb = L[0][0] < 0.15 ? 1 - L[0][0] / 0.15 : 0, ps = L[1][0] < 0.12 ? 1 - L[1][0] / 0.12 : 0, ph = L[2][0] < 0.08 ? 1 : 0;
-    cone(c, x, 160, 15 + pb * 2, pb, K[3]); cone(c, x, 120, 10 + ps * 1.5, ps, K[1]); cone(c, x, 88, 6, ph, K[0]);
-  });
-  stacks3(c, t);
-}
-/* E: a dance floor under the floating plate */
-function gDance(c, t) {
-  const L = lastHits(t), k0 = kNow(t); c.fillStyle = "#07041a"; c.fillRect(0, 30, 240, 166); stars(c, t, 0.05);
-  const A = 14, B = 7, at = (gx, gy) => [120 + (gx - gy) * A, 96 + (gx + gy) * B];
-  for (let gy = -8; gy < 8; gy++) for (let gx = -8; gx < 8; gx++) { const q = [at(gx, gy), at(gx + 1, gy), at(gx + 1, gy + 1), at(gx, gy + 1)]; if (q[2][1] < 70) continue;
-    let col = (gx + gy) & 1 ? "#0e0a26" : "#120c2e"; [0, 1, 2].forEach(v => { if (L[v][0] < 0.2 && hash((gx + 9) * 31 + (gy + 9) * 7 + k0 * 13 + v) < [0.12, 0.08, 0.05][v]) col = VCOL[v][2]; });
-    poly(c, q, col); }
-  stacks3(c, t);
-}
-/* F: an equaliser wall */
-const eq = [0, 0, 0];
-function gEq(c, t) {
-  const L = lastHits(t); c.fillStyle = "#07041a"; c.fillRect(0, 30, 240, 166);
-  [0, 1, 2].forEach(v => { for (let b = 0; b < 6; b++) { const x = 18 + v * 72 + b * 11, lvl = L[v][0] < 0.6 ? Math.max(0, (1 - L[v][0] / 0.6) * (0.6 + 0.4 * hash(b + v * 7 + kNow(t))) * 8) : 0;
-    for (let s2 = 0; s2 < 8; s2++) { const y = 112 - s2 * 8; c.fillStyle = s2 < lvl ? (s2 > 5 ? HOT[1] : VCOL[v][s2 > 3 ? 0 : 1]) : "#140e30"; c.fillRect(x, y, 8, 5); } } });
-  c.fillStyle = "#0a0620"; c.fillRect(0, 122, 240, 74);
-  stacks3(c, t);
-}
+/* G1: a few stars and a low horizon */
+function gStars(c, t) { c.fillStyle = "#07041a"; c.fillRect(0, 30, 240, 166);
+  for (let i = 0; i < 18; i++) { const x = hash(i * 7 + 3) * 240, y = 34 + hash(i * 13 + 1) * 70; c.fillStyle = hash(i * 5) > 0.8 ? "#a99ce0" : "#3a2f68"; c.fillRect(x, y, 1, 1); }
+  stroke(c, [[0, 150], [240, 150]], "#1c1340", 1, false); stacks3(c, t); }
+/* G2: a dim wire floor running under the plate */
+function gFloor(c, t) { c.fillStyle = "#07041a"; c.fillRect(0, 30, 240, 166);
+  const A = 18.5, B = 9.25, at = (gx, gy) => [83 + (gx - gy) * A, 72 + (gx + gy) * B];
+  for (let k = -6; k <= 14; k++) { stroke(c, [at(k, -8), at(k, 12)], "#120c2a", 1, false); stroke(c, [at(-8, k - 4), at(16, k - 4)], "#120c2a", 1, false); }
+  stacks3(c, t); }
+/* G3: three small beacons far away, one per voice, blinking on its hits */
+function gBeacons(c, t) { const L = lastHits(t); c.fillStyle = "#07041a"; c.fillRect(0, 30, 240, 166);
+  stroke(c, [[0, 62], [240, 62]], "#1c1340", 1, false);
+  [0, 1, 2].forEach(v => { const x = 150 + v * 26, y = 62, hot = L[v][0] < 0.12, T = hot ? HOT : [VCOL[v][2], "#1c1340", "#120c2a"];
+    poly(c, [[x - 5, y], [x, y - 10], [x, y]], T[0]); poly(c, [[x, y], [x, y - 10], [x + 5, y]], T[1]);
+    if (hot) stroke(c, [[x, y - 12], [x, y - 16]], HOT[0], 1, false); });
+  stacks3(c, t); }
 
-const views = [["seqNow", seqNow], ["seqCity", seqCity], ["seqStreams", seqStreams], ["seqRoom", seqRoom], ["gSpeakers", gSpeakers], ["gDance", gDance], ["gEq", gEq]].map(([id, f]) => [document.getElementById(id).getContext("2d"), f]);
+const views = [["seqNow", seqNow], ["seqCity", seqCity], ["seqStreams", seqStreams], ["seqRoom", seqRoom], ["gStars", gStars], ["gFloor", gFloor], ["gBeacons", gBeacons]].map(([id, f]) => [document.getElementById(id).getContext("2d"), f]);
 function frame(ms) { const t = ms / 1000; views.forEach(([c, f]) => f(c, t)); }
 function loop(ms) { frame(ms + 1310); requestAnimationFrame(loop); }
 document.fonts.ready.then(() => { frame(1310); if (!reduce) requestAnimationFrame(loop); });
