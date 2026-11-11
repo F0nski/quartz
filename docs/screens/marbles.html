@@ -41,7 +41,7 @@ button[aria-pressed=true] { background: var(--hot); color: #fff; border-color: v
 <main>
 <header>
   <h1>MARBLES <em>autrement</em></h1>
-  <p class="lead">Tourelles et escadrille, en version soignée, avec leur premier jet pour comparer. Ce qui part (cristal, rayon, comète, tir) part un pas avant sa note et
+  <p class="lead">L'escadrille dans trois décors. Ce qui part (cristal, rayon, comète, tir) part un pas avant sa note et
   arrive quand la note sonne. Chaque encodeur des pages MARBLES, T et X change quelque chose à l'écran : tourne les
   curseurs, ou laisse « auto » les faire bouger.</p>
 </header>
@@ -52,12 +52,12 @@ button[aria-pressed=true] { background: var(--hot); color: #fff; border-color: v
 </section>
 
 <div class="grid">
-  <figure><canvas id="turretsPro" width="240" height="240"></canvas><figcaption><span class="tag">4 soigné</span><h2>Tourelles</h2>
-    <p>Des tourelles sur un sol isométrique qui défile visent la rangée de cubes-cibles. Le canon recule à chaque tir avec un éclair, le tir arrive quand la note sonne, le cube éclate en éclats qui retombent puis se reconstruit, plus gros s'il est souvent touché.</p></figcaption></figure>
-  <figure><canvas id="shipsPro" width="240" height="240"></canvas><figcaption><span class="tag">5 soigné</span><h2>Escadrille</h2>
-    <p>L'escadrille vole en boucle au-dessus du sol quadrillé, dans la formation de MODE (ligne, V, colonne, diagonale, vague, triangle, ronde). Les tirs frappent les cristaux sur leurs socles, qui montent avec l'historique ; une onde court au sol à chaque note.</p></figcaption></figure>
-  <figure><canvas id="turrets" width="240" height="240"></canvas><figcaption><span class="tag">4</span><h2>Tourelles, premier jet</h2><p>Pour comparer.</p></figcaption></figure>
-  <figure><canvas id="ships" width="240" height="240"></canvas><figcaption><span class="tag">5</span><h2>Escadrille, premier jet</h2><p>Pour comparer.</p></figcaption></figure>
+  <figure><canvas id="shipsPro" width="240" height="240"></canvas><figcaption><span class="tag">sol</span><h2>Escadrille, sol quadrillé</h2>
+    <p>Le décor de la planète FM, pour comparer.</p></figcaption></figure>
+  <figure><canvas id="shipsCanyon" width="240" height="240"></canvas><figcaption><span class="tag">canyon</span><h2>Escadrille, canyon</h2>
+    <p>Une gorge aux parois en facettes qui défilent vers toi (au rythme de DIV) ; les cristaux sur le fond, l'escadrille entre les parois.</p></figcaption></figure>
+  <figure><canvas id="shipsOcean" width="240" height="240"></canvas><figcaption><span class="tag">océan</span><h2>Escadrille, océan</h2>
+    <p>Une houle lente en fil de fer jusqu'à l'horizon ; les cristaux sur des socles qui flottent et suivent la houle.</p></figcaption></figure>
 </div>
 
 <section aria-label="Ce que fait chaque encodeur">
@@ -308,23 +308,67 @@ function ship3(c, x, y, a, bank, tones, s, flame) {
   poly(c, [f(10, 0), f(-6, 7), f(-3, 0)], tones[1]); poly(c, [f(10, 0), f(-3, 0), f(-6, -7)], tones[0]);
   poly(c, [f(4, 0), f(-3, 2), f(-3, -2)], tones[2]);                                                       /* the cockpit */
 }
-function shipsPro(c, t) {
-  autoKnobs(t); const W = world(t), T = times(t), deja = W.deja, mid = 120 + (P.xbias - 64) / 64 * 55, gap = 16 + P.spread / 127 * 26;
-  c.fillStyle = "#120b26"; c.fillRect(0, 30, 240, 166);
+/* the decors: each draws the backdrop and says how far a crystal at x bobs (ocean) */
+function starsBg(c, t) {
   for (let i = 0; i < 40; i++) { const layer = hash(i * 3 + 1) < 0.15 ? 2 : hash(i * 3 + 2) < 0.4 ? 1 : 0;   /* scattered at random, fixed; the near ones fewer and faster */
     const x = (hash(i * 7 + 11) * 240 - t * (4 + layer * 5) * 0.25 / stepDur()) % 240, y = 34 + hash(i * 13 + 5) * 98;
     c.fillStyle = layer === 2 ? "#fff" : layer === 1 ? "#a99ce0" : "#4a3f78"; c.fillRect((x + 480) % 240, y, layer === 2 ? 2 : 1, layer === 2 ? 2 : 1); }
+}
+function decorGrid(c, t) {
+  c.fillStyle = "#120b26"; c.fillRect(0, 30, 240, 166); starsBg(c, t);
   const hz = 134; c.fillStyle = "#1a0f33"; c.fillRect(0, hz, 240, 196 - hz); c.fillStyle = "#5b2f8c"; c.fillRect(0, hz, 240, 1);
   c.strokeStyle = "#3b1f66"; c.lineWidth = 1;
   for (let i = -12; i <= 12; i++) { c.beginPath(); c.moveTo(120 + i * 8, hz); c.lineTo(120 + i * 60, 196); c.stroke(); }
   for (let k = 0; k < 6; k++) { const p = ((k + (t * 0.25 / stepDur()) % 1) / 6) ** 2, y = Math.round(hz + p * 62) + .5; c.beginPath(); c.moveTo(0, y); c.lineTo(240, y); c.stroke(); }
+  return () => 0;
+}
+/* a canyon: faceted walls running towards the viewer, the crystals on its floor */
+const ROCK = [["#4a2f86", "#35226a", "#22164a"], ["#3f2878", "#2c1c5c", "#1c123e"]];
+function decorCanyon(c, t) {
+  const vx = 120, vy = 62, sp = 0.6 * 0.25 / stepDur(), f = (t * sp) % 1, base = Math.floor(t * sp);
+  c.fillStyle = "#0c0820"; c.fillRect(0, 30, 240, 166); starsBg(c, t);
+  c.fillStyle = "#140c2c"; poly(c, [[vx - 6, vy], [vx + 6, vy], [240, 196], [0, 196]], "#140c2c");          /* the floor */
+  const N = 9, at = k => ((k + 1 - f) / N) ** 1.8;
+  for (let k = N - 1; k >= 0; k--) {                                                                         /* far to near */
+    const p0 = at(k + 1), p1 = at(k), id = base - k, j0 = hash(id * 5 + 1) * 0.35, j1 = hash((id + 1) * 5 + 1) * 0.35;
+    const h0 = 1.1 + hash(id * 9) * 0.5, h1 = 1.1 + hash((id + 1) * 9) * 0.5;
+    for (const side of [-1, 1]) {
+      const x = (p, j) => vx + side * (8 + p * (128 - j * 60)), top = (p, h) => vy - p * 90 * h, bot = p => vy + p * 134;
+      const xa = x(p0, j1), xb = x(p1, j0), mid0 = lerp(top(p0, h1), bot(p0), 0.45), mid1 = lerp(top(p1, h0), bot(p1), 0.45), T = ROCK[(id & 1)];
+      poly(c, [[xa, top(p0, h1)], [xb, top(p1, h0)], [xb + side * 10 * p1, mid1], [xa + side * 10 * p0, mid0]], side < 0 ? T[0] : T[1]);
+      poly(c, [[xa + side * 10 * p0, mid0], [xb + side * 10 * p1, mid1], [xb, bot(p1)], [xa, bot(p0)]], side < 0 ? T[1] : T[2]);
+      stroke(c, [[xa, top(p0, h1)], [xb, top(p1, h0)]], "#5b2f8c", 1, false);
+    }
+    const ya = vy + p0 * 134; stroke(c, [[vx - 8 - p0 * 100, ya], [vx + 8 + p0 * 100, ya]], "#22164a", 1, false);
+  }
+  return () => 0;
+}
+/* an ocean: a slow wire swell to the horizon, the crystals on buoys riding it */
+const swell = (x, z, t) => (Math.sin(x * 0.045 + t * 1.3 + z * 0.9) + 0.6 * Math.sin(x * 0.08 - t * 0.9 + z * 1.7)) * (2 + z * 4);
+function decorOcean(c, t) {
+  const hz = 118, rows = 9;
+  c.fillStyle = "#0a0a24"; c.fillRect(0, 30, 240, 166); starsBg(c, t);
+  c.fillStyle = "#0c1030"; c.fillRect(0, hz, 240, 196 - hz);
+  const sp = 0.25 / stepDur(), f = (t * sp * 0.5) % 1, pt = (i, k) => { const z = ((k + f) / rows) ** 1.7, x = 120 + (i - 8) * (8 + z * 26);
+    return [x, hz + z * 78 - swell(x, z, t) * 0.8]; };
+  for (let k = 0; k < rows; k++) {
+    const col = k < 3 ? "#1d2a5e" : k < 6 ? "#2a3f86" : "#3a58b0";
+    c.strokeStyle = col; c.lineWidth = 1; c.beginPath(); for (let i = 0; i <= 16; i++) c.lineTo(...pt(i, k)); c.stroke();
+    if (k) for (let i = 0; i <= 16; i += 2) stroke(c, [pt(i, k - 1), pt(i, k)], "#1d2a5e", 1, false);
+  }
+  c.fillStyle = "#3a58b0"; c.fillRect(0, hz, 240, 1);
+  return x => -swell(x, 0.85, t) * 0.8;
+}
+function shipsPro(c, t, decor = decorGrid) {
+  autoKnobs(t); const W = world(t), T = times(t), deja = W.deja, mid = 120 + (P.xbias - 64) / 64 * 55, gap = 16 + P.spread / 127 * 26;
+  const bob = decor(c, t);
   loopLights(c, 40, 40, 160, W);
   /* the crystals on their pedestals: the notes */
   const cx = b => 28 + b * 30.7, cy = 168;
   for (let b = 0; b < BINS; b++) {
-    const on = kept().includes(b), h = T.hit[b], tones = tonesOf(W, b, K[0]), x = cx(b), ped = on ? 4 + W.hist[b] * 1.5 : 2;
+    const on = kept().includes(b), h = T.hit[b], tones = tonesOf(W, b, K[0]), x = cx(b), ped = (on ? 4 + W.hist[b] * 1.5 : 2) - bob(x);
     wave(c, x, cy + 4, h / 0.5);
-    box(c, x, cy + 4, 9, 4.5, ped, on ? ["#3a2c64", "#2a1d55", "#1a1438"] : DIM3);
+    box(c, x, cy + 4 - Math.min(0, bob(x)) * 0, 9, 4.5, ped, on ? ["#3a2c64", "#2a1d55", "#1a1438"] : DIM3);
     if (!on) stroke(c, [[x, cy - ped - 12], [x + 4, cy - ped - 6], [x, cy - ped], [x - 4, cy - ped - 6]], "#2a2050");
     else {
       const grow = h < 0.1 ? 0 : Math.min(1, (h - 0.1) / 0.35), s = (8 + W.hist[b] * 0.8) * grow;
@@ -345,7 +389,7 @@ function shipsPro(c, t) {
   }
   /* the shots: from where the ship was when it fired, landing on the crystal when the note sounds */
   W.fly.forEach(e => {
-    const [x0, y0] = pos(e.c, e.at - Math.min(stepDur(), 0.5)), x1 = cx(e.bin), y1 = cy - 14;
+    const [x0, y0] = pos(e.c, e.at - Math.min(stepDur(), 0.5)), x1 = cx(e.bin), y1 = cy - 14 + bob(x1);
     if (e.repeat && deja) stroke(c, [[x0, y0], [x1, y1]], "#3a1a08", 1, false);
     bolt(c, x0, y0, x1, y1, e.u, deja ? BOLT_DV : BOLT);
   });
@@ -506,7 +550,7 @@ function ships(c, t) {
   header(c, t);
 }
 
-const views = [["turretsPro", turretsPro], ["shipsPro", shipsPro], ["turrets", turrets], ["ships", ships]].map(([id, f]) => [document.getElementById(id).getContext("2d"), f]);
+const views = [["shipsPro", shipsPro], ["shipsCanyon", (c, t) => shipsPro(c, t, decorCanyon)], ["shipsOcean", (c, t) => shipsPro(c, t, decorOcean)]].map(([id, f]) => [document.getElementById(id).getContext("2d"), f]);
 function frame(ms) { const t = ms / 1000; views.forEach(([c, f]) => f(c, t)); }
 function loop(ms) { frame(ms + 1310); requestAnimationFrame(loop); }
 document.fonts.ready.then(() => { frame(1310); if (!reduce) requestAnimationFrame(loop); });
