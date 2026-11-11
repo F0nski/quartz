@@ -9,7 +9,7 @@
 #include <string.h>
 #include <new>
 
-#include "fastmath.h"   // libm is slow on the device
+#include "fastmath.h"   // libm is slow on the device, and even fabsf or fmaxf is a call there
 
 #include "clouds/dsp/fx/reverb.h"
 
@@ -70,6 +70,7 @@ struct Master {
   float rise;       // its recovery per frame, set by the dip
   float env, comp;  // compressor's detector and gain
   float lim;        // limiter's gain
+  float rpeak;      // the reverb's output peak in the last block: under kQuiet, its tail is over
 };
 
 alignas(Master) char mstorage[sizeof(Master)];
@@ -110,17 +111,17 @@ void tone(Track& s, int k, float* x, unsigned n) {
 // the high gains fold more instead of leaving the table.
 void fold(float gain, float bias, float* x, unsigned n) {
   for (unsigned i = 0; i < n; ++i) {
-    float u = fmodf(x[i] * gain + bias + 1.0f, 4.0f);
-    if (u < 0.0f) u += 4.0f;
+    float u = x[i] * gain + bias + 1.0f;
+    u -= 4.0f * fm_floorf(u * 0.25f);   // into [0, 4)
     u = u < 2.0f ? u - 1.0f : 3.0f - u;
     x[i] = stmlib::InterpolateHermite(plaits::lut_fold + 1, 0.5f + 0.49f * u, 512.0f);
   }
 }
 
 void crush(Track& s, int p1, int p2, float* x, unsigned n) {
-  const float steps = static_cast<float>(1 << (15 - static_cast<int>(lroundf(14.0f * p1 / 127.0f))));
+  const float steps = static_cast<float>(1 << (15 - static_cast<int>(14.0f * p1 / 127.0f + 0.5f)));
   for (unsigned i = 0; i < n; ++i) {
-    float q = roundf(x[i] * steps);
+    float q = fm_floorf(x[i] * steps + 0.5f);
     q = q < -steps ? -steps : q > steps - 1.0f ? steps - 1.0f : q;   // a signed integer of 'bits' bits
     x[i] = q / steps;
   }
@@ -203,10 +204,23 @@ float dtap(const int16_t* line, unsigned wpos, float d) {
 
 int16_t dstore(float x) { return static_cast<int16_t>(stmlib::Clip16(static_cast<int32_t>(x * kDlyScale))); }
 
+constexpr float kQuiet = 1e-5f;   // -100 dB
+
+bool silent(const float* x, unsigned n) {
+  for (unsigned i = 0; i < n; ++i)
+    if (x[i] != 0.0f) return false;
+  return true;
+}
+
 // track t's insert, LEVEL, sends and PAN, added to l, r, dsum and fx's reverb send
 void track(int t, const qfx_track& tr, float* x, float* l, float* r, unsigned n) {
   Mix& p = master->mix[t];
   const Mix c = targets(tr);
+  if (tr.type == IT_OFF && silent(x, n)) {   // nothing to add: most tracks, most of the time
+    qfx_insert(t, IT_OFF, 0, 0, 0, 0, x, n);
+    p = c;
+    return;
+  }
   const float k = 1.0f / n;
   if (tr.type == IT_OFF || (tr.mix == 0 && p.m == 0.0f)) {
     qfx_insert(t, tr.type, tr.p1, tr.p2, tr.p3, 0, x, n);
@@ -268,7 +282,7 @@ void delay(const qfx_master& m, unsigned n) {
   }
   M.dly = d;
   for (int c = 0; c < 2; ++c)   // the low-pass would decay into denormals in silence
-    if (fabsf(M.dlp[c]) < 1e-10f) M.dlp[c] = 0.0f;
+    if (fm_fabsf(M.dlp[c]) < 1e-10f) M.dlp[c] = 0.0f;
 }
 
 // peak stereo-linked compressor: attack 5 ms, release 100 ms, 4:1 above -30 * comp / 127 dB, with
@@ -281,7 +295,7 @@ void compress(int comp, float* l, float* r, unsigned n) {
   for (unsigned o = 0; o < n; o += kComp) {
     const unsigned e = o + kComp < n ? o + kComp : n;
     for (unsigned i = o; i < e; ++i) {
-      const float p = fmaxf(fabsf(l[i]), fabsf(r[i]));
+      const float p = fm_maxf(fm_fabsf(l[i]), fm_fabsf(r[i]));
       M.env += (p > M.env ? att : rel) * (p - M.env);
     }
     if (M.env < 1e-10f) M.env = 0.0f;   // fm_log2f(0) is -127: no reduction, as wanted
@@ -304,11 +318,11 @@ void limit(float* l, float* r, unsigned n) {
   for (unsigned i = 0; i < n; ++i) {
     M.lim += rel * (1.0f - M.lim);
     if (M.lim > 0.9999f) M.lim = 1.0f;
-    const float p = fmaxf(fabsf(l[i]), fabsf(r[i]));
+    const float p = fm_maxf(fm_fabsf(l[i]), fm_fabsf(r[i]));
     if (p * M.lim > 1.0f) M.lim = 1.0f / p;
     // 1 / p can round a hair above the ceiling
-    l[i] = fminf(fmaxf(l[i] * M.lim, -1.0f), 1.0f);
-    r[i] = fminf(fmaxf(r[i] * M.lim, -1.0f), 1.0f);
+    l[i] = fm_minf(fm_maxf(l[i] * M.lim, -1.0f), 1.0f);
+    r[i] = fm_minf(fm_maxf(r[i] * M.lim, -1.0f), 1.0f);
   }
 }
 
@@ -353,10 +367,18 @@ extern "C" void qfx_block(float* const bus[QFX_TRACKS], const qfx_track tr[QFX_T
   duck(m->duck, duck_at, n);
   for (int t = 0; t < QFX_TRACKS; ++t) track(t, tr[t], bus[t], l, r, n);
 
-  for (unsigned i = 0; i < n; ++i) fx[i].r = fx[i].l;   // the reverb's input is mono
-  M.reverb.set_time(0.5f + 0.48f * m->rsize / 127.0f);
-  M.reverb.set_lp(0.3f + 0.65f * m->rtone / 127.0f);
-  M.reverb.Process(fx, n);
+  bool in = false;
+  for (unsigned i = 0; i < n; ++i) {
+    fx[i].r = fx[i].l;   // the reverb's input is mono
+    in |= fx[i].l != 0.0f;
+  }
+  if (in || M.rpeak >= kQuiet) {   // idle otherwise: what stays in its lines is under -100 dB
+    M.reverb.set_time(0.5f + 0.48f * m->rsize / 127.0f);
+    M.reverb.set_lp(0.3f + 0.65f * m->rtone / 127.0f);
+    M.reverb.Process(fx, n);
+    M.rpeak = 0.0f;
+    for (unsigned i = 0; i < n; ++i) M.rpeak = fm_maxf(M.rpeak, fm_maxf(fm_fabsf(fx[i].l), fm_fabsf(fx[i].r)));
+  }
   delay(*m, n);
   for (unsigned i = 0; i < n; ++i) {
     l[i] += fx[i].l * dg[i];
