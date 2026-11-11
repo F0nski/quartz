@@ -268,12 +268,12 @@ static void take_locks(int v, int track, int pat, int step)
     lk_mask[v] = 0;
     if (step < 0)
         return;
-    for (int k = 0; k < LK_N; k++) {
-        int i = lock_find(pt, step, k);
-        if (i >= 0) {
-            lk_mask[v] |= 1u << k;
-            lk_val[v][k] = pt->locks[i].value;
-        }
+    for (int i = 0; i < pt->nlocks; i++) {      /* one pass; the first lock of a (step, param) wins, as lock_find */
+        const q_lock *l = &pt->locks[i];
+        if (l->step != step || l->param >= LK_N || lk_mask[v] >> l->param & 1)
+            continue;
+        lk_mask[v] |= 1u << l->param;
+        lk_val[v][l->param] = l->value;
     }
 }
 
