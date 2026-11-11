@@ -41,7 +41,7 @@ button[aria-pressed=true] { background: var(--hot); color: #fff; border-color: v
 <main>
 <header>
   <h1>MARBLES <em>autrement</em></h1>
-  <p class="lead">L'escadrille sur le sol quadrillé et dans un canyon. Ce qui part (cristal, rayon, comète, tir) part un pas avant sa note et
+  <p class="lead">L'escadrille dans le canyon, trois styles de rochers. Ce qui part (cristal, rayon, comète, tir) part un pas avant sa note et
   arrive quand la note sonne. Chaque encodeur des pages MARBLES, T et X change quelque chose à l'écran : tourne les
   curseurs, ou laisse « auto » les faire bouger.</p>
 </header>
@@ -52,10 +52,13 @@ button[aria-pressed=true] { background: var(--hot); color: #fff; border-color: v
 </section>
 
 <div class="grid">
-  <figure><canvas id="shipsPro" width="240" height="240"></canvas><figcaption><span class="tag">sol</span><h2>Escadrille, sol quadrillé</h2>
-    <p>Le décor de la planète FM, pour comparer.</p></figcaption></figure>
-  <figure><canvas id="shipsCanyon" width="240" height="240"></canvas><figcaption><span class="tag">canyon</span><h2>Escadrille, canyon</h2>
-    <p>Des rochers et des aiguilles en facettes, de tailles irrégulières, avec des trouées, bordent la gorge et défilent vers toi au rythme de DIV ; le ciel reste ouvert au milieu.</p></figcaption></figure>
+  <figure><canvas id="shipsRocks" width="240" height="240"></canvas><figcaption><span class="tag">A</span><h2>Rochers taillés</h2>
+    <p>Des blocs cabossés et quelques aiguilles, en volumes ombrés, sur deux rangées de chaque côté.</p></figcaption></figure>
+  <figure><canvas id="shipsMesa" width="240" height="240"></canvas><figcaption><span class="tag">B</span><h2>Mésas</h2>
+    <p>Des buttes à sommet plat, striées de strates, dans un violet plus chaud.</p></figcaption></figure>
+  <figure><canvas id="shipsCrystals" width="240" height="240"></canvas><figcaption><span class="tag">C</span><h2>Cristaux</h2>
+    <p>Des grappes de cristaux sombres, bleu-vert, qui répondent aux cristaux des notes.</p></figcaption></figure>
+  <figure><canvas id="shipsCanyon" width="240" height="240"></canvas><figcaption><span class="tag">avant</span><h2>Canyon précédent</h2><p>Pour comparer.</p></figcaption></figure>
 </div>
 
 <section aria-label="Ce que fait chaque encodeur">
@@ -353,6 +356,50 @@ function decorCanyon(c, t) {
   }
   return () => 0;
 }
+/* ---- canyon variants: real low-poly volumes in two lanes per side ---- */
+/* a mesh standing on y = 0 (y up is negative), its vertices nudged at random but fixed */
+function lumpy(m, seed, amp) { return { v: m.v.map((q, i) => q.map((x, k) => x + (hash(seed * 97 + i * 7 + k) - 0.5) * amp)), f: m.f }; }
+function taper(n, h, top, seed) {                                     /* an n-sided column, narrower at the top */
+  const v = [], f = [];
+  for (let i = 0; i < n; i++) { const a = i * TAU / n + hash(seed + i) * 0.5, r = 0.85 + hash(seed * 3 + i) * 0.3; v.push([Math.cos(a) * r, 0, Math.sin(a) * r], [Math.cos(a) * r * top, -h, Math.sin(a) * r * top]); }
+  for (let i = 0; i < n; i++) { const j = (i + 1) % n; f.push([2 * i, 2 * j, 2 * j + 1, 2 * i + 1]); }
+  f.push([...Array(n).keys()].map(i => 2 * i + 1).reverse());
+  return out({ v, f });
+}
+const BOULDER = s => lumpy({ v: ICO.v.map(([x, y, z]) => [x * 1.1, Math.min(0, y - 0.55) * 1.1, z]), f: ICO.f }, s, 0.35);
+const SPIRE = s => lumpy(taper(5, 3.2, 0.18, s), s, 0.2);
+const MESA = s => lumpy(taper(7, 1.1 + hash(s) * 0.6, 0.78, s), s, 0.12);
+const SHARD = (s, k, tilt) => ({ v: OCTA.v.map(([x, y, z]) => { const h = (y - 1) * (0.9 + hash(s + k) * 0.7); return [x * 0.5 + k - h * tilt, h, z * 0.5]; }), f: OCTA.f });
+const CLUSTER = s => { const parts = [SHARD(s, 0, 0), SHARD(s + 1, 0.6, -0.25), SHARD(s + 2, -0.55, 0.3)]; let v = [], f = [];
+  parts.forEach(m => { const o = v.length; v = v.concat(m.v.map(([x, y, z], i) => [x, y, z + (i ? 0 : 0)])); f = f.concat(m.f.map(q => q.map(i => i + o))); }); return { v, f }; };
+const MESHES = {};
+const meshOf = (kind, id) => MESHES[kind + id] || (MESHES[kind + id] = kind === "rocks" ? (hash(id * 5) > 0.7 ? SPIRE(id) : BOULDER(id)) : kind === "mesa" ? MESA(id) : CLUSTER(id));
+const ROCKT = { rocks: ["#6a48b0", "#46307e", "#26184e"], mesa: ["#7a4a9a", "#52306e", "#2e1a44"], crystals: ["#3d7f9c", "#25587a", "#142f48"] };
+function decorKind(kind) {
+  return (c, t) => {
+    const vx = 120, vy = 96, d = travelled(t, 0.5 * 0.25 / stepDur()), f = d % 1, base = Math.floor(d), N = 13;
+    c.fillStyle = "#0c0820"; c.fillRect(0, 30, 240, 166); starsBg(c, t);
+    poly(c, [[0, vy], [240, vy], [240, 196], [0, 196]], "#120a28");
+    for (let k = 0; k < 5; k++) { const p = ((k + f) / 5) ** 2, y = vy + p * 100; stroke(c, [[vx - 20 - p * 150, y], [vx + 20 + p * 150, y]], "#1e1240", 1, false); }
+    stroke(c, [[0, vy], [240, vy]], "#2e1c5a", 1, false);
+    const items = [];
+    for (let k = 0; k < N; k++) {
+      const id = base - k, p = 0.72 * ((k + f) / N) ** 1.9;
+      for (const side of [-1, 1]) for (const lane of [0, 1]) {
+        const r = q => hash(id * 23 + (side > 0 ? 11 : 0) + lane * 5 + q * 31);
+        if (r(0) < (lane ? 0.15 : 0.45)) continue;                        /* gaps, more of them in the inner lane */
+        const out = lane ? 120 + r(2) * 60 : 55 + r(2) * 35, x = vx + side * (10 + p * out * 1.5 + (p / 0.72) ** 4 * 140), y = vy + p * 96;
+        const sc = p * (lane ? 26 + r(3) * 16 : 12 + r(3) * 10) * (kind === "mesa" ? 1.3 : 1);
+        items.push({ p, x, y, sc, ay: r(4) * TAU, mesh: meshOf(kind, id * 4 + (side > 0 ? 2 : 0) + lane) });
+      }
+    }
+    items.sort((a, b) => a.p - b.p).forEach(o => {
+      draw3d(c, o.mesh, { cx: o.x, cy: o.y, s: o.sc, ay: o.ay, ax: 0.3, tones: ROCKT[kind] });
+      if (kind === "mesa" && o.sc > 6) for (let k = 1; k <= 2; k++) stroke(c, [[o.x - o.sc * 0.9, o.y - o.sc * k * 0.4], [o.x + o.sc * 0.9, o.y - o.sc * k * 0.4]], "#2e1a44", 1, false);
+    });
+    return () => 0;
+  };
+}
 /* an ocean: a slow wire swell to the horizon, the crystals on buoys riding it */
 const swell = (x, z, t) => (Math.sin(x * 0.045 + t * 1.3 + z * 0.9) + 0.6 * Math.sin(x * 0.08 - t * 0.9 + z * 1.7)) * (2 + z * 4);
 function decorOcean(c, t) {
@@ -560,7 +607,7 @@ function ships(c, t) {
   header(c, t);
 }
 
-const views = [["shipsPro", shipsPro], ["shipsCanyon", (c, t) => shipsPro(c, t, decorCanyon)]].map(([id, f]) => [document.getElementById(id).getContext("2d"), f]);
+const views = [["shipsRocks", (c, t) => shipsPro(c, t, decorKind("rocks"))], ["shipsMesa", (c, t) => shipsPro(c, t, decorKind("mesa"))], ["shipsCrystals", (c, t) => shipsPro(c, t, decorKind("crystals"))], ["shipsCanyon", (c, t) => shipsPro(c, t, decorCanyon)]].map(([id, f]) => [document.getElementById(id).getContext("2d"), f]);
 function frame(ms) { const t = ms / 1000; views.forEach(([c, f]) => f(c, t)); }
 function loop(ms) { frame(ms + 1310); requestAnimationFrame(loop); }
 document.fonts.ready.then(() => { frame(1310); if (!reduce) requestAnimationFrame(loop); });
