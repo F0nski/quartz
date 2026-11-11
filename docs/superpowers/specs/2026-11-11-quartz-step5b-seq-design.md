@@ -5,9 +5,9 @@ Deuxième partie de l'étape 5 de la spec globale (`2026-11-10-quartz-groovebox-
 découpée en :
 
 - 5a : moteur 3D et planète FM (fait) ;
-- **5b** (ce document) : le côté séquenceur, plateau SEQ H2 et scène MARBLES ;
+- **5b** (ce document) : le côté séquenceur, plateau SEQ H2, scènes MARBLES et GRIDS ;
 - 5c : les scènes KIT (et BD, SNARE, HI-HAT), MODAL, SPEECH ;
-- 5d : les scènes à concevoir (GRIDS, autres familles) et HOME.
+- 5d : les scènes à concevoir (autres familles de moteurs) et HOME.
 
 ## 1. But
 
@@ -22,8 +22,11 @@ tirer un vaisseau sur le cristal de sa note, qu'il touche quand elle sonne ; le 
 Pages STEPS et XY d'un pattern STEP, zone de scène 240×166. Les pages d'un pattern GRIDS gardent leur affichage
 actuel jusqu'en 5d.
 
-- **Décor** : fond `#07041a` ; 17 lignes de fuite `#160f36` depuis le point (120, 4) ; 6 bandes horizontales qui
-  glissent vers le spectateur ; deux cubes en fil de fer `#2a1d55` qui tournent lentement dans les coins hauts.
+- **Décor, une ville** (`docs/screens/backdrops.html`, « A, Ville ») : ciel `#07041a` aux étoiles dispersées au hasard ;
+  horizon à y = 48 dans la zone ; deux rangées de tours en fil de fer (rectangles sombres bordés, antennes, quelques
+  fenêtres allumées), tailles tirées au hasard et gardées, qui défilent lentement de droite à gauche, la rangée proche
+  plus vite et plus claire ; sous l'horizon un sol `#0a0620` en lignes de fuite `#1c1340` dont les lignes horizontales
+  avancent.
 - **Plateau** : les 16 pas de la page en 4×4 isométrique (pas 1–4 sur la première rangée), sans perspective. Une
   case `(gx, gy)` a ses coins en `(120 + (gx − gy)·25, 34 + (gx + gy)·12,5)`. Sol : chaque case remplie `#0e0a26`,
   bordée `#2a1d55` ; au-delà de LEN, ou hors de X LEN × Y LEN sur la page XY, `#06031a` bordée `#120c2c`. Quand la
@@ -94,12 +97,44 @@ Pages MARBLES, T et X d'un pattern MARBLES (la page NOTES garde son clavier). Ma
 - **Budget** : au plus 300 faces visibles ; les rochers les plus lointains (moins de 15 % de la profondeur) sont dessinés
   en un seul triangle. Si le budget ou la fluidité l'exigent, on dessine moins de rochers (accord de l'utilisateur).
 
+## 3 bis. La scène GRIDS : les piles
+
+Pages GRIDS, MAP et DENS d'un pattern GRIDS. Maquette : `docs/screens/backdrops.html` (« GRIDS en piles », G2).
+
+- **Plateau** : les 32 pas de la boucle sur un plateau isométrique de 8 × 4 cases (pas 1–8 sur la première rangée),
+  toute la largeur, épais (deux faces de côté) et posé sur une ombre ; les temps (pas 1, 5) marqués d'un trait sur le
+  bord arrière, les rangées numérotées 1, 9, 17, 25 à gauche, la rangée en cours en vert.
+- **Piles** : chaque pas porte une pile de blocs dans l'ordre du kit, BD à la base, SN, HH au sommet. Un bloc est là
+  quand le niveau de la carte à X/Y dépasse le seuil de DENS de sa voix ; sa hauteur suit ce niveau (l'accent). Les
+  couleurs : BD orange, SN vert, HH bleu ; la voix de VOICE dans ses trois tons, les autres plus sombres. Une frappe
+  ajoutée par CHAOS apparaît en contour de losange au-dessus de la pile, jusqu'à la fin du passage.
+- **Lecture** : viseur sur le pas en cours ; une frappe y fait sauter le bloc de sa voix en rose, avec l'onde carrée et
+  les éclats du plateau SEQ. En haut à gauche `STEP nn` et, dessous, la voix et la note jouées par une piste synthé
+  (`HH G#2`).
+- **Densités** : trois lignes fines en haut à droite (BD, SN, HH), longues comme DENS, roses sur une frappe.
+- **Carte** : une mini-carte de 5 × 5 points en bas à gauche, le curseur X/Y en losange blanc qui tremble avec CHAOS.
+- **Décor, un sol filaire** : fond `#07041a`, un quadrillage isométrique `#120c2a` très sombre qui prolonge le plateau
+  dans tout l'écran.
+
+| Encodeur | Effet visible |
+|---|---|
+| DIV | vitesse du viseur |
+| VOICE | la voix mise en couleur vive dans les piles ; le texte sous `STEP` |
+| NOTE | la note du texte sous `STEP` |
+| X, Y | les piles changent (motif et hauteurs) ; le curseur de la mini-carte |
+| CHAOS | frappes en plus en contour ; le curseur de la mini-carte tremble |
+| DENS 1–3 | les blocs de la voix apparaissent ou s'éteignent ; la ligne de densité |
+
+- Le niveau d'un pas vient de la carte de Grids (`grids_read`), calculé par l'interface à partir du pattern ; les
+  frappes réellement jouées (CHAOS compris) passent par l'anneau des notes, comme pour MARBLES.
+
 ## 4. Architecture
 
 | Fichier | Rôle |
 |---|---|
-| `app/plateau.c`, `plateau.h` (nouveaux) | Le plateau SEQ : décor, cases, blocs, repères, viseur, chemin, pas tenu. Dessiné directement dans chaque bande, du fond vers l'avant (ordre `gx + gy`), pour que le texte posé sur un bloc soit caché par le bloc de devant. |
+| `app/plateau.c`, `plateau.h` (nouveaux) | Le plateau SEQ (décor ville) et les piles GRIDS : cases, blocs, repères, viseur, chemin, pas tenu. Dessinés directement dans chaque bande, du fond vers l'avant (ordre `gx + gy`), pour que le texte posé sur un bloc soit caché par le bloc de devant. |
 | `app/scene.c`, `scene.h` | La scène MARBLES (escadrille, canyon, cristaux) à côté de la planète. |
+| `app/gen.c`, `gen.h` | `gen_grids_level` : le niveau 0..255 d'un pas et d'une voix pour le pattern, sans CHAOS. |
 | `app/seq.c`, `seq.h`, `app/audio.c`, `audio.h` | Un pas MARBLES est décidé un pas à l'avance ; ses notes sont gardées avec leur instant (16 par piste) ; l'interface lit celles qu'elle n'a pas encore vues, avec le délai avant qu'elles sonnent. |
 | `app/p3d.c` | Règle de remplissage aux bords horizontaux corrigée : lignes dont le centre est dans [y haut, y bas), plus de 0/0 quand un sommet tombe sur un centre de ligne. |
 | `app/ui.c` | STEPS et XY → plateau ; MARBLES, T, X d'un pattern MARBLES → scène MARBLES ; tous deux animés, redessinés au plus toutes les 30 ms comme la planète. SCENE FPS compte aussi ces pages. |
@@ -133,7 +168,8 @@ Pages MARBLES, T et X d'un pattern MARBLES (la page NOTES garde son clavier). Ma
 
 ## 7. Hors périmètre
 
-- Les scènes KIT, MODAL, SPEECH (5c) ; GRIDS et HOME (5d).
+- Les scènes KIT, MODAL, SPEECH (5c) ; HOME (5d).
+- LEN pour GRIDS (étape ultérieure, spec globale section 6).
 - La variante 2×8 du plateau (maquette H3).
 - Les autres points mineurs de 5a (traits non découpés hors écran, tirs de 1 px à l'horizontale, lignes du sol hors
   bande, tableau de rotation).
