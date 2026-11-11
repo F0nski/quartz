@@ -32,7 +32,7 @@ Les fichiers Mutable gardent leur en-tête d'origine (GPL-3.0 pour Grids, MIT po
   L'en-tête affiche le numéro du pad.
 - **Pad tenu**, dans le domaine EDIT : K1–K4 règlent TUNE, HARM, TIMB, DECAY de ce pad, PRESET change son moteur.
   Le pad sonne à l'appui. Ailleurs qu'EDIT, une touche ne fait que jouer.
-- **Pas** : la note d'un pas KIT est un numéro de pad (0..15). Pas maintenu + blanche n : ajoute ou retire le pad n
+- **Pas** : la note d'un pas KIT est `36 + pad` (pad 0..15), affichée comme le numéro du pad (1..16). Pas maintenu + blanche n : ajoute ou retire le pad n
   (4 pads au plus par pas). Un appui simple sur un pas vide l'active avec le dernier pad joué (pad 1 par défaut).
 - Les p-locks d'un pas KIT sont hors périmètre : la page des p-locks est étendue à l'étape 3.
 
