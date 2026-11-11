@@ -78,9 +78,9 @@ leurs valeurs. MIX dose le signal traité contre le signal direct (0 : direct se
 - Verrouillables : les trois boutons de l'insert, MIX, DELAY, REVERB, PAN, LEVEL. Pas le type d'insert ni les
   réglages de GLO.
 - Ces paramètres sont ceux de la piste, pas d'une voix : un lock vaut du début de son pas jusqu'au début du pas
-  suivant de la piste, puis la piste reprend son réglage. Le séquenceur signale le début de chaque pas d'une piste
-  dont le pas a de tels locks.
-- Pas maintenu dans SEQ : les pages de p-lock deviennent ENGINE, SOUND, ADSR, FILTER, LFO, ARP, INSERT, MIX (sur un
+  suivant de la piste, puis la piste reprend son réglage. Le rendu prend ces locks à la note du pas et suit le pas
+  en cours du séquenceur (`seq_pos`) pour les retirer ; un STOP les retire.
+- Pas maintenu dans SEQ : les pages de p-lock deviennent ENGINE, SOUND, ADSR, FILTER, LFO, INSERT, MIX, ARP (sur un
   KIT : ADSR, FILTER, LFO, INSERT, MIX).
 - En overdub, un mouvement de ces encodeurs devient un p-lock sur le pas joué, comme pour les autres pages.
 - PAN est rangé en `uint8_t`, relu en `int8_t`, comme TUNE.
@@ -103,14 +103,13 @@ leurs valeurs. MIX dose le signal traité contre le signal direct (0 : direct se
     envois par piste, puis delay, reverb, ducking, compresseur, limiteur, MASTER ;
   - la sortie devient stéréo ;
   - le clic du métronome s'ajoute au mix après les effets, sans ducking ni envoi.
-- **`seq.c`** : l'événement de début de pas pour les locks d'effet (section 4).
 - **`ui.c`** : domaine FX, page FX de GLO, COMP et DUCK, pages de p-lock INSERT et MIX.
 - **Projet** : `q_sound` gagne 8 octets (type, trois boutons, MIX, DELAY, REVERB, PAN) ; `q_project` gagne 6 octets ;
   `LK_*` est étendu ; `Q_VERSION` passe à 5. Les projets sauvegardés avant ne se rechargent pas.
 - **Mémoire** :
   - pool : reverb 32 Ko et delay 43 Ko (au budget de la spec globale), plus un tampon de 4 Ko par piste pour
     chorus, phaser et comb (16 Ko) ; il reste environ 13 Ko de marge, LOOP de 3c comptés ;
-  - RAM principale : environ 8 Ko de plus (bus et envois) ; si la place manque, les bus vont dans le pool.
+  - RAM principale : environ 9 Ko de plus (bus, envois, clic) ; si la place manque, les bus vont dans le pool.
 - **CPU** : estimé à environ 15 % du cœur 1 (reverb 5–8 %, delay 2 %, inserts 1–3 % chacun, compresseur 1 %).
   Si le pire cas perd des blocs, la reverb passe sur le cœur 2 avec un bloc de retard (5,8 ms, inaudible).
 
@@ -120,7 +119,7 @@ leurs valeurs. MIX dose le signal traité contre le signal direct (0 : direct se
   - insert OFF ou MIX 0 : sortie identique à l'entrée ;
   - chaque type d'insert change le signal, sans NaN ni emballement sur un signal plein ;
   - loi de pan (centre, extrêmes) ;
-  - delay : le retour tombe à l'échantillon près de sa division, alterne gauche et droite ; division trop longue
+  - delay : le retour tombe à 2 échantillons près de sa division (tampon à 22 kHz), alterne gauche et droite ; division trop longue
     divisée par deux ;
   - ducking : déclenché par la BD d'un KIT, la piste KIT n'est pas baissée, les autres et les retours le sont ;
   - lock d'effet appliqué à son pas, retiré au pas suivant ;
