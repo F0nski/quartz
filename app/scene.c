@@ -28,6 +28,19 @@ static struct { uint32_t hits, hit_ms; int seen; float t; } sc;
 
 void scene_enter(void) { sc.seen = 0; }
 
+/* n stars scattered at random over rows y0 .. y0 + h, fixed places, drifting left: the big ones few and faster
+   (scenes.c, plateau.c) */
+static void stars(int32_t oy, float t, int n, int y0, int h, float speed)
+{
+    for (int i = 0; i < n; i++) {
+        int layer = p3d_hash((uint32_t)i * 3u + 1u) < 0.15f ? 2 : p3d_hash((uint32_t)i * 3u + 2u) < 0.4f ? 1 : 0;
+        float x = p3d_hash((uint32_t)i * 7u + 11u) * 240.0f - t * (3.0f + 4.0f * (float)layer) * speed;
+        x -= 240.0f * fm_floorf(x / 240.0f);
+        cv_rect((int32_t)x, oy + y0 + (int32_t)(p3d_hash((uint32_t)i * 13u + 5u) * (float)h), layer == 2 ? 2 : 1, layer == 2 ? 2 : 1,
+                layer == 2 ? C_STAR : layer ? RGB(0xa9, 0x9c, 0xe0) : RGB(0x4a, 0x3f, 0x78));
+    }
+}
+
 int scene_has(int model) { return model == 2 || model == 3 || model == 4 || model == 10; }
 
 /* a point of the orbit plane, tilted towards the viewer: the far side (depth < 0) is higher on the screen */
@@ -95,12 +108,7 @@ void scene_band(int32_t oy)
     int i;
     cv_rect(0, oy, 240, HORIZON, C_SKY);
     cv_rect(0, oy + HORIZON, 240, 166 - HORIZON, C_FLOOR);
-    for (i = 0; i < 30; i++) {                   /* the stars drift left, the big ones faster */
-        int big = i % 4 == 0;
-        float x = (float)(73 * i) - (big ? 6.0f : 3.0f) * t;
-        x -= 240.0f * fm_floorf(x / 240.0f);
-        cv_rect((int32_t)x, oy + 4 + (41 * i) % 100, big ? 2 : 1, big ? 2 : 1, big ? C_STAR : C_STAR2);
-    }
+    stars(oy, t, 30, 4, 100, 1.0f);
     cv_rect(0, oy + HORIZON, 240, 1, C_GRID);
     for (i = -10; i <= 10; i++)                  /* the floor's vanishing lines */
         cv_line(120 + 10 * i, oy + HORIZON, 120 + 70 * i, oy + 166, C_GRID);

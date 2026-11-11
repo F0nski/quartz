@@ -92,30 +92,44 @@ void plateau_frame(const q_plateau *p, uint32_t hits, uint32_t ms)
     pl.ms = ms;
 }
 
+/* the city (spec 5b, 2): two rows of wire towers on the horizon drifting left, a floor of vanishing lines */
+#define PL_HZ 48
+#define PL_TOWER1 RGB(0x2e, 0x20, 0x60)
+#define PL_TOWER2 RGB(0x4a, 0x34, 0x88)
+#define PL_GROUND RGB(0x0a, 0x06, 0x20)
+#define PL_LINE RGB(0x1c, 0x13, 0x40)
 static void backdrop(int32_t oy)
 {
-    float t = (float)(pl.ms % 3600000u) * 0.001f, f = 0.5f * t - fm_floorf(0.5f * t);
-    int k;
+    float t = (float)(pl.ms % 3600000u) * 0.001f, f = 0.5f * t - fm_floorf(0.5f * t), d = t * 6.0f;
+    int k, i;
     cv_rect(0, oy, 240, 166, PL_BG);
-    for (k = -8; k <= 8; k++)
-        cv_line(120, oy + 4, 120 + 40 * k, oy + 166, PL_RAY);
+    stars(oy, t, 24, 2, 40, 0.05f);
+    for (k = 0; k < 2; k++) {           /* the far row, then the near one: faster and brighter */
+        float sp = k ? 1.0f : 0.5f, sh = d * sp - 30.0f * fm_floorf(d * sp / 30.0f);
+        uint32_t base = (uint32_t)(int32_t)fm_floorf(d * sp / 30.0f);
+        for (i = -1; i < 10; i++) {
+            uint32_t id = base + (uint32_t)i + (uint32_t)k * 1000u;
+            int32_t x = (int32_t)((float)(i * 30) - sh + p3d_hash(id) * 10.0f), w = 8 + (int32_t)(p3d_hash(id * 3u) * 12.0f);
+            int32_t h = k ? 14 + (int32_t)(p3d_hash(id * 7u) * 22.0f) : 22 + (int32_t)(p3d_hash(id * 7u) * 30.0f), y0 = oy + PL_HZ;
+            uint16_t edge = k ? PL_TOWER2 : PL_TOWER1;
+            cv_rect(x, y0 - h, w, h, k ? RGB(0x1a, 0x12, 0x40) : RGB(0x12, 0x0c, 0x2e));
+            cv_rect(x, y0 - h, 1, h, edge);
+            cv_rect(x + w - 1, y0 - h, 1, h, edge);
+            cv_rect(x, y0 - h, w, 1, edge);
+            if (p3d_hash(id * 11u) > 0.6f)                       /* an antenna */
+                cv_rect(x + w / 2, y0 - h - 8, 1, 8, edge);
+            for (int fl = 1; fl < h / 6; fl++)                   /* a few lit windows */
+                if (p3d_hash(id * 13u + (uint32_t)fl) > 0.55f)
+                    cv_rect(x + 2 + (fl % 2) * (w - 6), y0 - fl * 6, 2, 2, k ? RGB(0x8a, 0x6a, 0xd8) : PL_PULSE);
+        }
+    }
+    cv_rect(0, oy + PL_HZ + 1, 240, 166 - PL_HZ - 1, PL_GROUND);
+    cv_rect(0, oy + PL_HZ, 240, 1, PL_PULSE);
+    for (k = -12; k <= 12; k++)
+        cv_line(120 + 10 * k, oy + PL_HZ, 120 + 60 * k, oy + 166, PL_LINE);
     for (k = 0; k < 6; k++) {
         float p = ((float)k + f) / 6.0f;
-        cv_rect(0, oy + 4 + (int32_t)(162.0f * p * p), 240, 1, PL_RAY);
-    }
-    for (k = 0; k < 2; k++) {           /* two wire cubes drifting high up */
-        float cx = k ? 212.0f : 28.0f, cy = k ? 16.0f : 20.0f, a = t * 0.6f + 2.0f * (float)k;
-        pl_pt q[4];
-        int i;
-        for (i = 0; i < 4; i++) {
-            float b = a + (float)i * (FM_TWO_PI / 4.0f);
-            q[i] = (pl_pt){cx + fm_cosf(b) * 7.0f, cy + fm_sinf(b) * 3.5f};
-        }
-        for (i = 0; i < 4; i++) {
-            line(q[i], q[(i + 1) % 4], oy, PL_CUBE);
-            line(up(q[i], 9), up(q[(i + 1) % 4], 9), oy, PL_CUBE);
-            line(q[i], up(q[i], 9), oy, PL_CUBE);
-        }
+        cv_rect(0, oy + PL_HZ + (int32_t)((166.0f - PL_HZ) * p * p), 240, 1, PL_LINE);
     }
 }
 

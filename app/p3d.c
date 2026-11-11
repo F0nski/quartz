@@ -4,10 +4,22 @@
 #include "fastmath.h"
 #include "plat.h"
 
-#define P3D_MAX 128                 /* a scene keeps under it: the planet uses about 90 */
+#define P3D_MAX 256                 /* a scene keeps under it: the planet uses about 90, the MARBLES canyon about 200 */
 #define P3D_MAXV 128                /* vertices of one mesh */
 
-typedef struct { float x[3], y[3], z; uint16_t c; uint8_t width; } p3_prim;   /* width 0: a triangle */
+/* coordinates in quarter pixels and depth in quarter screen units, 16 bits: 256 of them in the room of 128 floats */
+typedef struct { int16_t x[3], y[3], z; uint16_t c; uint8_t width; } p3_prim;   /* width 0: a triangle */
+static int16_t q4(float v) { return (int16_t)fm_clampf(v * 4.0f, -8000.0f, 8000.0f); }
+#define F4(v) ((float)(v) * 0.25f)
+
+float p3d_hash(uint32_t n)
+{
+    n = (n ^ 0x9e3779b9u) * 0x85ebca6bu;
+    n ^= n >> 13;
+    n *= 0xc2b2ae35u;
+    n ^= n >> 16;
+    return (float)(n >> 8) * (1.0f / 16777216.0f);
+}
 
 static p3_prim prims[P3D_MAX] PLAT_POOL;
 static p3_prim *order[P3D_MAX];
@@ -23,7 +35,7 @@ static p3_prim *add(float z, uint16_t c, uint8_t width)
         return 0;
     p = &prims[nprims];
     order[nprims++] = p;
-    p->z = z;
+    p->z = q4(z);
     p->c = c;
     p->width = width;
     sorted = 0;
@@ -35,7 +47,7 @@ void p3d_tri(float x0, float y0, float x1, float y1, float x2, float y2, float z
     p3_prim *p = add(z, c, 0);
     if (!p)
         return;
-    p->x[0] = x0, p->y[0] = y0, p->x[1] = x1, p->y[1] = y1, p->x[2] = x2, p->y[2] = y2;
+    p->x[0] = q4(x0), p->y[0] = q4(y0), p->x[1] = q4(x1), p->y[1] = q4(y1), p->x[2] = q4(x2), p->y[2] = q4(y2);
 }
 
 void p3d_line(float x0, float y0, float x1, float y1, float z, uint8_t width, uint16_t c)
@@ -43,7 +55,7 @@ void p3d_line(float x0, float y0, float x1, float y1, float z, uint8_t width, ui
     p3_prim *p = add(z, c, width);
     if (!p)
         return;
-    p->x[0] = x0, p->y[0] = y0, p->x[1] = x1, p->y[1] = y1;
+    p->x[0] = q4(x0), p->y[0] = q4(y0), p->x[1] = q4(x1), p->y[1] = q4(y1);
 }
 
 static int32_t pix(float v) { return (int32_t)fm_floorf(fm_clampf(v, -2.0f, 242.0f)); }   /* kept near the canvas */
@@ -95,10 +107,10 @@ void p3d_draw(int32_t oy)
         const p3_prim *p = order[i];
         float o = (float)oy;
         if (!p->width) {
-            p3d_fill(p->x[0], p->y[0] + o, p->x[1], p->y[1] + o, p->x[2], p->y[2] + o, p->c);
+            p3d_fill(F4(p->x[0]), F4(p->y[0]) + o, F4(p->x[1]), F4(p->y[1]) + o, F4(p->x[2]), F4(p->y[2]) + o, p->c);
         } else {
-            int32_t x0 = pix(p->x[0] + 0.5f), y0 = (int32_t)fm_floorf(fm_clampf(p->y[0] + o, -300.0f, 300.0f) + 0.5f);
-            int32_t x1 = pix(p->x[1] + 0.5f), y1 = (int32_t)fm_floorf(fm_clampf(p->y[1] + o, -300.0f, 300.0f) + 0.5f);
+            int32_t x0 = pix(F4(p->x[0]) + 0.5f), y0 = (int32_t)fm_floorf(fm_clampf(F4(p->y[0]) + o, -300.0f, 300.0f) + 0.5f);
+            int32_t x1 = pix(F4(p->x[1]) + 0.5f), y1 = (int32_t)fm_floorf(fm_clampf(F4(p->y[1]) + o, -300.0f, 300.0f) + 0.5f);
             if ((y0 < 0 && y1 < 0) || (y0 >= (int32_t)cv_h && y1 >= (int32_t)cv_h))
                 continue;
             cv_line(x0, y0, x1, y1, p->c);

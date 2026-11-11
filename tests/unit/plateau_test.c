@@ -8,11 +8,12 @@ static void lcd_sync(void) {}
 static void lcd_blit(uint32_t x, uint32_t y, uint32_t w, uint32_t h, const uint16_t *px) { (void)x, (void)y, (void)w, (void)h, (void)px; }
 #include "gfx.c"
 #include "p3d.c"
+#include "scene.c"
 #include "plateau.c"
 
 static q_plateau V;
 static uint16_t px(int x, int y) { return swap16(cv_px[y * 240 + x]); }
-static int is_block(uint16_t c) { return c == PL_WHITE[0] || c == PL_WHITE[1] || c == PL_WHITE[2]; }
+static int is_block(uint16_t c) { return c == PL_WHITE[1] || c == PL_WHITE[2]; }   /* (the white top is also a big star's colour) */
 
 static void base(void)
 {
@@ -93,7 +94,7 @@ static void held_is_orange(void)
     strcpy(V.held_name, "C4");
     plateau_frame(&V, 0, 1000);
     assert(count(0, PL_ORANGE[1], 0, 128) + count(1, PL_ORANGE[1], 0, 128) > 0);
-    assert(count(0, PL_WHITE[0], 0, 128) + count(1, PL_WHITE[0], 0, 128) == 0);
+    assert(count(0, PL_WHITE[1], 0, 128) + count(1, PL_WHITE[1], 0, 128) == 0);   /* no lit block face (white is also a star) */
     assert(count(0, PL_ORANGE[1], 128, 240) + count(1, PL_ORANGE[1], 128, 240) > 0);
 }
 
@@ -128,6 +129,19 @@ static void path_drawn(void)
     assert(count(0, PL_ARROW, 0, 240) + count(1, PL_ARROW, 0, 240) > 0);
 }
 
+/* the city: tower edges above the horizon (y 48), none below */
+static void city_above_horizon(void)
+{
+    base();
+    plateau_frame(&V, 0, 5000);
+    band(0);
+    int above = 0, below = 0;
+    for (int y = 0; y < 83; y++)
+        for (int x = 0; x < 240; x++)
+            if (px(x, y) == PL_TOWER2) { if (y <= 48) above++; else below++; }
+    assert(above > 0 && below == 0);
+}
+
 int main(void)
 {
     block_height_follows_vel();
@@ -137,6 +151,7 @@ int main(void)
     hit_turns_pink();
     no_hit_on_arrival();
     path_drawn();
+    city_above_horizon();
     printf("plateau ok\n");
     return 0;
 }

@@ -17,6 +17,7 @@ void p3d_mesh(const p3_mesh *m, const p3_pose *p, const uint16_t tones[3]);   /*
 void p3d_draw(int32_t oy);                                /* sorted once per frame (far first), drawn into the band */
 int  p3d_count(void);                                     /* primitives in the list */
 void p3d_sphere(int lat, int lon, p3_vec *v, p3_face *f, p3_mesh *out);   /* (lat + 1) * lon vertices */
+float p3d_hash(uint32_t n);                               /* 0..1, the same for the same n: scattered, fixed */
 void p3d_fill(float x0, float y0, float x1, float y1, float x2, float y2, uint16_t c);  /* drawn now */
 
 #endif
