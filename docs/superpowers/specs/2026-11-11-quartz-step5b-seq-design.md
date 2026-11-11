@@ -22,11 +22,11 @@ tirer un vaisseau sur le cristal de sa note, qu'il touche quand elle sonne ; le 
 Pages STEPS et XY d'un pattern STEP, zone de scène 240×166. Les pages d'un pattern GRIDS gardent leur affichage
 actuel jusqu'en 5d.
 
-- **Décor, une ville** (`docs/screens/backdrops.html`, « A, Ville ») : ciel `#07041a` aux étoiles dispersées au hasard ;
-  horizon à y = 48 dans la zone ; deux rangées de tours en fil de fer (rectangles sombres bordés, antennes, quelques
-  fenêtres allumées), tailles tirées au hasard et gardées, qui défilent lentement de droite à gauche, la rangée proche
-  plus vite et plus claire ; sous l'horizon un sol `#0a0620` en lignes de fuite `#1c1340` dont les lignes horizontales
-  avancent.
+- **Décor, une ville immobile** (`docs/screens/backdrops.html`, « 1, Ville immobile », tours un peu moins visibles) :
+  ciel `#07041a` aux étoiles dispersées au hasard, fixes ; horizon à y = 48 dans la zone ; deux rangées de tours en fil
+  de fer discrètes (rectangles sombres bordés, antennes) qui ne bougent pas ; quelques fenêtres allumées, qui changent à
+  chaque temps pendant la lecture ; sous l'horizon un sol `#0a0620` en lignes de fuite `#1c1340` dont les lignes
+  horizontales avancent.
 - **Plateau** : les 16 pas de la page en 4×4 isométrique (pas 1–4 sur la première rangée), sans perspective. Une
   case `(gx, gy)` a ses coins en `(120 + (gx − gy)·25, 34 + (gx + gy)·12,5)`. Sol : chaque case remplie `#0e0a26`,
   bordée `#2a1d55` ; au-delà de LEN, ou hors de X LEN × Y LEN sur la page XY, `#06031a` bordée `#120c2c`. Quand la
