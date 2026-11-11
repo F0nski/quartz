@@ -1,0 +1,640 @@
+<title>Scene Backdrops</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+/* Three directions for the GRIDS scene at the device's 240x240, driven by the same 9 knobs below. */
+:root {
+  --bg: #efedf5; --fg: #1c1830; --muted: #5d5873; --line: #d9d5e6; --device: #151320; --hot: #d4247a; --panel: #e4e1ee;
+  --display: "Chakra Petch", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --line: #2a2440; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --line: #2a2440; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.5; margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 48px }
+main { max-width: 1040px; margin: 0 auto; display: grid; gap: 22px }
+h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; line-height: 1.1; margin: 0; text-transform: uppercase; letter-spacing: .02em }
+h1 em { font-style: normal; color: var(--hot) }
+.lead { color: var(--muted); max-width: 70ch; margin: 8px 0 0 }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px }
+figure { margin: 0; display: grid; gap: 8px; align-content: start; min-width: 0 }
+canvas { width: 100%; max-width: 100%; aspect-ratio: 1; background: #000; border: 12px solid var(--device); border-radius: 16px; box-sizing: border-box; image-rendering: pixelated }
+h2 { font-family: var(--display); font-size: 1.1rem; margin: 0; text-transform: uppercase; letter-spacing: .04em }
+.tag { font-family: var(--display); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--hot) }
+figcaption p { margin: 2px 0 0; font-size: .88rem; color: var(--muted) }
+.knobs { background: var(--panel); border-radius: 12px; padding: 14px 16px; display: grid; gap: 12px }
+.knobs header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between }
+.knobs header b { font-family: var(--display); text-transform: uppercase; letter-spacing: .04em }
+.pages { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 20px }
+.page h3 { font-family: var(--display); font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 0 4px }
+label { display: grid; grid-template-columns: 6.5em 1fr 4.6em; gap: 8px; align-items: center; font-size: .85rem }
+label span:last-child { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted) }
+input[type=range] { width: 100%; accent-color: var(--hot) }
+button { font: inherit; font-family: var(--display); text-transform: uppercase; letter-spacing: .04em; border: 1px solid var(--line); background: var(--bg); color: var(--fg); border-radius: 8px; padding: 4px 12px; cursor: pointer }
+button[aria-pressed=true] { background: var(--hot); color: #fff; border-color: var(--hot) }
+.map { font-size: .85rem; color: var(--muted); margin: 0; padding-left: 1.1em }
+.map li { margin: 2px 0 }
+.map b { color: var(--fg) }
+</style>
+
+<main>
+<header>
+  <h1>Décors <em>finis</em></h1>
+  <p class="lead">En haut, le plateau SEQ dans son décor actuel et trois décors plus finis. En bas, la vue GRIDS en piles,
+  améliorée (plateau épais, numéros des rangées, temps marqués), dans trois décors qui lui sont propres. Les curseurs
+  sont ceux de GRIDS ; le plateau SEQ joue un motif fixe.</p>
+</header>
+
+<section class="knobs" aria-label="Encodeurs">
+  <header><b>Encodeurs GRIDS</b><button id="auto" aria-pressed="true">Auto</button></header>
+  <div class="pages" id="pages"></div>
+</section>
+
+<h2>Plateau SEQ</h2>
+<div class="grid">
+  <figure><canvas id="seqNow" width="240" height="240"></canvas><figcaption><span class="tag">actuel</span><h2>Lignes de fuite</h2><p>Pour comparer.</p></figcaption></figure>
+  <figure><canvas id="seqCity" width="240" height="240"></canvas><figcaption><span class="tag">A</span><h2>Ville</h2><p>Des tours en fil de fer à l'horizon, qui défilent lentement ; un sol quadrillé qui s'efface sous le plateau ; des étoiles.</p></figcaption></figure>
+  <figure><canvas id="seqStreams" width="240" height="240"></canvas><figcaption><span class="tag">B</span><h2>Flux</h2><p>Des colonnes de petits carrés qui tombent doucement au fond, plus vite au tempo ; une ligne d'horizon et un sol en lignes de fuite.</p></figcaption></figure>
+  <figure><canvas id="seqRoom" width="240" height="240"></canvas><figcaption><span class="tag">C</span><h2>Salle</h2><p>Une pièce en fil de fer : mur du fond quadrillé, sol et plafond en perspective ; le mur s'éclaire d'un cran à chaque temps.</p></figcaption></figure>
+</div>
+
+<h2>GRIDS en piles</h2>
+<div class="grid">
+  <figure><canvas id="gSpeakers" width="240" height="240"></canvas><figcaption><span class="tag">D</span><h2>Enceintes</h2><p>Deux colonnes d'enceintes low poly : le woofer carré pompe sur BD, le médium sur SN, le tweeter scintille sur HH.</p></figcaption></figure>
+  <figure><canvas id="gDance" width="240" height="240"></canvas><figcaption><span class="tag">E</span><h2>Piste de danse</h2><p>Le plateau flotte au-dessus d'un damier isométrique dont des dalles s'allument aux couleurs des voix à chaque frappe.</p></figcaption></figure>
+  <figure><canvas id="gEq" width="240" height="240"></canvas><figcaption><span class="tag">F</span><h2>Mur d'égaliseur</h2><p>Au fond, trois groupes de barres (BD, SN, HH) qui montent à chaque frappe et retombent par crans.</p></figcaption></figure>
+</div>
+</main>
+
+<script>
+const TAU = Math.PI * 2;
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const K = [["#8fb4ff", "#3a6dff", "#1c3590"], ["#8ff5c8", "#22d58e", "#0f6d48"], ["#ffffff", "#c9c3e4", "#6f6890"], ["#ffc196", "#ff7a2e", "#a3410c"]];
+const HOT = ["#ffb8dc", "#ff2f8e", "#8a1050"];
+const BG = "#07041a", UI = "#8b84a8", BAR = "#06041a", RAY = "#160f36", WIRE = "#2a1d55";
+const font = (px, w = 700) => `${w} ${px}px "Chakra Petch", sans-serif`;
+const poly = (c, pts, fill) => { c.fillStyle = fill; c.beginPath(); pts.forEach(([x, y]) => c.lineTo(x, y)); c.closePath(); c.fill(); };
+const stroke = (c, pts, col, w = 1, close = true) => { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); pts.forEach(([x, y]) => c.lineTo(x, y)); if (close) c.closePath(); c.stroke(); };
+const text = (c, s, x, y, px, col, align = "left", w = 700) => { c.fillStyle = col; c.font = font(px, w); c.textAlign = align; c.textBaseline = "middle"; c.fillText(s, x, y); };
+const lerp = (a, b, k) => a + (b - a) * k, clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+
+/* ---- flat-shaded 3D ---- */
+const LIGHT = (() => { const l = [-0.5, -0.65, 0.6], n = Math.hypot(...l); return l.map(x => x / n); })();
+function rot([x, y, z], ay, ax = 0) {
+  const cy = Math.cos(ay), sy = Math.sin(ay); [x, z] = [x * cy + z * sy, -x * sy + z * cy];
+  const cx = Math.cos(ax), sx = Math.sin(ax); [y, z] = [y * cx - z * sx, y * sx + z * cx];
+  return [x, y, z];
+}
+function draw3d(c, mesh, o) {
+  const P = mesh.v.map(p => rot(p, o.ay, o.ax || 0));
+  mesh.f.map(f => {
+    const q = f.map(i => P[i]), a = q[1].map((x, k) => x - q[0][k]), b = q[2].map((x, k) => x - q[0][k]);
+    let n = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+    const ln = Math.hypot(...n) || 1; n = n.map(x => x / ln);
+    return { q, n, z: q.reduce((s, p) => s + p[2], 0) / q.length };
+  }).filter(f => f.n[2] > 0).sort((p, q) => p.z - q.z).forEach(f => {
+    const d = f.n[0] * LIGHT[0] + f.n[1] * LIGHT[1] + f.n[2] * LIGHT[2];
+    poly(c, f.q.map(([x, y]) => [o.cx + x * o.s, o.cy + y * o.s]), d > 0.55 ? o.tones[0] : d > 0.15 ? o.tones[1] : o.tones[2]);
+  });
+}
+const out = m => ({ v: m.v, f: m.f.map(f => { const P = f.map(i => m.v[i]), a = P[1].map((x, k) => x - P[0][k]), b = P[2].map((x, k) => x - P[0][k]);
+  const n = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]], cc = [0, 1, 2].map(k => P.reduce((s, p) => s + p[k], 0));
+  return n[0] * cc[0] + n[1] * cc[1] + n[2] * cc[2] > 0 ? f : f.slice().reverse(); }) });
+const TETRA = out({ v: [[1, 1, 1], [-1, -1, 1], [-1, 1, -1], [1, -1, -1]], f: [[0, 1, 2], [0, 3, 1], [0, 2, 3], [1, 3, 2]] });
+const CUBE = out({ v: [[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1], [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]].map(p => p.map(x => x * 0.7)),
+  f: [[4, 5, 6], [4, 6, 7], [1, 0, 3], [1, 3, 2], [5, 1, 2], [5, 2, 6], [0, 4, 7], [0, 7, 3], [3, 7, 6], [3, 6, 2], [0, 1, 5], [0, 5, 4]] });
+const OCTA = out({ v: [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]], f: [[0, 4, 2], [4, 1, 2], [1, 5, 2], [5, 0, 2], [4, 0, 3], [1, 4, 3], [5, 1, 3], [0, 5, 3]] });
+const ICO = (() => { const p = (1 + Math.sqrt(5)) / 2, v = [[-1, p, 0], [1, p, 0], [-1, -p, 0], [1, -p, 0], [0, -1, p], [0, 1, p], [0, -1, -p], [0, 1, -p], [p, 0, -1], [p, 0, 1], [-p, 0, -1], [-p, 0, 1]].map(q => { const n = Math.hypot(...q); return q.map(x => x / n); });
+  return out({ v, f: [[0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11], [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8], [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9], [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]] }); })();
+const prism = (n, h) => { const v = [], f = []; for (let i = 0; i < n; i++) { const a = i * TAU / n; v.push([Math.cos(a), -h, Math.sin(a)], [Math.cos(a), h, Math.sin(a)]); }
+  for (let i = 0; i < n; i++) { const j = (i + 1) % n; f.push([2 * i, 2 * j, 2 * j + 1, 2 * i + 1]); }
+  f.push([...Array(n).keys()].map(i => 2 * i)); f.push([...Array(n).keys()].map(i => 2 * i + 1).reverse()); return out({ v, f }); };
+const SHAPES = [TETRA, CUBE, OCTA, ICO, prism(3, 0.8), prism(5, 0.6), prism(6, 0.4)];
+const T_MODE = ["C.BERN", "CLUSTERS", "DRUMS", "I.BERN", "DIVIDER", "3 STATES", "MARKOV"];
+
+function box(c, cx, cy, sx, sy, h, T) {
+  poly(c, [[cx - sx, cy], [cx, cy + sy], [cx, cy + sy - h], [cx - sx, cy - h]], T[1]);
+  poly(c, [[cx, cy + sy], [cx + sx, cy], [cx + sx, cy - h], [cx, cy + sy - h]], T[2]);
+  poly(c, [[cx, cy - sy - h], [cx + sx, cy - h], [cx, cy + sy - h], [cx - sx, cy - h]], T[0]);
+}
+/* ---- the knobs ---- */
+const PAGES = [["GRIDS", [["div", "DIV", 0, 2, 0, ["1/16", "1/8", "1/4"]], ["voice", "VOICE", 1, 3, 1], ["note", "NOTE", 24, 96, 48]]],
+  ["MAP", [["x", "X", 0, 127, 40], ["y", "Y", 0, 127, 80], ["chaos", "CHAOS", 0, 127, 10]]],
+  ["DENS", [["d1", "DENS 1", 0, 127, 90], ["d2", "DENS 2", 0, 127, 64], ["d3", "DENS 3", 0, 127, 100]]]];
+const P = {}, INPUTS = {};
+const pagesEl = document.getElementById("pages");
+PAGES.forEach(([name, ks]) => {
+  const d = document.createElement("div"); d.className = "page"; d.innerHTML = `<h3>${name}</h3>`;
+  ks.forEach(([id, label, lo, hi, def, names]) => {
+    P[id] = def;
+    const l = document.createElement("label"), r = document.createElement("input"), v = document.createElement("span");
+    r.type = "range"; r.min = lo; r.max = hi; r.value = def; r.setAttribute("aria-label", label);
+    const show = () => { v.textContent = names ? names[P[id]] : P[id]; };
+    r.oninput = () => { P[id] = +r.value; show(); autoBtn.setAttribute("aria-pressed", "false"); };
+    l.append(Object.assign(document.createElement("span"), { textContent: label }), r, v); show();
+    INPUTS[id] = { r, show, lo, hi }; d.append(l);
+  });
+  pagesEl.append(d);
+});
+const autoBtn = document.getElementById("auto");
+autoBtn.onclick = () => autoBtn.setAttribute("aria-pressed", autoBtn.getAttribute("aria-pressed") === "true" ? "false" : "true");
+function autoKnobs(t) {
+  if (autoBtn.getAttribute("aria-pressed") !== "true") return;
+  Object.entries(INPUTS).forEach(([id, k], i) => {
+    const s = 0.5 + 0.5 * Math.sin(t * (0.08 + i * 0.021) + i * 1.7), v = Math.round(k.lo + s * (k.hi - k.lo));
+    if (v !== P[id]) { P[id] = v; k.r.value = v; k.show(); }
+  });
+}
+
+/* ---- a stand-in for Grids: 5 x 5 nodes of 32-step levels per voice, read between the four nodes around X/Y ---- */
+const hash = n => { n = Math.imul(n ^ 0x9e3779b9, 0x85ebca6b); n ^= n >>> 13; n = Math.imul(n, 0xc2b2ae35); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
+const stepDur = () => [0.125, 0.25, 0.5][P.div];
+const node = (i, j, v, s) => { const beat = v === 0 ? (s % 8 === 0 ? 1 : s % 4 === 0 ? 0.6 : 0) : v === 1 ? (s % 8 === 4 ? 1 : 0) : (s % 2 === 0 ? 0.7 : 0.3);
+  return Math.min(1, beat * (0.6 + hash(i * 5 + j) * 0.5) + hash(i * 131 + j * 17 + v * 7 + s * 3) * (0.25 + 0.15 * (i + j) / 4)); };
+function level(v, s) {
+  const fx = P.x / 127 * 4, fy = P.y / 127 * 4, i = Math.min(3, Math.floor(fx)), j = Math.min(3, Math.floor(fy)), a = fx - i, b = fy - j;
+  return lerp(lerp(node(i, j, v, s), node(i + 1, j, v, s), a), lerp(node(i, j + 1, v, s), node(i + 1, j + 1, v, s), a), b);
+}
+const DENS = () => [P.d1, P.d2, P.d3];
+/* the voices' hits of step k: a level above 1 - density, CHAOS adding some random */
+function hits(k) {
+  const s = ((k % 32) + 32) % 32;
+  return [0, 1, 2].map(v => { const l = level(v, s) + (hash(k * 7 + v) - 0.5) * P.chaos / 127 * 0.8; return l > 1 - DENS()[v] / 127 ? Math.min(1, l) : 0; });
+}
+const VCOL = [K[3], K[1], K[0]], VNAME = ["BD", "SN", "HH"];
+function header(c, page, ks) {
+  c.fillStyle = BAR; c.fillRect(0, 0, 240, 30); c.fillRect(0, 196, 240, 44);
+  poly(c, [[8, 7], [30, 7], [34, 11], [34, 23], [12, 23], [8, 19]], K[1][1]);
+  text(c, "1", 21, 15.5, 13, BAR, "center"); text(c, "SEQ", 42, 15.5, 15, "#f4f1ff"); text(c, page, 76, 15.5, 15, K[3][1]);
+  ks.forEach(([l, v, k], i) => { const x = 6 + 60 * i, col = [K[0][1], K[1][1], "#f4f1ff", K[3][1]][i];
+    text(c, l, x, 205, 9, col, "left", 500); text(c, String(v), x, 220, 15, col);
+    c.fillStyle = "#221a3a"; c.fillRect(x, 235, 48, 2); c.fillStyle = col; c.fillRect(x, 235, 48 * k, 2); });
+}
+const MAPK = () => [["X", P.x, P.x / 127], ["Y", P.y, P.y / 127], ["CHAOS", P.chaos, P.chaos / 127]];
+const DENSK = () => [["DENS 1", P.d1, P.d1 / 127], ["DENS 2", P.d2, P.d2 / 127], ["DENS 3", P.d3, P.d3 / 127]];
+/* how long ago each voice last hit, and with what level */
+function lastHits(t) { const d = stepDur(), k0 = Math.floor(t / d), out = [[9, 0], [9, 0], [9, 0]];
+  for (let k = k0; k > k0 - 8; k--) hits(k).forEach((h, v) => { if (h && out[v][0] === 9) out[v] = [t - k * d, h]; }); return out; }
+const run = { t: null, d: 0 };
+function travelled(t, sp) { if (run.t !== null && t > run.t && t - run.t < 0.5) run.d += (t - run.t) * sp; run.t = t; return run.d; }
+function stars(c, t, sp) {
+  for (let i = 0; i < 36; i++) { const layer = hash(i * 3 + 1) < 0.15 ? 2 : hash(i * 3 + 2) < 0.4 ? 1 : 0;
+    const x = (hash(i * 7 + 11) * 240 - t * (3 + layer * 4) * sp) % 240, y = 34 + hash(i * 13 + 5) * 70;
+    c.fillStyle = layer === 2 ? "#fff" : layer === 1 ? "#a99ce0" : "#4a3f78"; c.fillRect((x + 480) % 240, y, layer === 2 ? 2 : 1, layer === 2 ? 2 : 1); }
+}
+
+/* ---- shared polish ---- */
+const SHARDV = [[-1.2, -2.2], [1.4, -2.6], [-0.4, -3], [2.2, -1.4], [-2.4, -1.2], [0.8, -1.8]];
+function burst(c, x, y, k, tones, n = 1) { if (k >= 1) return;
+  SHARDV.forEach(([vx, vy], i) => { const px = x + vx * 14 * n * k, py = y + vy * 14 * n * k + 40 * k * k, s = 3.5 * (1 - k) + 1;
+    poly(c, [[px, py - s], [px + s, py + s * 0.4], [px - s * 0.6, py + s]], i % 3 === 0 ? tones[0] : i % 3 === 1 ? tones[1] : HOT[0]); }); }
+function floorWave(c, x, y, k, g0 = 6) { if (k >= 1) return; const g = g0 + k * 34; stroke(c, [[x - g, y], [x, y - g / 2], [x + g, y], [x, y + g / 2]], k < 0.4 ? HOT[1] : HOT[2], 1.5); }
+function bolt(c, x0, y0, x1, y1, u, w = 3) { [[0.2, HOT[2]], [0.11, HOT[1]], [0.05, HOT[0]]].forEach(([len, cc], i) => { const k0 = Math.max(0, u - len);
+  stroke(c, [[lerp(x0, x1, k0), lerp(y0, y1, k0)], [lerp(x0, x1, u), lerp(y0, y1, u)]], cc, i === 2 ? w : w - 1, false); }); }
+
+/* ---- A: the map in relief, filling the screen, a drone over X/Y ---- */
+function mapScene(c, t) {
+  autoKnobs(t); const L = lastHits(t), sp = 0.25 / stepDur();
+  c.fillStyle = "#0c0820"; c.fillRect(0, 30, 240, 166); stars(c, t, sp * 0.3);
+  /* the terrain: the 5 x 5 nodes' weights, subdivided 2 x 2 between nodes (8 x 8 cells), faceted, CHAOS shaking it */
+  const N = 8, A = 15, B = 7, ox = 120, oy = 74, shake = P.chaos / 127 * 2;
+  const W = (i, j) => node(i, j, 0, 0) + node(i, j, 1, 4) + node(i, j, 2, 2);
+  const H = (u, w) => { const fx = u / 2, fy = w / 2, i = Math.min(3, Math.floor(fx)), j = Math.min(3, Math.floor(fy)), a = fx - i, b = fy - j;
+    return lerp(lerp(W(i, j), W(i + 1, j), a), lerp(W(i, j + 1), W(i + 1, j + 1), a), b) * 13 + Math.sin(t * 7 + u * 3 + w * 5) * shake; };
+  const at = (u, w, h = 0) => [ox + (u - w) * A, oy + (u + w) * B - h];
+  const cu = P.x / 127 * N, cw = P.y / 127 * N;
+  for (let s2 = 0; s2 < 2 * N - 1; s2++) for (let u = 0; u < N; u++) { const w = s2 - u; if (w < 0 || w >= N) continue;
+    const p = [at(u, w, H(u, w)), at(u + 1, w, H(u + 1, w)), at(u + 1, w + 1, H(u + 1, w + 1)), at(u, w + 1, H(u, w + 1))];
+    const near = Math.abs(u + 0.5 - cu) < 1 && Math.abs(w + 0.5 - cw) < 1;
+    const sl = (H(u, w) + H(u, w + 1)) - (H(u + 1, w) + H(u + 1, w + 1)), T = near ? ["#7a52c8", "#5a3a9a", "#3c2672"] : ["#4a2f86", "#35226a", "#22164a"];
+    poly(c, [p[0], p[1], p[2]], sl > 2 ? T[0] : sl > -2 ? T[1] : T[2]); poly(c, [p[0], p[2], p[3]], sl > -2 ? T[0] : T[1]);
+    stroke(c, p, near ? "#9a7ae0" : "#5b2f8c"); }
+  /* hits: square waves over the terrain from the drone's point, in the voice's colour */
+  const gh = H(Math.min(N, cu), Math.min(N, cw)), ground = at(cu, cw, gh);
+  L.forEach(([ago, lv], v) => { if (ago < 0.4) { const g = 0.4 + ago / 0.4 * 3 * (0.5 + lv); stroke(c, [at(cu - g, cw - g, gh), at(cu + g, cw - g, gh), at(cu + g, cw + g, gh), at(cu - g, cw + g, gh)], ago < 0.12 ? HOT[1] : VCOL[v][1], 1.5); } });
+  poly(c, [[ground[0] - 14, ground[1]], [ground[0], ground[1] - 7], [ground[0] + 14, ground[1]], [ground[0], ground[1] + 7]], "#05030f");
+  /* the drone: its altitude NOTE; under it three columns, DENS high, flashing on their hits; the VOICE played has a white base */
+  const alt = 34 + (P.note - 24) / 72 * 34, dy = ground[1] - alt + Math.sin(t * 2) * 2;
+  stroke(c, [[ground[0], dy + 10], [ground[0], ground[1] - 30]], "#2a1d55", 1, false);
+  [0, 1, 2].forEach(v => { const dx = (v - 1) * 12, h = 5 + DENS()[v] / 127 * 24, k = L[v][0] < 0.12 ? 1 - L[v][0] / 0.12 : 0, sel = v === P.voice - 1;
+    if (sel) poly(c, [[ground[0] + dx - 7, ground[1] - 2], [ground[0] + dx, ground[1] - 5.5], [ground[0] + dx + 7, ground[1] - 2], [ground[0] + dx, ground[1] + 1.5]], "#f4f1ff");
+    box(c, ground[0] + dx, ground[1] - 3, 4.5, 2.5, h + k * 6, k > 0.3 ? HOT : VCOL[v]); });
+  draw3d(c, OCTA, { cx: ground[0], cy: dy, s: 11, ay: t * 1.5, ax: 0.4, tones: L.some(([a]) => a < 0.08) ? HOT : K[2] });
+  header(c, "MAP", MAPK());
+}
+
+/* ---- C: three turrets, one per voice, polished ---- */
+const GUN = [OCTA, CUBE, TETRA];
+function gunScene(c, t) {
+  autoKnobs(t); const L = lastHits(t), sp = 0.25 / stepDur();
+  c.fillStyle = BG; c.fillRect(0, 30, 240, 166);
+  c.strokeStyle = RAY; c.lineWidth = 1; for (let k = -8; k <= 8; k++) { c.beginPath(); c.moveTo(120, 30); c.lineTo(120 + k * 40, 120); c.stroke(); }
+  stars(c, t, sp * 0.2);
+  c.fillStyle = "#0e0a26"; c.fillRect(0, 122, 240, 74);
+  const f = travelled(t, sp) % 1; for (let k = 0; k <= 9; k++) { const y = 126 + (k + f) * 9; for (let x = -24 + (k % 2) * 12; x < 264; x += 24) stroke(c, [[x - 12, y], [x, y - 4.5], [x + 12, y], [x, y + 4.5]], "#2a1d55"); }
+  /* the targets: X slides them along their rail, Y lifts the rail, CHAOS makes them sway; a hit shatters, it builds again */
+  const ry = 62 + P.y / 127 * 28;
+  poly(c, [[8, ry + 10], [232, ry + 10], [228, ry + 14], [12, ry + 14]], "#2a1d55"); poly(c, [[12, ry + 14], [228, ry + 14], [228, ry + 16], [12, ry + 16]], "#160f36");
+  const tx = v => 46 + v * 74 + (P.x / 127 - 0.5) * 44 + Math.sin(t * 2.5 + v * 2) * P.chaos / 127 * 12;
+  [0, 1, 2].forEach(v => { const [ago, lv] = L[v], x = tx(v), sz = [11, 9, 8][v];
+    poly(c, [[x - 6, ry + 10], [x + 6, ry + 10], [x + 4, ry + 5], [x - 4, ry + 5]], "#3a2c64");
+    const grow = ago < 0.1 ? 0 : Math.min(1, (ago - 0.1) / 0.35);
+    if (grow > 0.05) draw3d(c, GUN[v], { cx: x, cy: ry - sz * 0.6, s: sz * grow, ay: t * (0.8 + v * 0.4) + v, ax: 0.5, tones: ago < 0.45 ? HOT : VCOL[v] });
+    burst(c, x, ry - sz * 0.6, ago / 0.45, VCOL[v], 0.8 + lv * 0.6);
+    text(c, VNAME[v], x, ry + 26, 10, ago < 0.15 ? HOT[0] : v === P.voice - 1 ? "#f4f1ff" : UI, "center"); });
+  /* the turrets: the voice's polyhedron as the head; DENS heats the barrel; the VOICE played on a white ring */
+  [0, 1, 2].forEach(v => { const x = 46 + v * 74, y = 172, [ago, lv] = L[v], goal = tx(v), ang = Math.atan2(ry - 6 - (y - 13), goal - x);
+    const rec = ago < 0.09 ? (1 - ago / 0.09) * 6 : 0, heat = DENS()[v] / 127, hx = x - Math.cos(ang) * rec * 0.3, hy = y - 13 - Math.sin(ang) * rec * 0.3;
+    floorWave(c, x, y + 4, ago / 0.45);
+    poly(c, [[x - 20, y + 4], [x, y + 14], [x + 20, y + 4], [x, y - 6]], "#05030f");
+    if (v === P.voice - 1) stroke(c, [[x - 19, y + 3], [x, y + 13], [x + 19, y + 3], [x, y - 7]], "#f4f1ff");
+    draw3d(c, prism(6, 0.45), { cx: x, cy: y, s: 14, ay: 0.3, ax: 1.15, tones: ["#4a4466", "#332e4c", "#221d36"] });
+    const Lb = 24 - rec, ux = Math.cos(ang), uy = Math.sin(ang), nx = -uy * 3, ny = ux * 3, ex = hx + ux * Lb, ey = hy + uy * Lb;
+    const barrel = heat > 0.75 ? HOT : heat > 0.4 ? K[3] : K[2];
+    poly(c, [[hx + nx, hy + ny], [ex + nx, ey + ny], [ex, ey], [hx, hy]], barrel[2]); poly(c, [[hx - nx, hy - ny], [ex - nx, ey - ny], [ex, ey], [hx, hy]], barrel[0]);
+    draw3d(c, GUN[v], { cx: hx, cy: hy, s: 8, ay: -ang + 0.5, ax: 0.6, tones: VCOL[v] });
+    if (ago < 0.06) { const k = ago / 0.06, r = 8 * (1 - k) + 2; poly(c, [[ex + ux * r * 1.6, ey + uy * r * 1.6], [ex - uy * r * 0.45, ey + ux * r * 0.45], [ex - ux * r * 0.5, ey - uy * r * 0.5], [ex + uy * r * 0.45, ey - ux * r * 0.45]], HOT[0]); }
+    /* the shot: fast (a drum hits now), thicker on an accent */
+    if (ago < 0.12) bolt(c, ex, ey, goal, ry - 6, Math.min(1, ago / 0.07), lv > 0.8 ? 4 : 3);
+  });
+  header(c, "GRIDS", [["DIV", ["1/16", "1/8", "1/4"][P.div], P.div / 2], ["VOICE", P.voice, (P.voice - 1) / 2], ["NOTE", P.note, (P.note - 24) / 72]]);
+}
+
+/* ---- abstract directions ---- */
+const kNow = t => Math.floor(t / stepDur());
+function rays(c, t, vy = 112) { c.fillStyle = BG; c.fillRect(0, 30, 240, 166); c.strokeStyle = RAY; c.lineWidth = 1;
+  for (let k = -8; k <= 8; k++) { c.beginPath(); c.moveTo(120, vy); c.lineTo(120 + k * 40, 196); c.stroke(); }
+  const f = (t * 0.25 / stepDur()) % 1; for (let k = 0; k < 5; k++) { const p = ((k + f) / 5) ** 2, y = Math.round(vy + p * (196 - vy)) + .5; c.beginPath(); c.moveTo(0, y); c.lineTo(240, y); c.stroke(); } }
+
+/* 1: one polyhedron in three bands (HH on top, SN in the middle, BD below); a hit pushes its band out */
+const BLOB = (() => { const v = [], f = [], lat = 6, lon = 12;
+  for (let i = 0; i <= lat; i++) for (let j = 0; j < lon; j++) { const th = i / lat * Math.PI - Math.PI / 2, ph = (j + (i % 2) * 0.5) / lon * TAU; v.push([Math.cos(th) * Math.sin(ph), Math.sin(th), Math.cos(th) * Math.cos(ph)]); }
+  for (let i = 0; i < lat; i++) for (let j = 0; j < lon; j++) { const a = i * lon + j, b = i * lon + (j + 1) % lon, cc = (i + 1) * lon + (j + 1) % lon, d = (i + 1) * lon + j; f.push([a, b, cc], [a, cc, d]); }
+  return out({ v, f }); })();
+const band = y => y < -0.33 ? 2 : y < 0.33 ? 1 : 0;           /* y up is negative: the top is HH */
+function blobScene(c, t) {
+  autoKnobs(t); const L = lastHits(t), k0 = kNow(t); rays(c, t);
+  const push = [0, 1, 2].map(v => 0.08 + DENS()[v] / 127 * 0.12 + (L[v][0] < 0.25 ? (1 - L[v][0] / 0.25) * 0.45 * (0.5 + L[v][1]) : 0));
+  const v = BLOB.v.map(([x, y, z], i) => { const b = band(y), n = 1 + push[b] + (hash(i * 7 + k0 * 13) - 0.5) * P.chaos / 127 * 0.35; return [x * n, y * n, z * n]; });
+  const ay = P.x / 127 * TAU + t * 0.25, ax = (P.y / 127 - 0.5) * 1.4, s = 34 + (P.note - 24) / 72 * 16;
+  const P3 = v.map(q => rot(q, ay, ax));
+  BLOB.f.map((f, fi) => { const q = f.map(i => P3[i]), a = q[1].map((x, k) => x - q[0][k]), b = q[2].map((x, k) => x - q[0][k]);
+    let n = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; const ln = Math.hypot(...n) || 1; n = n.map(x => x / ln);
+    return { q, n, z: q.reduce((s2, p) => s2 + p[2], 0) / 3, b: band(f.reduce((s2, i) => s2 + BLOB.v[i][1], 0) / 3) }; })
+    .filter(f => f.n[2] > 0).sort((p, q) => p.z - q.z).forEach(f => {
+      const d = f.n[0] * LIGHT[0] + f.n[1] * LIGHT[1] + f.n[2] * LIGHT[2], vv = [2, 1, 0][f.b], hot = L[vv][0] < 0.1;
+      const T = hot ? HOT : vv === P.voice - 1 ? VCOL[vv] : [VCOL[vv][1], VCOL[vv][2], "#160f36"];
+      poly(c, f.q.map(([x, y]) => [120 + x * s, 108 + y * s]), d > 0.55 ? T[0] : d > 0.15 ? T[1] : T[2]); });
+  VNAME.forEach((n, i) => text(c, n, 22, [148, 112, 76][i], 10, L[i][0] < 0.12 ? HOT[0] : i === P.voice - 1 ? "#f4f1ff" : UI, "left"));
+  header(c, "MAP", MAPK());
+}
+
+/* 2: the 32 steps as three square rings of blocks (BD outside, HH inside); heights the rhythm's levels, the threshold DENS */
+function squareScene(c, t) {
+  autoKnobs(t); const k0 = kNow(t), cur = ((k0 % 32) + 32) % 32, L = lastHits(t); rays(c, t, 60);
+  const A = 11, B = 5.5, ox = 120, oy = 62, at = (gx, gy) => [ox + (gx - gy) * A, oy + (gx + gy) * B];
+  /* the ring's cell of step s: 8 per side, clockwise, ring r (0 outer) inset by 2r */
+  const cell = (s2, r) => { const n = 8 - 2 * r, side = Math.floor(s2 / 8), i = Math.floor((s2 % 8) * n / 8), o = 1 + 2 * r;
+    return side === 0 ? [o + i, o] : side === 1 ? [o + n, o + i] : side === 2 ? [o + n - i, o + n] : [o, o + n - i]; };
+  const items = [];
+  for (let r = 0; r < 3; r++) for (let s2 = 0; s2 < 32; s2 += r ? 2 : 1) {
+    const [gx, gy] = cell(s2, r), v = r, lv = level(v, s2), on = lv > 1 - DENS()[v] / 127, isCur = Math.floor(cur / (r ? 2 : 1)) * (r ? 2 : 1) === s2;
+    items.push({ gx, gy, v, lv, on, isCur, s2 });
+  }
+  items.sort((a, b) => a.gx + a.gy - (b.gx + b.gy)).forEach(o => {
+    const [x, y] = at(o.gx + 0.5, o.gy + 0.5), jit = (hash(o.s2 * 5 + o.v + k0 * 3) - 0.5) * P.chaos / 127 * 3;
+    const hot = o.isCur && L[o.v][0] < 0.12, h = o.on ? 3 + o.lv * 14 + (hot ? 4 : 0) : 1;
+    const T = hot ? HOT : o.on ? VCOL[o.v] : ["#2a2050", "#1c1638", "#120e26"];
+    box(c, x + jit, y, A * 0.8, B * 0.8, h, T);
+    if (o.isCur) stroke(c, [[x - A, y], [x, y - B], [x + A, y], [x, y + B]], "#f4f1ff");
+  });
+  [0, 1, 2].forEach(v => { if (v === P.voice - 1) { const r = v, o = 1 + 2 * r, n = 8 - 2 * r; stroke(c, [at(o - 0.2, o - 0.2), at(o + n + 1.2, o - 0.2), at(o + n + 1.2, o + n + 1.2), at(o - 0.2, o + n + 1.2)], "#f4f1ff"); } });
+  const [cx, cy] = at(6, 6); draw3d(c, OCTA, { cx, cy: cy - 14, s: 6 + (P.note - 24) / 72 * 6, ay: t, ax: 0.4, tones: L.some(([a]) => a < 0.08) ? HOT : K[2] });
+  text(c, "STEP " + String(cur + 1).padStart(2, "0"), 8, 40, 10, K[1][0], "left");
+  header(c, "DENS", DENSK());
+}
+
+/* 3: the 25 rhythms as stars on a tilted plane, linked; the cursor at X/Y pulls on its four */
+function starsScene(c, t) {
+  autoKnobs(t); const L = lastHits(t); c.fillStyle = "#0c0820"; c.fillRect(0, 30, 240, 166); stars(c, t, 0.05);
+  const at = (i, j) => { const u = i / 4 - 0.5, w = j / 4 - 0.5, dr = P.chaos / 127 * 4; return [120 + (u - w) * 150 + Math.sin(t * 1.7 + i * 2 + j) * dr, 110 + (u + w) * 62 + Math.cos(t * 1.3 + j * 3 + i) * dr]; };
+  for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) { if (i < 4) stroke(c, [at(i, j), at(i + 1, j)], "#22184a", 1, false); if (j < 4) stroke(c, [at(i, j), at(i, j + 1)], "#22184a", 1, false); }
+  const fx = P.x / 127 * 4, fy = P.y / 127 * 4, i0 = Math.min(3, Math.floor(fx)), j0 = Math.min(3, Math.floor(fy)), a = fx - i0, b = fy - j0;
+  const [cx, cy0] = [lerp(lerp(at(i0, j0)[0], at(i0 + 1, j0)[0], a), lerp(at(i0, j0 + 1)[0], at(i0 + 1, j0 + 1)[0], a), b), lerp(lerp(at(i0, j0)[1], at(i0 + 1, j0)[1], a), lerp(at(i0, j0 + 1)[1], at(i0 + 1, j0 + 1)[1], a), b)];
+  const lift = 10 + (P.note - 24) / 72 * 20, cy = cy0 - lift;
+  [[i0, j0, (1 - a) * (1 - b)], [i0 + 1, j0, a * (1 - b)], [i0, j0 + 1, (1 - a) * b], [i0 + 1, j0 + 1, a * b]].forEach(([i, j, w]) => {
+    const [x, y] = at(i, j); stroke(c, [[cx, cy], [x, y]], w > 0.5 ? "#f4f1ff" : w > 0.2 ? "#8b84a8" : "#3a2c64", w > 0.5 ? 2 : 1, false);
+    L.forEach(([ago], v) => { if (ago < 0.2) { const k = ago / 0.2, px = lerp(cx, x, k), py = lerp(cy, y, k); poly(c, [[px, py - 2], [px + 2, py], [px, py + 2], [px - 2, py]], VCOL[v][0]); } }); });
+  for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) { const [x, y] = at(i, j), w = (node(i, j, 0, 0) + node(i, j, 1, 4) + node(i, j, 2, 2)) / 3, near = Math.abs(i - fx) <= 1 && Math.abs(j - fy) <= 1;
+    draw3d(c, ICO, { cx: x, cy: y - 3, s: 2.5 + w * 5, ay: t * 0.6 + i + j, ax: 0.4, tones: near ? K[2] : ["#6a5aa0", "#4a3f78", "#2a2050"] }); }
+  /* the cursor: a white diamond; three satellites, one per voice, DENS their size, flashing on their hits; VOICE's one ringed */
+  poly(c, [[cx, cy - 6], [cx + 6, cy], [cx, cy + 6], [cx - 6, cy]], "#f4f1ff");
+  [0, 1, 2].forEach(v => { const an = t * 1.2 + v * TAU / 3, x = cx + Math.cos(an) * 16, y = cy + Math.sin(an) * 7, hot = L[v][0] < 0.1, s2 = 2.5 + DENS()[v] / 127 * 4 + (hot ? 2 : 0);
+    draw3d(c, GUN[v], { cx: x, cy: y, s: s2, ay: t * 2, ax: 0.5, tones: hot ? HOT : VCOL[v] });
+    if (v === P.voice - 1) stroke(c, [[x - s2 - 3, y], [x, y - s2 - 3], [x + s2 + 3, y], [x, y + s2 + 3]], "#f4f1ff"); });
+  header(c, "MAP", MAPK());
+}
+
+/* 4: three faceted ribbons flowing left; a hit raises a fold that travels away with the flow */
+function ribbonScene(c, t) {
+  autoKnobs(t); const d = stepDur(), k0 = kNow(t); rays(c, t, 40);
+  const N = 24, flow = 120 / (8 * d);                              /* px a second: a fold crosses in 8 steps */
+  [0, 1, 2].forEach(v => {                                          /* HH far (top), BD near (bottom) */
+    const y0 = [86, 120, 158][2 - v] + (P.note - 60) * 0.15 * (v === P.voice - 1 ? 1 : 0), w = 4 + DENS()[v] / 127 * 10;
+    const pts = [];
+    for (let i = 0; i <= N; i++) {
+      const x = i * 240 / N, base = Math.sin(x * (0.02 + P.x / 127 * 0.05) + v * (P.y / 127) * 3 + t * 0.6) * 6;
+      let fold = 0; for (let k = k0; k > k0 - 10; k--) { const h = hits(k)[v]; if (!h) continue; const xs = 240 - (t - k * d) * flow; const dx = x - xs; if (Math.abs(dx) < 18) fold += (1 - Math.abs(dx) / 18) * 22 * h; }
+      const tw = (hash(i * 7 + v + k0 * 11) - 0.5) * P.chaos / 127 * 6;
+      pts.push([x, y0 - base - fold, w + tw * 0.5, fold]);
+    }
+    for (let i = 0; i < N; i++) { const [x0, y0a, w0, f0] = pts[i], [x1, y1, w1, f1] = pts[i + 1], hot = f0 + f1 > 18 && (240 - x0) < flow * 0.12 + 20;
+      const T = hot ? HOT : VCOL[v], up = y1 < y0a;
+      poly(c, [[x0, y0a - w0], [x1, y1 - w1], [x1, y1], [x0, y0a]], up ? T[0] : T[1]);
+      poly(c, [[x0, y0a], [x1, y1], [x1, y1 + w1 * 0.6], [x0, y0a + w0 * 0.6]], T[2]); }
+    if (v === P.voice - 1) stroke(c, pts.map(([x, y, ww]) => [x, y - ww - 2]), "#f4f1ff", 1, false);
+    text(c, VNAME[v], 6, y0 - 18, 9, UI, "left");
+  });
+  header(c, "GRIDS", [["DIV", ["1/16", "1/8", "1/4"][P.div], P.div / 2], ["VOICE", P.voice, (P.voice - 1) / 2], ["NOTE", P.note, (P.note - 24) / 72]]);
+}
+
+/* ---- readable rhythm: the 32 steps of the three voices ---- */
+const DIMB = ["#2a2050", "#1c1638", "#120e26"];
+/* a step's state for voice v: its level, whether it plays without CHAOS, and this pass's CHAOS extra */
+function stepState(v, s2, k) { const lv = level(v, s2), on = lv > 1 - DENS()[v] / 127, h = hits(k)[v]; return { lv, on, extra: !on && h > 0 }; }
+function curPass(t) { const k0 = kNow(t); return { k0, cur: ((k0 % 32) + 32) % 32, base: k0 - (((k0 % 32) + 32) % 32) }; }
+function sightIso(c, at, gx, gy, col) { const g = 0.1, cs = [at(gx - g, gy - g), at(gx + 1 + g, gy - g), at(gx + 1 + g, gy + 1 + g), at(gx - g, gy + 1 + g)];
+  cs.forEach((p, k) => { const a = cs[(k + 3) % 4], b = cs[(k + 1) % 4], f = 0.3; stroke(c, [[p[0] + (a[0] - p[0]) * f, p[1] + (a[1] - p[1]) * f], p, [p[0] + (b[0] - p[0]) * f, p[1] + (b[1] - p[1]) * f]], col, 2, false); }); }
+function noteLabel(c) { const n = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"][P.note % 12] + (Math.floor(P.note / 12) - 1); text(c, VNAME[P.voice - 1] + " " + n, 232, 40, 10, "#f4f1ff", "right"); }
+
+/* R1: three floors, one 8 x 4 plate per voice (HH on top) */
+function floorsScene(c, t) {
+  autoKnobs(t); const { k0, cur, base } = curPass(t), L = lastHits(t); rays(c, t, 40);
+  [2, 1, 0].forEach((v, fl) => {
+    const A = 10, B = 5, ox = 120, oy = 46 + fl * 46, at = (gx, gy) => [ox + (gx - gy * 2) * A * 0.5 + (gy * 2 - 3) * 0 , oy + (gx + gy * 2) * B * 0.5];
+    const atc = (gx, gy) => [ox + (gx - gy) * A, oy + (gx + gy) * B * 0.5 + gy * B * 0.5];
+    const sel = v === P.voice - 1;
+    poly(c, [atc(0, 0), atc(8, 0), atc(8, 4), atc(0, 4)], sel ? "#16112f" : "#0e0a26"); stroke(c, [atc(0, 0), atc(8, 0), atc(8, 4), atc(0, 4)], sel ? "#f4f1ff" : "#2a1d55");
+    const cells = [...Array(32).keys()].sort((p, q) => (p % 8 + Math.floor(p / 8)) - (q % 8 + Math.floor(q / 8)));
+    cells.forEach(s2 => { const gx = s2 % 8, gy = Math.floor(s2 / 8), st = stepState(v, s2, base + s2), [x, y] = atc(gx + 0.5, gy + 0.5);
+      const isCur = s2 === cur, hot = isCur && L[v][0] < 0.12;
+      if (st.on) box(c, x, y, A * 0.38, B * 0.38, 2 + st.lv * 10 + (hot ? 3 : 0), hot ? HOT : VCOL[v]);
+      else if (st.extra && s2 <= cur) stroke(c, [[x - 4, y - 3], [x, y - 5], [x + 4, y - 3], [x, y - 1]], hot ? HOT[1] : VCOL[v][0]);
+      else poly(c, [[x - 3, y], [x, y - 1.5], [x + 3, y], [x, y + 1.5]], "#221a44"); });
+    sightIso(c, atc, cur % 8, Math.floor(cur / 8), L[v][0] < 0.12 ? HOT[1] : K[1][0]);
+    text(c, VNAME[v], 22, oy + 14, 10, L[v][0] < 0.12 ? HOT[0] : sel ? "#f4f1ff" : UI, "left");
+    const dx = 206, dh = 30; c.fillStyle = "#2a2050"; c.fillRect(dx, oy, 4, dh); c.fillStyle = VCOL[v][1]; c.fillRect(dx, oy + dh * (1 - DENS()[v] / 127), 4, dh * DENS()[v] / 127);
+  });
+  text(c, "STEP " + String(cur + 1).padStart(2, "0"), 8, 40, 10, K[1][0], "left"); noteLabel(c);
+  header(c, "MAP", MAPK());
+}
+
+/* R2: a flat pad grid, 3 voices x 32 steps in two rows of 16, no perspective */
+function padsScene(c, t) {
+  autoKnobs(t); const { cur, base } = curPass(t), L = lastHits(t);
+  c.fillStyle = BG; c.fillRect(0, 30, 240, 166);
+  for (let half = 0; half < 2; half++) for (let v = 2; v >= 0; v--) {
+    const row = half * 3 + (2 - v), y = 52 + row * 22 + half * 8, sel = v === P.voice - 1;
+    text(c, VNAME[v], 6, y + 8, 9, sel ? "#f4f1ff" : UI, "left");
+    for (let i = 0; i < 16; i++) {
+      const s2 = half * 16 + i, x = 24 + i * 13, st = stepState(v, s2, base + s2), isCur = s2 === cur, hot = isCur && L[v][0] < 0.12, beat = i % 4 === 0;
+      const w = 11, h = 16, T = hot ? HOT : st.on ? VCOL[v] : DIMB;
+      if (st.on || hot) { const lift = 3 + st.lv * 5; poly(c, [[x, y + h], [x + w, y + h], [x + w, y + h - lift], [x, y + h - lift]], T[2]); poly(c, [[x, y + h - lift], [x + w, y + h - lift], [x + w - 2, y], [x + 2, y]], T[0]);
+        poly(c, [[x + 2, y], [x + w - 2, y], [x + w - 2, y + 3], [x + 2, y + 3]], T[1]); }
+      else if (st.extra && s2 <= cur) stroke(c, [[x + 1, y + 2], [x + w - 1, y + 2], [x + w - 1, y + h - 1], [x + 1, y + h - 1]], VCOL[v][0]);
+      else poly(c, [[x + 1, y + h - 3], [x + w - 1, y + h - 3], [x + w - 1, y + h - 1], [x + 1, y + h - 1]], beat ? "#3a2c64" : "#221a44");
+      if (isCur) stroke(c, [[x - 1, y - 2], [x + w + 1, y - 2], [x + w + 1, y + h + 2], [x - 1, y + h + 2]], hot ? HOT[1] : "#f4f1ff");
+    }
+    if (half === 0) { const dx = 233; c.fillStyle = "#2a2050"; c.fillRect(dx, y, 3, 16); c.fillStyle = VCOL[v][1]; c.fillRect(dx, y + 16 * (1 - DENS()[v] / 127), 3, 16 * DENS()[v] / 127); }
+  }
+  /* the map's place: a small 5 x 5 with the cursor, CHAOS shaking it */
+  const mx = 196, my = 34, j = P.chaos / 127 * 1.5 * Math.sin(t * 9);
+  for (let i = 0; i < 5; i++) for (let k = 0; k < 5; k++) c.fillStyle = "#3a2c64", c.fillRect(mx + i * 6, my + k * 3, 2, 1);
+  poly(c, [[mx + P.x / 127 * 24 + j - 3, my + P.y / 127 * 12], [mx + P.x / 127 * 24 + j, my + P.y / 127 * 12 - 2], [mx + P.x / 127 * 24 + j + 3, my + P.y / 127 * 12], [mx + P.x / 127 * 24 + j, my + P.y / 127 * 12 + 2]], "#f4f1ff");
+  text(c, "STEP " + String(cur + 1).padStart(2, "0"), 8, 40, 10, K[1][0], "left");
+  header(c, "DENS", DENSK());
+}
+
+/* R3: one 8 x 4 plate, each step a stack of up to three blocks (BD, SN, HH) */
+function stacksScene(c, t) {
+  autoKnobs(t); const { cur, base } = curPass(t), L = lastHits(t); rays(c, t, 40);
+  const A = 14, B = 7, ox = 120, oy = 58, at = (gx, gy) => [ox + (gx - gy) * A, oy + (gx + gy) * B];
+  const plate = [at(0, 0), at(8, 0), at(8, 4), at(0, 4)];
+  for (let i = 0; i < 32; i++) { const gx = i % 8, gy = Math.floor(i / 8); const q = [at(gx, gy), at(gx + 1, gy), at(gx + 1, gy + 1), at(gx, gy + 1)];
+    poly(c, q, gx % 4 === 0 ? "#120c2c" : "#0e0a26"); stroke(c, q, "#2a1d55"); }
+  stroke(c, plate, "#5b2f8c");
+  const order = [...Array(32).keys()].sort((p, q) => (p % 8 + Math.floor(p / 8)) - (q % 8 + Math.floor(q / 8)));
+  order.forEach(s2 => { const gx = s2 % 8, gy = Math.floor(s2 / 8), [x, y] = at(gx + 0.5, gy + 0.5), isCur = s2 === cur; let z = 0;
+    [0, 1, 2].forEach(v => { const st = stepState(v, s2, base + s2), hot = isCur && L[v][0] < 0.12, sel = v === P.voice - 1;
+      if (st.on || hot) { const h = 3 + st.lv * 7; box(c, x, y - z, A * 0.4, B * 0.4, h, hot ? HOT : sel ? VCOL[v] : [VCOL[v][1], VCOL[v][2], "#160f36"]); z += h; }
+      else if (st.extra && s2 <= cur) { stroke(c, [[x - 4, y - z - 2], [x, y - z - 4], [x + 4, y - z - 2], [x, y - z]], VCOL[v][0]); z += 3; } });
+    if (isCur && L.some(([a]) => a < 0.15)) { const k = Math.min(...L.map(([a]) => a)) / 0.15; stroke(c, [at(gx + 0.5 - 0.5 - k, gy + 0.5 - 0.5 - k), at(gx + 1 + k, gy - k), at(gx + 1 + k, gy + 1 + k), at(gx - k, gy + 1 + k)], k < 0.4 ? HOT[1] : HOT[2], 1.5); } });
+  sightIso(c, at, cur % 8, Math.floor(cur / 8), L.some(([a]) => a < 0.12) ? HOT[1] : K[1][0]);
+  /* the densities and the map's place */
+  [0, 1, 2].forEach(v => { const y = 150 - v * 12; text(c, VNAME[v], 10, y + 4, 9, L[v][0] < 0.12 ? HOT[0] : v === P.voice - 1 ? "#f4f1ff" : UI, "left"); c.fillStyle = "#2a2050"; c.fillRect(28, y + 2, 30, 3); c.fillStyle = VCOL[v][1]; c.fillRect(28, y + 2, 30 * DENS()[v] / 127, 3); });
+  const mx = 190, my = 136, jj = P.chaos / 127 * 1.5 * Math.sin(t * 9);
+  for (let i = 0; i < 5; i++) for (let k = 0; k < 5; k++) c.fillStyle = "#3a2c64", c.fillRect(mx + i * 8, my + k * 5, 2, 2);
+  poly(c, [[mx + P.x / 127 * 32 + jj - 4, my + P.y / 127 * 20 + 1], [mx + P.x / 127 * 32 + jj + 1, my + P.y / 127 * 20 - 3], [mx + P.x / 127 * 32 + jj + 6, my + P.y / 127 * 20 + 1], [mx + P.x / 127 * 32 + jj + 1, my + P.y / 127 * 20 + 5]], "#f4f1ff");
+  text(c, "STEP " + String(cur + 1).padStart(2, "0"), 8, 40, 10, K[1][0], "left"); noteLabel(c);
+  header(c, "GRIDS", [["DIV", ["1/16", "1/8", "1/4"][P.div], P.div / 2], ["VOICE", P.voice, (P.voice - 1) / 2], ["NOTE", P.note, (P.note - 24) / 72]]);
+}
+
+/* ---- improved readable views ---- */
+const SHV = [[-1.2, -2.2], [1.4, -2.6], [-0.4, -3]];
+function hitFx(c, at, gx, gy, x, top, ago) {             /* a hit: square wave on the floor, three shards from the top */
+  if (ago >= 0.3) return; const k = ago / 0.3, g = 0.5 + k * 1.4;
+  stroke(c, [at(gx + 0.5 - g, gy + 0.5 - g), at(gx + 0.5 + g, gy + 0.5 - g), at(gx + 0.5 + g, gy + 0.5 + g), at(gx + 0.5 - g, gy + 0.5 + g)], k < 0.4 ? HOT[1] : HOT[2], 1.5);
+  SHV.forEach(([vx, vy], i) => { const px = x + vx * 8 * k, py = top + vy * 8 * k, s2 = 3 * (1 - k) + 1; poly(c, [[px, py - s2], [px + s2, py + s2 * 0.4], [px - s2 * 0.6, py + s2]], i % 2 ? HOT[0] : HOT[1]); });
+}
+function densGauge(c, x, y, h, v, hot) {                  /* a stepped column: 8 segments, the lit ones DENS */
+  const n = Math.round(DENS()[v] / 127 * 8);
+  for (let i = 0; i < 8; i++) { const yy = y + h - (i + 1) * h / 8; poly(c, [[x, yy + 1], [x + 6, yy + 1], [x + 6, yy + h / 8 - 1], [x, yy + h / 8 - 1]], i < n ? (hot ? HOT[1] : VCOL[v][1]) : "#221a44"); }
+}
+function mapChip(c, x, y, w, h, t) {                     /* the map's place: a 5 x 5 of dots, the cursor a diamond, CHAOS shaking it */
+  const j = P.chaos / 127 * 1.5 * Math.sin(t * 9);
+  for (let i = 0; i < 5; i++) for (let k = 0; k < 5; k++) { c.fillStyle = "#3a2c64"; c.fillRect(x + i * w / 4, y + k * h / 4, 2, 2); }
+  const cx = x + P.x / 127 * w + j + 1, cy = y + P.y / 127 * h + 1; poly(c, [[cx - 4, cy], [cx, cy - 4], [cx + 4, cy], [cx, cy + 4]], "#f4f1ff");
+}
+
+/* R1+: three floors */
+function floors2(c, t) {
+  autoKnobs(t); const { cur, base } = curPass(t), L = lastHits(t); rays(c, t, 36);
+  [0, 1, 2].forEach((v, fl) => {        /* the kit's order: BD on top, HH at the bottom */
+    const A = 9.5, B = 4.6, ox = 104, oy = 44 + fl * 50, at = (gx, gy) => [ox + (gx - gy) * A, oy + (gx + gy) * B];
+    const sel = v === P.voice - 1, hot = L[v][0] < 0.15;
+    for (let i = 0; i < 32; i++) { const gx = i % 8, gy = Math.floor(i / 8), q = [at(gx, gy), at(gx + 1, gy), at(gx + 1, gy + 1), at(gx, gy + 1)];
+      poly(c, q, gx % 4 === 0 ? "#130d2e" : "#0e0a26"); stroke(c, q, sel ? "#3a2870" : "#22184a"); }
+    stroke(c, [at(0, 0), at(8, 0), at(8, 4), at(0, 4)], sel ? "#f4f1ff" : "#3a2c64");
+    const order = [...Array(32).keys()].sort((p, q) => (p % 8 + Math.floor(p / 8)) - (q % 8 + Math.floor(q / 8)));
+    order.forEach(s2 => { const gx = s2 % 8, gy = Math.floor(s2 / 8), st = stepState(v, s2, base + s2), [x, y] = at(gx + 0.5, gy + 0.5), isCur = s2 === cur, h2 = isCur && hot;
+      if (st.on || h2) { const lift = h2 ? 4 * (1 - L[v][0] / 0.15) : 0, hh = 3 + st.lv * 12; box(c, x, y - lift, A * 0.36, B * 0.36, hh, h2 ? HOT : sel ? VCOL[v] : [VCOL[v][1], VCOL[v][2], "#160f36"]);
+        if (isCur) hitFx(c, at, gx, gy, x, y - lift - hh, L[v][0]); }
+      else if (st.extra && s2 <= cur) stroke(c, [[x - 4, y - 3], [x, y - 5], [x + 4, y - 3], [x, y - 1]], VCOL[v][0]); });
+    sightIso(c, at, cur % 8, Math.floor(cur / 8), hot ? HOT[1] : K[1][0]);
+    /* the voice's label and its density, on the right of its floor */
+    const lx = 206, ly = oy + 6;
+    poly(c, [[lx, ly], [lx + 22, ly], [lx + 25, ly + 3], [lx + 25, ly + 13], [lx + 3, ly + 13], [lx, ly + 10]], hot ? HOT[1] : sel ? VCOL[v][1] : "#2a2050");
+    text(c, VNAME[v], lx + 12.5, ly + 7, 10, hot || sel ? BAR : UI, "center");
+    densGauge(c, lx + 9, ly + 16, 24, v, hot);
+  });
+  text(c, "STEP " + String(cur + 1).padStart(2, "0"), 8, 40, 10, K[1][0], "left"); noteLabel(c);
+  header(c, "MAP", MAPK());
+}
+
+/* R3+: one big plate of stacks */
+function stacks2(c, t) {
+  autoKnobs(t); const { cur, base } = curPass(t), L = lastHits(t), anyHot = Math.min(...L.map(([a]) => a)); rays(c, t, 40);
+  const A = 18.5, B = 9.25, ox = 83, oy = 76, at = (gx, gy) => [ox + (gx - gy) * A, oy + (gx + gy) * B];
+  const pulse = (t / stepDur()) % 4 < 1;                  /* the floor pulses on each beat near the playhead */
+  for (let i = 0; i < 32; i++) { const gx = i % 8, gy = Math.floor(i / 8), q = [at(gx, gy), at(gx + 1, gy), at(gx + 1, gy + 1), at(gx, gy + 1)];
+    const near = Math.abs(gx - cur % 8) + Math.abs(gy - Math.floor(cur / 8)) < 2;
+    poly(c, q, gx % 4 === 0 ? "#130d2e" : "#0e0a26"); stroke(c, q, pulse && near ? "#5b2f8c" : "#2a1d55"); }
+  stroke(c, [at(0, 0), at(8, 0), at(8, 4), at(0, 4)], "#5b2f8c");
+  const order = [...Array(32).keys()].sort((p, q) => (p % 8 + Math.floor(p / 8)) - (q % 8 + Math.floor(q / 8)));
+  order.forEach(s2 => { const gx = s2 % 8, gy = Math.floor(s2 / 8), [x, y] = at(gx + 0.5, gy + 0.5), isCur = s2 === cur; let z = 0;
+    const lift = isCur && anyHot < 0.15 ? 5 * (1 - anyHot / 0.15) : 0;
+    [0, 1, 2].forEach(v => { const st = stepState(v, s2, base + s2), hot = isCur && L[v][0] < 0.15, sel = v === P.voice - 1;
+      if (st.on || hot) { const h = 4 + st.lv * 9; box(c, x, y - z - lift, A * 0.36, B * 0.36, h, hot ? HOT : sel ? VCOL[v] : [VCOL[v][1], VCOL[v][2], "#160f36"]); z += h; }
+      else if (st.extra && s2 <= cur) { stroke(c, [[x - 6, y - z - lift - 2], [x, y - z - lift - 5], [x + 6, y - z - lift - 2], [x, y - z - lift + 1]], VCOL[v][0]); z += 4; } });
+    if (isCur) hitFx(c, at, gx, gy, x, y - z - lift, anyHot); });
+  sightIso(c, at, cur % 8, Math.floor(cur / 8), anyHot < 0.12 ? HOT[1] : K[1][0]);
+  /* corners: the densities (top right) and the map's place (bottom left) */
+  [0, 1, 2].forEach((v, i) => { const x = 178 + i * 20, y = 34, hot = L[v][0] < 0.15, sel = v === P.voice - 1;   /* BD, SN, HH */
+    densGauge(c, x + 4, y + 12, 22, v, hot); text(c, VNAME[v], x + 7, y + 4, 8, hot ? HOT[0] : sel ? "#f4f1ff" : UI, "center"); });
+  mapChip(c, 10, 160, 28, 24, t);
+  text(c, "STEP " + String(cur + 1).padStart(2, "0"), 8, 40, 10, K[1][0], "left");
+  const n = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"][P.note % 12] + (Math.floor(P.note / 12) - 1);
+  text(c, VNAME[P.voice - 1] + " " + n, 8, 54, 9, UI, "left");
+  header(c, "GRIDS", [["DIV", ["1/16", "1/8", "1/4"][P.div], P.div / 2], ["VOICE", P.voice, (P.voice - 1) / 2], ["NOTE", P.note, (P.note - 24) / 72]]);
+}
+
+/* ================= SEQ backdrops ================= */
+const SEQPAT = [[1, 100, "C"], [0], [1, 70, "E"], [0], [1, 110, "G"], [0], [1, 60, "E"], [1, 90, "A"], [1, 120, "C"], [0], [1, 80, "D"], [0], [1, 100, "G"], [1, 50, "F"], [0], [1, 95, "E"]];
+function seqPlate(c, t) {                                 /* the SEQ plateau (5b), drawn simply over whatever backdrop */
+  const A = 25, B = 12.5, ox = 120, oy = 64, at = (gx, gy) => [ox + (gx - gy) * A, oy + (gx + gy) * B], d = 0.125, k = Math.floor(t / d), cur = k % 16, fr = (t / d) % 1;
+  for (let i = 0; i < 16; i++) { const gx = i % 4, gy = Math.floor(i / 4), q = [at(gx, gy), at(gx + 1, gy), at(gx + 1, gy + 1), at(gx, gy + 1)]; poly(c, q, "#0e0a26"); stroke(c, q, "#2a1d55"); }
+  [...Array(16).keys()].sort((p, q) => (p % 4 + (p >> 2)) - (q % 4 + (q >> 2))).forEach(i => { const st = SEQPAT[i], gx = i % 4, gy = i >> 2; if (!st[0]) return;
+    const hot = i === cur && fr < 0.6, m = 0.18, lift = hot ? 6 * (1 - fr) : 0, h = 5 + st[1] / 127 * 22, T = hot ? HOT : K[2];
+    const p0 = at(gx + m, gy + m), p1 = at(gx + 1 - m, gy + m), p2 = at(gx + 1 - m, gy + 1 - m), p3 = at(gx + m, gy + 1 - m), up = ([x, y], e) => [x, y - e];
+    poly(c, [up(p3, lift), up(p2, lift), up(p2, h + lift), up(p3, h + lift)], T[1]); poly(c, [up(p1, lift), up(p2, lift), up(p2, h + lift), up(p1, h + lift)], T[2]);
+    poly(c, [up(p0, h + lift), up(p1, h + lift), up(p2, h + lift), up(p3, h + lift)], T[0]); stroke(c, [up(p0, h + lift), up(p1, h + lift), up(p2, h + lift), up(p3, h + lift)], T[2]);
+    const [tx, ty] = up(at(gx + 0.5, gy + 0.5), h + lift); text(c, st[2], tx, ty, 10, BAR, "center"); });
+  sightIso(c, at, cur % 4, cur >> 2, fr < 0.6 && SEQPAT[cur][0] ? HOT[1] : K[1][0]);
+  text(c, "STEP " + String(cur + 1).padStart(2, "0"), 8, 40, 10, K[1][0], "left");
+  header(c, "STEPS", [["LEN", 16, 1], ["DIV", "1/16", 0.25], ["PATH", "FWD", 0], ["SOURCE", "STEP", 0]].slice(0, 3));
+}
+function seqNow(c, t) { c.fillStyle = "#07041a"; c.fillRect(0, 30, 240, 166); c.strokeStyle = RAY; c.lineWidth = 1;
+  for (let k = -8; k <= 8; k++) { c.beginPath(); c.moveTo(120, 34); c.lineTo(120 + k * 40, 196); c.stroke(); }
+  for (let k = 0; k < 6; k++) { const p = ((k + (t * 0.5) % 1) / 6) ** 2, y = Math.round(34 + p * 162) + .5; c.beginPath(); c.moveTo(0, y); c.lineTo(240, y); c.stroke(); }
+  [[28, 50, 0], [212, 46, 1]].forEach(([x, y, k]) => { const a = t * 0.6 + k * 2, s2 = 7, p = [0, 1, 2, 3].map(q => [x + Math.cos(a + q * TAU / 4) * s2, y + Math.sin(a + q * TAU / 4) * s2 * 0.5]);
+    stroke(c, p, "#2a1d55"); stroke(c, p.map(([u, w]) => [u, w - 9]), "#2a1d55"); p.forEach(([u, w]) => stroke(c, [[u, w], [u, w - 9]], "#2a1d55", 1, false)); });
+  seqPlate(c, t); }
+/* A: a wire city on the horizon */
+function seqCity(c, t) {
+  c.fillStyle = "#07041a"; c.fillRect(0, 30, 240, 166); stars(c, t, 0.05);
+  const hz = 78, d = t * 6;
+  for (let layer = 0; layer < 2; layer++) {               /* two rows of towers, the near one faster and brighter */
+    const sp = layer ? 1 : 0.5, sh = (d * sp) % 30, base = Math.floor(d * sp / 30);
+    for (let i = -1; i < 10; i++) { const id = base + i + layer * 100, x = i * 30 - sh + hash(id) * 10, w = 8 + hash(id * 3) * 12, h = (layer ? 14 : 22) + hash(id * 7) * (layer ? 22 : 30);
+      const fill = layer ? "#120c2c" : "#0c0822", edge = layer ? "#3a2870" : "#22184a";
+      poly(c, [[x, hz], [x, hz - h], [x + w, hz - h], [x + w, hz]], fill); stroke(c, [[x, hz], [x, hz - h], [x + w, hz - h], [x + w, hz]], edge, 1, false);
+      if (hash(id * 11) > 0.6) stroke(c, [[x + w / 2, hz - h], [x + w / 2, hz - h - 8]], edge, 1, false);
+      for (let f = 1; f < h / 6; f++) if (hash(id * 13 + f) > 0.55) c.fillStyle = layer ? "#5b2f8c" : "#2a1d55", c.fillRect(x + 2 + (f % 2) * (w - 6), hz - f * 6, 2, 2); } }
+  c.fillStyle = "#0a0620"; c.fillRect(0, hz, 240, 196 - hz); stroke(c, [[0, hz], [240, hz]], "#5b2f8c", 1, false);
+  c.strokeStyle = "#1c1340"; c.lineWidth = 1; for (let k = -12; k <= 12; k++) { c.beginPath(); c.moveTo(120 + k * 10, hz); c.lineTo(120 + k * 60, 196); c.stroke(); }
+  for (let k = 0; k < 6; k++) { const p = ((k + (t * 0.5) % 1) / 6) ** 2, y = Math.round(hz + p * (196 - hz)) + .5; c.beginPath(); c.moveTo(0, y); c.lineTo(240, y); c.stroke(); }
+  seqPlate(c, t); }
+/* B: data streams falling far behind */
+function seqStreams(c, t) {
+  c.fillStyle = "#07041a"; c.fillRect(0, 30, 240, 166);
+  for (let col = 0; col < 24; col++) { const x = 4 + col * 10, sp = 10 + hash(col) * 24, len = 4 + Math.floor(hash(col * 3) * 6), y0 = ((t * sp + hash(col * 7) * 200) % 220) - 40 + 30;
+    for (let i = 0; i < len; i++) { const y = y0 - i * 6; if (y < 32 || y > 120) continue; c.fillStyle = i === 0 ? "#5b2f8c" : i < 3 ? "#2a1d55" : "#1a1240"; c.fillRect(x, y, 3, 3); } }
+  const hz = 120; stroke(c, [[0, hz], [240, hz]], "#3a2870", 1, false); c.fillStyle = "#0a0620"; c.fillRect(0, hz + 1, 240, 196 - hz);
+  c.strokeStyle = RAY; c.lineWidth = 1; for (let k = -8; k <= 8; k++) { c.beginPath(); c.moveTo(120, hz); c.lineTo(120 + k * 40, 196); c.stroke(); }
+  seqPlate(c, t); }
+/* C: a wire room */
+function seqRoom(c, t) {
+  c.fillStyle = "#07041a"; c.fillRect(0, 30, 240, 166);
+  const bx0 = 60, bx1 = 180, by0 = 50, by1 = 110, beat = (t / 0.5) % 1 < 0.15;
+  poly(c, [[bx0, by0], [bx1, by0], [bx1, by1], [bx0, by1]], "#0c0824");
+  for (let i = 0; i <= 6; i++) { stroke(c, [[bx0 + i * 20, by0], [bx0 + i * 20, by1]], beat && i % 2 === 0 ? "#3a2870" : "#1c1340", 1, false); }
+  for (let j = 0; j <= 3; j++) stroke(c, [[bx0, by0 + j * 20], [bx1, by0 + j * 20]], "#1c1340", 1, false);
+  [[bx0, by0, 0, 30], [bx1, by0, 240, 30], [bx0, by1, 0, 196], [bx1, by1, 240, 196]].forEach(([a, b, x, y]) => stroke(c, [[a, b], [x, y]], "#2a1d55", 1, false));
+  for (let k = 1; k <= 4; k++) { const p = k / 5, yl = lerp(by1, 196, p), xl = lerp(bx0, 0, p), xr = lerp(bx1, 240, p), yt = lerp(by0, 30, p); stroke(c, [[xl, yl], [xr, yl]], "#1c1340", 1, false); stroke(c, [[xl, yt], [xr, yt]], "#1c1340", 1, false); }
+  for (let k = 1; k < 6; k++) { stroke(c, [[bx0 + k * 20, by1], [k * 40, 196]], "#1c1340", 1, false); stroke(c, [[bx0 + k * 20, by0], [k * 40, 30]], "#160f36", 1, false); }
+  seqPlate(c, t); }
+
+/* ================= GRIDS stacks, improved ================= */
+function stacks3(c, t, under) {
+  autoKnobs(t); const { cur, base } = curPass(t), L = lastHits(t);
+  const A = 18.5, B = 9.25, ox = 83, oy = 72, at = (gx, gy) => [ox + (gx - gy) * A, oy + (gx + gy) * B], th = 5;
+  /* a solid plate: its two front sides, its shadow */
+  poly(c, [[at(0, 4)[0], at(0, 4)[1] + th + 6], [at(8, 4)[0], at(8, 4)[1] + th + 6], [at(8, 0)[0], at(8, 0)[1] + th + 6]], "#05030f");
+  poly(c, [at(0, 4), at(8, 4), [at(8, 4)[0], at(8, 4)[1] + th], [at(0, 4)[0], at(0, 4)[1] + th]], "#22184a");
+  poly(c, [at(8, 4), at(8, 0), [at(8, 0)[0], at(8, 0)[1] + th], [at(8, 4)[0], at(8, 4)[1] + th]], "#160f36");
+  for (let i = 0; i < 32; i++) { const gx = i % 8, gy = i >> 3, q = [at(gx, gy), at(gx + 1, gy), at(gx + 1, gy + 1), at(gx, gy + 1)];
+    poly(c, q, gx % 4 === 0 ? "#151030" : "#0e0a26"); stroke(c, q, "#2a1d55"); }
+  stroke(c, [at(0, 0), at(8, 0), at(8, 4), at(0, 4)], "#5b2f8c");
+  for (let gx = 0; gx < 8; gx += 4) stroke(c, [at(gx, 0), [at(gx, 0)[0], at(gx, 0)[1] - 5]], "#8b84a8", 1, false);   /* the beats, on the back edge */
+  for (let gy = 0; gy < 4; gy++) { const [x, y] = at(0, gy + 0.5); text(c, String(gy * 8 + 1), x - 6, y, 8, Math.floor(cur / 8) === gy ? K[1][0] : UI, "right"); }
+  const order = [...Array(32).keys()].sort((p, q) => (p % 8 + (p >> 3)) - (q % 8 + (q >> 3)));
+  order.forEach(s2 => { const gx = s2 % 8, gy = s2 >> 3, [x, y] = at(gx + 0.5, gy + 0.5), isCur = s2 === cur; let z = 0, top = y;
+    [0, 1, 2].forEach(v => { const st = stepState(v, s2, base + s2), hot = isCur && L[v][0] < 0.15, sel = v === P.voice - 1, lift = hot ? 4 * (1 - L[v][0] / 0.15) : 0;
+      if (st.on || hot) { const h = 4 + st.lv * 9; box(c, x, y - z - lift, A * 0.36, B * 0.36, h, hot ? HOT : sel ? VCOL[v] : [VCOL[v][1], VCOL[v][2], "#160f36"]);
+        stroke(c, [[x - A * 0.36, y - z - lift - h], [x, y - z - lift - h - B * 0.36], [x + A * 0.36, y - z - lift - h], [x, y - z - lift - h + B * 0.36]], hot ? HOT[2] : VCOL[v][2]); z += h; top = y - z - lift; }
+      else if (st.extra && s2 <= cur) { stroke(c, [[x - 6, y - z - 2], [x, y - z - 5], [x + 6, y - z - 2], [x, y - z + 1]], VCOL[v][0]); z += 4; } });
+    if (isCur) hitFx(c, at, gx, gy, x, top, Math.min(...L.map(([a]) => a))); });
+  sightIso(c, at, cur % 8, cur >> 3, Math.min(...L.map(([a]) => a)) < 0.12 ? HOT[1] : K[1][0]);
+  [0, 1, 2].forEach((v, i) => { const x = 178 + i * 20, y = 34, hot = L[v][0] < 0.15, sel = v === P.voice - 1;
+    densGauge(c, x + 4, y + 12, 22, v, hot); text(c, VNAME[v], x + 7, y + 4, 8, hot ? HOT[0] : sel ? "#f4f1ff" : UI, "center"); });
+  mapChip(c, 10, 160, 28, 24, t);
+  text(c, "STEP " + String(cur + 1).padStart(2, "0"), 8, 40, 10, K[1][0], "left");
+  const n = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"][P.note % 12] + (Math.floor(P.note / 12) - 1);
+  text(c, VNAME[P.voice - 1] + " " + n, 8, 54, 9, UI, "left");
+  header(c, "GRIDS", [["DIV", ["1/16", "1/8", "1/4"][P.div], P.div / 2], ["VOICE", P.voice, (P.voice - 1) / 2], ["NOTE", P.note, (P.note - 24) / 72]]);
+}
+/* D: speakers */
+function cone(c, x, y, s2, pump, T) {                    /* a square, faceted cone seen from the front */
+  const o = s2, i2 = s2 * (0.45 - pump * 0.15);
+  poly(c, [[x - o, y - o], [x + o, y - o], [x + i2, y - i2], [x - i2, y - i2]], T[0]); poly(c, [[x + o, y - o], [x + o, y + o], [x + i2, y + i2], [x + i2, y - i2]], T[2]);
+  poly(c, [[x + o, y + o], [x - o, y + o], [x - i2, y + i2], [x + i2, y + i2]], T[2]); poly(c, [[x - o, y + o], [x - o, y - o], [x - i2, y - i2], [x - i2, y + i2]], T[1]);
+  poly(c, [[x - i2, y - i2], [x + i2, y - i2], [x + i2, y + i2], [x - i2, y + i2]], pump > 0.3 ? HOT[1] : "#0a0618");
+}
+function gSpeakers(c, t) {
+  const L = lastHits(t); c.fillStyle = "#07041a"; c.fillRect(0, 30, 240, 166);
+  for (let k = 0; k < 7; k++) { const y = 40 + k * 10, on = L[1][0] < 0.12 && k % 2 === 0; stroke(c, [[50, y], [190, y]], on ? "#3a2870" : "#140e30", 2, false); }   /* slats lit on SN */
+  c.fillStyle = "#0a0620"; c.fillRect(0, 120, 240, 76);
+  [[22, 1], [218, -1]].forEach(([x, side]) => {
+    poly(c, [[x - 20, 44], [x + 20, 44], [x + 20, 186], [x - 20, 186]], "#130d2c"); stroke(c, [[x - 20, 44], [x + 20, 44], [x + 20, 186], [x - 20, 186]], "#2a1d55");
+    poly(c, side > 0 ? [[x + 20, 44], [x + 26, 48], [x + 26, 182], [x + 20, 186]] : [[x - 20, 44], [x - 26, 48], [x - 26, 182], [x - 20, 186]], "#0c0822");
+    const pb = L[0][0] < 0.15 ? 1 - L[0][0] / 0.15 : 0, ps = L[1][0] < 0.12 ? 1 - L[1][0] / 0.12 : 0, ph = L[2][0] < 0.08 ? 1 : 0;
+    cone(c, x, 160, 15 + pb * 2, pb, K[3]); cone(c, x, 120, 10 + ps * 1.5, ps, K[1]); cone(c, x, 88, 6, ph, K[0]);
+  });
+  stacks3(c, t);
+}
+/* E: a dance floor under the floating plate */
+function gDance(c, t) {
+  const L = lastHits(t), k0 = kNow(t); c.fillStyle = "#07041a"; c.fillRect(0, 30, 240, 166); stars(c, t, 0.05);
+  const A = 14, B = 7, at = (gx, gy) => [120 + (gx - gy) * A, 96 + (gx + gy) * B];
+  for (let gy = -8; gy < 8; gy++) for (let gx = -8; gx < 8; gx++) { const q = [at(gx, gy), at(gx + 1, gy), at(gx + 1, gy + 1), at(gx, gy + 1)]; if (q[2][1] < 70) continue;
+    let col = (gx + gy) & 1 ? "#0e0a26" : "#120c2e"; [0, 1, 2].forEach(v => { if (L[v][0] < 0.2 && hash((gx + 9) * 31 + (gy + 9) * 7 + k0 * 13 + v) < [0.12, 0.08, 0.05][v]) col = VCOL[v][2]; });
+    poly(c, q, col); }
+  stacks3(c, t);
+}
+/* F: an equaliser wall */
+const eq = [0, 0, 0];
+function gEq(c, t) {
+  const L = lastHits(t); c.fillStyle = "#07041a"; c.fillRect(0, 30, 240, 166);
+  [0, 1, 2].forEach(v => { for (let b = 0; b < 6; b++) { const x = 18 + v * 72 + b * 11, lvl = L[v][0] < 0.6 ? Math.max(0, (1 - L[v][0] / 0.6) * (0.6 + 0.4 * hash(b + v * 7 + kNow(t))) * 8) : 0;
+    for (let s2 = 0; s2 < 8; s2++) { const y = 112 - s2 * 8; c.fillStyle = s2 < lvl ? (s2 > 5 ? HOT[1] : VCOL[v][s2 > 3 ? 0 : 1]) : "#140e30"; c.fillRect(x, y, 8, 5); } } });
+  c.fillStyle = "#0a0620"; c.fillRect(0, 122, 240, 74);
+  stacks3(c, t);
+}
+
+const views = [["seqNow", seqNow], ["seqCity", seqCity], ["seqStreams", seqStreams], ["seqRoom", seqRoom], ["gSpeakers", gSpeakers], ["gDance", gDance], ["gEq", gEq]].map(([id, f]) => [document.getElementById(id).getContext("2d"), f]);
+function frame(ms) { const t = ms / 1000; views.forEach(([c, f]) => f(c, t)); }
+function loop(ms) { frame(ms + 1310); requestAnimationFrame(loop); }
+document.fonts.ready.then(() => { frame(1310); if (!reduce) requestAnimationFrame(loop); });
+frame(1310);
+</script>
