@@ -35,5 +35,7 @@ void audio_punch(uint16_t mask);                        /* the punch-ins held, b
 int audio_playing(void);
 int audio_pos(int track);                               /* step in progress, -1 when stopped */
 uint32_t audio_hits(int track);                         /* note-ons the track sounded since boot (compare by difference) */
+/* the notes the track sounded after the *seen-th, oldest first, max at most; *seen moves on. More than 16 behind: the last 16 */
+int audio_notes(int track, uint32_t *seen, uint8_t *out, int max);
 
 #endif
