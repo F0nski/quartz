@@ -345,9 +345,9 @@ static uint32_t seq_rand(q_seq *s)
 }
 
 /* a pass of the pattern, in steps */
-static int loop_len(const q_seq_track *tr, const q_pattern *pt)
+static int loop_len(const q_seq_track *tr, const q_pattern *pt, int src)
 {
-    if (pt->src != SRC_STEP) return gen_loop(pt);
+    if (src != SRC_STEP) return gen_loop(pt);
     return tr->path == PATH_XY ? pt->xlen : pt->len;
 }
 
@@ -432,8 +432,12 @@ static void plan(q_seq *s, const q_project *p, int t, uint64_t end, const q_cloc
     for (;;) {
         if (b && tr->anchor && not_after(b, &tr->x)) reanchor(s, p, t, b);
         const q_pattern *pt = &p->pat[t][tr->pat];
-        int wrap = !tr->planned && tr->k + 1 >= loop_len(tr, pt);
-        if (wrap) pt = &p->pat[t][tr->want];
+        int src = pt->src;              /* read once: the loop length and the step come from one source */
+        int wrap = !tr->planned && tr->k + 1 >= loop_len(tr, pt, src);
+        if (wrap) {
+            pt = &p->pat[t][tr->want];
+            src = pt->src;
+        }
         clock_set(&tr->x, p->tempo, pt->div);
         if (tr->planned) {
             if (date(&tr->x, 0) >= (int64_t)end) return;
@@ -458,7 +462,7 @@ static void plan(q_seq *s, const q_project *p, int t, uint64_t end, const q_cloc
             tr->row = (tr->row + 1) % pt->ylen;
             clock_next(&tr->y);
         }
-        int gen = pt->src != SRC_STEP, step = gen ? tr->k : step_at(s, tr, pt), acc = 0;
+        int gen = src != SRC_STEP, step = gen ? tr->k : step_at(s, tr, pt), acc = 0;
         tr->pp++;
         tr->h[0] = tr->h[1];
         tr->h[1] = (q_planned){ step, tr->pat, tr->k, tr->x };

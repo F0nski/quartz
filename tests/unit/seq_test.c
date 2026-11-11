@@ -3,7 +3,19 @@
 #include <stdio.h>
 #include <string.h>
 #include "gen.c"
+
+/* gen_loop as seq.c calls it: the pattern flip_pt turns STEP right after its loop length is read (the UI's write
+   landing between plan()'s reads) */
+static q_pattern *flip_pt;
+static int gen_loop_flip(const q_pattern *pt)
+{
+    int n = gen_loop(pt);
+    if (pt == flip_pt) flip_pt->src = SRC_STEP;
+    return n;
+}
+#define gen_loop gen_loop_flip
 #include "seq.c"
+#undef gen_loop
 
 #define BLK 256
 
@@ -826,6 +838,39 @@ static void scene_launch_at_next_bar(void)
     for (int i = 0; i < NEV; i++) assert(!EV[i].e.on || (int64_t)EV[i].at < b || EV[i].e.pat != 0);
 }
 
+/* a scene turning track 0 from its STEP pattern to a GRIDS one: from the bar, GRIDS from rank 0, as a fresh
+   generator plays it (chaos 0: no draw) */
+static void scene_launch_step_to_grids(void)
+{
+    int64_t b = at16(16, 0);
+    q_gen g;
+    uint32_t rng = 1;
+    setup();
+    q_pattern *gp = &P.pat[0][1];
+    gp->src = SRC_GRIDS;
+    gp->grids = (q_grids){ 32, 200, 0, { 100, 100, 100 }, 1, 67 };
+    P.scene[0] = (q_scene){ 1, 0, { 1, 0, 0, 0 } };
+    while (seq_pos(&S, 0) != 5) run(1);
+    seq_launch(&S, 0);
+    run_to((uint64_t)at16(16 + 32, 0));
+    gen_reset(&g, &rng);
+    int i = first_on(0, b), ons = 0;
+    assert(i >= 0 && (int64_t)EV[i].at == b && EV[i].e.pat == 1 && EV[i].e.step == 0);
+    for (int k = 0; k < 32; k++) {
+        q_step st;
+        gen_step(&g, &P, 0, gp, k, &rng, &st);
+        int n = 0;
+        for (int j = 0; j < NEV; j++)
+            if (EV[j].e.track == 0 && EV[j].e.on && (int64_t)EV[j].at == at16(16 + k, 0)) {
+                assert(EV[j].e.pat == 1 && EV[j].e.step == k && EV[j].e.note == 67);
+                n++;
+            }
+        assert(n == !!(st.flags & SF_ON));
+        ons += n;
+    }
+    assert(ons > 4 && ons < 32);
+}
+
 static void scene_launch_keeps_offs(void)
 {
     int64_t b = at16(16, 0);
@@ -965,6 +1010,11 @@ static void every_on_gets_its_off(void)
             q_pattern *pt = &P.pat[t][n];
             pt->len = (uint8_t)(1 + rnd() % 64);
             pt->div = (uint8_t)(rnd() % 5);                     /* 1/32 to 1/8: enough steps in the run */
+            pt->src = (uint8_t)(rnd() % 2 ? SRC_STEP : rnd() % SRC_N);
+            pt->grids.chaos = (uint8_t)(rnd() % 128);
+            for (int i = 0; i < 3; i++) pt->grids.dens[i] = (uint8_t)(rnd() % 128);
+            pt->marbles.len = (uint8_t)(1 + rnd() % 16);
+            pt->marbles.tout = (uint8_t)(1 + rnd() % 3);
             for (int k = 0; k < Q_STEPS; k++) {
                 q_step *st = &pt->steps[k];
                 for (int i = 0; i < 4; i++) st->note[i] = (uint8_t)(rnd() % 3 ? 60 + rnd() % 6 : 0);
@@ -983,7 +1033,7 @@ static void every_on_gets_its_off(void)
     for (int i = 0; i < Q_SONG; i++) P.song[i] = (q_entry){ (uint8_t)(rnd() % Q_SCENES), 1 };
     P.nsong = 3;
     P.song_on = 1;
-    int launches = 0, started = 0, entry = -1, entries = 0;
+    int launches = 0, started = 0, entry = -1, entries = 0, srcs = 0, gens = 0;
     memset(&S, 0, sizeof S);
     seq_start(&S, &P, 0);
     for (int b = 0; b < 20000; b++) {
@@ -996,6 +1046,9 @@ static void every_on_gets_its_off(void)
         if (r == 3) P.mute = (uint8_t)(rnd() % 16);
         if (r == 5) P.swing = (uint8_t)(50 + rnd() % 26);
         if (r == 6) { seq_launch(&S, (int)(rnd() % Q_SCENES)); launches++; }
+        if (r == 7) { pt->src = (uint8_t)(rnd() % SRC_N); srcs++; }
+        if (r == 9) pt->marbles.len = (uint8_t)(1 + rnd() % 16);
+        if (r == 10) { pt->grids.dens[rnd() % 3] = (uint8_t)(rnd() % 128); pt->grids.chaos = (uint8_t)(rnd() % 128); }
         if (r == 8 && seq_song_entry(&S) < 0) {                 /* the song again, from the start */
             int n;
             seq_stop(&S, out, &n);
@@ -1025,7 +1078,7 @@ static void every_on_gets_its_off(void)
             int sum = 0;
             for (int k = 0; k < 128; k++) sum += c[e->track][k];
             if (e->on && (e->flags & EV_LEGATO)) { assert(sum > legatos[e->track]); legatos[e->track]++; }
-            if (e->on) { c[e->track][e->note]++; ons++; }
+            if (e->on) { c[e->track][e->note]++; ons++; gens += P.pat[e->track][e->pat].src != SRC_STEP; }
             else assert(c[e->track][e->note]-- > 0);
         }
         for (int t2 = 0; t2 < Q_TRACKS; t2++) {
@@ -1057,6 +1110,7 @@ static void every_on_gets_its_off(void)
     }
     assert(ons > 400 && ties > 0 && legatos[0] + legatos[1] + legatos[2] + legatos[3] > 10);
     assert(launches > 100 && started > 30 && entries > 30);
+    assert(srcs > 100 && gens > 400);
 }
 
 /* track 0's pattern 0 a GRIDS pattern, every density full */
@@ -1192,6 +1246,24 @@ static void source_change_mid_play(void)
     assert(gen >= 9);
 }
 
+/* GRIDS turned STEP between plan()'s loop length and its step: rank 31 still a generator's step, never REV's 16 - 1 - 31 */
+static void source_read_once_per_step(void)
+{
+    grids_setup();
+    P.pat[0][0].path = PATH_REV;
+    P.pat[0][0].len = 16;
+    while (S.t[0].path != PATH_REV || S.t[0].h[1].rank != 30) run(1);   /* the path is taken at the wrap */
+    flip_pt = &P.pat[0][0];
+    while (S.t[0].h[1].rank == 30) {         /* GRIDS again until the flip lands in the iteration planning rank 31 */
+        P.pat[0][0].src = SRC_GRIDS;
+        block(1, 64);
+    }
+    flip_pt = 0;
+    assert(P.pat[0][0].src == SRC_STEP && S.t[0].h[1].rank == 31 && S.t[0].h[1].step == 31);
+    while (S.t[0].h[1].rank == 31) run(1);
+    assert(S.t[0].h[1].rank == 0 && S.t[0].h[1].step == 15);   /* then STEP's REV */
+}
+
 static void song_entry_counts_loop(void)
 {
     int starts = 0;
@@ -1313,6 +1385,7 @@ int main(void)
     events_carry_step();
     scene_launch_at_next_bar();
     scene_launch_keeps_offs();
+    scene_launch_step_to_grids();
     scene_then_project_copy_is_no_request();
     song_advances_and_loops();
     song_with_count_in();
@@ -1323,6 +1396,7 @@ int main(void)
     marbles_len_sets_loop();
     muted_generator_advances();
     source_change_mid_play();
+    source_read_once_per_step();
     song_entry_counts_loop();
     song_entry_counts_xy_len();
     lock_set_find_clear();
