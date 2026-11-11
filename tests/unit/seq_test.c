@@ -711,6 +711,21 @@ static void accent_boosts_velocity(void)
     assert(v[0] == 127 && v[1] == 92 && v[2] == 60);
 }
 
+static void accent_flag_on_accented_notes(void)
+{
+    setup();
+    P.pat[0][0].steps[0].flags |= SF_ACCENT;
+    P.pat[0][0].steps[0].note[1] = 64;
+    run(60);
+    int acc = 0, plain = 0;
+    for (int i = 0; i < NEV; i++)
+        if (EV[i].e.on) {
+            if (EV[i].e.step == 0) { assert(EV[i].e.flags & EV_ACCENT); acc++; }
+            else if (EV[i].e.step == 2) { assert(!(EV[i].e.flags & EV_ACCENT)); plain++; }
+        }
+    assert(acc == 2 && plain >= 1);
+}
+
 static void slide_ties_to_next(void)
 {
     setup();
@@ -1380,6 +1395,7 @@ int main(void)
     probability_rates();
     mute_silences_but_advances();
     accent_boosts_velocity();
+    accent_flag_on_accented_notes();
     slide_ties_to_next();
     stop_during_tie_releases();
     events_carry_step();

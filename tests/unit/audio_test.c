@@ -4,6 +4,7 @@
 #include "gen.c"
 #include "seq.c"
 #include "voices.c"
+#include "mod.c"
 #include "dsp/pq.h"
 
 /* doubles: the second core and the clock */
@@ -619,6 +620,41 @@ static void lock_ends_with_note(void)
     assert(last_harm(track_slot(0)) == 64 / 127.0f);
 }
 
+/* the step's locks reach its voice's mod settings; the next step, without them, gets the track's */
+static void locks_to_mod(int pad)
+{
+    P.sound[0].cutoff = 90;
+    P.sound[0].envamt = 7;
+    P.pat[0][0].steps[0].flags = P.pat[0][0].steps[1].flags = SF_ON;
+    if (pad) P.pat[0][0].steps[0].note[0] = P.pat[0][0].steps[1].note[0] = KIT_NOTE + 4;
+    lock_set(&P.pat[0][0], 0, LK_CUT, 10);
+    lock_set(&P.pat[0][0], 0, LK_ENVAMT, (uint8_t)-20);
+    P.tempo = 120;
+    audio_play(1);
+    block(256);
+    int v = track_slot(0);
+    assert(v >= 0 && MV[v].p.cutoff == 10 && MV[v].p.envamt == -20);
+    until(256, spf16(120) + 256);
+    v = track_slot(0);
+    assert(audio_pos(0) == 1 && v >= 0 && MV[v].p.cutoff == 90 && MV[v].p.envamt == 7);
+}
+
+static void voice_takes_new_locks(void)
+{
+    setup();
+    locks_to_mod(0);
+}
+
+static void play_restarts_lfo_clock(void)
+{
+    setup();
+    for (int i = 0; i < 4; i++) block(256);
+    assert(mclk_s > 256 * 4 / Q_SR * 0.99);
+    audio_play(1);
+    block(100);
+    assert(mclk_s > 99 / (double)Q_SR && mclk_s < 101 / (double)Q_SR);
+}
+
 static void legato_glides_without_retrigger(void)
 {
     setup();
@@ -889,6 +925,12 @@ static void kit_setup(void)
     NLOG = 0;
 }
 
+static void kit_voice_takes_filter_locks(void)
+{
+    kit_setup();
+    locks_to_mod(1);
+}
+
 static void kit_choke_same_engine(void)
 {
     kit_setup();
@@ -1098,6 +1140,8 @@ int main(void)
     mono_model_change_keeps_its_fade();
     lock_reaches_its_voice();
     lock_ends_with_note();
+    voice_takes_new_locks();
+    play_restarts_lfo_clock();
     legato_glides_without_retrigger();
     legato_beside_a_live_note();
     legato_while_tied_note_waits();
@@ -1109,6 +1153,7 @@ int main(void)
     generator_note_not_recorded();
     stop_flushes_held_rec();
     scene_reported_once();
+    kit_voice_takes_filter_locks();
     kit_choke_same_engine();
     kit_three_engines_together();
     kit_pad_patch();

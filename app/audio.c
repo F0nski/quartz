@@ -5,6 +5,7 @@
 #include "audio.h"
 #include "seq.h"
 #include "voices.h"
+#include "mod.h"
 #include "dsp/pq.h"
 
 #define CMD_N 64                    /* a power of two */
@@ -35,7 +36,7 @@ static q_seq seq;
 static q_voices pool;
 static uint8_t fading[Q_VOICES];    /* a model change: faded out over this block, then freed */
 /* one engine switch per block in the render: the note-ons needing another wait here, in order */
-typedef struct { uint8_t track, note, vel, pat; int8_t step; } q_later;   /* step -1: the keyboard's */
+typedef struct { uint8_t track, note, vel, pat, accent; int8_t step; } q_later;   /* step -1: the keyboard's */
 static q_later later[LATER_N];
 static int n_later, switched;
 static volatile int prep_slot;      /* render -> main loop: the V_PREP slot, -1 none, PREP_WAIT */
@@ -44,7 +45,8 @@ static volatile int playing;
 static volatile int muted;
 static volatile int recording;      /* audio_rec */
 /* the step's p-locks each voice plays (bit LK_* of mask), taken at its note-on */
-static uint8_t lk_mask[Q_VOICES], lk_val[Q_VOICES][LK_N];
+static uint32_t lk_mask[Q_VOICES];
+static uint8_t lk_val[Q_VOICES][LK_N];
 static int8_t vpad[Q_VOICES];       /* the KIT pad each voice plays, -1 none: taken at its note-on */
 static float clk_c, clk_s, clk_cw, clk_sw, clk_env;   /* the click: a phasor turning by (clk_cw, clk_sw) a frame */
 /* live notes held while recording; now: the render's clock, since audio_setup */
@@ -94,6 +96,7 @@ void audio_setup(q_project *p)
     __builtin_memset(&seq, 0, sizeof seq);
     voices_init(&pool);
     pq_init();
+    mod_init();
     for (int v = 0; v < Q_VOICES; v++)
         pool.v[v].model = 8;        /* pq_init's model */
     __builtin_memset(fading, 0, sizeof fading);
@@ -255,13 +258,24 @@ static void take_locks(int v, int track, int pat, int step)
     for (int k = 0; k < LK_N; k++) {
         int i = lock_find(pt, step, k);
         if (i >= 0) {
-            lk_mask[v] |= (uint8_t)(1 << k);
+            lk_mask[v] |= 1u << k;
             lk_val[v][k] = pt->locks[i].value;
         }
     }
 }
 
-/* a KIT's voice: its pad's, no locks; the pad's decay is Plaits' drum decay (morph) */
+/* the voice's envelope, filter and LFO settings, locks applied; signed fields come back as int8_t */
+static void vparam(int v, const q_sound *s, q_vparam *q)
+{
+    *q = (q_vparam){ (uint8_t)param(v, LK_ATK, s->atk), (uint8_t)param(v, LK_DEC, s->dec),
+                     (uint8_t)param(v, LK_SUS, s->sus), (uint8_t)param(v, LK_REL, s->rel),
+                     (uint8_t)param(v, LK_FTYPE, s->ftype), (uint8_t)param(v, LK_CUT, s->cutoff),
+                     (uint8_t)param(v, LK_RES, s->res), (int8_t)param(v, LK_ENVAMT, (uint8_t)s->envamt),
+                     (uint8_t)param(v, LK_SHAPE, s->lshape), s->ltrig, (uint8_t)param(v, LK_RATE, s->lrate),
+                     (int8_t)param(v, LK_DEPTH, (uint8_t)s->ldepth), (uint8_t)param(v, LK_DEST, s->ldest) };
+}
+
+/* a KIT's voice: its pad's harm, timb and decay (its locks of those do not apply); the pad's decay is Plaits' drum decay (morph) */
 static void set_patch(int v, const q_sound *s)
 {
     if (vpad[v] >= 0) {
@@ -289,9 +303,10 @@ static int needs_switch(int track, int note)
 }
 
 /* step -1: the keyboard's, no locks. A KIT's pad sounds at 48 + its tune */
-static void note_on(int track, int note, int vel, int pat, int step)
+static void note_on(int track, int note, int vel, int pat, int step, int accent)
 {
     const q_sound *s = &prj->sound[track];
+    q_vparam q;
     int m = note_model(track, note), sw = needs_switch(track, note), kit = rmodel[track] == M_KIT;
     int v = voices_note_on(&pool, track, note, note_poly(track, rmodel[track]), m, wanted());
     fading[v] = 0;                  /* (a fading slot taken: the new note at full level) */
@@ -300,8 +315,11 @@ static void note_on(int track, int note, int vel, int pat, int step)
         switched = 1;
     }
     vpad[v] = (int8_t)(kit ? note - KIT_NOTE : -1);
-    take_locks(v, track, pat, kit ? -1 : step);
+    take_locks(v, track, pat, step);
     set_patch(v, s);
+    vparam(v, s, &q);
+    mod_set(v, &q, prj->tempo);
+    mod_note_on(v, accent);
     pq_note_on(v, (float)(kit ? 48 + prj->kit[track][vpad[v]].tune + s->tune : note + tune(v, s)), vel / 127.0f);
 }
 
@@ -315,16 +333,16 @@ static int waits(int track)
 
 /* A note-on needing a switch once this block made one waits for the next block, and the track's next note-ons
  * wait behind it, in order. A note-off for a waiting note-on cancels it; the others go to the voices. */
-static void event(int track, int note, int vel, int on, int pat, int step)
+static void event(int track, int note, int vel, int on, int pat, int step, int accent)
 {
     if (no_pad(track, note))
         return;
     if (on) {
         if (waits(track) || (switched && needs_switch(track, note))) {
             if (n_later < LATER_N)
-                later[n_later++] = (q_later){ (uint8_t)track, (uint8_t)note, (uint8_t)vel, (uint8_t)pat, (int8_t)step };
+                later[n_later++] = (q_later){ (uint8_t)track, (uint8_t)note, (uint8_t)vel, (uint8_t)pat, (uint8_t)accent, (int8_t)step };
         } else {
-            note_on(track, note, vel, pat, step);
+            note_on(track, note, vel, pat, step, accent);
         }
         return;
     }
@@ -335,8 +353,10 @@ static void event(int track, int note, int vel, int on, int pat, int step)
             return;
         }
     int v = voices_note_off(&pool, track, note);
-    if (v >= 0)
+    if (v >= 0) {
+        mod_note_off(v);
         pq_note_off(v);
+    }
 }
 
 /* the waiting note-ons, at the block's start: in order, a track's stopping at its first that still waits */
@@ -346,7 +366,7 @@ static void start_later(void)
     for (int i = 0; i < n_later; i++) {
         q_later e = later[i];
         if (!(held >> e.track & 1) && !(switched && needs_switch(e.track, e.note))) {
-            note_on(e.track, e.note, e.vel, e.pat, e.step);
+            note_on(e.track, e.note, e.vel, e.pat, e.step, e.accent);
         } else {
             held |= 1 << e.track;
             later[n++] = e;
@@ -381,15 +401,18 @@ static int legato(const q_event *e)
 {
     for (int i = n_later - 1; i >= 0; i--)
         if (later[i].track == e->track && later[i].note == e->from) {
-            later[i] = (q_later){ e->track, e->note, e->vel, e->pat, (int8_t)e->step };
+            later[i] = (q_later){ e->track, e->note, e->vel, e->pat, (uint8_t)(e->flags >> 1 & 1), (int8_t)e->step };
             return 1;
         }
     int v = voices_retarget(&pool, e->track, e->from, e->note);
     if (v < 0)
         return 0;
     const q_sound *s = &prj->sound[e->track];
+    q_vparam q;
     take_locks(v, e->track, e->pat, e->step);
     set_patch(v, s);
+    vparam(v, s, &q);
+    mod_set(v, &q, prj->tempo);
     pq_glide_to(v, (float)(e->note + tune(v, s)));
     return 1;
 }
@@ -401,10 +424,10 @@ static void apply(const q_event *e)
     } else if (e->on && (e->flags & EV_LEGATO) && rmodel[e->track] == M_KIT) {
         /* a pad does not glide (a retargeted voice could stay on another pad's engine): the tied note, whose
          * note-off is gone, ends, and the new one strikes */
-        event(e->track, e->from, 0, 0, e->pat, e->step);
-        event(e->track, e->note, e->vel, 1, e->pat, e->step);
+        event(e->track, e->from, 0, 0, e->pat, e->step, 0);
+        event(e->track, e->note, e->vel, 1, e->pat, e->step, e->flags & EV_ACCENT ? 1 : 0);
     } else if (!(e->on && (e->flags & EV_LEGATO) && legato(e))) {
-        event(e->track, e->note, e->vel, e->on, e->pat, e->step);
+        event(e->track, e->note, e->vel, e->on, e->pat, e->step, e->flags & EV_ACCENT ? 1 : 0);
     }
 }
 
@@ -455,7 +478,7 @@ static void commands(void)
         if (c.kind == CMD_NOTE) {
             if (c.on != 2)
                 rec_note(c.track, c.note, c.on);
-            event(c.track, c.note, 100, c.on, 0, -1);
+            event(c.track, c.note, 100, c.on, 0, -1, 0);
         } else if (c.kind == CMD_MODEL) {
             int n = 0;
             rmodel[c.track] = prj->sound[c.track].model;
@@ -493,8 +516,10 @@ static void commands(void)
             seq_stop(&seq, off, &n);
             for (int i = 0; i < n; i++)
                 apply(&off[i]);
-            if (c.on)
+            if (c.on) {
+                mod_restart();
                 seq_start(&seq, prj, recording && (prj->click & 2));
+            }
         }
     }
 }
@@ -576,8 +601,12 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
         scene_w++;
     }
     for (int v = 0; v < Q_VOICES; v++)
-        if (sounding(v))
+        if (sounding(v)) {
+            q_vparam q;
             set_patch(v, &prj->sound[pool.v[v].track]);   /* the knobs reach the held notes */
+            vparam(v, &prj->sound[pool.v[v].track], &q);
+            mod_set(v, &q, prj->tempo);
+        }
     __builtin_memset(mix1, 0, n * sizeof *mix1);
     __builtin_memset(mix2, 0, n * sizeof *mix2);
     while (pos < n) {
@@ -603,6 +632,7 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
     }
     out_gain = target;
     now += n;
+    mod_clock(prj->tempo, n);
 
     sum1 += plat_ticks24() - t0;
     sum_budget += BUDGET_TICKS(n);
