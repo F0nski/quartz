@@ -26,6 +26,8 @@ static p3_face planet_f[80];
 static p3_mesh planet;
 static struct { uint32_t hits, hit_ms; int seen; float t; } sc;
 
+void scene_enter(void) { sc.seen = 0; }
+
 int scene_has(int model) { return model == 2 || model == 3 || model == 4 || model == 10; }
 
 /* a point of the orbit plane, tilted towards the viewer: the far side (depth < 0) is higher on the screen */

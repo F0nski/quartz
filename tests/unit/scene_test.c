@@ -84,6 +84,20 @@ static void scene_has_fm_only(void)
     assert(!scene_has(0) && !scene_has(5) && !scene_has(20) && !scene_has(24));
 }
 
+/* arriving on the scene (another track, or back from another page) after notes played elsewhere: no flash */
+static void no_flash_on_arrival(void)
+{
+    const int16_t k[4] = {64, 64, 64, 64};
+    scene_frame(k, 3, 1000);
+    scene_enter();
+    scene_frame(k, 10, 2000);
+    band0();
+    assert(is_orange(px(120, 62)));
+    scene_frame(k, 11, 2010);           /* then a note flashes */
+    band0();
+    assert(is_pink(px(120, 62)));
+}
+
 int main(void)
 {
     planet_orange_then_pink();
@@ -91,6 +105,7 @@ int main(void)
     morph_tilts_ring();
     time_not_frames();
     scene_has_fm_only();
+    no_flash_on_arrival();
     printf("scene ok\n");
     return 0;
 }

@@ -7,5 +7,6 @@ int  scene_has(int model);                        /* 1: the model has a scene (6
 /* knobs: HARM, TIMB, MORPH, DECAY 0..127; hits: audio_hits of the track; ms: plat_ms() */
 void scene_frame(const int16_t knobs[4], uint32_t hits, uint32_t ms);   /* builds the frame's primitives */
 void scene_band(int32_t oy);                      /* the backdrop, then the primitives, into the band at oy */
+void scene_enter(void);                           /* the scene appears (or shows another track): the notes before do not flash */
 
 #endif

@@ -1540,6 +1540,8 @@ void ui_frame(void)
         if (ui.full || now - ui.scene_ms >= 30u || __builtin_memcmp(&v.scene, &ui.shown.scene, sizeof v.scene)) {
             ui.scene_ms = now;
             ui.frames++;
+            if (!ui.shown.scene.s3d || ui.shown.head.track != v.head.track || ui.full)
+                scene_enter();
             scene_frame(v.scene.v, audio_hits(ui.track), now);
             for (b = 0; b < 2; b++) {
                 cv_begin(240, BAND_H, C_BLACK);
