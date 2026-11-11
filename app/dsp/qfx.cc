@@ -70,7 +70,9 @@ struct Master {
   float rise;       // its recovery per frame, set by the dip
   float env, comp;  // compressor's detector and gain
   float lim;        // limiter's gain
-  float rpeak;      // the reverb's output peak in the last block: under kQuiet, its tail is over
+  float rpeak;      // the reverb's output peak in its last run: under kQuiet, its tail is over
+  unsigned rn;      // frames in rio
+  uint8_t rsize, rtone;   // the reverb's settings for its next run
 };
 
 alignas(Master) char mstorage[sizeof(Master)];
@@ -80,6 +82,7 @@ uint16_t rbuf[16384] __attribute__((section(".pool")));   // the reverb's FxEngi
 // qfx_block's scratch
 float dry[QFX_BLOCK], dsum[QFX_BLOCK], dg[QFX_BLOCK];
 clouds::FloatFrame fx[QFX_BLOCK];   // reverb sends, then the reverb's and the delay's returns
+clouds::FloatFrame rio[QFX_BLOCK];  // the last block's reverb sends, which qfx_reverb turns into returns in place
 
 void reset(int t, int type) {
   Track& s = *tracks[t];
@@ -351,6 +354,18 @@ extern "C" float qfx_delay_fit(float frames) {
   return frames;
 }
 
+extern "C" void qfx_reverb(void) {
+  Master& M = *master;
+  bool in = false;
+  for (unsigned i = 0; i < M.rn; ++i) in |= rio[i].l != 0.0f;
+  if (!in && M.rpeak < kQuiet) return;   // idle: what stays in its lines is under -100 dB, rio holds silence
+  M.reverb.set_time(0.5f + 0.48f * M.rsize / 127.0f);
+  M.reverb.set_lp(0.3f + 0.65f * M.rtone / 127.0f);
+  M.reverb.Process(rio, M.rn);
+  M.rpeak = 0.0f;
+  for (unsigned i = 0; i < M.rn; ++i) M.rpeak = fm_maxf(M.rpeak, fm_maxf(fm_fabsf(rio[i].l), fm_fabsf(rio[i].r)));
+}
+
 extern "C" void qfx_block(float* const bus[QFX_TRACKS], const qfx_track tr[QFX_TRACKS], const qfx_master* m,
                           int duck_at, float* l, float* r, unsigned n) {
   Master& M = *master;
@@ -367,18 +382,14 @@ extern "C" void qfx_block(float* const bus[QFX_TRACKS], const qfx_track tr[QFX_T
   duck(m->duck, duck_at, n);
   for (int t = 0; t < QFX_TRACKS; ++t) track(t, tr[t], bus[t], l, r, n);
 
-  bool in = false;
-  for (unsigned i = 0; i < n; ++i) {
-    fx[i].r = fx[i].l;   // the reverb's input is mono
-    in |= fx[i].l != 0.0f;
+  for (unsigned i = 0; i < n; ++i) {   // this block's sends out, the last block's returns in
+    const float send = fx[i].l;
+    fx[i] = i < M.rn ? rio[i] : clouds::FloatFrame{0.0f, 0.0f};
+    rio[i].l = rio[i].r = send;   // the reverb's input is mono
   }
-  if (in || M.rpeak >= kQuiet) {   // idle otherwise: what stays in its lines is under -100 dB
-    M.reverb.set_time(0.5f + 0.48f * m->rsize / 127.0f);
-    M.reverb.set_lp(0.3f + 0.65f * m->rtone / 127.0f);
-    M.reverb.Process(fx, n);
-    M.rpeak = 0.0f;
-    for (unsigned i = 0; i < n; ++i) M.rpeak = fm_maxf(M.rpeak, fm_maxf(fm_fabsf(fx[i].l), fm_fabsf(fx[i].r)));
-  }
+  M.rn = n;
+  M.rsize = m->rsize;
+  M.rtone = m->rtone;
   delay(*m, n);
   for (unsigned i = 0; i < n; ++i) {
     l[i] += fx[i].l * dg[i];

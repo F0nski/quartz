@@ -9,6 +9,14 @@
 static const float kRate = 44117.647f;
 static const unsigned kBlock = 256;
 
+// what audio.c does each block: the reverb (one block late) on the other core, then the rest
+static void block(float *const bus[QFX_TRACKS], const qfx_track tr[QFX_TRACKS], const qfx_master *m, int duck_at,
+                  float *l, float *r, unsigned n)
+{
+    qfx_reverb();
+    qfx_block(bus, tr, m, duck_at, l, r, n);
+}
+
 // A 220 Hz saw at 0.5 peak, n samples.
 static void saw(float *b, unsigned n)
 {
@@ -205,7 +213,7 @@ static void defaults_are_transparent(void)
             for (unsigned i = 0; i < kBlock; i++) bus[t][i] = sine(0.2f, hz[t], b * kBlock + i);
         float sum[kBlock];
         for (unsigned i = 0; i < kBlock; i++) sum[i] = (bus[0][i] + bus[1][i] + bus[2][i] + bus[3][i]) * 100.0f / 127.0f;
-        qfx_block(busp, tr, &ms, -1, l, r, kBlock);
+        block(busp, tr, &ms, -1, l, r, kBlock);
         for (unsigned i = 0; i < kBlock; i++) {
             assert(fabsf(l[i] - sum[i]) <= 1e-6f);
             assert(fabsf(r[i] - sum[i]) <= 1e-6f);
@@ -222,7 +230,7 @@ static void pan_gains(int pan, float *gl, float *gr)
     tr[0].level = 127;
     tr[0].pan = (int8_t)pan;
     for (unsigned i = 0; i < kBlock; i++) bus[0][i] = 0.5f;
-    qfx_block(busp, tr, &ms, -1, l, r, kBlock);
+    block(busp, tr, &ms, -1, l, r, kBlock);
     *gl = l[kBlock - 1] / 0.5f;
     *gr = r[kBlock - 1] / 0.5f;
 }
@@ -261,7 +269,7 @@ static void delay_lands_on_division(void)
     for (unsigned b = 0; b < N / kBlock; b++) {
         memset(bus, 0, sizeof(bus));
         if (b == 0) bus[0][0] = 1.0f;
-        qfx_block(busp, tr, &ms, -1, l + b * kBlock, r + b * kBlock, kBlock);
+        block(busp, tr, &ms, -1, l + b * kBlock, r + b * kBlock, kBlock);
     }
     const unsigned e1 = peak_at(l, 100, 16000), e2 = peak_at(r, 16000, N);
     printf("  delay: 1st echo L at %u (%.3f), R there %.3f; 2nd echo R at %u (%.3f)\n", e1, l[e1], r[e1], e2, r[e2]);
@@ -298,7 +306,7 @@ static void delay_time_change_stays_finite(void)
     for (unsigned b = 0; b < 2 * (unsigned)kRate / kBlock; b++) {
         noise(&seed, 0.5f);
         ms.dly = (b & 1) ? 22000.0f : 2000.0f;
-        qfx_block(busp, tr, &ms, -1, l, r, kBlock);
+        block(busp, tr, &ms, -1, l, r, kBlock);
         for (unsigned i = 0; i < kBlock; i++) assert(isfinite(l[i]) && isfinite(r[i]));
     }
 }
@@ -315,7 +323,7 @@ static double reverb_energy(int size, float from, float to)
     for (unsigned b = 0; b * kBlock < (unsigned)(to * kRate); b++) {
         memset(bus, 0, sizeof(bus));
         if (b == 0) bus[0][0] = 1.0f;
-        qfx_block(busp, tr, &ms, -1, l, r, kBlock);
+        block(busp, tr, &ms, -1, l, r, kBlock);
         for (unsigned i = 0; i < kBlock; i++) {
             const unsigned f = b * kBlock + i;
             if (f >= (unsigned)(from * kRate) && f < (unsigned)(to * kRate)) e += (double)l[i] * l[i] + (double)r[i] * r[i];
@@ -346,7 +354,7 @@ static void duck_dips_and_recovers(void)
     ms.duck = 127;
     for (unsigned b = 0; b < N / kBlock; b++) {
         for (unsigned i = 0; i < kBlock; i++) bus[0][i] = bus[1][i] = 0.2f;
-        qfx_block(busp, tr, &ms, b == 0 ? 0 : -1, l + b * kBlock, r + b * kBlock, kBlock);
+        block(busp, tr, &ms, b == 0 ? 0 : -1, l + b * kBlock, r + b * kBlock, kBlock);
     }
     const unsigned rec = (unsigned)(0.15f * kRate) + 2;
     const float d0 = 20.0f * log10f(l[0] / 0.2f), d1 = 20.0f * log10f(l[rec] / 0.2f);
@@ -367,7 +375,7 @@ static void duck_kit_run(int rsend, int depth, float *l)
     ms.duck = depth;
     for (unsigned b = 0; b < 16; b++) {
         for (unsigned i = 0; i < kBlock; i++) bus[0][i] = sine(0.2f, 220.0f, b * kBlock + i);
-        qfx_block(busp, tr, &ms, b == 8 ? 0 : -1, l + b * kBlock, r, kBlock);
+        block(busp, tr, &ms, b == 8 ? 0 : -1, l + b * kBlock, r, kBlock);
     }
 }
 
@@ -403,7 +411,7 @@ static void duck_off_mid_dip_recovers(void)
     for (unsigned b = 0; b < N / kBlock; b++) {
         ms.duck = b == 0 ? 127 : 0;
         for (unsigned i = 0; i < kBlock; i++) bus[0][i] = 0.2f;
-        qfx_block(busp, tr, &ms, b == 0 ? 0 : -1, l + b * kBlock, r + b * kBlock, kBlock);
+        block(busp, tr, &ms, b == 0 ? 0 : -1, l + b * kBlock, r + b * kBlock, kBlock);
     }
     const unsigned rec = (unsigned)(0.15f * kRate) + 2;
     for (unsigned i = 1; i < N; i++) assert(l[i] >= l[i - 1] && 20.0f * log10f(l[i] / l[i - 1]) <= 1.0f);
@@ -421,7 +429,7 @@ static void duck_zero_is_bypass(void)
         for (unsigned b = 0; b < N / kBlock; b++) {
             for (int t = 0; t < QFX_TRACKS; t++)
                 for (unsigned i = 0; i < kBlock; i++) bus[t][i] = sine(0.2f, 100.0f * (t + 1), b * kBlock + i);
-            qfx_block(busp, tr, &ms, k ? 10 : -1, l[k] + b * kBlock, r[k] + b * kBlock, kBlock);
+            block(busp, tr, &ms, k ? 10 : -1, l[k] + b * kBlock, r[k] + b * kBlock, kBlock);
         }
     }
     assert(!memcmp(l[0], l[1], sizeof(l[0])) && !memcmp(r[0], r[1], sizeof(r[0])));
@@ -442,7 +450,7 @@ static void compress(float amp, float from, float *peak, float *db)
         for (unsigned i = 0; i < kBlock; i++) bus[0][i] = sine(amp, 220.0f, b * kBlock + i);
         float x[kBlock];
         memcpy(x, bus[0], sizeof(x));
-        qfx_block(busp, tr, &ms, -1, l, r, kBlock);
+        block(busp, tr, &ms, -1, l, r, kBlock);
         for (unsigned i = 0; i < kBlock; i++)
             if (b * kBlock + i >= (unsigned)(from * kRate)) {
                 in += (double)x[i] * x[i];
@@ -475,7 +483,7 @@ static void master_extremes_bounded(void)
     float peak = 0.0f;
     for (unsigned b = 0; b < 10 * (unsigned)kRate / kBlock; b++) {
         noise(&seed, 1.0f);
-        qfx_block(busp, tr, &ms, b % 20 == 0 ? 37 : -1, l, r, kBlock);
+        block(busp, tr, &ms, b % 20 == 0 ? 37 : -1, l, r, kBlock);
         for (unsigned i = 0; i < kBlock; i++) {
             assert(isfinite(l[i]) && isfinite(r[i]));
             assert(fabsf(l[i]) <= 1.0f && fabsf(r[i]) <= 1.0f);

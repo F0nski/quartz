@@ -110,8 +110,9 @@ leurs valeurs. MIX dose le signal traité contre le signal direct (0 : direct se
   - pool : reverb 32 Ko et delay 43 Ko (au budget de la spec globale), plus un tampon de 4 Ko par piste pour
     chorus, phaser et comb (16 Ko) ; il reste environ 13 Ko de marge, LOOP de 3c comptés ;
   - RAM principale : environ 9 Ko de plus (bus, envois, clic) ; si la place manque, les bus vont dans le pool.
-- **CPU** : estimé à environ 15 % du cœur 1 (reverb 5–8 %, delay 2 %, inserts 1–3 % chacun, compresseur 1 %).
-  Si le pire cas perd des blocs, la reverb passe sur le cœur 2 avec un bloc de retard (5,8 ms, inaudible).
+- **CPU** : la reverb tourne sur le cœur 2, avec la première tâche de chaque bloc, un bloc en retard (5,8 ms) ; elle ne
+  calcule pas quand elle ne reçoit rien et que sa queue est sous −100 dB. Pistes silencieuses sans insert : non calculées.
+  Les effets n'appellent aucune fonction de libm par échantillon (fastmath de fm1-base).
 
 ## 7. Tests
 

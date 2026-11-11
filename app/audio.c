@@ -93,6 +93,7 @@ static float gain[Q_VOICES];
 static float inv_n;                 /* 1 / the block's frames: the fades */
 static float out_gain;              /* MASTER's gain at the end of the last block: ramped from there */
 static uint32_t seg_pos, seg_len;
+static int rev_done;                /* this block's qfx_reverb has run */
 
 static uint32_t sum1, sum2, sumfx, sum_budget;
 static volatile uint32_t pct1, pct2, pctfx;
@@ -697,10 +698,12 @@ static void render_voices(int from, float (*b)[APP_BLOCK], float *tmp)
     }
 }
 
+/* arg 1: the block's reverb first (qfx_reverb), which core 2 runs beside core 1's voices */
 static void job2(uint32_t arg)
 {
     uint32_t t0 = plat_ticks24();
-    (void)arg;
+    if (arg)
+        qfx_reverb();
     render_voices(3, bus[1], tmp2);
     sum2 += plat_ticks24() - t0;
 }
@@ -716,8 +719,10 @@ static void render_segment(void)
                 gain[v] *= prj->kit[pool.v[v].track][vpad[v]].level / 127.0f;
             need2 |= v >= 3;
         }
-    if (need2)                      /* no empty job for the second core */
-        two = plat_cpu2_run(job2, 0);
+    int rev = !rev_done;            /* the block's first segment carries the reverb */
+    rev_done = 1;
+    if (need2 || rev)               /* no empty job for the second core */
+        two = plat_cpu2_run(job2, (uint32_t)rev);
     render_voices(0, bus[0], tmp1);
     if (two) {
         tw = plat_ticks24();
@@ -727,8 +732,12 @@ static void render_segment(void)
     if (r < 0)                      /* given up: what it added to the segment goes */
         for (int t = 0; t < Q_TRACKS; t++)
             __builtin_memset(bus[1][t] + seg_pos, 0, seg_len * sizeof *bus[1][t]);
-    if (!two || r < 0)
-        render_voices(3, bus[1], tmp2);  /* the second core's share, on this one */
+    if (!two || r < 0) {            /* the second core's share, on this one (a reverb given up may have run part of
+                                     * its block: one block of its tail is then off, once, as core 2 goes off) */
+        if (rev)
+            qfx_reverb();
+        render_voices(3, bus[1], tmp2);
+    }
 }
 
 void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
@@ -748,6 +757,7 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
     inv_n = 1.0f / (float)n;
     dg = (target - g) * inv_n;      /* MASTER ramped across the block: no zipper noise */
     switched = 0;
+    rev_done = 0;
     start_later();
     ncmd = 0;
     commands();

@@ -26,6 +26,9 @@ void qfx_insert(int t, int type, int p1, int p2, int p3, int mix, float *buf, un
    change since the last block are ramped over this one; the first block after qfx_init starts at its own. */
 void qfx_block(float *const bus[QFX_TRACKS], const qfx_track tr[QFX_TRACKS], const qfx_master *m,
                int duck_at, float *l, float *r, unsigned n);
+/* The reverb, apart so that the second core can run it: once per block, before qfx_block and never during it, it
+   turns the sends qfx_block left into the returns the next qfx_block mixes: the reverb is one block late. */
+void qfx_reverb(void);
 float qfx_delay_fit(float frames);   /* frames halved until <= the buffer's length, in 44.1 kHz frames */
 #ifdef __cplusplus
 }

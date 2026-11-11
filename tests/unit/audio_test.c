@@ -58,6 +58,8 @@ static qfx_master QM;
 static int QDUCK;
 static float QBUS[QFX_TRACKS][QFX_BLOCK];
 void qfx_init(void) { qfx_inits++; }
+static int qfx_reverbs, reverb_core, reverb_blocks;   /* calls; the core of the last; qfx_blocks then */
+void qfx_reverb(void) { qfx_reverbs++; reverb_core = on_core2; reverb_blocks = qfx_blocks; }
 void qfx_block(float *const bus[QFX_TRACKS], const qfx_track tr[QFX_TRACKS], const qfx_master *m,
                int duck_at, float *l, float *r, unsigned n)
 {
@@ -189,16 +191,17 @@ static void core2_dropped_after_adding(void)
     assert(!memcmp(ref, LR, sizeof ref));
 }
 
-static void no_empty_core2_job(void)
+/* a job for core 2 per segment with voices there, else only the block's first, for the reverb */
+static void core2_jobs(void)
 {
     setup();
     block(256);
     audio_live_note(0, 60, 1);
     block(256);
-    assert(audio_load().active == 1 && cpu2_runs == 0);
+    assert(audio_load().active == 1 && cpu2_runs == 2);
     six_notes();
     block(256);
-    assert(cpu2_runs == 1);
+    assert(cpu2_runs == 3);
 }
 
 static int track_on(int t)
@@ -1500,13 +1503,36 @@ static void stereo_out(void)
     assert(LR[0] != 0 && LR[0] != LR[1]);
 }
 
+
+/* the reverb rides with the block's first job for core 2, before qfx_block; without core 2, on core 1 */
+static void reverb_on_core2_once_per_block(void)
+{
+    static const int RUNS[4] = {1, 1, 1, 2};   /* mode 3: core 2 ran it, then it was dropped: core 1 runs it again */
+    for (int mode = 0; mode < 4; mode++) {
+        setup();
+        cpu2_mode = mode;
+        six_notes();
+        qfx_reverbs = 0;
+        int before = qfx_blocks;
+        block(256);
+        assert(qfx_reverbs == RUNS[mode]);
+        assert(reverb_core == (mode == 1));   /* the last run's core */
+        assert(reverb_blocks == before);      /* before this block's qfx_block */
+        qfx_reverbs = 0;
+        block(256);                           /* no voice on core 2: still a job, for the reverb */
+        assert(qfx_reverbs == RUNS[mode]);
+    }
+    cpu2_mode = 1;
+}
+
 int main(void)
 {
+    reverb_on_core2_once_per_block();
     splits_block_at_events();
     cores_get_their_voices();
     render_without_cpu2();
     core2_dropped_after_adding();
-    no_empty_core2_job();
+    core2_jobs();
     play_while_playing_restarts();
     full_queue_keeps_note_off();
     model_change_fades_then_frees();
