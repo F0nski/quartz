@@ -6,6 +6,7 @@
 #include "voices.c"
 #include "mod.c"
 #include "dsp/pq.h"
+#include "dsp/qfx.h"
 
 /* doubles: the second core and the clock */
 static int cpu2_mode;               /* 0: run refused, 1: runs the job, 2: takes it, then wait drops it,
@@ -50,6 +51,29 @@ void pq_render(int v, float *out, unsigned n)
 }
 int pq_silent(int v) { return silent[v]; }
 
+/* doubles: the track effects, the last block's arguments kept; l is the buses' sum, r half of it */
+static int qfx_inits, qfx_blocks;
+static qfx_track QTR[QFX_TRACKS];
+static qfx_master QM;
+static int QDUCK;
+static float QBUS[QFX_TRACKS][QFX_BLOCK];
+void qfx_init(void) { qfx_inits++; }
+void qfx_block(float *const bus[QFX_TRACKS], const qfx_track tr[QFX_TRACKS], const qfx_master *m,
+               int duck_at, float *l, float *r, unsigned n)
+{
+    qfx_blocks++;
+    memcpy(QTR, tr, sizeof QTR);
+    QM = *m;
+    QDUCK = duck_at;
+    for (int t = 0; t < QFX_TRACKS; t++) memcpy(QBUS[t], bus[t], n * sizeof *QBUS[t]);
+    for (unsigned i = 0; i < n; i++) {
+        float x = 0;
+        for (int t = 0; t < QFX_TRACKS; t++) x += bus[t][i];
+        l[i] = x;
+        r[i] = 0.5f * x;
+    }
+}
+
 #include "audio.c"
 
 static q_project P;
@@ -64,7 +88,9 @@ static void setup(void)
     tick_step = 10;
     amp = 0.01f;
     memset(silent, 0, sizeof silent);
+    qfx_inits = 0;
     audio_setup(&P);
+    assert(qfx_inits == 1);
     NLOG = 0;
 }
 
@@ -245,16 +271,12 @@ static void level_master_and_clip(void)
     audio_live_note(0, 60, 1);
     block(256);
     block(256);
-    int32_t full = (int32_t)(0.01f * 0.25f * 8388607.0f);
-    assert(LR[0] == full && LR[511] == full);
-    P.sound[0].level = 64;
-    block(256);
-    int32_t lv = (int32_t)(0.01f * (64 / 127.0f * 0.25f) * 8388607.0f);
-    assert(LR[0] - lv <= 1 && lv - LR[0] <= 1);
+    int32_t full = (int32_t)(0.01f * 0.25f * 8388607.0f), half = (int32_t)(0.5f * 0.01f * 0.25f * 8388607.0f);
+    assert(LR[0] == full && LR[510] == full && LR[511] == half);
     app_render(LR, 256, 2048);      /* MASTER halved: ramped across the block */
-    assert(LR[0] < lv && LR[0] > lv - lv / 128);
+    assert(LR[0] < full && LR[0] > full - full / 128);
     for (int i = 1; i < 256; i++) assert(LR[2 * i] <= LR[2 * i - 2]);
-    assert(LR[510] - lv / 2 <= 1 && lv / 2 - LR[510] <= 1);
+    assert(LR[510] - full / 2 <= 1 && full / 2 - LR[510] <= 1);
     amp = 1000.0f;
     app_render(LR, 256, 4096);
     block(256);
@@ -1260,6 +1282,163 @@ static void arp_ignored_on_kit(void)
     assert(n == 2);
 }
 
+/* track t's voices into its bus: amp * (v + 1) at gain 0.25 each */
+static float bus_of(int t)
+{
+    float x = 0;
+    for (int v = 0; v < Q_VOICES; v++) if (pool.v[v].track == t && sounding(v)) x += 0.01f * (float)(v + 1) * 0.25f;
+    return x;
+}
+
+static void voices_reach_their_track_bus(void)
+{
+    setup();
+    P.sound[2].poly = 4;
+    audio_live_note(0, 60, 1);
+    for (int k = 0; k < 4; k++) audio_live_note(2, 60 + k, 1);
+    block(256);
+    block(256);
+    assert(track_slot(0) == 0);
+    int core2 = 0;
+    for (int v = 3; v < Q_VOICES; v++) core2 |= pool.v[v].track == 2 && sounding(v);
+    assert(core2);
+    /* core 2 running, refused, or given up after adding: the same buses */
+    for (int mode = 1; mode <= 3; mode++) {
+        cpu2_mode = mode;
+        block(256);
+        for (int i = 0; i < 256; i++) {
+            assert(QBUS[0][i] == bus_of(0) && QBUS[2][i] == bus_of(2));
+            assert(QBUS[1][i] == 0 && QBUS[3][i] == 0);
+        }
+    }
+}
+
+static void level_moves_to_fx(void)
+{
+    setup();
+    P.sound[0].level = 50;
+    audio_live_note(0, 60, 1);
+    block(256);
+    block(256);
+    assert(QBUS[0][0] == 0.01f * 0.25f && QBUS[0][255] == 0.01f * 0.25f);
+    assert(QTR[0].level == 50);
+    P.dtime = DIV_8;
+    P.dfb = 33;
+    block(256);
+    uint32_t num, den;
+    seq_step_ratio(P.tempo, DIV_8, &num, &den);
+    assert(QM.dly == (float)num / (float)den && QM.dfb == 33 && QM.duck == P.duck);
+}
+
+/* track 0: DSEND 10, PAN 5; steps 1 and 2 on, step 1 locked to DSEND 90, PAN -20 */
+static void fx_lock_setup(int micro)
+{
+    setup();
+    P.sound[0].dsend = 10;
+    P.sound[0].pan = 5;
+    P.pat[0][0].steps[1].flags = P.pat[0][0].steps[2].flags = SF_ON;
+    P.pat[0][0].steps[1].micro = (int8_t)micro;
+    lock_set(&P.pat[0][0], 1, LK_DSEND, 90);
+    lock_set(&P.pat[0][0], 1, LK_PAN, (uint8_t)-20);
+    audio_play(1);
+}
+
+/* through step 2: a block from step `from` (its start) to its end within step 1 plays the lock */
+static void fx_lock_run(int from)
+{
+    int seen1 = 0, seen2 = 0;
+    for (int k = 0; k < 3 * 5516 / 256; k++) {
+        int p = audio_pos(0);
+        block(256);
+        int locked = QTR[0].dsend == 90 && QTR[0].pan == -20;
+        assert(locked || (QTR[0].dsend == 10 && QTR[0].pan == 5));
+        if (p >= from && p <= 1 && audio_pos(0) == 1) { assert(locked); seen1 = 1; }
+        if (p == 2) { assert(!locked); seen2 = 1; }
+    }
+    assert(seen1 && seen2);
+}
+
+static void fx_lock_on_its_step(void)
+{
+    fx_lock_setup(0);
+    fx_lock_run(1);
+}
+
+static void fx_lock_negative_micro(void)
+{
+    fx_lock_setup(-11);
+    until(0, spf16(120));           /* 11/24 of a step early: in step 0's second half */
+    assert(audio_pos(0) == 0 && QTR[0].dsend == 90);
+    fx_lock_run(0);
+}
+
+static void stop_clears_fx_locks(void)
+{
+    fx_lock_setup(-11);
+    while (QTR[0].dsend != 90) block(256);   /* the step's note-on: the lock not yet seen at a block's start */
+    audio_play(0);
+    audio_live_note(0, 60, 1);
+    block(256);
+    assert(QTR[0].dsend == 10 && QTR[0].pan == 5);
+}
+
+static void kit_bd_sets_duck_at(void)
+{
+    for (int sn = 0; sn < 2; sn++) {
+        kit_setup();
+        int pad = 0;
+        while (P.kit[0][pad].engine != (sn ? PAD_SN : PAD_BD)) pad++;
+        P.tempo = 120;
+        P.pat[0][0].div = DIV_32;
+        P.pat[0][0].steps[1].flags = SF_ON;
+        P.pat[0][0].steps[1].note[0] = (uint8_t)(KIT_NOTE + pad);
+        uint32_t num, den;
+        seq_step_ratio(120, DIV_32, &num, &den);
+        uint32_t spf = (num + den - 1) / den, lead = spf - 100;   /* step 1 at offset 100 */
+        audio_play(1);
+        block(lead % 256);
+        assert(QDUCK == -1);
+        for (uint32_t k = 0; k < lead / 256; k++) { block(256); assert(QDUCK == -1); }
+        block(256);
+        assert(QDUCK == (sn ? -1 : 100));
+        block(256);
+        assert(QDUCK == -1);
+    }
+}
+
+static void duck_follows_kit_membership(void)
+{
+    setup();
+    set_model(1, M_KIT);
+    block(256);
+    for (int t = 0; t < Q_TRACKS; t++) assert(QTR[t].duck == (t != 1));
+    set_model(1, 3);
+    block(256);
+    for (int t = 0; t < Q_TRACKS; t++) assert(QTR[t].duck == 1);
+}
+
+static void click_after_fx(void)
+{
+    setup();
+    P.click = 1;
+    audio_rec(1);
+    audio_play(1);
+    block(256);
+    assert(LR[0] != 0 || LR[2] != 0);
+    assert(LR[2] == LR[3]);         /* the click on both sides, unpanned */
+    for (int t = 0; t < QFX_TRACKS; t++)
+        for (int i = 0; i < 256; i++) assert(QBUS[t][i] == 0);
+}
+
+static void stereo_out(void)
+{
+    setup();
+    audio_live_note(0, 60, 1);
+    block(256);
+    block(256);
+    assert(LR[0] != 0 && LR[0] != LR[1]);
+}
+
 int main(void)
 {
     splits_block_at_events();
@@ -1314,6 +1493,15 @@ int main(void)
     arp_stop_and_kit_end_notes();
     arp_ignored_on_kit();
     keyboard_note_takes_no_lock();
+    voices_reach_their_track_bus();
+    level_moves_to_fx();
+    fx_lock_on_its_step();
+    fx_lock_negative_micro();
+    stop_clears_fx_locks();
+    kit_bd_sets_duck_at();
+    duck_follows_kit_membership();
+    click_after_fx();
+    stereo_out();
     puts("audio_test ok");
     return 0;
 }

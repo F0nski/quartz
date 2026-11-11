@@ -1,5 +1,6 @@
 /* The render: per block, the main loop's commands, the sequencer's events, then the voices segment by segment
- * between the events' offsets, the metronome's click over them. Voices 0..2 render on core 1, 3..5 on core 2 (or on core 1 when it is off or gives a
+ * between the events' offsets, each into its track's bus, the track effects over the buses, the metronome's click
+ * over them. Voices 0..2 render on core 1, 3..5 on core 2 (or on core 1 when it is off or gives a
  * job up). pq's calls for a voice never overlap its render: core 1 applies a segment's events before handing over. */
 #include "app.h"
 #include "audio.h"
@@ -7,6 +8,7 @@
 #include "voices.h"
 #include "mod.h"
 #include "dsp/pq.h"
+#include "dsp/qfx.h"
 
 #define CMD_N 64                    /* a power of two */
 #define OFF_ROOM 32                 /* kept for note-offs, one per held key (27), and the preparation's request (1): the
@@ -24,6 +26,9 @@
 #define CLICK_DECAY 0.99849003f        /* per frame: a 15 ms time constant */
 #define CLICK_END (CLICK_AMP * 1e-4f)  /* ~140 ms on */
 #define KIT_MODEL 21                /* PAD_BD's Plaits engine; PAD_SN's and PAD_HH's follow */
+#define FX_N (LK_LEVEL - LK_I1 + 1) /* the effect locks: LK_I1..LK_LEVEL */
+
+_Static_assert(APP_BLOCK <= QFX_BLOCK && APP_BLOCK % 2 == 0 && Q_TRACKS == QFX_TRACKS, "qfx_block's contract");
 
 /* SCENE: note = scene; PREP_REQ: note = model; DONE: track = slot, note = model */
 enum { CMD_NOTE, CMD_PLAY, CMD_MODEL, CMD_SCENE, CMD_PREP_REQ, CMD_PREP_DONE };
@@ -57,6 +62,11 @@ static volatile int recording;      /* audio_rec */
 static uint32_t lk_mask[Q_VOICES];
 static uint8_t lk_val[Q_VOICES][LK_N];
 static int8_t vpad[Q_VOICES];       /* the KIT pad each voice plays, -1 none: taken at its note-on */
+/* each track's effect locks (bit k of mask: LK_I1 + k), taken at a step's note-on (fxl_step). They hold until a
+ * block starts past that step once a block has started on it (fxl_seen): a note early by its micro keeps them */
+static uint8_t fxl_val[Q_TRACKS][FX_N];
+static uint8_t fxl_mask[Q_TRACKS], fxl_step[Q_TRACKS], fxl_seen[Q_TRACKS];
+static int duck_at;                 /* the block's first KIT BD note-on, -1 none */
 static float clk_c, clk_s, clk_cw, clk_sw, clk_env;   /* the click: a phasor turning by (clk_cw, clk_sw) a frame */
 /* live notes held while recording; now: the render's clock, since audio_setup */
 typedef struct { uint8_t on, track, note, pat, step; int8_t micro; uint32_t t0; } q_held;
@@ -73,7 +83,10 @@ static volatile uint32_t rec_w, rec_r;
 static volatile int scene_v;
 static volatile uint32_t scene_w, scene_r;
 
-static float mix1[APP_BLOCK], mix2[APP_BLOCK], tmp1[APP_BLOCK], tmp2[APP_BLOCK];
+/* bus[0]: core 1's voices, bus[1]: core 2's (or core 1's in its place), each in its track's bus; added up at the
+ * block's end. tmp1, tmp2 then take qfx's l and r */
+static float bus[2][Q_TRACKS][APP_BLOCK], tmp1[APP_BLOCK], tmp2[APP_BLOCK];
+static float clk[APP_BLOCK];        /* the click, after the effects */
 static float gain[Q_VOICES];
 static float inv_n;                 /* 1 / the block's frames: the fades */
 static float out_gain;              /* MASTER's gain at the end of the last block: ramped from there */
@@ -106,6 +119,7 @@ void audio_setup(q_project *p)
     voices_init(&pool);
     pq_init();
     mod_init();
+    qfx_init();
     for (int t = 0; t < Q_TRACKS; t++) {
         arp_reset(&arp[t]);
         astep[t] = -1;
@@ -114,6 +128,7 @@ void audio_setup(q_project *p)
         pool.v[v].model = 8;        /* pq_init's model */
     __builtin_memset(fading, 0, sizeof fading);
     __builtin_memset(lk_mask, 0, sizeof lk_mask);
+    __builtin_memset(fxl_mask, 0, sizeof fxl_mask);
     __builtin_memset(vpad, -1, sizeof vpad);
     __builtin_memset(held, 0, sizeof held);
     clk_env = 0;
@@ -433,8 +448,37 @@ static int legato(const q_event *e)
     return 1;
 }
 
+/* a step's note-on (255: the keyboard's) takes its effect locks; a KIT's BD marks the duck */
+static void fx_note_on(const q_event *e)
+{
+    int t = e->track;
+    if (rmodel[t] == M_KIT && duck_at < 0 && !no_pad(t, e->note) && prj->kit[t][e->note - KIT_NOTE].engine == PAD_BD)
+        duck_at = (int)e->offset;
+    if (e->step == 255)
+        return;
+    const q_pattern *pt = &prj->pat[t][e->pat];
+    fxl_mask[t] = 0;
+    fxl_step[t] = e->step;
+    fxl_seen[t] = 0;
+    for (int k = 0; k < FX_N; k++) {
+        int i = lock_find(pt, e->step, LK_I1 + k);
+        if (i >= 0) {
+            fxl_mask[t] |= (uint8_t)(1u << k);
+            fxl_val[t][k] = pt->locks[i].value;
+        }
+    }
+}
+
+/* the track's effect setting k (LK_I1..), its lock or the track's value */
+static int fx(int t, int k, int track_value)
+{
+    return fxl_mask[t] >> (k - LK_I1) & 1 ? fxl_val[t][k - LK_I1] : track_value;
+}
+
 static void apply(const q_event *e)
 {
+    if (e->track < Q_TRACKS && e->on)
+        fx_note_on(e);
     if (e->track == Q_CLICK_TRACK) {
         click_start(e->note);
     } else if (e->on && (e->flags & EV_LEGATO) && rmodel[e->track] == M_KIT) {
@@ -620,6 +664,7 @@ static void commands(void)
                     held[i].on = 0;
                 }
             seq_stop(&seq, off, &n);
+            __builtin_memset(fxl_mask, 0, sizeof fxl_mask);
             for (int i = 0; i < n; i++) {
                 ev[ncmd++] = off[i];             /* (an arp ends the step's notes; a keyboard latch goes on) */
             }
@@ -631,8 +676,8 @@ static void commands(void)
     }
 }
 
-/* voices [from, from + 3) of the segment, each at its track's level, into out */
-static void render_voices(int from, float *out, float *tmp)
+/* voices [from, from + 3) of the segment, each into its track's bus of b */
+static void render_voices(int from, float (*b)[APP_BLOCK], float *tmp)
 {
     for (int v = from; v < from + 3; v++) {
         if (!sounding(v))
@@ -644,8 +689,9 @@ static void render_voices(int from, float *out, float *tmp)
         }
         __builtin_memset(tmp, 0, seg_len * sizeof *tmp);
         pq_render(v, tmp, seg_len);
+        float *out = b[pool.v[v].track] + seg_pos;
         for (uint32_t i = 0; i < seg_len; i++, g += dg)
-            out[seg_pos + i] += tmp[i] * g;
+            out[i] += tmp[i] * g;
     }
 }
 
@@ -653,7 +699,7 @@ static void job2(uint32_t arg)
 {
     uint32_t t0 = plat_ticks24();
     (void)arg;
-    render_voices(3, mix2, tmp2);
+    render_voices(3, bus[1], tmp2);
     sum2 += plat_ticks24() - t0;
 }
 
@@ -663,29 +709,33 @@ static void render_segment(void)
     int two = 0, r = 0, need2 = 0;
     for (int v = 0; v < Q_VOICES; v++)
         if (sounding(v)) {
-            gain[v] = prj->sound[pool.v[v].track].level / 127.0f * 0.25f;
+            gain[v] = 0.25f;        /* the track's LEVEL is qfx's */
             if (vpad[v] >= 0)
                 gain[v] *= prj->kit[pool.v[v].track][vpad[v]].level / 127.0f;
             need2 |= v >= 3;
         }
     if (need2)                      /* no empty job for the second core */
         two = plat_cpu2_run(job2, 0);
-    render_voices(0, mix1, tmp1);
+    render_voices(0, bus[0], tmp1);
     if (two) {
         tw = plat_ticks24();
         r = plat_cpu2_wait();
         sum1 -= plat_ticks24() - tw;   /* core 1 waiting is not its work */
     }
     if (r < 0)                      /* given up: what it added to the segment goes */
-        __builtin_memset(mix2 + seg_pos, 0, seg_len * sizeof *mix2);
+        for (int t = 0; t < Q_TRACKS; t++)
+            __builtin_memset(bus[1][t] + seg_pos, 0, seg_len * sizeof *bus[1][t]);
     if (!two || r < 0)
-        render_voices(3, mix2, tmp2);  /* the second core's share, on this one */
+        render_voices(3, bus[1], tmp2);  /* the second core's share, on this one */
 }
 
 void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
 {
     uint32_t t0 = plat_ticks24(), pos = 0;
     int ne, ei = 0;
+    float *l = tmp1, *r = tmp2, *b[Q_TRACKS];
+    qfx_track tr[Q_TRACKS];
+    qfx_master fm;
     float target = 8388607.0f * (float)master_q12 / 4096.0f, g = out_gain, dg;
 
     if (muted) {                    /* before an update rewrites the flash: nothing runs, nothing sounds */
@@ -699,6 +749,12 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
     start_later();
     ncmd = 0;
     commands();
+    for (int t = 0; t < Q_TRACKS; t++)    /* seq_pos: the block's start */
+        if (seq_pos(&seq, t) == fxl_step[t])
+            fxl_seen[t] = 1;
+        else if (fxl_seen[t])
+            fxl_mask[t] = 0;
+    duck_at = -1;
     seq_click(&seq, recording && (prj->click & 1));
     ne = ncmd + seq_block(&seq, prj, n, ev + ncmd, EV_MAX);
     int ni = ne;
@@ -730,15 +786,18 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
             vparam(v, &prj->sound[pool.v[v].track], &q);
             mod_set(v, &q, prj->tempo);
         }
-    __builtin_memset(mix1, 0, n * sizeof *mix1);
-    __builtin_memset(mix2, 0, n * sizeof *mix2);
+    for (int t = 0; t < Q_TRACKS; t++) {
+        __builtin_memset(bus[0][t], 0, n * sizeof *bus[0][t]);
+        __builtin_memset(bus[1][t], 0, n * sizeof *bus[1][t]);
+    }
+    __builtin_memset(clk, 0, n * sizeof *clk);
     while (pos < n) {
         while (ei < ne && ev[ei].offset <= pos)
             apply(&ev[ei++]);
         seg_pos = pos;
         seg_len = (ei < ne ? ev[ei].offset : n) - pos;
         render_segment();
-        click_render(mix1 + seg_pos, seg_len);
+        click_render(clk + seg_pos, seg_len);
         pos += seg_len;
     }
     for (int v = 0; v < Q_VOICES; v++)
@@ -746,12 +805,26 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
             voices_free(&pool, v);
             fading[v] = 0;
         }
+    for (int t = 0; t < Q_TRACKS; t++) {
+        const q_sound *s = &prj->sound[t];
+        b[t] = bus[0][t];
+        for (uint32_t i = 0; i < n; i++)
+            b[t][i] += bus[1][t][i];
+        tr[t] = (qfx_track){ s->itype, (uint8_t)fx(t, LK_I1, s->i1), (uint8_t)fx(t, LK_I2, s->i2),
+                             (uint8_t)fx(t, LK_I3, s->i3), (uint8_t)fx(t, LK_IMIX, s->imix),
+                             (uint8_t)fx(t, LK_DSEND, s->dsend), (uint8_t)fx(t, LK_RSEND, s->rsend),
+                             (uint8_t)fx(t, LK_LEVEL, s->level), (uint8_t)(rmodel[t] != M_KIT),
+                             (int8_t)fx(t, LK_PAN, (uint8_t)s->pan) };
+    }
+    uint32_t num, den;
+    seq_step_ratio(prj->tempo, prj->dtime, &num, &den);
+    fm = (qfx_master){ (float)num / (float)den, prj->dfb, prj->rsize, prj->rtone, prj->comp, prj->duck };
+    qfx_block(b, tr, &fm, duck_at, l, r, n);
     for (uint32_t i = 0; i < n; i++) {
         g += dg;
-        float x = (mix1[i] + mix2[i]) * g;
-        int32_t s = x > 8388607.0f ? 8388607 : x < -8388608.0f ? -8388608 : (int32_t)x;
-        lr[2 * i] = s;
-        lr[2 * i + 1] = s;
+        float xl = (l[i] + clk[i]) * g, xr = (r[i] + clk[i]) * g;
+        lr[2 * i] = xl > 8388607.0f ? 8388607 : xl < -8388608.0f ? -8388608 : (int32_t)xl;
+        lr[2 * i + 1] = xr > 8388607.0f ? 8388607 : xr < -8388608.0f ? -8388608 : (int32_t)xr;
     }
     out_gain = target;
     now += n;
