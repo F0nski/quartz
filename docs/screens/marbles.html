@@ -41,7 +41,7 @@ button[aria-pressed=true] { background: var(--hot); color: #fff; border-color: v
 <main>
 <header>
   <h1>MARBLES <em>autrement</em></h1>
-  <p class="lead">L'escadrille dans trois décors. Ce qui part (cristal, rayon, comète, tir) part un pas avant sa note et
+  <p class="lead">L'escadrille sur le sol quadrillé et dans un canyon. Ce qui part (cristal, rayon, comète, tir) part un pas avant sa note et
   arrive quand la note sonne. Chaque encodeur des pages MARBLES, T et X change quelque chose à l'écran : tourne les
   curseurs, ou laisse « auto » les faire bouger.</p>
 </header>
@@ -55,9 +55,7 @@ button[aria-pressed=true] { background: var(--hot); color: #fff; border-color: v
   <figure><canvas id="shipsPro" width="240" height="240"></canvas><figcaption><span class="tag">sol</span><h2>Escadrille, sol quadrillé</h2>
     <p>Le décor de la planète FM, pour comparer.</p></figcaption></figure>
   <figure><canvas id="shipsCanyon" width="240" height="240"></canvas><figcaption><span class="tag">canyon</span><h2>Escadrille, canyon</h2>
-    <p>Une gorge aux parois en facettes qui défilent vers toi (au rythme de DIV) ; les cristaux sur le fond, l'escadrille entre les parois.</p></figcaption></figure>
-  <figure><canvas id="shipsOcean" width="240" height="240"></canvas><figcaption><span class="tag">océan</span><h2>Escadrille, océan</h2>
-    <p>Une houle lente en fil de fer jusqu'à l'horizon ; les cristaux sur des socles qui flottent et suivent la houle.</p></figcaption></figure>
+    <p>Des rochers et des aiguilles en facettes, de tailles irrégulières, avec des trouées, bordent la gorge et défilent vers toi au rythme de DIV ; le ciel reste ouvert au milieu.</p></figcaption></figure>
 </div>
 
 <section aria-label="Ce que fait chaque encodeur">
@@ -322,24 +320,33 @@ function decorGrid(c, t) {
   for (let k = 0; k < 6; k++) { const p = ((k + (t * 0.25 / stepDur()) % 1) / 6) ** 2, y = Math.round(hz + p * 62) + .5; c.beginPath(); c.moveTo(0, y); c.lineTo(240, y); c.stroke(); }
   return () => 0;
 }
-/* a canyon: faceted walls running towards the viewer, the crystals on its floor */
-const ROCK = [["#4a2f86", "#35226a", "#22164a"], ["#3f2878", "#2c1c5c", "#1c123e"]];
+/* a canyon: rocks and spires of random sizes along both sides, gaps between them, open sky in the middle; they run
+   towards the viewer at DIV's pace */
+const ROCKL = ["#5a3a9a", "#3c2672", "#24164c"], ROCKR = ["#4a2f86", "#30205e", "#1c123e"];
+function rock(c, x, y, w, h, lean, side) {
+  const peak = [x + lean * w, y - h], sh = [x - side * w * 0.22, y - h * 0.5], bl = [x - w / 2, y], br = [x + w / 2, y];
+  const T = side < 0 ? ROCKL : ROCKR;
+  /* lit from the top left: the face turned left is the light one */
+  poly(c, [bl, br, sh], T[1]);
+  poly(c, side < 0 ? [bl, peak, sh] : [sh, peak, br], side < 0 ? T[0] : T[2]);
+  poly(c, side < 0 ? [sh, peak, br] : [bl, peak, sh], side < 0 ? T[2] : T[0]);
+  stroke(c, [bl, peak, br], "#6a45b0", 1, false);
+}
 function decorCanyon(c, t) {
-  const vx = 120, vy = 62, sp = 0.6 * 0.25 / stepDur(), f = (t * sp) % 1, base = Math.floor(t * sp);
+  const vx = 120, vy = 96, sp = 0.5 * 0.25 / stepDur(), f = (t * sp) % 1, base = Math.floor(t * sp), N = 11;
   c.fillStyle = "#0c0820"; c.fillRect(0, 30, 240, 166); starsBg(c, t);
-  c.fillStyle = "#140c2c"; poly(c, [[vx - 6, vy], [vx + 6, vy], [240, 196], [0, 196]], "#140c2c");          /* the floor */
-  const N = 9, at = k => ((k + 1 - f) / N) ** 1.8;
+  poly(c, [[0, vy], [240, vy], [240, 196], [0, 196]], "#120a28");                                         /* the canyon floor */
+  for (let k = 0; k < 5; k++) { const p = ((k + f) / 5) ** 2, y = vy + p * 100; stroke(c, [[vx - 20 - p * 150, y], [vx + 20 + p * 150, y]], "#1e1240", 1, false); }
+  stroke(c, [[0, vy], [240, vy]], "#2e1c5a", 1, false);
   for (let k = N - 1; k >= 0; k--) {                                                                         /* far to near */
-    const p0 = at(k + 1), p1 = at(k), id = base - k, j0 = hash(id * 5 + 1) * 0.35, j1 = hash((id + 1) * 5 + 1) * 0.35;
-    const h0 = 1.1 + hash(id * 9) * 0.5, h1 = 1.1 + hash((id + 1) * 9) * 0.5;
+    const id = base - k, p = 0.7 * ((k + 1 - f) / N) ** 1.9;     /* the nearest stop behind the crystals */
     for (const side of [-1, 1]) {
-      const x = (p, j) => vx + side * (8 + p * (128 - j * 60)), top = (p, h) => vy - p * 90 * h, bot = p => vy + p * 134;
-      const xa = x(p0, j1), xb = x(p1, j0), mid0 = lerp(top(p0, h1), bot(p0), 0.45), mid1 = lerp(top(p1, h0), bot(p1), 0.45), T = ROCK[(id & 1)];
-      poly(c, [[xa, top(p0, h1)], [xb, top(p1, h0)], [xb + side * 10 * p1, mid1], [xa + side * 10 * p0, mid0]], side < 0 ? T[0] : T[1]);
-      poly(c, [[xa + side * 10 * p0, mid0], [xb + side * 10 * p1, mid1], [xb, bot(p1)], [xa, bot(p0)]], side < 0 ? T[1] : T[2]);
-      stroke(c, [[xa, top(p0, h1)], [xb, top(p1, h0)]], "#5b2f8c", 1, false);
+      const r = q => hash(id * 17 + (side > 0 ? 7 : 0) + q * 31);
+      if (r(0) < 0.3) continue;                                                                              /* a gap */
+      const spire = r(1) > 0.82, out = 70 + r(2) * 80, x = vx + side * (12 + p * out * 1.6), y = vy + p * 96;
+      const w = p * (spire ? 14 + r(3) * 10 : 30 + r(3) * 46), h = p * (spire ? 90 + r(4) * 60 : 26 + r(4) * 52);
+      rock(c, x, y, w, h, (r(5) - 0.5) * 0.5, side);
     }
-    const ya = vy + p0 * 134; stroke(c, [[vx - 8 - p0 * 100, ya], [vx + 8 + p0 * 100, ya]], "#22164a", 1, false);
   }
   return () => 0;
 }
@@ -550,7 +557,7 @@ function ships(c, t) {
   header(c, t);
 }
 
-const views = [["shipsPro", shipsPro], ["shipsCanyon", (c, t) => shipsPro(c, t, decorCanyon)], ["shipsOcean", (c, t) => shipsPro(c, t, decorOcean)]].map(([id, f]) => [document.getElementById(id).getContext("2d"), f]);
+const views = [["shipsPro", shipsPro], ["shipsCanyon", (c, t) => shipsPro(c, t, decorCanyon)]].map(([id, f]) => [document.getElementById(id).getContext("2d"), f]);
 function frame(ms) { const t = ms / 1000; views.forEach(([c, f]) => f(c, t)); }
 function loop(ms) { frame(ms + 1310); requestAnimationFrame(loop); }
 document.fonts.ready.then(() => { frame(1310); if (!reduce) requestAnimationFrame(loop); });
