@@ -334,6 +334,18 @@ static void arp_noteoff_survives_overflow(void)
     for (int i = 0; i < NLOG; i++) on62 += LOG[i].e.note == 62 && LOG[i].e.on;
     assert(on62 == 1);
 }
+/* 9 keys sounded directly in OFF, only 8 tracked: after the switch to UP the 9th key's note-off still comes out */
+static void arp_untracked_noteoff_passes(void)
+{
+    q_arp a; asetup(&a, 120); q_arpp off = ap(AM_OFF, 1, 50), up = ap(AM_UP, 1, 50);
+    for (int i = 0; i < 9; i++) ain(&a, 1, 50 + i, 0, 0);
+    arun(&a, &off, 100, 100);
+    arun(&a, &up, 100, 100);
+    ain(&a, 0, 58, 0, 0); arun(&a, &up, 100, 100);
+    int offs = 0;
+    for (int i = 0; i < NLOG; i++) offs += !LOG[i].e.on && LOG[i].e.note == 58;
+    assert(offs == 1);
+}
 
 int main(void)
 {
@@ -343,7 +355,7 @@ int main(void)
     arp_up_two_octaves(); arp_down(); arp_updown_no_repeat(); arp_order_follows_arrival(); arp_rand_in_set();
     arp_single_note_repeats(); arp_starts_at_first_note(); arp_gate_min(); arp_stops_when_empty(); arp_latch();
     arp_mode_change_no_stuck(); arp_passthrough_keeps_legato(); arp_tempo_change(); arp_ninth_note_ignored();
-    arp_noteoff_survives_overflow();
+    arp_noteoff_survives_overflow(); arp_untracked_noteoff_passes();
     puts("mod tests ok");
     return 0;
 }

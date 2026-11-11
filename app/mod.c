@@ -146,9 +146,10 @@ static void held_drop(q_arp *a, int j)
     if (!a->nh) a->run = 0;                          /* the sounding note still ends at its gate */
 }
 
-static void held_off(q_arp *a, int note)             /* a latched note outlives its key */
+static int held_off(q_arp *a, int note)              /* a latched note outlives its key; 0: not held */
 {
-    for (int j = 0; j < a->nh; j++) if (a->h[j].note == note && !a->h[j].latched) { held_drop(a, j); return; }
+    for (int j = 0; j < a->nh; j++) if (a->h[j].note == note) { if (!a->h[j].latched) held_drop(a, j); return 1; }
+    return 0;
 }
 
 static void held_on(q_arp *a, const q_event *e, int mode)
@@ -238,8 +239,10 @@ int arp_block(q_arp *a, const q_arpp *p, uint32_t num, uint32_t den, uint32_t n,
         else if (k < a->nin && a->in[k].offset == t) {
             const q_event *e = &a->in[k++];
             if (p->mode == AM_OFF) *o++ = *e;
-            if (!e->on) held_off(a, e->note);
-            else {
+            if (!e->on) {
+                /* a note sounded directly while MODE was OFF but not tracked (a 9th key) has no arp note: its off passes */
+                if (!held_off(a, e->note) && p->mode != AM_OFF) *o++ = *e;
+            } else {
                 if (e->flags & EV_LEGATO) held_off(a, e->from);
                 held_on(a, e, p->mode);
             }

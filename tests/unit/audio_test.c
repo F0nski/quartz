@@ -1187,8 +1187,8 @@ static void arp_keyboard_latch(void)
     audio_live_note(0, 60, 0);                      /* the key released: the latch goes on */
     assert(note_ons(9000, at, pc, 16) >= 3 && pc[2] == 60.0f);
     audio_live_note(0, 62, 1);                      /* a key without latch ends it: only 62 */
+    assert(note_ons(300, at, pc, 16) == 1 && pc[0] == 62.0f);   /* held 300 frames: one note, none of the latched 60 */
     audio_live_note(0, 62, 0);
-    note_ons(300, at, pc, 16);
     assert(note_ons(9000, at, pc, 16) == 0 && track_on(0) == 0);
 }
 
@@ -1212,6 +1212,17 @@ static void arp_stop_and_kit_end_notes(void)
     block(256);
     assert(track_on(0) == 0);
     assert(note_ons(9000, at, pc, 16) == 0);
+}
+
+/* a key reads as step -1: a lock stored on step 255 does not reach it */
+static void keyboard_note_takes_no_lock(void)
+{
+    setup();
+    P.pat[0][0].locks[0] = (q_lock){ 255, LK_HARM, 127 };
+    P.pat[0][0].nlocks = 1;
+    audio_live_note(0, 60, 1);
+    block(256);
+    assert(track_slot(0) >= 0 && last_harm(track_slot(0)) == 64 / 127.0f);
 }
 
 static void arp_ignored_on_kit(void)
@@ -1278,6 +1289,7 @@ int main(void)
     arp_keyboard_latch();
     arp_stop_and_kit_end_notes();
     arp_ignored_on_kit();
+    keyboard_note_takes_no_lock();
     puts("audio_test ok");
     return 0;
 }

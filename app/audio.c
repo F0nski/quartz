@@ -440,7 +440,7 @@ static void apply(const q_event *e)
         event(e->track, e->from, 0, 0, e->pat, e->step, 0);
         event(e->track, e->note, e->vel, 1, e->pat, e->step, e->flags & EV_ACCENT ? 1 : 0);
     } else if (!(e->on && (e->flags & EV_LEGATO) && legato(e))) {
-        event(e->track, e->note, e->vel, e->on, e->pat, e->step, e->flags & EV_ACCENT ? 1 : 0);
+        event(e->track, e->note, e->vel, e->on, e->pat, (int8_t)e->step, e->flags & EV_ACCENT ? 1 : 0);   /* 255, the keyboard's: -1 */
     }
 }
 
