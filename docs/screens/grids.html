@@ -53,11 +53,9 @@ button[aria-pressed=true] { background: var(--hot); color: #fff; border-color: v
 
 <div class="grid">
   <figure><canvas id="floors2" width="240" height="240"></canvas><figcaption><span class="tag">R1 soigné</span><h2>Trois étages</h2>
-    <p>Trois plateaux réguliers de 8 × 4 pas, HH en haut ; le bloc qui joue saute en rose avec une onde et des éclats. À droite de chaque étage, l'étiquette de la voix et sa densité en jauge à crans ; VOICE éclaire son étage.</p></figcaption></figure>
+    <p>Trois plateaux réguliers de 8 × 4 pas dans l'ordre du kit, BD en haut, HH en bas ; le bloc qui joue saute en rose avec une onde et des éclats. À droite de chaque étage, l'étiquette de la voix et sa densité en jauge à crans ; VOICE éclaire son étage.</p></figcaption></figure>
   <figure><canvas id="stacks2" width="240" height="240"></canvas><figcaption><span class="tag">R3 soigné</span><h2>Piles, en grand</h2>
-    <p>Le plateau de 8 × 4 pas sur toute la largeur ; chaque pas porte sa pile BD, SN, HH. Le sol pulse près du viseur à chaque temps ; les densités en haut à droite, la mini-carte X/Y en bas à gauche.</p></figcaption></figure>
-  <figure><canvas id="floors" width="240" height="240"></canvas><figcaption><span class="tag">R1</span><h2>Avant</h2><p>Pour comparer.</p></figcaption></figure>
-  <figure><canvas id="stacks" width="240" height="240"></canvas><figcaption><span class="tag">R3</span><h2>Avant</h2><p>Pour comparer.</p></figcaption></figure>
+    <p>Le plateau de 8 × 4 pas sur toute la largeur ; chaque pas porte sa pile, BD à la base, puis SN, HH au sommet. Le sol pulse près du viseur à chaque temps ; les densités en haut à droite, la mini-carte X/Y en bas à gauche.</p></figcaption></figure>
 </div>
 
 <section aria-label="Ce que fait chaque encodeur">
@@ -463,7 +461,7 @@ function mapChip(c, x, y, w, h, t) {                     /* the map's place: a 5
 /* R1+: three floors */
 function floors2(c, t) {
   autoKnobs(t); const { cur, base } = curPass(t), L = lastHits(t); rays(c, t, 36);
-  [2, 1, 0].forEach((v, fl) => {
+  [0, 1, 2].forEach((v, fl) => {        /* the kit's order: BD on top, HH at the bottom */
     const A = 9.5, B = 4.6, ox = 104, oy = 44 + fl * 50, at = (gx, gy) => [ox + (gx - gy) * A, oy + (gx + gy) * B];
     const sel = v === P.voice - 1, hot = L[v][0] < 0.15;
     for (let i = 0; i < 32; i++) { const gx = i % 8, gy = Math.floor(i / 8), q = [at(gx, gy), at(gx + 1, gy), at(gx + 1, gy + 1), at(gx, gy + 1)];
@@ -503,7 +501,7 @@ function stacks2(c, t) {
     if (isCur) hitFx(c, at, gx, gy, x, y - z - lift, anyHot); });
   sightIso(c, at, cur % 8, Math.floor(cur / 8), anyHot < 0.12 ? HOT[1] : K[1][0]);
   /* corners: the densities (top right) and the map's place (bottom left) */
-  [2, 1, 0].forEach((v, i) => { const x = 178 + i * 20, y = 34, hot = L[v][0] < 0.15, sel = v === P.voice - 1;
+  [0, 1, 2].forEach((v, i) => { const x = 178 + i * 20, y = 34, hot = L[v][0] < 0.15, sel = v === P.voice - 1;   /* BD, SN, HH */
     densGauge(c, x + 4, y + 12, 22, v, hot); text(c, VNAME[v], x + 7, y + 4, 8, hot ? HOT[0] : sel ? "#f4f1ff" : UI, "center"); });
   mapChip(c, 10, 160, 28, 24, t);
   text(c, "STEP " + String(cur + 1).padStart(2, "0"), 8, 40, 10, K[1][0], "left");
@@ -512,7 +510,7 @@ function stacks2(c, t) {
   header(c, "GRIDS", [["DIV", ["1/16", "1/8", "1/4"][P.div], P.div / 2], ["VOICE", P.voice, (P.voice - 1) / 2], ["NOTE", P.note, (P.note - 24) / 72]]);
 }
 
-const views = [["floors2", floors2], ["stacks2", stacks2], ["floors", floorsScene], ["stacks", stacksScene]].map(([id, f]) => [document.getElementById(id).getContext("2d"), f]);
+const views = [["floors2", floors2], ["stacks2", stacks2]].map(([id, f]) => [document.getElementById(id).getContext("2d"), f]);
 function frame(ms) { const t = ms / 1000; views.forEach(([c, f]) => f(c, t)); }
 function loop(ms) { frame(ms + 1310); requestAnimationFrame(loop); }
 document.fonts.ready.then(() => { frame(1310); if (!reduce) requestAnimationFrame(loop); });
