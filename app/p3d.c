@@ -4,7 +4,7 @@
 #include "fastmath.h"
 #include "plat.h"
 
-#define P3D_MAX 256                 /* a scene keeps under it: the planet uses about 90, the MARBLES canyon about 200 */
+#define P3D_MAX 320                 /* a scene keeps under it: the planet uses about 90, the MARBLES canyon under 300 */
 #define P3D_MAXV 128                /* vertices of one mesh */
 
 /* coordinates in quarter pixels and depth in quarter screen units, 16 bits: 256 of them in the room of 128 floats */
@@ -142,7 +142,7 @@ void p3d_mesh(const p3_mesh *m, const p3_pose *p, const uint16_t tones[3])
         n = fm_sqrtf(nx * nx + ny * ny + nz * nz);
         d = (nx * L[0] + ny * L[1] + nz * L[2]) / n;
         p3d_tri(p->cx + p->s * a->x, p->cy + p->s * a->y, p->cx + p->s * b->x, p->cy + p->s * b->y,
-                p->cx + p->s * c->x, p->cy + p->s * c->y, p->s * (a->z + b->z + c->z) * (1.0f / 3.0f),
+                p->cx + p->s * c->x, p->cy + p->s * c->y, p->z + p->s * (a->z + b->z + c->z) * (1.0f / 3.0f),
                 tones[d > 0.55f ? 0 : d > 0.15f ? 1 : 2]);
     }
 }

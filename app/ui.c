@@ -720,7 +720,7 @@ static void key_down(int k)
 {
     q_pattern *t = pat();
     q_step *s = 0;
-    int note = 53 + k + 12 * ui.octave, w, b;
+    int note = 53 + k + 12 * ui.octave, w, b, i;
     for (w = 0; w < 16 && WHITE[w] != k; w++) {}
     if (w < 16 && ui.homedown) {
         home_key(w);
@@ -750,9 +750,14 @@ static void key_down(int k)
             return;
         }
     } else if (ui.domain == D_SEQ) {    /* the white keys are the page's 16 steps */
-        if (w < 16 && ui.seqdown) {     /* SEQ held: the white keys 1..8 are the patterns */
-            if (w < Q_PATTERNS)
+        if (ui.seqdown) {               /* SEQ held: the white keys 1..8 are the patterns, the first black one CLEAR */
+            if (w < Q_PATTERNS) {
                 pattern_set(w);
+            } else if (k == BLACK[0]) {
+                for (i = 0; i < Q_STEPS; i++)
+                    step_clear(t, i);
+                ui.dirty = 1;
+            }
             return;
         }
         if (w < 16 && !ui.held) {
@@ -930,6 +935,8 @@ static void lights(void)
         btn |= 1u << B_PLAY;
     if (ui.rec)
         btn |= 1u << B_REC;
+    if (ui.domain != D_SEQ && ui.octave)        /* the octave shifted: its direction lit (in SEQ they page the steps) */
+        btn |= 1u << (ui.octave > 0 ? B_OCTUP : B_OCTDN);
     if (ui.domain == D_SEQ && ui.seqdown)       /* SEQ held: the pattern asked */
         keys = 1u << WHITE[ui.p->pattern[ui.track]];
     else if (ui.domain == D_HOME) {             /* the tracks playing, the scenes memorised */
@@ -1581,11 +1588,12 @@ void ui_frame(void)
                     scene_enter();
                 scene_frame(v.scene.v, audio_hits(ui.track), now);
             } else if (v.scene.anim == 3) {
+                const q_pattern *t = pat();
+                q_mview mv;
                 uint32_t in[16];
-                uint8_t notes[16], k3[3] = {(uint8_t)v.scene.v[0], (uint8_t)v.scene.v[1], (uint8_t)v.scene.v[2]};
-                char tl[12], tr[24];
-                int n, k, j;
-                if (fresh) {                /* the notes decided before: no marble */
+                uint8_t notes[16];
+                int n, k;
+                if (fresh) {                /* the notes decided before: no shot */
                     marbles_enter();
                     ui.notes_seen = 0;
                     while (audio_notes(ui.track, &ui.notes_seen, notes, in, 16) == 16) {}
@@ -1593,20 +1601,11 @@ void ui_frame(void)
                 n = audio_notes(ui.track, &ui.notes_seen, notes, in, 16);
                 for (k = 0; k < n; k++)
                     marbles_drop(notes[k], now, now + in[k]);
-                if (v.scene.pos >= 0)
-                    int_text(v.scene.pos + 1, tl);
-                else
-                    tl[0] = '-', tl[1] = 0;
-                for (k = 0; tl[k]; k++) {}
-                tl[k++] = '/';
-                int_text(v.scene.len, tl + k);
-                for (k = 0; TONIC_NAME[ui.p->tonic][k]; k++)
-                    tr[k] = TONIC_NAME[ui.p->tonic][k];
-                tr[k++] = ' ';
-                for (j = 0; MODE_NAME[ui.p->mode][j]; j++)
-                    tr[k++] = MODE_NAME[ui.p->mode][j];
-                tr[k] = 0;
-                marbles_frame(k3, v.scene.notes, tl, tr, now);
+                mv = (q_mview){t->marbles.tout, t->marbles.mode, t->marbles.bias, t->marbles.jitter, t->marbles.dejavu,
+                               t->marbles.spread, t->marbles.xbias, t->marbles.len, v.scene.pos, v.scene.notes,
+                               gen_kept(v.scene.notes, ui.p->tonic, t->marbles.steps),
+                               2500u * DIV96[t->div] / ui.p->tempo};   /* a step in ms: a bar is 240000 / tempo, in 96ths */
+                marbles_frame(&mv, now);
             } else {
                 static q_plateau pv;
                 if (fresh)

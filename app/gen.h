@@ -14,6 +14,7 @@ typedef struct {
 
 extern const uint16_t SCALE_MASK[11];   /* bit n: n semitones above the tonic; CHROM..MIN PENTA, the order of ui.c MODE_NAME */
 uint16_t gen_allowed(const q_project *p, const q_pattern *pt);  /* absolute pitch classes; notes 0: the scale from the tonic */
+uint16_t gen_kept(uint16_t allowed, int tonic, int steps);  /* the pitch classes STEPS keeps, the strongest from the tonic */
 int gen_quantize(int note, uint16_t allowed, int tonic, int steps);  /* 1..127, in the notes STEPS keeps */
 
 void gen_reset(q_gen *g, uint32_t *rng);   /* rng fills the deja vu loops */

@@ -8,7 +8,7 @@
 typedef struct { float x, y, z; } p3_vec;
 typedef struct { uint8_t a, b, c; } p3_face;              /* n = (b - a) x (c - a) points out of the mesh */
 typedef struct { const p3_vec *v; const p3_face *f; uint16_t nv, nf; } p3_mesh;
-typedef struct { float ay, ax, s, cx, cy; } p3_pose;      /* rotation about y then x, scale, screen centre */
+typedef struct { float ay, ax, s, cx, cy, z; } p3_pose;   /* rotation about y then x, scale, screen centre, depth added */
 
 void p3d_begin(void);                                     /* empties the list */
 void p3d_tri(float x0, float y0, float x1, float y1, float x2, float y2, float z, uint16_t c);

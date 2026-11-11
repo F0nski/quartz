@@ -115,61 +115,112 @@ static void nearest_bin(void)
     assert(marbles_bin(0x2A5, 70, &n) == 4);             /* A#: A */
 }
 
-static const uint8_t MK[3] = {64, 64, 0};
-
-static void mframe(const uint8_t *k, uint32_t ms) { marbles_frame(k, 0x2A5, "1/16", "C MAJOR", ms); }
+static q_mview MV;
+static void mreset(void)
+{
+    memset(&MV, 0, sizeof MV);
+    MV.tout = 2; MV.spread = 64; MV.xbias = 64; MV.len = 8; MV.pos = 0;
+    MV.allowed = 0x2A5; MV.kept = 0x2A5; MV.step_ms = 125;
+}
+static void mframe(uint32_t ms) { marbles_frame(&MV, ms); }
+static int count_px_from(uint16_t c, int b0)    /* in the bands from b0: band 1 is below the fleet */
+{
+    int o = 0;
+    for (int b = b0; b < 2; b++) {
+        cv_begin(240, 83, 0);
+        marbles_band(-83 * b);
+        for (int i = 0; i < 240 * 83; i++) o += swap16(cv_px[i]) == c;
+    }
+    return o;
+}
+static int count_px(uint16_t c) { return count_px_from(c, 0); }
 
 static void marble_lands_in_its_bin(void)
 {
     int n;
+    mreset();
     marbles_enter();
-    mframe(MK, 0);
+    mframe(0);
     marbles_drop(62, 0, 500);                             /* D: bin 1, sounds at 500 ms */
-    for (uint32_t ms = 0; ms <= 600; ms += 30) mframe(MK, ms);
+    for (uint32_t ms = 0; ms <= 600; ms += 30) mframe(ms);
     assert(marbles_flying() == 0);
     assert(marbles_hist(marbles_bin(0x2A5, 62, &n)) == 1);
-    for (uint32_t ms = 600; ms <= 4700; ms += 100) mframe(MK, ms);
+    for (uint32_t ms = 600; ms <= 4700; ms += 100) mframe(ms);
     assert(marbles_hist(1) == 0);
 }
 
 static void six_marbles_max(void)
 {
+    mreset();
     marbles_enter();
-    mframe(MK, 10000);
+    mframe(10000);
     for (int i = 0; i < 9; i++) marbles_drop(60 + i, 10000, 10500);
-    mframe(MK, 10010);
+    mframe(10010);
     assert(marbles_flying() == 6);
 }
 
 static void deja_vu_orange(void)
 {
-    static const uint8_t DV[3] = {64, 64, 100};
     for (int d = 0; d < 2; d++) {
+        mreset();
+        MV.dejavu = d ? 100 : 0;
         marbles_enter();
-        mframe(d ? DV : MK, 20000);
+        mframe(20000);
         marbles_drop(60, 20000, 20500);
-        mframe(d ? DV : MK, 20200);
-        int o = 0;
-        for (int b = 0; b < 2; b++) {
-            cv_begin(240, 83, 0);
-            marbles_band(-83 * b);
-            for (int i = 0; i < 240 * 83; i++) o += swap16(cv_px[i]) == ORANGE[1] || swap16(cv_px[i]) == ORANGE[0];
-        }
+        mframe(20200);
+        int o = count_px(ORANGE[1]) + count_px(ORANGE[0]);
         assert(d ? o > 0 : o == 0);
     }
 }
 
-/* a marble lands when its note sounds, not before: here 300 ms after it was dropped */
+/* a shot lands when its note sounds, not before: here 300 ms after it was fired */
 static void lands_when_it_sounds(void)
 {
+    mreset();
     marbles_enter();
-    mframe(MK, 30000);
+    mframe(30000);
     int h = marbles_hist(1);
     marbles_drop(62, 30000, 30300);
-    mframe(MK, 30290);
+    mframe(30290);
     assert(marbles_flying() == 1 && marbles_hist(1) == h);
-    mframe(MK, 30300);
+    mframe(30300);
     assert(marbles_flying() == 0 && marbles_hist(1) == h + 1);
+}
+
+static void ships_follow_tout(void)
+{
+    for (int k = 1; k <= 3; k++) {
+        mreset();
+        MV.tout = (uint8_t)k;
+        mframe(40000);
+        assert(marbles_ships() == k);
+    }
+}
+
+/* STEPS keeping one note: the other crystals are outlines, so far fewer crystal pixels */
+static void steps_dims_crystals(void)
+{
+    mreset();
+    mframe(50000);
+    int all = count_px_from(SHIP[0][1], 1) + count_px_from(SHIP[0][0], 1);
+    MV.kept = 1u << 0;
+    mframe(50000);
+    int one = count_px_from(SHIP[0][1], 1) + count_px_from(SHIP[0][0], 1);
+    assert(one > 0 && one * 3 < all);
+}
+
+/* 12 crystals, 3 ships, 6 shots, every rock: nothing dropped from the primitive list (and under the spec's 300) */
+static void budget_under_300(void)
+{
+    mreset();
+    MV.allowed = MV.kept = 0xFFF;
+    MV.tout = 3;
+    marbles_enter();
+    mframe(60000);
+    for (int i = 0; i < 6; i++) marbles_drop(60 + i, 60000, 60400);
+    int worst = 0;
+    for (uint32_t ms = 60000; ms < 64000; ms += 37) { mframe(ms); if (p3d_count() > worst) worst = p3d_count(); }
+    assert(worst <= 300 && worst < P3D_MAX);
 }
 
 int main(void)
@@ -183,6 +234,9 @@ int main(void)
     bins_one_and_twelve();
     nearest_bin();
     marble_lands_in_its_bin();
+    ships_follow_tout();
+    steps_dims_crystals();
+    budget_under_300();
     six_marbles_max();
     deja_vu_orange();
     lands_when_it_sounds();

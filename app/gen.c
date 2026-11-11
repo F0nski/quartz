@@ -94,7 +94,7 @@ uint16_t gen_allowed(const q_project *p, const q_pattern *pt)
     return (uint16_t)(((m << p->tonic) | (m >> (12 - p->tonic))) & 0xFFF);
 }
 
-int gen_quantize(int note, uint16_t allowed, int tonic, int steps)
+uint16_t gen_kept(uint16_t allowed, int tonic, int steps)
 {
     static const uint8_t STRENGTH[12] = { 0, 7, 4, 3, 10, 11, 2, 5, 9, 8, 1, 6 };
     int n = 0;
@@ -104,6 +104,12 @@ int gen_quantize(int note, uint16_t allowed, int tonic, int steps)
         int c = (tonic + STRENGTH[i]) % 12;
         if (allowed >> c & 1) { kept |= 1 << c; keep--; }
     }
+    return (uint16_t)kept;
+}
+
+int gen_quantize(int note, uint16_t allowed, int tonic, int steps)
+{
+    int kept = gen_kept(allowed, tonic, steps);
     int best = 0, dist = 1 << 30;
     for (int c = 1; c < 128; c++) {       /* upward: a tie keeps the lower note. From 1: note 0 is no note */
         int d = c > note ? c - note : note - c;
