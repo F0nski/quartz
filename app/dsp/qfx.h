@@ -1,5 +1,5 @@
 /* The track effects (qfx.cc): the four per-track inserts, mono, and the mix behind them (LEVEL, PAN, sends,
- * ping-pong delay, reverb, ducking, compressor, limiter), behind a C interface.
+ * ping-pong delay, reverb, ducking, the punch-ins, compressor, limiter), behind a C interface.
  * Threading: qfx_insert(t, ...) must be serialized with every other call for track t and with qfx_init;
  * qfx_block with every other call. */
 #pragma once
@@ -11,8 +11,10 @@
 
 /* a track's settings for the block, locks applied; duck 1: the track is ducked (not a KIT) */
 typedef struct { uint8_t type, p1, p2, p3, mix, dsend, rsend, level, duck; int8_t pan; } qfx_track;
-/* dly: the delay's time in frames (seq_step_ratio of tempo and dtime), halved by qfx to fit */
-typedef struct { float dly; uint8_t dfb, rsize, rtone, comp, duck; } qfx_master;
+/* dly: the delay's time in frames (seq_step_ratio of tempo and dtime), halved by qfx to fit.
+   punch: the punch-ins held, bit k = white key k + 1. fpb: frames per beat; bpos: frames since the bar's
+   first beat at the block's start, 0 <= bpos < 4 * fpb (the grid of LOOP, GATE, AUTO-PAN, the STUTTERs) */
+typedef struct { float dly; uint8_t dfb, rsize, rtone, comp, duck; uint16_t punch; float fpb, bpos; } qfx_master;
 
 #ifdef __cplusplus
 extern "C" {

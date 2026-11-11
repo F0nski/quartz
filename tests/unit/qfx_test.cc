@@ -197,6 +197,9 @@ static void defaults(void)
     ms.rtone = 64;
     ms.comp = 0;
     ms.duck = 0;
+    ms.punch = 0;
+    ms.fpb = 22059.0f;   // 120 BPM
+    ms.bpos = 0.0f;
     memset(bus, 0, sizeof(bus));
 }
 
@@ -493,6 +496,142 @@ static void master_extremes_bounded(void)
     printf("  master extremes: peak %.3f\n", peak);
 }
 
+// --- punch-ins ---
+
+// the source on track 0 for frame f
+typedef float (*source)(unsigned f);
+static float src_saw_noise(unsigned f)
+{
+    unsigned seed = f * 2654435761u;   // the same noise on every run
+    seed ^= seed >> 13;
+    seed *= 1664525u;
+    return 0.4f * (2.0f * fmodf(f * 220.0f / kRate, 1.0f) - 1.0f) + 0.1f * ((seed >> 8) * (2.0f / 16777216.0f) - 1.0f);
+}
+static float src_sine100(unsigned f) { return sine(0.5f, 100.0f, f); }
+static float src_dc(unsigned f) { (void)f; return 0.5f; }
+
+// frames of L and R with punch-in mask held in blocks [on, off) (block indexes), source until frame stop;
+// bpos runs from 0 at 120 BPM
+static void run_punch(float *L, float *R, unsigned blocks, uint16_t mask, unsigned on, unsigned off, source src,
+                      unsigned stop)
+{
+    for (unsigned b = 0; b < blocks; b++) {
+        memset(bus, 0, sizeof(bus));
+        for (unsigned i = 0; i < kBlock; i++) {
+            const unsigned f = b * kBlock + i;
+            bus[0][i] = f < stop ? src(f) : 0.0f;
+        }
+        ms.punch = b >= on && b < off ? mask : 0;
+        ms.bpos = fmodf((float)(b * kBlock), 4.0f * ms.fpb);
+        block(busp, tr, &ms, -1, L + b * kBlock, R + b * kBlock, kBlock);
+    }
+}
+
+static const unsigned kPB = 160;   // blocks per punch test: 0.93 s
+static float pl[kPB * kBlock], pr[kPB * kBlock], ql[kPB * kBlock], qr[kPB * kBlock];
+
+static void no_punch_is_identity(void)
+{
+    qfx_init();
+    defaults();
+    run_punch(ql, qr, kPB, 0, 0, 0, src_saw_noise, ~0u);
+    qfx_init();
+    defaults();
+    ms.fpb = 12345.0f;
+    run_punch(pl, pr, kPB, 0, 0, 0, src_saw_noise, ~0u);
+    assert(!memcmp(pl, ql, sizeof(pl)) && !memcmp(pr, qr, sizeof(pr)));
+}
+
+static double rms_diff(const float *a, const float *b, unsigned from, unsigned to)
+{
+    double e = 0.0;
+    for (unsigned i = from; i < to; i++) e += (double)(a[i] - b[i]) * (a[i] - b[i]);
+    return sqrt(e / (to - from));
+}
+
+static void each_punch_changes_signal(void)
+{
+    for (int k = 5; k <= 13; k++) {
+        qfx_init();
+        defaults();
+        run_punch(ql, qr, kPB, 0, 0, 0, src_saw_noise, ~0u);
+        qfx_init();
+        defaults();
+        run_punch(pl, pr, kPB, (uint16_t)(1u << k), 10, 96, src_saw_noise, ~0u);
+        const double d = rms_diff(pl, ql, 10 * kBlock, kPB * kBlock) + rms_diff(pr, qr, 10 * kBlock, kPB * kBlock);
+        printf("  punch %d: rms diff %.3f\n", k + 1, d);
+        assert(d > 0.01);
+        for (unsigned i = 0; i < kPB * kBlock; i++) assert(isfinite(pl[i]) && isfinite(pr[i]));
+    }
+}
+
+static void punch_fades_in(void)
+{
+    for (int k = 5; k <= 13; k++) {
+        qfx_init();
+        defaults();
+        run_punch(pl, pr, kPB, (uint16_t)(1u << k), 10, 60, src_sine100, ~0u);
+        float jump = 0.0f;
+        for (unsigned i = 1; i < kPB * kBlock; i++)
+            jump = fmaxf(jump, fmaxf(fabsf(pl[i] - pl[i - 1]), fabsf(pr[i] - pr[i - 1])));
+        printf("  punch %d: largest step %.3f\n", k + 1, jump);
+        assert(jump <= 0.1f);   // DOWNSAMPLE's own 4 kHz steps on this sine reach 0.08
+    }
+}
+
+static double rms(const float *a, unsigned from, unsigned to)
+{
+    double e = 0.0;
+    for (unsigned i = from; i < to; i++) e += (double)a[i] * a[i];
+    return sqrt(e / (to - from));
+}
+
+static void gate_on_grid(void)
+{
+    qfx_init();
+    defaults();
+    run_punch(pl, pr, kPB, 1u << 10, 0, kPB, src_dc, ~0u);
+    const unsigned q = 22059 / 4;   // a 1/16
+    for (unsigned s = 1; s < 6; s++) {
+        assert(rms(pl, s * q + 100, s * q + q / 2 - 100) > 0.1);
+        assert(rms(pl, s * q + q / 2 + 100, s * q + q - 100) < 1e-4);
+    }
+}
+
+static void delay_throw_tails(void)
+{
+    qfx_init();
+    defaults();
+    ms.dfb = 0;
+    const unsigned stop = 43 * kBlock;   // 0.25 s
+    run_punch(pl, pr, kPB, 1u << 12, 0, 43, src_saw_noise, stop);
+    double e = 0.0;
+    for (unsigned i = (unsigned)(0.3f * kRate); i < (unsigned)(0.45f * kRate); i++) e += (double)pl[i] * pl[i] + (double)pr[i] * pr[i];
+    printf("  delay throw: tail energy %.3g\n", e);
+    assert(e > 1.0);
+}
+
+static float peak(const float *l, const float *r, float from, float to)
+{
+    float p = 0.0f;
+    for (unsigned i = (unsigned)(from * kRate); i < (unsigned)(to * kRate); i++) p = fmaxf(p, fmaxf(fabsf(l[i]), fabsf(r[i])));
+    return p;
+}
+
+static void freeze_holds_tail(void)
+{
+    static float L[1100 * kBlock], R[1100 * kBlock];   // 6.4 s
+    qfx_init();
+    defaults();
+    ms.rsize = 0;
+    run_punch(L, R, 1100, 1u << 13, 0, 345, src_saw_noise, (unsigned)(0.2f * kRate));   // held 2 s
+    const float early = peak(L, R, 0.3f, 0.4f), late = peak(L, R, 1.8f, 1.9f), gone = peak(L, R, 6.0f, 6.3f);
+    printf("  freeze: %.3g at 0.3 s, %.3g at 1.8 s, %.3g at 6 s\n", early, late, gone);
+    assert(early > 0.01f);
+    assert(late > 0.5f * early);
+    assert(gone < 1e-3f * early);
+}
+
 int main(void)
 {
     off_is_identity();
@@ -515,6 +654,12 @@ int main(void)
     duck_off_mid_dip_recovers();
     compressor_reduces_loud();
     master_extremes_bounded();
+    no_punch_is_identity();
+    each_punch_changes_signal();
+    punch_fades_in();
+    gate_on_grid();
+    delay_throw_tails();
+    freeze_holds_tail();
     printf("qfx_test ok\n");
     return 0;
 }

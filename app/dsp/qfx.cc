@@ -1,7 +1,7 @@
 // The four per-track inserts. Each works on mono blocks in place, in chunks of kChunk so that the dry
 // signal can be mixed back in after the effect. Settings are read once per call.
 // Behind them, qfx_block mixes the tracks to stereo with their sends into a ping-pong delay and Clouds'
-// reverb, then ducking, compressor and limiter.
+// reverb, then ducking, the punch-ins, compressor and limiter.
 
 #include "qfx.h"
 
@@ -18,6 +18,7 @@
 #include "plaits/dsp/dsp.h"
 #include "plaits/dsp/oscillator/sine_oscillator.h"
 #include "plaits/resources.h"
+#include "stmlib/dsp/filter.h"
 #include "project.h"
 
 namespace {
@@ -73,13 +74,22 @@ struct Master {
   float rpeak;      // the reverb's output peak in its last run: under kQuiet, its tail is over
   unsigned rn;      // frames in rio
   uint8_t rsize, rtone;   // the reverb's settings for its next run
+  bool frozen;      // REVERB FREEZE: the reverb's next run holds its tail
+  // the punch-ins: bit k of held = white key k + 1, as in the last block
+  uint16_t held;
+  float w[16];          // each punch-in's fade gain at the end of the last block
+  float since[16];      // frames since each punch-in was pressed, at the block's start
+  stmlib::Svf flt[3][2];             // LOW-PASS, HIGH-PASS, SWEEP; per channel
+  plaits::SampleRateReducer srr[2];  // DOWNSAMPLE
 };
+
+enum { P_TAPE = 4, P_LP, P_HP, P_SWEEP, P_CRUSH, P_DOWN, P_GATE, P_PAN, P_THROW, P_FREEZE, P_STUT, P_SGATE };
 
 alignas(Master) char mstorage[sizeof(Master)];
 Master* master;
 int16_t dbuf[2][kDlyLen] __attribute__((section(".pool")));
 uint16_t rbuf[16384] __attribute__((section(".pool")));   // the reverb's FxEngine<16384>
-// qfx_block's scratch
+// qfx_block's scratch; the punch-ins take dry and dsum for the dry L and R once the tracks and the delay are done
 float dry[QFX_BLOCK], dsum[QFX_BLOCK], dg[QFX_BLOCK];
 clouds::FloatFrame fx[QFX_BLOCK];   // reverb sends, then the reverb's and the delay's returns
 clouds::FloatFrame rio[QFX_BLOCK];  // the last block's reverb sends, which qfx_reverb turns into returns in place
@@ -264,7 +274,9 @@ void duck(int depth, int duck_at, unsigned n) {
 // the ping-pong delay at half rate on dsum, its returns added to fx
 void delay(const qfx_master& m, unsigned n) {
   Master& M = *master;
-  const float d = qfx_delay_fit(m.dly) * 0.5f, fb = 0.95f * m.dfb / 127.0f;
+  const float d = qfx_delay_fit(m.dly) * 0.5f;
+  float fb = 0.95f * m.dfb / 127.0f;
+  if (m.punch >> P_THROW & 1) fb = fm_maxf(fb, 0.6f);   // DELAY THROW
   const float a = lp_coef(4000.0f * 2.0f);   // 4 kHz at half rate
   const unsigned h = n / 2;
   for (unsigned k = 0; k < h; ++k) {
@@ -329,6 +341,99 @@ void limit(float* l, float* r, unsigned n) {
   }
 }
 
+// --- the punch-ins ---
+
+// x mod q, for x >= 0
+float wrap(float x, float q) { return x - q * fm_floorf(x / q); }
+
+// a 1/16 gate's gain at x frames into a period of q: on for the first half, 2 ms ramps at both edges
+float chop(float x, float q) {
+  const float h = 0.5f * q, ramp = 0.002f * kSr;
+  return x < h ? fm_minf(1.0f, x / ramp) : fm_maxf(0.0f, 1.0f - (x - h) / ramp);
+}
+
+// the effect of punch-in k on l and r (wet only)
+void punch_fx(int k, const qfx_master& m, float* l, float* r, unsigned n) {
+  Master& M = *master;
+  switch (k) {
+    case P_GATE: {
+      const float q = 0.25f * m.fpb;
+      for (unsigned i = 0; i < n; ++i) {
+        const float g = chop(wrap(m.bpos + i, q), q);
+        l[i] *= g;
+        r[i] *= g;
+      }
+      break;
+    }
+    case P_CRUSH:
+      for (unsigned i = 0; i < n; ++i) {
+        l[i] = fm_floorf(l[i] * 32.0f + 0.5f) * (1.0f / 32.0f);
+        r[i] = fm_floorf(r[i] * 32.0f + 0.5f) * (1.0f / 32.0f);
+      }
+      break;
+    case P_DOWN:
+      M.srr[0].Process<false>(4000.0f / kSr, l, n);
+      M.srr[1].Process<false>(4000.0f / kSr, r, n);
+      break;
+    case P_LP:
+    case P_HP: {
+      stmlib::Svf* f = M.flt[k - P_LP];
+      for (int c = 0; c < 2; ++c) {
+        f[c].set_f_q<stmlib::FREQUENCY_FAST>((k == P_LP ? 400.0f : 1500.0f) / kSr, k == P_LP ? 1.2f : 0.8f);
+        float* x = c ? r : l;
+        for (unsigned i = 0; i < n; ++i)
+          x[i] = k == P_LP ? f[c].Process<stmlib::FILTER_MODE_LOW_PASS>(x[i])
+                           : f[c].Process<stmlib::FILTER_MODE_HIGH_PASS>(x[i]);
+      }
+      break;
+    }
+    case P_SWEEP: {   // 8 kHz down to 200 Hz and back, a bar from the press, exponential
+      stmlib::Svf* f = M.flt[2];
+      for (unsigned i = 0; i < n; ++i) {
+        if ((i & 15) == 0) {
+          const float u = wrap(M.since[P_SWEEP] + i, 4.0f * m.fpb) / (4.0f * m.fpb);
+          const float hz = 200.0f * fm_exp2f(5.321928f * fm_fabsf(2.0f * u - 1.0f));   // 40 = 2^5.32
+          f[0].set_f_q<stmlib::FREQUENCY_FAST>(hz / kSr, 6.0f);
+          f[1].set_f_q<stmlib::FREQUENCY_FAST>(hz / kSr, 6.0f);
+        }
+        l[i] = f[0].Process<stmlib::FILTER_MODE_LOW_PASS>(l[i]);
+        r[i] = f[1].Process<stmlib::FILTER_MODE_LOW_PASS>(r[i]);
+      }
+      break;
+    }
+    case P_PAN:   // a sine balance, a cycle per beat
+      for (unsigned i = 0; i < n; ++i) {
+        const float p = plaits::Sine(wrap(m.bpos + i, m.fpb) / m.fpb);
+        l[i] *= p > 0.0f ? 1.0f - p : 1.0f;
+        r[i] *= p < 0.0f ? 1.0f + p : 1.0f;
+      }
+      break;
+  }
+}
+
+// the punch-ins on the mix, in their order; each fades in and out over a block
+void punches(const qfx_master& m, float* l, float* r, unsigned n) {
+  static const int kOrder[] = {P_GATE, P_CRUSH, P_DOWN, P_LP, P_HP, P_SWEEP, P_PAN};
+  Master& M = *master;
+  for (int k : kOrder) {
+    const float w0 = M.w[k], w1 = m.punch >> k & 1 ? 1.0f : 0.0f;
+    if (w0 == 0.0f && w1 == 0.0f) continue;
+    if (w0 == 0.0f) {   // pressed: from a clean state
+      if (k >= P_LP && k <= P_SWEEP) M.flt[k - P_LP][0].Init(), M.flt[k - P_LP][1].Init();
+      if (k == P_DOWN) M.srr[0].Init(), M.srr[1].Init();
+    }
+    memcpy(dry, l, n * sizeof(float));
+    memcpy(dsum, r, n * sizeof(float));
+    punch_fx(k, m, l, r, n);
+    for (unsigned i = 0; i < n; ++i) {
+      const float w = w0 + (w1 - w0) * (i + 1) / n;
+      l[i] = dry[i] + w * (l[i] - dry[i]);
+      r[i] = dsum[i] + w * (r[i] - dsum[i]);
+    }
+    M.w[k] = w1;
+  }
+}
+
 }  // namespace
 
 extern "C" void qfx_init(void) {
@@ -347,6 +452,9 @@ extern "C" void qfx_init(void) {
   master->reverb.set_amount(1.0f);
   master->reverb.set_input_gain(0.2f);
   master->reverb.set_diffusion(0.625f);
+  for (int k = 0; k < 3; ++k) master->flt[k][0].Init(), master->flt[k][1].Init();
+  master->srr[0].Init();
+  master->srr[1].Init();
 }
 
 extern "C" float qfx_delay_fit(float frames) {
@@ -359,8 +467,9 @@ extern "C" void qfx_reverb(void) {
   bool in = false;
   for (unsigned i = 0; i < M.rn; ++i) in |= rio[i].l != 0.0f;
   if (!in && M.rpeak < kQuiet) return;   // idle: what stays in its lines is under -100 dB, rio holds silence
-  M.reverb.set_time(0.5f + 0.48f * M.rsize / 127.0f);
-  M.reverb.set_lp(0.3f + 0.65f * M.rtone / 127.0f);
+  // REVERB FREEZE: no loss in the loop, the tail holds
+  M.reverb.set_time(M.frozen ? 1.0f : 0.5f + 0.48f * M.rsize / 127.0f);
+  M.reverb.set_lp(M.frozen ? 1.0f : 0.3f + 0.65f * M.rtone / 127.0f);
   M.reverb.Process(rio, M.rn);
   M.rpeak = 0.0f;
   for (unsigned i = 0; i < M.rn; ++i) M.rpeak = fm_maxf(M.rpeak, fm_maxf(fm_fabsf(rio[i].l), fm_fabsf(rio[i].r)));
@@ -381,6 +490,19 @@ extern "C" void qfx_block(float* const bus[QFX_TRACKS], const qfx_track tr[QFX_T
   }
   duck(m->duck, duck_at, n);
   for (int t = 0; t < QFX_TRACKS; ++t) track(t, tr[t], bus[t], l, r, n);
+  for (int k = 0; k < 16; ++k)
+    if (m->punch >> k & 1 && !(M.held >> k & 1)) M.since[k] = 0.0f;
+  {   // DELAY THROW: the tracks' mix into the delay, faded
+    const float w0 = M.w[P_THROW], w1 = m->punch >> P_THROW & 1 ? 1.0f : 0.0f;
+    if (w0 != 0.0f || w1 != 0.0f)
+      for (unsigned i = 0; i < n; ++i) dsum[i] += (w0 + (w1 - w0) * (i + 1) / n) * 0.5f * (l[i] + r[i]);
+    M.w[P_THROW] = w1;
+  }
+  M.frozen = m->punch >> P_FREEZE & 1;
+  if (M.frozen) {   // REVERB FREEZE: the mix in for a 1/16 after the press, then nothing in
+    const float open = 0.25f * m->fpb - M.since[P_FREEZE];
+    for (unsigned i = 0; i < n; ++i) fx[i].l = i < open ? fx[i].l + 0.5f * (l[i] + r[i]) : 0.0f;
+  }
 
   for (unsigned i = 0; i < n; ++i) {   // this block's sends out, the last block's returns in
     const float send = fx[i].l;
@@ -395,6 +517,9 @@ extern "C" void qfx_block(float* const bus[QFX_TRACKS], const qfx_track tr[QFX_T
     l[i] += fx[i].l * dg[i];
     r[i] += fx[i].r * dg[i];
   }
+  punches(*m, l, r, n);
+  for (int k = 0; k < 16; ++k) M.since[k] += n;
+  M.held = m->punch;
 
   if (m->comp) compress(m->comp, l, r, n);
   else M.comp = 1.0f;

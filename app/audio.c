@@ -833,7 +833,7 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
     }
     uint32_t num, den;
     seq_step_ratio(prj->tempo, prj->dtime, &num, &den);
-    fm = (qfx_master){ (float)num / (float)den, prj->dfb, prj->rsize, prj->rtone, prj->comp, prj->duck };
+    fm = (qfx_master){ (float)num / (float)den, prj->dfb, prj->rsize, prj->rtone, prj->comp, prj->duck, 0, 0.0f, 0.0f };
     uint32_t tfx = plat_ticks24();
     qfx_block(b, tr, &fm, duck_at, l, r, n);
     sumfx += plat_ticks24() - tfx;
