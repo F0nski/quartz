@@ -8,11 +8,6 @@
 #include "mod.c"
 #include "audio.c"
 #include "store.c"
-#include "p3d.c"
-#include "scene.c"
-#include "plateau.c"
-#include "ui.c"
-
 static uint8_t booted;
 static q_project project PLAT_POOL;   /* too big for the core's RAM: the 336 KB pool */
 
@@ -25,20 +20,6 @@ void app_init(void)
 
 void app_panic(void) { audio_mute(); }
 
-void app_ui_init(void)
-{
-    audio_unmute();                 /* the app resumed: a refused update (audio.h) */
-    lcd_fill(0, 0, 240, 240, C_BLACK);
-    ui_init(&project);
-}
-
-void app_frame(void)
-{
-    audio_prepare();                /* after boot and after a model or poly change: the engines, outside the render */
-    ui_frame();
-}
-void app_input_only(void) { ui_input(); }
-void app_redraw(void) { ui_redraw(); }
 void app_say(const char *a, const char *b) { (void)a; (void)b; }
 
 #ifdef PLAT_HOST
@@ -52,13 +33,8 @@ int app_host_cmd(const char *cmd, const char *a, const char *b, const char *c, c
     app_ui_init();
     return 1;
 }
+#endif
 
-int app_expect(const char *what, int *got)
-{
-    if (!strcmp(what, "booted"))
-        *got = booted;
-    else
-        return ui_expect(what, got);
-    return 1;
-}
+#ifndef APP_LATE                    /* the simulator: here; the device: after the platform's code (app.h) */
+#include "app_ui.c"
 #endif

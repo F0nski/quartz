@@ -1,0 +1,51 @@
+diff --git a/device/unity.c b/device/unity.c
+index e4492f0..53bdb42 100644
+--- a/device/unity.c
++++ b/device/unity.c
+@@ -423,3 +423,7 @@ static void bu_hold(int on) { app_backup_hold(on); }
+ #endif
+ #include "app.c"
+ #include "main_fm1.c"
++#ifdef APP_LATE                     /* an app's code compiled after the platform's (quartz: its screen, so that as it
++                                       grows the platform's and the render's code keep their place in the flash) */
++#include APP_LATE
++#endif
+diff --git a/tools/build.py b/tools/build.py
+index a74366d..b2b5f52 100755
+--- a/tools/build.py
++++ b/tools/build.py
+@@ -21,6 +21,9 @@ APP_DIR holds the app (app.h, app.c, its sources) and its fm1.toml:
+   usb_product = "..."
+   o2 = ["dsp/engine.c"]      separate units compiled at -O2 (the app's DSP), relative to APP_DIR (globs too); each with
+                              its own directory on the include path
++  o2_first = true            (quartz) the o2 units linked before the unity build, and the constants from a 4 KiB
++                             boundary: the DSP's code and tables keep their place in the XIP flash, so how they fit
++                             the caches (8 ways of 4 KiB), as the app's code grows
+   unity_opt = "z"            the unity build (the platform, the app but its o2 units) at -Oz instead of -Os: smaller,
+                              a little slower (what runs in the audio interrupt outside the o2 units, too)
+   o2_cflags = ["-DX=1"]      more flags for those; o2_include = ["lib/prefix.h"]: a header included first in each
+@@ -862,6 +865,10 @@ def build_app():
+             units.append(("cc", *o2, *o2_more, *inc(f.parent), *ir_out, "-c", f, "-o", o.with_suffix(".ll") if ir else o))
+             objs.append(o)
+             o2_units.append((f, o))
++    if CONF.get("o2_first"):                      # quartz: the DSP linked before the app's code (fm1.toml o2_first = true):
++        k = objs.index(OUT / "unity.o")           # its place in the XIP flash, so how it fits the cache, stays the same
++        dsp = [o for _, o in o2_units]            # whatever the app's code grows to
++        objs = [*objs[:k], *dsp, *[o for o in objs[k:] if o not in dsp]]
+     jieli = (BLE and not OWN) or WIFI             # JieLi's libraries linked (the shim, LTO)
+     b_units, b_objs, b_libs = radio_units() if jieli else ([], [], [])
+     tc_all(*units, *b_units)
+@@ -892,6 +899,13 @@ def build_app():
+            f"--plugin-opt=mcpu={CPU}", "--plugin-opt=-pi32v2-large-program=true"] if jieli else []
+     global LAYOUT
+     ld = SRC / "device" / ("app_wifi.ld" if WIFI else "app_packed.ld" if ram_packed() else "app.ld")
++    if CONF.get("o2_first"):                      # quartz: and the constants from a 4 KiB boundary (a way of the caches),
++        text = ld.read_text()                     # so the DSP's tables keep their place in the cache too
++        text, n = re.subn(r"\*\(\.text\*\) \*\(\.rodata\*\)", "*(.text*) . = ALIGN(4096); *(.rodata*)", text)
++        if n != 1:
++            raise SystemExit(f"build: {ld.name}: the .text line not found (o2_first)")
++        ld = OUT / ("o2first_" + ld.name)
++        ld.write_text(text)
+     if not WIFI and stacks() != STACKS:          # (other stack sizes: the SRAM's end and the bands moved)
+         ld = stack_script(ld)
+     LAYOUT = memory_regions(ld.read_text())

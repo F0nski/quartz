@@ -8,6 +8,10 @@
 #define APP_NAME "QUARTZ"
 #define APP_SPLASH_RGB RGB(80, 160, 255)
 #define APP_REDRAW                       /* app_redraw: the screen mirror lost a part */
+#ifndef PLAT_HOST
+#define APP_LATE "app_ui.c"             /* the screen's code after the platform's (patches/fm1-base-app-late.patch): as it
+                                           grows, the audio's code keeps its place in the flash and in the caches */
+#endif
 void app_redraw(void);
 #define APP_BLOCK 256u                   /* frames per audio block: 5.8 ms at 44.1 kHz */
 #define APP_CANVAS_PX (240u * 83u)       /* the widest strip drawn: a scene band (ui.c BAND_H); the pool keeps the rest */

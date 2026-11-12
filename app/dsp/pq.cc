@@ -47,7 +47,14 @@ Slot* slots[PQ_VOICES];
 
 }  // namespace
 
+#ifndef TEST                      // (the host tests link the DSP without cxx_runtime.cc)
+extern "C" const unsigned char pq_text_pad[];
+#endif
+
 extern "C" void pq_init(void) {
+#ifndef TEST
+  (void)*(volatile const unsigned char*)pq_text_pad;   // (keeps the placement pad: cxx_runtime.cc)
+#endif
   for (int i = 0; i < PQ_VOICES; ++i) {
     slots[i] = new (storage[i]) Slot();
     Slot& s = *slots[i];
