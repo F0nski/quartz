@@ -1,0 +1,209 @@
+<title>Speech Scene</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+/* Layout: knob sliders on top, then one row of four live device screens per direction (one screen per engine). */
+:root {
+  --bg: #efedf5; --fg: #1c1830; --muted: #5d5873; --line: #d9d5e6; --device: #151320; --hot: #d4247a; --panel: #e4e1ee;
+  --display: "Chakra Petch", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --line: #2a2440; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --line: #2a2440; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 48px }
+main { max-width: 1000px; margin: 0 auto; display: grid; gap: 22px }
+h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; line-height: 1.1; margin: 0; text-transform: uppercase; letter-spacing: .02em }
+h1 em { font-style: normal; color: var(--hot) }
+.lead { color: var(--muted); max-width: 70ch; margin: 8px 0 0 }
+.knobs { position: sticky; top: 0; z-index: 1; background: var(--panel); border-radius: 10px; padding: 10px 14px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px 18px; align-items: center }
+.knobs label { display: grid; font-family: var(--display); font-size: .78rem; letter-spacing: .06em; text-transform: uppercase }
+.knobs input[type=range] { width: 100% }
+.knobs .auto { display: flex; gap: 8px; align-items: center }
+h2 { font-family: var(--display); font-size: 1.25rem; margin: 6px 0 0; text-transform: uppercase; letter-spacing: .04em }
+section > p { margin: 2px 0 10px; color: var(--muted); max-width: 80ch; font-size: .92rem }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px }
+figure { margin: 0; display: grid; gap: 6px; align-content: start; min-width: 0 }
+canvas { width: 100%; max-width: 100%; aspect-ratio: 1; background: #000; border: 12px solid var(--device); border-radius: 16px; box-sizing: border-box }
+h3 { font-family: var(--display); font-size: 1rem; margin: 0; text-transform: uppercase; letter-spacing: .04em }
+figcaption p { margin: 2px 0 0; font-size: .85rem; color: var(--muted) }
+figcaption b { color: var(--fg); font-weight: 600 }
+</style>
+
+<main>
+  <header>
+    <h1>Speech <em>la tête qui parle</em></h1>
+    <p class="lead">La tête de la première maquette (<code>scenes.html</code>), branchée sur les encodeurs de la page ENGINE : <b>HARM</b> (le modèle de voix) teinte la tête, vert pour les formants, bleu pour SAM, violet pour LPC ; <b>TIMB</b> (l'espèce) change sa taille ; <b>MORPH</b> (le phonème) ouvre plus ou moins la bouche ; <b>DECAY</b> allonge les syllabes. Pupilles néon dans le bandeau des yeux ; la tête flotte. À chaque note, la mâchoire articule deux syllabes, le fil de fer passe en rose et les barres de phonèmes montent.</p>
+  </header>
+
+  <div class="knobs">
+    <label>HARM <input type="range" id="k0" min="0" max="100" value="15"></label>
+    <label>TIMB <input type="range" id="k1" min="0" max="100" value="50"></label>
+    <label>MORPH <input type="range" id="k2" min="0" max="100" value="60"></label>
+    <label>DECAY <input type="range" id="k3" min="0" max="100" value="60"></label>
+    <label class="auto"><input type="checkbox" id="auto"> encodeurs qui bougent seuls</label>
+  </div>
+
+  <section>
+    <div class="grid">
+      <figure><canvas id="live" width="240" height="240"></canvas><figcaption><h3>En direct</h3><p>Suit les quatre curseurs.</p></figcaption></figure>
+      <figure><canvas id="h0" width="240" height="240"></canvas><figcaption><h3>Formants</h3><p>HARM bas : la tête verte.</p></figcaption></figure>
+      <figure><canvas id="h1" width="240" height="240"></canvas><figcaption><h3>SAM</h3><p>HARM au milieu : bleue.</p></figcaption></figure>
+      <figure><canvas id="h2" width="240" height="240"></canvas><figcaption><h3>LPC</h3><p>HARM haut : violette.</p></figcaption></figure>
+    </div>
+  </section>
+</main>
+
+<script>
+const mix = (a, b, k) => "#" + [1, 3, 5].map(i => Math.round(parseInt(a.substr(i, 2), 16) * (1 - k) + parseInt(b.substr(i, 2), 16) * k).toString(16).padStart(2, "0")).join("");
+const TAU = Math.PI * 2;
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+/* flat tones: [lit, base, shade] */
+const K = [["#8fb4ff", "#3a6dff", "#1c3590"], ["#8ff5c8", "#22d58e", "#0f6d48"], ["#ffffff", "#c9c3e4", "#6f6890"], ["#ffc196", "#ff7a2e", "#a3410c"]];
+const HOT = ["#ffb8dc", "#ff2f8e", "#8a1050"];
+const BG = "#0c0820", UI = "#8b84a8", BAR = "#06041a";
+const knob = (t, i, s) => 0.5 + 0.4 * Math.sin(t * (0.35 + i * 0.13) + i * 1.9 + s);
+const BEAT = 0.5;
+const font = (px, w = 700) => `${w} ${px}px "Chakra Petch", sans-serif`;
+const poly = (c, pts, fill) => { c.fillStyle = fill; c.beginPath(); pts.forEach(([x, y]) => c.lineTo(x, y)); c.closePath(); c.fill(); };
+
+/* ---- a tiny flat-shaded 3D renderer ---- */
+const LIGHT = (() => { const l = [-0.5, -0.65, 0.6], n = Math.hypot(...l); return l.map(x => x / n); })();
+function rot([x, y, z], ay, ax = 0) {
+  const cy = Math.cos(ay), sy = Math.sin(ay); [x, z] = [x * cy + z * sy, -x * sy + z * cy];
+  const cx = Math.cos(ax), sx = Math.sin(ax); [y, z] = [y * cx - z * sx, y * sx + z * cx];
+  return [x, y, z];
+}
+/* mesh: {v:[[x,y,z]], f:[[i,j,k,(l)], tone?]} ; opts: cx, cy, s, ay, ax, tones, wire, faceTone(fi) */
+function draw3d(c, mesh, o) {
+  const P = mesh.v.map(p => rot(p, o.ay, o.ax || 0));
+  const faces = mesh.f.map((f, fi) => {
+    const q = f.map(i => P[i]);
+    const a = q[1].map((x, k) => x - q[0][k]), b = q[2].map((x, k) => x - q[0][k]);
+    let n = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+    const ln = Math.hypot(...n) || 1; n = n.map(x => x / ln);
+    return { q, n, fi, z: q.reduce((s, p) => s + p[2], 0) / q.length };
+  }).filter(f => f.n[2] > 0).sort((p, q) => p.z - q.z);
+  for (const f of faces) {
+    const d = f.n[0] * LIGHT[0] + f.n[1] * LIGHT[1] + f.n[2] * LIGHT[2];
+    const tones = (o.faceTones && o.faceTones(f.fi)) || o.tones;
+    const pts = f.q.map(([x, y]) => [o.cx + x * o.s, o.cy + y * o.s]);
+    poly(c, pts, d > 0.55 ? tones[0] : d > 0.15 ? tones[1] : tones[2]);
+    if (o.wire) { c.strokeStyle = o.wire; c.lineWidth = 1; c.beginPath(); pts.forEach(([x, y]) => c.lineTo(x, y)); c.closePath(); c.stroke(); }
+  }
+}
+function sphereMesh(lat, lon, shape = p => p) {
+  const v = [], f = [];
+  for (let i = 0; i <= lat; i++) for (let j = 0; j < lon; j++) {
+    const th = (i / lat) * Math.PI - Math.PI / 2, ph = (j / lon) * TAU;
+    v.push(shape([Math.cos(th) * Math.sin(ph), Math.sin(th), Math.cos(th) * Math.cos(ph)], i, j));
+  }
+  for (let i = 0; i < lat; i++) for (let j = 0; j < lon; j++) {
+    const a = i * lon + j, b = i * lon + (j + 1) % lon, cc = (i + 1) * lon + (j + 1) % lon, d = (i + 1) * lon + j;
+    f.push(i === 0 ? [a, cc, d] : i === lat - 1 ? [a, b, d] : [a, b, cc, d]);
+  }
+  return { v, f };
+}
+const OCTA = { v: [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]],
+  f: [[0, 4, 2], [4, 1, 2], [1, 5, 2], [5, 0, 2], [4, 0, 3], [1, 4, 3], [5, 1, 3], [0, 5, 3]] };
+const CUBE = { v: [[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1], [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]],
+  f: [[4, 5, 6, 7], [1, 0, 3, 2], [5, 1, 2, 6], [0, 4, 7, 3], [3, 7, 6, 2], [0, 1, 5, 4]] };
+const TETRA = { v: [[1, 1, 1], [-1, -1, 1], [-1, 1, -1], [1, -1, -1]], f: [[0, 1, 2], [0, 3, 1], [0, 2, 3], [1, 3, 2]] };
+const ICO = (() => { const p = (1 + Math.sqrt(5)) / 2, v = [[-1, p, 0], [1, p, 0], [-1, -p, 0], [1, -p, 0], [0, -1, p], [0, 1, p], [0, -1, -p], [0, 1, -p], [p, 0, -1], [p, 0, 1], [-p, 0, -1], [-p, 0, 1]].map(q => { const n = Math.hypot(...q); return q.map(x => x / n); });
+  return { v, f: [[0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11], [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8], [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9], [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]] }; })();
+
+function chrome(c, name, labels, v, hit, page = "EDIT 1/2") {
+  c.fillStyle = BAR; c.fillRect(0, 0, 240, 30); c.fillRect(0, 196, 240, 44);
+  poly(c, [[8, 7], [30, 7], [34, 11], [34, 23], [12, 23], [8, 19]], hit ? HOT[1] : K[1][1]);
+  c.fillStyle = BAR; c.font = font(13); c.textBaseline = "middle"; c.fillText("2", 17, 15.5);
+  c.fillStyle = "#f4f1ff"; c.font = font(15); c.fillText(name, 42, 15.5);
+  c.fillStyle = UI; c.font = font(10, 500); c.textAlign = "right"; c.fillText(page, 232, 15.5); c.textAlign = "left";
+  labels.forEach((l, i) => {
+    const x = 8 + i * 58, w = 52, segs = 7, on = Math.round(v[i] * segs);
+    for (let s = 0; s < segs; s++) poly(c, [[x + s * 5, 214], [x + s * 5 + 4, 204], [x + s * 5 + 7, 204], [x + s * 5 + 3, 214]], s < on ? K[i][1] : "#221a3a");
+    c.fillStyle = "#f4f1ff"; c.font = font(11); c.textAlign = "right"; c.fillText(String(Math.round(v[i] * 100)), x + w, 210); c.textAlign = "left";
+    c.fillStyle = UI; c.font = font(9, 500); c.fillText(l, x, 228);
+  });
+}
+const band = (c, col = BG) => { c.fillStyle = col; c.fillRect(0, 30, 240, 166); };
+
+/* ---- SPEECH: low-poly head ---- */
+/* a head from a 10x14 sphere: skull, brow, eye sockets, nose, cheeks, jaw and chin; the jaw drops to speak */
+const HEAD_BASE = sphereMesh(10, 14, ([x, y, z]) => {
+  y *= 1.12; x *= 0.8;
+  if (y < 0) { const k = 1 - (-y) * 0.38; x *= k; }                                   /* jaw narrows */
+  if (y < -0.75 && z > 0) z *= 1.08;                                                   /* chin */
+  if (z > 0.55 && y > 0.18 && y < 0.36) z += 0.09;                                     /* brow ridge */
+  if (z > 0.45 && y > -0.05 && y < 0.2 && Math.abs(x) > 0.14 && Math.abs(x) < 0.5) z -= 0.14; /* eye sockets */
+  if (z > 0.7 && Math.abs(x) < 0.16 && y > -0.3 && y < 0.15) z += 0.32 * (1 - Math.abs(x) / 0.16) * (1 - Math.abs(y + 0.08) / 0.25); /* nose */
+  if (z > 0.3 && Math.abs(x) > 0.42 && y > -0.35 && y < 0) { x *= 1.06; z += 0.05; }   /* cheekbones */
+  return [x, y, z];
+});
+const HEAD_CENTRE = HEAD_BASE.f.map(f => { const q = f.map(i => HEAD_BASE.v[i]); return [0, 1, 2].map(k => q.reduce((s, p) => s + p[k], 0) / q.length); });
+const HEAD_PART = HEAD_CENTRE.map(([x, y, z]) =>
+  z > 0.35 && y > -0.08 && y < 0.2 && Math.abs(x) > 0.12 && Math.abs(x) < 0.5 ? "eye" :
+  z > 0.4 && y > -0.62 && y < -0.42 && Math.abs(x) < 0.32 ? "mouth" : "skin");
+const HEAD_FACES = HEAD_BASE.f.map(f => f.slice().reverse());
+function headMesh(open, size) {
+  /* model y points up, the screen's down: flip y, and reverse the faces to keep them facing out */
+  return { f: HEAD_FACES, v: HEAD_BASE.v.map(([x, y, z]) => [x * size, -(y < -0.5 && z > -0.3 ? y - open * 0.3 : y) * size, z * size]) };
+}
+const EYE = ["#0b2a1f", "#06201a", "#03140f"], LIPS = EYE, MOUTH = ["#ff2f8e", "#8a1050", "#4a0828"];
+/* the scene on the ENGINE page: HARM the voice model (the head's tint), TIMB the species (its size),
+   MORPH the phoneme (how wide the mouth opens), DECAY how long each note's syllables last */
+const TINT = [K[1], K[0], ["#e4ddff", "#9a7cff", "#4a36b0"]];
+function knobsNow(t) {
+  if (document.getElementById("auto").checked) return [0, 1, 2, 3].map(i => knob(t, i, 1.1));
+  return [0, 1, 2, 3].map(i => document.getElementById("k" + i).value / 100);
+}
+function speech(c, t, hpick) {
+  const v = knobsNow(t), since = t % BEAT, dur = 0.15 + 0.35 * v[3];
+  const open = since < dur ? Math.abs(Math.sin(since / dur * Math.PI * 2)) * (0.4 + v[2] * 0.6) : 0;   /* two syllables a note */
+  const tint = TINT[Math.min(2, Math.floor((hpick === undefined ? v[0] : hpick) * 3))];
+  band(c);
+  /* scan grid behind */
+  c.strokeStyle = "#1e1640"; c.lineWidth = 1;
+  for (let x = 4; x < 240; x += 12) { c.beginPath(); c.moveTo(x + .5, 30); c.lineTo(x + .5, 196); c.stroke(); }
+  for (let y = 36; y < 196; y += 12) { c.beginPath(); c.moveTo(0, y + .5); c.lineTo(240, y + .5); c.stroke(); }
+  const scanY = 30 + ((t * 60) % 166);
+  c.strokeStyle = K[1][2]; c.beginPath(); c.moveTo(0, scanY); c.lineTo(240, scanY); c.stroke();
+  const size = 0.85 + v[1] * 0.3, head = headMesh(open, size);
+  const ay = Math.sin(t * 0.5) * 0.6, ax = -0.08;
+  draw3d(c, head, { cx: 120, cy: 104, s: 48, ay, ax, tones: tint, wire: open > 0.3 ? HOT[1] : mix(tint[1], "#ffffff", 0.15),
+    faceTones: fi => HEAD_PART[fi] === "eye" ? EYE : HEAD_PART[fi] === "mouth" ? (open > 0.15 ? MOUTH : LIPS) : null });
+  /* two small neon pupils in the dark eye band, seen only from the front */
+  [-0.3, 0.3].forEach(x => {
+    const q = rot([x * 0.8 * size, -0.09 * 1.12 * size, 0.66 * size], ay, ax);
+    if (q[2] < 0.25 * size) return;
+    const px = 120 + q[0] * 48, py = 104 + q[1] * 48;
+    poly(c, [[px - 3, py], [px, py - 2], [px + 3, py], [px, py + 2]], open > 0.4 ? HOT[0] : "#8ff5ff");
+  });
+  /* phoneme bars */
+  for (let i = 0; i < 9; i++) {
+    const h = Math.abs(Math.sin(i * 1.7 + Math.floor(t * 4) * 2.3)) * open * 24;
+    poly(c, [[30 + i * 20, 188], [44 + i * 20, 188], [44 + i * 20, 188 - h], [30 + i * 20, 188 - h]], i % 2 ? tint[1] : tint[2]);
+  }
+  chrome(c, "SPEECH", ["HARM", "TIMB", "MORPH", "DECAY"], v, open > 0.4, "ENGINE");
+}
+
+const views = [["live", undefined], ["h0", 0.1], ["h1", 0.5], ["h2", 0.9]].map(([id, hp]) => [document.getElementById(id).getContext("2d"), hp]);
+function frame(ms) { const t = ms / 1000; views.forEach(([c, hp]) => speech(c, t, hp)); }
+const T0 = 1310;
+frame(T0);
+function loop(ms) { frame(ms + T0); requestAnimationFrame(loop); }
+document.fonts.ready.then(() => { frame(T0); if (!reduce) requestAnimationFrame(loop); });
+document.querySelectorAll(".knobs input").forEach(i => i.addEventListener("input", () => { if (reduce) frame(performance.now() + T0); }));
+</script>
+<script>
+/* #solo=<canvas id>: show only that screen, its encoders moving by themselves (used by gallery.html) */
+(() => {
+  const m = location.hash.match(/^#solo=(\w+)/); if (!m) return;
+  const cv = document.getElementById(m[1]), auto = document.getElementById("auto"); if (auto) auto.checked = true;
+  document.body.prepend(cv);
+  [...document.body.children].forEach(e => { if (e !== cv && e.tagName !== "SCRIPT") e.style.display = "none"; });
+  document.body.style.cssText = "margin:0;padding:0;background:#000;overflow:hidden";
+  cv.style.cssText = "width:100vw;height:100vh;border:0;border-radius:0;display:block;max-width:none";
+})();
+</script>

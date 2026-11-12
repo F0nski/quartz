@@ -1,0 +1,61 @@
+<title>Scene Gallery</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+/* Layout: a wrapping grid of the kept scenes, each a live device screen loaded from its mockup in solo mode. */
+:root {
+  --bg: #efedf5; --fg: #1c1830; --muted: #5d5873; --device: #151320; --hot: #d4247a;
+  --display: "Chakra Petch", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --device: #000; --hot: #ff4fa8; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --device: #000; --hot: #ff4fa8; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 48px }
+main { max-width: 1180px; margin: 0 auto; display: grid; gap: 22px }
+h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; line-height: 1.1; margin: 0; text-transform: uppercase; letter-spacing: .02em }
+h1 em { font-style: normal; color: var(--hot) }
+.lead { color: var(--muted); max-width: 70ch; margin: 8px 0 0 }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 18px }
+figure { margin: 0; display: grid; gap: 6px; align-content: start; min-width: 0 }
+.screen { aspect-ratio: 1; border: 12px solid var(--device); border-radius: 16px; overflow: hidden; background: #000 }
+.screen iframe { width: 100%; height: 100%; border: 0; display: block }
+h2 { font-family: var(--display); font-size: 1rem; margin: 0; text-transform: uppercase; letter-spacing: .04em }
+figcaption p { margin: 0; font-size: .85rem; color: var(--muted) }
+figcaption a { color: inherit }
+</style>
+
+<main>
+  <header>
+    <h1>Scènes <em>retenues</em></h1>
+    <p class="lead">Une scène par famille de sons, telle qu'elle a été validée, pour les comparer d'un coup d'œil. Chaque écran est la maquette d'origine, encodeurs en mouvement automatique ; le lien sous l'écran ouvre la maquette complète.</p>
+  </header>
+  <div class="grid" id="grid"></div>
+</main>
+
+<script>
+/* [title, engines, mockup, canvas id] */
+const KEPT = [
+  ["Planète FM", "6-OP A/B/C, 2-OP FM", "scenes.html", "fm"],
+  ["Tunnel du kit", "KIT, BD, SNARE, HI-HAT", "scenes.html", "kit"],
+  ["Chladni", "MODAL", "scenes.html", "modal"],
+  ["Tête qui parle", "SPEECH", "speech.html", "live"],
+  ["Survol de crêtes", "VA VCF, VA, WAVESHAPE, PHASE DIST", "analog.html", "a0"],
+  ["Bowl en hoverboard", "WAVETABLE, WAVE TERRAIN", "wavetable.html", "bowl0"],
+  ["Jardin de cristal", "ADDITIVE, GRAIN FORM", "spectral.html", "garden0"],
+  ["Chorale d'androïdes", "CHORDS, STRING MACH", "chords.html", "choir0"],
+  ["Funambule", "STRING", "string.html", "walker"],
+  ["Dancefloor", "NOISE, PARTICLE, SWARM", "noise.html", "dance2"],
+  ["Plateformes", "CHIPTUNE", "chiptune.html", "platforms"],
+  ["Escadrille du canyon", "MARBLES", "marbles.html", "shipsRocks"],
+  ["Piles sur sol filaire", "GRIDS", "backdrops.html", "gFloor"],
+  ["Les emblèmes", "HOME, page TRACKS", "home.html", "emblems"],
+];
+const grid = document.getElementById("grid");
+for (const [title, engines, page, id] of KEPT) {
+  const f = document.createElement("figure");
+  f.innerHTML = `<div class="screen"><iframe src="${page}#solo=${id}" loading="lazy" title="${title}"></iframe></div>
+    <figcaption><h2>${title}</h2><p>${engines} · <a href="${page}">maquette</a></p></figcaption>`;
+  grid.appendChild(f);
+}
+</script>

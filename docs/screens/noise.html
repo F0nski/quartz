@@ -287,3 +287,14 @@ function loop(ms) { frame(ms + T0); requestAnimationFrame(loop); }
 document.fonts.ready.then(() => { frame(T0); if (!reduce) requestAnimationFrame(loop); });
 document.querySelectorAll(".knobs input").forEach(i => i.addEventListener("input", () => { if (reduce) frame(performance.now() + T0); }));
 </script>
+<script>
+/* #solo=<canvas id>: show only that screen, its encoders moving by themselves (used by gallery.html) */
+(() => {
+  const m = location.hash.match(/^#solo=(\w+)/); if (!m) return;
+  const cv = document.getElementById(m[1]), auto = document.getElementById("auto"); if (auto) auto.checked = true;
+  document.body.prepend(cv);
+  [...document.body.children].forEach(e => { if (e !== cv && e.tagName !== "SCRIPT") e.style.display = "none"; });
+  document.body.style.cssText = "margin:0;padding:0;background:#000;overflow:hidden";
+  cv.style.cssText = "width:100vw;height:100vh;border:0;border-radius:0;display:block;max-width:none";
+})();
+</script>

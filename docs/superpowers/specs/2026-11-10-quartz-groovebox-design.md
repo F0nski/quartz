@@ -225,7 +225,7 @@ scène ; chaque note déclenche un mouvement.
 | KIT, BD, SNARE, HI-HAT | octaèdre (BD) qui gonfle, cube (SN) qui éclate, tétraèdre (HH) qui pivote, dans un tunnel en fil de fer | validée |
 | MARBLES | pachinko, billes icosaèdres, notes de la gamme sous les cases avec petits plots d'historique | validée |
 | MODAL | figure de Chladni en relief low poly, posée ; une frappe la fait frémir | validée |
-| SPEECH | tête low poly qui parle, grille de scan | idée validée ; visage à modéliser à la main |
+| SPEECH | tête low poly qui parle (celle de `scenes.html`), qui flotte, pupilles néon dans le bandeau des yeux, grille de scan ; HARM teinte la tête selon le modèle de voix, TIMB sa taille, MORPH l'ouverture de la bouche ; à chaque note, deux syllabes, bouche et fil de fer roses, barres de phonèmes (`docs/screens/speech.html`) | validée |
 | VA VCF, VA, WAVESHAPE, PHASE DIST | survol d'un relief à facettes dont chaque crête suit la forme d'onde du moteur, décalée d'une crête à l'autre ; un vaisseau tire sur la crête de devant à chaque note ; lune taillée, chaînes lointaines (`docs/screens/analog.html`) | validée |
 | WAVETABLE, WAVE TERRAIN | un rider en hoverboard dans un bowl de métal quadrillé de néon : half-pipe dont les parois portent la forme d'onde (WAVETABLE), bowl ayant la forme du terrain, roulé sur le cercle lu (WAVE TERRAIN) ; traînée rose à chaque note, petit kickflip une note sur deux (`docs/screens/wavetable.html`) | validée |
 | ADDITIVE, GRAIN FORM | jardin de fleurs de cristal sous le dôme néon d'une station : 16 fleurs, une par harmonique, dont la hauteur et l'ouverture suivent le spectre ; lucioles ; à chaque note, les fleurs ouvertes s'ouvrent davantage, cœur rose et pollen (`docs/screens/spectral.html`) | validée |
@@ -236,6 +236,14 @@ scène ; chaque note déclenche un mouvement.
 | GRIDS | les piles sur un sol filaire (spec 5b, section 3 bis ; `docs/screens/backdrops.html`) | validée |
 
 Les maquettes de référence sont dans `docs/screens/` (à ouvrir dans un navigateur) : `scenes.html`, puis une page par famille.
+
+Page TRACKS de HOME (direction 1 de `docs/screens/home.html`) : un socle hexagonal filaire par piste, en léger arc,
+devant un soleil taillé en bandes et des crêtes néon sur un sol en fil de fer. Sur chaque socle tourne l'emblème de la
+scène de sa piste (planète FM, porte du tunnel du kit, fleur de cristal, androïde de la chorale…). Le bord du socle
+porte les pas du pattern : joués en bleu, le pas courant en rose. À chaque note de la piste, l'emblème sautille et un
+anneau rose court sur le socle. Une piste coupée n'est plus qu'un fil éteint, immobile. La piste sélectionnée a un
+socle cyan. En bas, une colonne par piste : numéro dans la couleur de sa famille, pattern (le prochain clignote,
+`P3›4`) et moteur.
 
 Page SEQ (maquette H2 de `docs/screens/sequencer.html`) : les 16 pas de la page en plateau 4×4 isométrique de blocs
 low poly (hauteur = vélocité, note sur le dessus, un repère orange pour un pas qui a d'autres attributs), sur un sol

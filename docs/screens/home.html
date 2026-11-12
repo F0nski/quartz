@@ -1,0 +1,379 @@
+<title>Home Screen</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+/* Layout: knob sliders on top, then one row of four live device screens per direction (one screen per engine). */
+:root {
+  --bg: #efedf5; --fg: #1c1830; --muted: #5d5873; --line: #d9d5e6; --device: #151320; --hot: #d4247a; --panel: #e4e1ee;
+  --display: "Chakra Petch", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --line: #2a2440; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --line: #2a2440; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 48px }
+main { max-width: 1000px; margin: 0 auto; display: grid; gap: 22px }
+h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; line-height: 1.1; margin: 0; text-transform: uppercase; letter-spacing: .02em }
+h1 em { font-style: normal; color: var(--hot) }
+.lead { color: var(--muted); max-width: 70ch; margin: 8px 0 0 }
+.knobs { position: sticky; top: 0; z-index: 1; background: var(--panel); border-radius: 10px; padding: 10px 14px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px 18px; align-items: center }
+.knobs label { display: grid; font-family: var(--display); font-size: .78rem; letter-spacing: .06em; text-transform: uppercase }
+.knobs input[type=range] { width: 100% }
+.knobs .auto { display: flex; gap: 8px; align-items: center }
+h2 { font-family: var(--display); font-size: 1.25rem; margin: 6px 0 0; text-transform: uppercase; letter-spacing: .04em }
+section > p { margin: 2px 0 10px; color: var(--muted); max-width: 80ch; font-size: .92rem }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px }
+figure { margin: 0; display: grid; gap: 6px; align-content: start; min-width: 0 }
+canvas { width: 100%; max-width: 100%; aspect-ratio: 1; background: #000; border: 12px solid var(--device); border-radius: 16px; box-sizing: border-box }
+h3 { font-family: var(--display); font-size: 1rem; margin: 0; text-transform: uppercase; letter-spacing: .04em }
+figcaption p { margin: 2px 0 0; font-size: .85rem; color: var(--muted) }
+figcaption b { color: var(--fg); font-weight: 600 }
+</style>
+
+<main>
+  <header>
+    <h1>Home <em>trois pistes</em></h1>
+    <p class="lead">La page TRACKS de HOME : les 4 pistes d'un coup d'œil, celles qui jouent, celles qui sont coupées, leur pattern et leur position. Quatre pistes d'exemple (6-OP A, KIT, ADDITIVE, CHORDS), chacune à son rythme ; la piste 3 est coupée.</p>
+  </header>
+
+  <section>
+    <div class="grid">
+      <figure><canvas id="emblems" width="240" height="240"></canvas><figcaption><h3>1. Les emblèmes</h3><p>Un socle hexagonal par piste, devant un soleil taillé ; dessus tourne l'emblème de sa scène (planète FM, porte du tunnel, fleur de cristal, androïde). À chaque note, l'emblème sautille et un anneau rose court sur le socle. Le bord du socle porte les pas du pattern : joués en bleu, le pas courant en rose. Coupée, la piste n'est plus qu'un fil éteint, immobile. La piste sélectionnée a un socle cyan. En bas : numéro, pattern (le prochain clignote, P3›4) et moteur.</p></figcaption></figure>
+      <figure><canvas id="wall" width="240" height="240"></canvas><figcaption><h3>2. Le mur d'écrans</h3><p>Quatre moniteurs, chacun une miniature vivante de la scène de sa piste, bordée de rose à chaque note. Une piste coupée passe en neige. La barre rose sous chaque écran avance avec le pattern.</p></figcaption></figure>
+      <figure><canvas id="highway" width="240" height="240"></canvas><figcaption><h3>3. L'autoroute</h3><p>Quatre voies néon vers un soleil taillé. Chaque note lance une impulsion le long de sa voie, rose au départ ; une voie coupée s'éteint. Un petit vaisseau avance sur la voie avec la position dans le pattern.</p></figcaption></figure>
+    </div>
+  </section>
+</main>
+
+<script>
+const TAU = Math.PI * 2;
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+/* flat tones: [lit, base, shade] */
+const K = [["#8fb4ff", "#3a6dff", "#1c3590"], ["#8ff5c8", "#22d58e", "#0f6d48"], ["#ffffff", "#c9c3e4", "#6f6890"], ["#ffc196", "#ff7a2e", "#a3410c"]];
+const HOT = ["#ffb8dc", "#ff2f8e", "#8a1050"];
+const UI = "#8b84a8", BAR = "#06041a";
+const BEAT = 0.5;
+const NAMES = ["VA VCF", "VA", "WAVESHAPE", "PHASE DIST"];
+const font = (px, w = 700) => `${w} ${px}px "Chakra Petch", sans-serif`;
+const poly = (c, pts, fill) => { c.fillStyle = fill; c.beginPath(); pts.forEach(([x, y]) => c.lineTo(x, y)); c.closePath(); c.fill(); };
+const line = (c, pts, col, w = 1) => { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); pts.forEach(([x, y]) => c.lineTo(x, y)); c.stroke(); };
+const mix = (a, b, k) => "#" + [1, 3, 5].map(i => Math.round(parseInt(a.substr(i, 2), 16) * (1 - k) + parseInt(b.substr(i, 2), 16) * k).toString(16).padStart(2, "0")).join("");
+
+function knobs(t) {
+  if (document.getElementById("auto").checked)
+    return [0, 1, 2, 3].map(i => 0.5 + 0.45 * Math.sin(t * (0.3 + i * 0.11) + i * 1.9));
+  return [0, 1, 2, 3].map(i => document.getElementById("k" + i).value / 100);
+}
+
+function chrome(c, name, v, hit) {
+  c.fillStyle = BAR; c.fillRect(0, 0, 240, 30); c.fillRect(0, 196, 240, 44);
+  poly(c, [[8, 7], [30, 7], [34, 11], [34, 23], [12, 23], [8, 19]], hit ? HOT[1] : K[1][1]);
+  c.fillStyle = BAR; c.font = font(13); c.textBaseline = "middle"; c.fillText("1", 17, 15.5);
+  c.fillStyle = "#f4f1ff"; c.font = font(15); c.fillText(name, 42, 15.5);
+  c.fillStyle = UI; c.font = font(10, 500); c.textAlign = "right"; c.fillText("ENGINE", 232, 15.5); c.textAlign = "left";
+  ["HARM", "TIMB", "MORPH", "DECAY"].forEach((l, i) => {
+    const x = 8 + i * 58, w = 52, segs = 7, on = Math.round(v[i] * segs);
+    for (let s = 0; s < segs; s++) poly(c, [[x + s * 5, 214], [x + s * 5 + 4, 204], [x + s * 5 + 7, 204], [x + s * 5 + 3, 214]], s < on ? K[i][1] : "#221a3a");
+    c.fillStyle = "#f4f1ff"; c.font = font(11); c.textAlign = "right"; c.fillText(String(Math.round(v[i] * 127)), x + w, 210); c.textAlign = "left";
+    c.fillStyle = UI; c.font = font(9, 500); c.fillText(l, x, 228);
+  });
+}
+
+/* ---- a small perspective renderer: view = yaw, then camera height and pitch ---- */
+const unit = l => { const n = Math.hypot(...l); return l.map(x => x / n); };
+function camera(o) {
+  const cy = Math.cos(o.yaw), sy = Math.sin(o.yaw), cp = Math.cos(o.pitch), sp = Math.sin(o.pitch);
+  return {
+    view([x, y, z]) {
+      const X = x * cy - z * sy, Z = x * sy + z * cy + o.dist, Y = y - o.h;
+      return [X, Y * cp + Z * sp, Z * cp - Y * sp];
+    },
+    scr([X, Y, Z]) { return [120 + X * o.f / Z, o.cy - Y * o.f / Z]; },
+  };
+}
+/* items: {pts:[world], tones, edge?} faces, or {line:[world], col, w} — drawn far to near, fogged with distance */
+/* wire: a neon colour stroked over every face (an item's own wire wins, null for none) */
+function render(c, cam, items, fogCol, far, LV, wire) {
+  const out = [];
+  for (const it of items) {
+    const P = (it.pts || it.line).map(p => cam.view(p));
+    if (P.some(p => p[2] < 0.3)) continue;
+    const z = P.reduce((s, p) => s + p[2], 0) / P.length - (it.bias || 0);   /* bias: drawn as if nearer */
+    if (it.line) { out.push({ z, it, P }); continue; }
+    const a = P[1].map((x, k) => x - P[0][k]), b = P[2].map((x, k) => x - P[0][k]);
+    let n = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+    const ln = Math.hypot(...n) || 1; n = n.map(x => x / ln);
+    if (n[0] * P[0][0] + n[1] * P[0][1] + n[2] * P[0][2] > 0) n = n.map(x => -x);   /* light the side we see */
+    out.push({ z, it, P, d: n[0] * LV[0] + n[1] * LV[1] + n[2] * LV[2] });
+  }
+  out.sort((p, q) => q.z - p.z);
+  for (const { z, it, P, d } of out) {
+    const fog = Math.min(0.85, Math.max(0, (z - far * 0.35) / (far * 0.65)));
+    const S = P.map(p => cam.scr(p));
+    if (it.line) { line(c, S, mix(it.col, fogCol, fog), it.w || 1); continue; }
+    const col = it.flat || (d > 0.6 ? it.tones[0] : d > 0.2 ? it.tones[1] : it.tones[2]);   /* flat: a tone chosen by the scene */
+    poly(c, S, mix(col, fogCol, fog));
+    const wc = it.wire !== undefined ? it.wire : wire;
+    if (wc) { c.strokeStyle = mix(wc, fogCol, fog); c.lineWidth = 1; c.stroke(); }   /* the fine wire over every face */
+    else if (!it.edge) { c.strokeStyle = mix(col, fogCol, fog); c.lineWidth = 0.6; c.stroke(); }   /* hide the seams between facets */
+    if (it.edge) { c.strokeStyle = mix(it.edge, fogCol, fog); c.lineWidth = 1; c.beginPath(); S.forEach(([x, y]) => c.lineTo(x, y)); c.closePath(); c.stroke(); }
+  }
+}
+const rnd = (i, k) => { const x = Math.sin(i * 127.1 + k * 311.7) * 43758.5453; return x - Math.floor(x); };
+const STARS = Array.from({ length: 30 }, (_, i) => [rnd(i, 1) * 240, 33 + rnd(i, 2) * 56, rnd(i, 3) < 0.2]);
+function stars(c, t, bottom) {
+  STARS.forEach(([x, y, big]) => { if (y < bottom) { c.fillStyle = big ? "#fff" : "#6c5fa0"; c.fillRect((x - t * (big ? 3 : 1.5) + 480) % 240, y, big ? 2 : 1, big ? 2 : 1); } });
+}
+const notes = (t, v) => { const last = Math.floor(t / BEAT), since = t - last * BEAT; return { last, since, heat: Math.exp(-since / (0.05 + v[3] * 0.4)) }; };
+
+/* ---- small mesh helpers ---- */
+/* a wire floor: lines every step over a rectangle at height y */
+function gridFloor(items, y, x0, x1, z0, z1, step, col) {
+  for (let x = x0; x <= x1 + 1e-6; x += step) items.push({ line: [[x, y, z0], [x, y, z1]], col, bias: -50 });
+  for (let z = z0; z <= z1 + 1e-6; z += step) items.push({ line: [[x0, y, z], [x1, y, z]], col, bias: -50 });
+}
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const rotY = ([x, y, z], a, [ox, oy, oz] = [0, 0, 0]) => [ox + x * Math.cos(a) + z * Math.sin(a), oy + y, oz - x * Math.sin(a) + z * Math.cos(a)];
+/* a box from its centre and half sizes, turned by a around y, then moved to o */
+function box(items, [cx, cy, cz], [sx, sy, sz], tones, a = 0, o = [0, 0, 0]) {
+  const P = (dx, dy, dz) => rotY([cx + dx * sx, cy + dy * sy, cz + dz * sz], a, o);
+  const v = [P(-1, -1, -1), P(1, -1, -1), P(1, 1, -1), P(-1, 1, -1), P(-1, -1, 1), P(1, -1, 1), P(1, 1, 1), P(-1, 1, 1)];
+  [[0, 1, 2, 3], [4, 5, 6, 7], [0, 1, 5, 4], [3, 2, 6, 7], [0, 3, 7, 4], [1, 2, 6, 5]].forEach(f => items.push({ pts: f.map(i => v[i]), tones }));
+}
+/* a square beam from a to b, half width w */
+function beam(items, a, b, w, tones) {
+  const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], u = unit(d);
+  const n1 = unit(cross(u, Math.abs(u[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0])), n2 = cross(u, n1);
+  const C = (p, s1, s2) => [0, 1, 2].map(k => p[k] + (n1[k] * s1 + n2[k] * s2) * w);
+  const A = [C(a, -1, -1), C(a, 1, -1), C(a, 1, 1), C(a, -1, 1)], B = [C(b, -1, -1), C(b, 1, -1), C(b, 1, 1), C(b, -1, 1)];
+  for (let k = 0; k < 4; k++) items.push({ pts: [A[k], A[(k + 1) % 4], B[(k + 1) % 4], B[k]], tones });
+  items.push({ pts: A, tones }); items.push({ pts: B, tones });
+}
+const square = (items, [x, y, z], r, col, w = 1) => {
+  const q = [[-1, -1], [1, -1], [1, 1], [-1, 1], [-1, -1]].map(([a, b]) => [x + a * r, y, z + b * r]);
+  for (let k = 0; k < 4; k++) items.push({ line: [q[k], q[k + 1]], col, w, bias: 0.2 });
+};
+const sky = (c, bands) => bands.forEach(([col, y]) => { c.fillStyle = col; c.fillRect(0, y, 240, 196 - y); });
+const begin = c => { c.save(); c.beginPath(); c.rect(0, 30, 240, 166); c.clip(); };
+/* sparks: n small pink shards thrown from a screen point */
+function sparks(c, [x, y], since, n = 6, seed = 1) {
+  if (since > 0.35) return;
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI * (0.15 + 0.7 * rnd(i, seed)), sp = 60 + 70 * rnd(i, seed + 1);
+    const px = x + Math.cos(a) * sp * since, py = y + Math.sin(a) * sp * since + 160 * since * since;
+    poly(c, [[px, py - 2.5], [px + 2.5, py + 1.5], [px - 2, py + 2]], i % 2 ? HOT[0] : HOT[1]);
+  }
+}
+
+/* ---- four example tracks: their engine family, pattern, rhythm; track 3 muted ---- */
+const TRACKS = [
+  { name: "6-OP A", fam: "fm", pat: 1, every: 0.5, len: 16, col: K[3] },
+  { name: "KIT", fam: "kit", pat: 2, every: 0.25, len: 16, col: K[0] },
+  { name: "ADDITIVE", fam: "add", pat: 1, every: 0.75, len: 12, col: K[1], mute: true },
+  { name: "CHORDS", fam: "chord", pat: 3, next: 4, every: 1.0, len: 32, col: K[2] },
+];
+const CYAN = ["#c8f4ff", "#5fe0ff", "#1d7fa8"], METAL = ["#2b3070", "#1f2458", "#151840"], DEAD = ["#1a1640", "#15123a", "#100d2c"];
+const hitOf = (tr, t) => { const s = t % tr.every; return tr.mute ? 1 : s; };          /* time since the track's last note */
+const posOf = (tr, t) => Math.floor(t / 0.125) % tr.len;                                 /* the step it is on, sixteenth notes */
+function header(c, title, page) {
+  c.fillStyle = BAR; c.fillRect(0, 0, 240, 30);
+  poly(c, [[8, 7], [30, 7], [34, 11], [34, 23], [12, 23], [8, 19]], K[3][1]);
+  c.fillStyle = BAR; c.font = font(13); c.textBaseline = "middle"; c.fillText("1", 17, 15.5);
+  c.fillStyle = "#f4f1ff"; c.font = font(15); c.fillText("HOME", 42, 15.5); c.fillStyle = K[3][1]; c.fillText(title, 92, 15.5);
+  c.fillStyle = UI; c.font = font(10, 500); c.textAlign = "right"; c.fillText(page, 232, 15.5); c.textAlign = "left";
+}
+/* an emblem per engine family, echoing its scene, built at a spot, spun by a */
+const at3 = (p, s, a, o) => rotY(p.map(x => x * s), a, o);
+function emblem(items, fam, o, a, s, tones, wire) {
+  const face = (pts, tn = tones, w = wire, bias = 0) => items.push({ pts: pts.map(p => at3(p, s, a, o)), tones: tn, wire: w, bias });
+  if (fam === "fm") {                                       /* the FM planet and its ring */
+    const m = sphere(3, 8); m.f.forEach(f => face(f.map(k => m.v[k])));
+    const r = []; for (let k = 0; k <= 14; k++) { const q = k * TAU / 14; r.push(at3([Math.cos(q) * 1.65, Math.sin(q) * 0.45, Math.sin(q) * 1.65 * 0.55], s, a, o)); }
+    for (let k = 0; k < 14; k++) items.push({ line: [r[k], r[k + 1]], col: wire || tones[0], w: 2 });
+  } else if (fam === "kit") {                               /* a gate of the kit tunnel: an octagonal ring with a thickness */
+    const R = 1.15, r = 0.72, d = 0.22, P = (q, rr, z) => [Math.cos(q) * rr, Math.sin(q) * rr, z];
+    for (let k = 0; k < 8; k++) {
+      const q0 = (k + 0.5) * TAU / 8, q1 = (k + 1.5) * TAU / 8;
+      face([P(q0, R, -d), P(q1, R, -d), P(q1, r, -d), P(q0, r, -d)]);
+      face([P(q0, R, d), P(q1, R, d), P(q1, r, d), P(q0, r, d)]);
+      face([P(q0, R, -d), P(q1, R, -d), P(q1, R, d), P(q0, R, d)]);
+    }
+    face([[-0.18, -0.18, 0], [0.18, -0.18, 0], [0.18, 0.18, 0], [-0.18, 0.18, 0]], CYAN, null);   /* the light at the end */
+  } else if (fam === "add") {                               /* a crystal flower: stem, six facetted petals, a core */
+    face([[-0.06, -1.1, 0], [0.06, -1.1, 0], [0.06, -0.1, 0], [-0.06, -0.1, 0]], K[1], wire);
+    for (let k = 0; k < 6; k++) {
+      const q = k * TAU / 6, C = (u, v, z) => [Math.cos(q) * u - Math.sin(q) * v, Math.sin(q) * u + Math.cos(q) * v + 0.15, z];
+      face([C(0.15, 0, 0), C(0.55, -0.28, -0.05), C(1.05, 0, -0.2), C(0.55, 0, 0.12)]);
+      face([C(0.15, 0, 0), C(0.55, 0, 0.12), C(1.05, 0, -0.2), C(0.55, 0.28, -0.05)]);
+    }
+    const c = [[0, 0.5, 0.05], [0.25, 0.15, 0.05], [0, -0.2, 0.05], [-0.25, 0.15, 0.05]];
+    face(c.map(p => [p[0], p[1], 0.25]), wire ? tones : ["#ffffff", "#e6fffa", "#9fe9d8"]);
+  } else {                                                  /* an android of the choir: head, dark visor, cyan eyes, antenna */
+    const v = [[-0.7, 0.75, -0.6], [0.7, 0.75, -0.6], [0.7, -0.75, -0.6], [-0.7, -0.75, -0.6], [-0.6, 0.65, 0.6], [0.6, 0.65, 0.6], [0.6, -0.65, 0.6], [-0.6, -0.65, 0.6]];
+    [[0, 1, 2, 3], [5, 4, 7, 6], [1, 5, 6, 2], [4, 0, 3, 7], [4, 5, 1, 0], [3, 2, 6, 7]].forEach(f => face(f.map(k => v[k])));
+    face([[-0.62, 0.35, -0.62], [0.62, 0.35, -0.62], [0.62, -0.05, -0.62], [-0.62, -0.05, -0.62]], EYE, wire, 0.1);
+    if (!wire) [-0.3, 0.3].forEach(x => face([[x - 0.12, 0.22, -0.64], [x + 0.12, 0.22, -0.64], [x + 0.12, 0.1, -0.64], [x - 0.12, 0.1, -0.64]], CYAN, null, 0.2));
+    items.push({ line: [at3([0, 0.75, 0], s, a, o), at3([0, 1.25, 0], s, a, o)], col: wire || "#8b84a8", w: 1.5 });
+    if (!wire) face([[-0.08, 1.25, 0], [0.08, 1.25, 0], [0.08, 1.4, 0], [-0.08, 1.4, 0]], CYAN, null);
+  }
+}
+function sphere(lat, lon) {
+  const v = [], f = [];
+  for (let i = 0; i <= lat; i++) for (let j = 0; j < lon; j++) { const th = -Math.PI / 2 + Math.PI * i / lat, ph = TAU * j / lon; v.push([Math.cos(th) * Math.cos(ph), Math.sin(th), Math.cos(th) * Math.sin(ph)]); }
+  for (let i = 0; i < lat; i++) for (let j = 0; j < lon; j++) f.push([i * lon + j, i * lon + (j + 1) % lon, (i + 1) * lon + (j + 1) % lon, (i + 1) * lon + j]);
+  return { v, f };
+}
+const EYE = ["#0b2a1f", "#06201a", "#03140f"];
+/* a point on a hexagon's outline, u in [0, 1) */
+const hexAt = ([x, y, z], r, u) => {
+  const k = Math.floor(u * 6) % 6, q = u * 6 - Math.floor(u * 6), A = k * TAU / 6 + TAU / 12, B = A + TAU / 6;
+  return [x + r * (Math.cos(A) + (Math.cos(B) - Math.cos(A)) * q), y, z + r * (Math.sin(A) + (Math.sin(B) - Math.sin(A)) * q)];
+};
+/* a hexagonal prism, its top at y */
+function pedestal(items, [x, z], r, y, tones, wire) {
+  const top = [], bot = [];
+  for (let k = 0; k < 6; k++) { const A = k * TAU / 6 + TAU / 12; top.push([x + r * Math.cos(A), y, z + r * Math.sin(A)]); bot.push([x + r * 1.08 * Math.cos(A), 0, z + r * 1.08 * Math.sin(A)]); }
+  for (let k = 0; k < 6; k++) items.push({ pts: [bot[k], bot[(k + 1) % 6], top[(k + 1) % 6], top[k]], tones, wire });
+  items.push({ pts: top, tones, wire, flat: tones[0] === DEAD[0] ? DEAD[1] : "#2b3070" });
+}
+
+/* ---- 1. the emblems on their pedestals ---- */
+const SEL = 0;                                              /* the selected track */
+function emblems(c, t) {
+  begin(c);
+  const cam = camera({ yaw: 0, pitch: 0.2, dist: 5, h: 2.1, f: 215, cy: 124 });
+  const hz = cam.scr(cam.view([0, 0, 400]))[1];
+  sky(c, [["#05031a", 30], ["#0b0628", 52], ["#140a3a", hz - 16], ["#1c0d48", hz - 6]]); stars(c, t, hz - 22);
+  /* a faceted sun on the horizon, cut by dark bands, and two ridges in front of it */
+  c.save(); c.beginPath(); c.rect(0, 30, 240, hz - 30); c.clip();
+  for (let y = hz - 30; y < hz; y += 3) {               /* horizontal slices, the gaps widening downwards */
+    const g = Math.max(0, (y - (hz - 18)) / 18) * 2.2, w = Math.sqrt(Math.max(0, 900 - (hz - y) ** 2));
+    c.fillStyle = mix("#ffb347", "#c2207a", (y - hz + 30) / 30); c.fillRect(120 - w, y, 2 * w, 3 - g);
+  }
+  c.restore();
+  poly(c, [[0, hz], [0, hz - 9], [22, hz - 15], [44, hz - 7], [70, hz - 18], [96, hz - 6], [108, hz], [140, hz], [150, hz - 8], [178, hz - 16], [200, hz - 6], [222, hz - 13], [240, hz - 8], [240, hz]], "#0d0730");
+  line(c, [[0, hz - 9], [22, hz - 15], [44, hz - 7], [70, hz - 18], [96, hz - 6], [108, hz]], "#5a2fc0");
+  line(c, [[140, hz], [150, hz - 8], [178, hz - 16], [200, hz - 6], [222, hz - 13], [240, hz - 8]], "#5a2fc0");
+  c.fillStyle = "#07041c"; c.fillRect(0, hz, 240, 196 - hz);
+  const items = [];
+  gridFloor(items, 0, -6, 6, -2, 16, 0.75, "#2a1d80");
+  TRACKS.forEach((tr, i) => {
+    const x = -2.1 + 1.4 * i, z = 0.16 * x * x, since = hitOf(tr, t), pos = posOf(tr, t), R = 0.4, H = 0.62;
+    pedestal(items, [x, z], R, H, tr.mute ? DEAD : METAL, tr.mute ? "#241c50" : i === SEL ? "#2c9fd8" : "#3a2c90");
+    if (i === SEL) for (let j = 0; j < 6; j++) items.push({ line: [hexAt([x, 0.01, z], 0.62, j / 6), hexAt([x, 0.01, z], 0.62, (j + 1) / 6)], col: "#5fe0ff", w: 1.5, bias: -40 });
+    /* the step ring on the top edge: steps played in blue, the current one pink */
+    if (!tr.mute) for (let j = 0; j < tr.len; j++) {
+      const u0 = (j + 0.12) / tr.len, u1 = (j + 0.88) / tr.len, on = j === pos;
+      items.push({ line: [hexAt([x, H + 0.01, z], R, u0), hexAt([x, H + 0.01, z], R, u1)], col: on ? PINK : j < pos ? "#3d7bff" : "#2a2060", w: on ? 2.5 : 1.5, bias: 0.3 });
+    }
+    /* a note: a pink ring runs out across the top, the emblem hops */
+    if (since < 0.3) {
+      const r = 0.15 + since * 1.6, k = since / 0.3, ring = [];
+      for (let j = 0; j <= 12; j++) ring.push([x + r * Math.cos(j * TAU / 12), H + 0.02, z + r * Math.sin(j * TAU / 12)]);
+      for (let j = 0; j < 12; j++) items.push({ line: [ring[j], ring[j + 1]], col: mix(PINK, "#2b3070", k), w: 1.5, bias: 0.25 });
+    }
+    const hop = tr.mute ? 0 : 0.14 * Math.sin(Math.PI * Math.min(1, since / 0.2)) * (since < 0.2 ? 1 : 0);
+    const y = tr.mute ? H + 0.45 : H + 0.7 + 0.04 * Math.sin(t * 1.5 + i) + hop, a = tr.mute ? 0.5 : t * 0.8 + i;
+    emblem(items, tr.fam, [x, y, z], a, 0.42, tr.mute ? DEAD : tr.col, tr.mute ? "#3a2c90" : since < 0.05 ? PINK : null);
+  });
+  render(c, cam, items, "#0b0628", 16, unit([-0.5, 0.75, -0.45]));
+  c.restore();
+  /* the footer: one column per track, its number, engine, pattern (the queued one blinking) */
+  c.fillStyle = BAR; c.fillRect(0, 196, 240, 44);
+  TRACKS.forEach((tr, i) => {
+    const x = 4 + 59 * i, col = tr.mute ? "#5e578a" : "#f4f1ff";
+    poly(c, [[x, 202], [x + 16, 202], [x + 19, 205], [x + 19, 216], [x + 3, 216], [x, 213]], tr.mute ? "#2a2450" : i === SEL ? K[3][1] : tr.col[1]);
+    c.fillStyle = BAR; c.font = font(11); c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(String(i + 1), x + 9.5, 209.5);
+    c.textAlign = "left"; c.fillStyle = col; c.font = font(11); c.fillText(tr.mute ? "MUTE" : "P" + tr.pat, x + 24, 209.5);
+    if (tr.next && !tr.mute && Math.floor(t * 4) % 2) { c.fillStyle = K[3][1]; c.fillText("›" + tr.next, x + 40, 209.5); }
+    c.fillStyle = tr.mute ? "#5e578a" : UI; c.font = font(9, 500); c.fillText(tr.name, x, 228);
+  });
+  header(c, "TRACKS", "1/2");
+}
+/* ---- 2. the wall of screens: a tiny live view of each track's scene ---- */
+function thumb(c, tr, t, x0, y0, w, h, i) {
+  const since = hitOf(tr, t), hot = since < 0.12, cx = x0 + w / 2, cy = y0 + h / 2;
+  c.save(); c.beginPath(); c.rect(x0, y0, w, h); c.clip();
+  c.fillStyle = "#07041a"; c.fillRect(x0, y0, w, h);
+  if (tr.mute) {                                                             /* a muted track: snow on its screen */
+    for (let k = 0; k < 140; k++) { c.fillStyle = rnd(k, Math.floor(t * 20)) > 0.5 ? "#3b3566" : "#1a1640"; c.fillRect(x0 + rnd(k, Math.floor(t * 20) + 1) * w, y0 + rnd(k, Math.floor(t * 20) + 2) * h, 2, 1); }
+  } else if (tr.fam === "fm") {
+    c.fillStyle = "#1a0f33"; c.fillRect(x0, cy + 14, w, h);
+    for (let k = -4; k <= 4; k++) line(c, [[cx + k * 4, cy + 14], [cx + k * 22, y0 + h]], "#5b2f8c");
+    const R = 13, pts = [[cx - R, cy], [cx - R * 0.7, cy - R * 0.7], [cx, cy - R], [cx + R * 0.7, cy - R * 0.7], [cx + R, cy], [cx + R * 0.7, cy + R * 0.7], [cx, cy + R], [cx - R * 0.7, cy + R * 0.7]];
+    poly(c, pts, hot ? HOT[1] : K[3][1]); poly(c, pts.slice(0, 4).concat([[cx, cy]]), hot ? HOT[0] : K[3][0]);
+    line(c, [[cx - 24, cy + 3], [cx + 24, cy - 3]], K[3][2], 2);
+    for (let k = 0; k < 3; k++) { const a = t * (1.4 - k * 0.3) + k * 2; poly(c, [[cx + Math.cos(a) * 22, cy + Math.sin(a) * 7 - 2], [cx + Math.cos(a) * 22 + 4, cy + Math.sin(a) * 7], [cx + Math.cos(a) * 22, cy + Math.sin(a) * 7 + 2]], K[0][1]); }
+  } else if (tr.fam === "kit") {
+    for (let k = 1; k < 5; k++) { const s = ((k + t * 2) % 5) / 5, ww = w * s, hh = h * s; c.strokeStyle = "#3b2470"; c.strokeRect(cx - ww / 2, cy - hh / 2, ww, hh); }
+    const g = hot ? 1.4 : 1; poly(c, [[cx - 10 * g, cy], [cx, cy - 12 * g], [cx + 10 * g, cy], [cx, cy + 12 * g]], hot ? HOT[1] : K[0][1]); poly(c, [[cx - 10 * g, cy], [cx, cy - 12 * g], [cx, cy]], hot ? HOT[0] : K[0][0]);
+  } else if (tr.fam === "chord") {
+    for (let k = 0; k < 4; k++) { const bx = x0 + 12 + k * (w - 24) / 3, step = [0, 4, 7, 11][k] * 1.1, by = cy + 12 - step; c.fillStyle = "#3b4390"; c.fillRect(bx - 6, by, 12, cy + 22 - by); c.fillStyle = [K[0][1], K[1][1], K[2][1], K[3][1]][k]; c.fillRect(bx - 3, by - 12, 6, 10); c.fillStyle = "#ffffff"; c.fillRect(bx - 3, by - 18, 6, 6); c.fillStyle = hot ? HOT[1] : "#06031a"; c.fillRect(bx - 1, by - 14, 2, hot ? 2 : 1); }
+  }
+  for (let y = y0; y < y0 + h; y += 2) line(c, [[x0, y + 0.5], [x0 + w, y + 0.5]], "rgba(0,0,0,0.25)");
+  c.restore();
+  c.strokeStyle = tr.mute ? "#2a2258" : hot ? HOT[1] : "#3a2c90"; c.lineWidth = 2; c.strokeRect(x0, y0, w, h); c.lineWidth = 1;
+  c.fillStyle = BAR; c.fillRect(x0, y0 + h - 13, w, 13);
+  c.fillStyle = tr.mute ? "#5e578a" : "#f4f1ff"; c.font = font(10); c.fillText((i + 1) + " " + tr.name, x0 + 4, y0 + h - 6);
+  c.fillStyle = tr.mute ? "#5e578a" : K[3][1]; c.textAlign = "right"; c.fillText(tr.mute ? "MUTE" : "P" + tr.pat, x0 + w - 4, y0 + h - 6); c.textAlign = "left";
+  if (!tr.mute) { c.fillStyle = PINK; c.fillRect(x0, y0 + h - 1, w * (posOf(tr, t) + 1) / tr.len, 1); }
+}
+function wall(c, t) {
+  sky(c, [["#05031a", 30]]); c.fillStyle = "#05031a"; c.fillRect(0, 30, 240, 210);
+  TRACKS.forEach((tr, i) => thumb(c, tr, t, 8 + (i % 2) * 116, 36 + Math.floor(i / 2) * 100, 108, 94, i));
+  header(c, "TRACKS", "1/2");
+}
+
+/* ---- 3. the highway: a lane per track, pulses running to the horizon ---- */
+function highway(c, t) {
+  begin(c); sky(c, [["#05031a", 30], ["#0a0626", 70], ["#140c38", 84]]); stars(c, t, 80);
+  const hz = 92;
+  /* a faceted sun behind, cut by slits */
+  const R = 26, sp = []; for (let k = 0; k <= 8; k++) { const a = Math.PI + k * Math.PI / 8; sp.push([120 + Math.cos(a) * R, hz + Math.sin(a) * R]); }
+  poly(c, sp, "#9a7cff"); [[hz - 9, 2], [hz - 4, 3]].forEach(([y, h]) => { c.fillStyle = "#140c38"; c.fillRect(90, y, 60, h); });
+  c.fillStyle = "#0a0620"; c.fillRect(0, hz, 240, 196 - hz);
+  const lane = (i, d) => { const sp = d * d; return [120 + (-1.5 + i) * (8 + 52 * sp), hz + sp * (196 - hz)]; };   /* d: 0 horizon .. 1 near */
+  TRACKS.forEach((tr, i) => {
+    const col = tr.mute ? "#2a2258" : "#4a36b0";
+    for (const sd of [-0.5, 0.5]) line(c, [[120 + (-1.5 + i + sd) * 8, hz], [120 + (-1.5 + i + sd) * 60, 196]], col, 1);
+    if (tr.mute) return;
+    /* each note: a pulse running out to the horizon */
+    for (let k = 0; k < 6; k++) {
+      const s = (t % tr.every) + k * tr.every; if (s > 1.4) continue;
+      const d = Math.max(0, 1 - s / 1.4), [x, y] = lane(i, d), w = 3 + 40 * d * d, hot = s < 0.12;
+      c.fillStyle = hot ? HOT[1] : mix(tr.col[1], "#0a0620", 1 - d); c.fillRect(x - w / 2, y - 1, w, 2 + 3 * d);
+    }
+    /* the pattern's position: a small craft along the lane */
+    const p = (posOf(tr, t) + 1) / tr.len, [x, y] = lane(i, 0.25 + 0.7 * p), sz = 3 + 6 * p;
+    poly(c, [[x, y - sz], [x + sz, y + sz * 0.4], [x - sz, y + sz * 0.4]], CYAN[1]); poly(c, [[x, y - sz], [x, y + sz * 0.4], [x - sz, y + sz * 0.4]], CYAN[0]);
+  });
+  TRACKS.forEach((tr, i) => {
+    const [x] = lane(i, 1);
+    c.textAlign = "center"; c.fillStyle = tr.mute ? "#5e578a" : "#f4f1ff"; c.font = font(12); c.fillText(String(i + 1), x, 178);
+    c.fillStyle = tr.mute ? "#5e578a" : K[3][1]; c.font = font(9); c.fillText(tr.mute ? "MUTE" : "P" + tr.pat, x, 190); c.textAlign = "left";
+  });
+  c.restore(); header(c, "TRACKS", "1/2");
+}
+
+const PINK = "#ff2f8e";
+const SCENES = [["emblems", emblems], ["wall", wall], ["highway", highway]];
+const views = SCENES.map(([id, f]) => [document.getElementById(id).getContext("2d"), f]);
+function frame(ms) { const t = ms / 1000; views.forEach(([c, f]) => { c.fillStyle = BAR; c.fillRect(0, 196, 240, 44); f(c, t); }); }
+const T0 = 1310;
+frame(T0);
+function loop(ms) { frame(ms + T0); requestAnimationFrame(loop); }
+document.fonts.ready.then(() => { frame(T0); if (!reduce) requestAnimationFrame(loop); });
+</script>
+<script>
+/* #solo=<canvas id>: show only that screen, its encoders moving by themselves (used by gallery.html) */
+(() => {
+  const m = location.hash.match(/^#solo=(\w+)/); if (!m) return;
+  const cv = document.getElementById(m[1]), auto = document.getElementById("auto"); if (auto) auto.checked = true;
+  document.body.prepend(cv);
+  [...document.body.children].forEach(e => { if (e !== cv && e.tagName !== "SCRIPT") e.style.display = "none"; });
+  document.body.style.cssText = "margin:0;padding:0;background:#000;overflow:hidden";
+  cv.style.cssText = "width:100vw;height:100vh;border:0;border-radius:0;display:block;max-width:none";
+})();
+</script>
