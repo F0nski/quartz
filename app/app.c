@@ -38,6 +38,7 @@ void app_frame(void)
     ui_frame();
 }
 void app_input_only(void) { ui_input(); }
+void app_redraw(void) { ui_redraw(); }
 void app_say(const char *a, const char *b) { (void)a; (void)b; }
 
 #ifdef PLAT_HOST

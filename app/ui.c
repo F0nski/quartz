@@ -1570,6 +1570,8 @@ void ui_init(q_project *p)
     ui.keys = keys;
 }
 
+void ui_redraw(void) { ui.full = 1; }
+
 void ui_frame(void)
 {
     q_view v;

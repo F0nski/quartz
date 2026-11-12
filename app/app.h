@@ -7,6 +7,8 @@
 
 #define APP_NAME "QUARTZ"
 #define APP_SPLASH_RGB RGB(80, 160, 255)
+#define APP_REDRAW                       /* app_redraw: the screen mirror lost a part */
+void app_redraw(void);
 #define APP_BLOCK 256u                   /* frames per audio block: 5.8 ms at 44.1 kHz */
 #define APP_CANVAS_PX (240u * 83u)       /* the widest strip drawn: a scene band (ui.c BAND_H); the pool keeps the rest */
 

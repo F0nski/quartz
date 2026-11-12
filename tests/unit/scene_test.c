@@ -484,6 +484,36 @@ static void snare_ends_smoothly(void)           /* no jump of the cube when its 
     assert(diff < 500);                 /* the faces closing (about 240 px); the old 1-rad jump: about 1050 */
 }
 
+
+/* MODAL, SPEECH and MARBLES share their meshes' room: each scene comes back the same after another */
+static uint16_t REF2[240 * 166];
+static void scenes_share_meshes(void)
+{
+    scene_enter();
+    sframe(20, -1, 40, 64, 64, 64, 0, 0, 0, 130000);
+    scene_full();
+    memcpy(REF, FULL, sizeof REF);
+    sframe(15, -1, 64, 64, 64, 64, 0, 0, 0, 130000);
+    scene_full();
+    memcpy(REF2, FULL, sizeof REF2);
+    mreset();
+    MV.allowed = MV.kept = 0xFFF;
+    marbles_enter();
+    mframe(130000);
+    scene_enter();
+    sframe(20, -1, 40, 64, 64, 64, 0, 0, 0, 130000);
+    scene_full();
+    assert(!memcmp(REF, FULL, sizeof REF));
+    sframe(15, -1, 64, 64, 64, 64, 0, 0, 0, 130000);
+    scene_full();
+    assert(!memcmp(REF2, FULL, sizeof REF2));
+    mreset();
+    MV.allowed = MV.kept = 0xFFF;
+    marbles_enter();
+    for (uint32_t ms = 130000; ms < 131000; ms += 37) mframe(ms);
+    assert(p3d_count() > 50);           /* the canyon's rocks and crystals still there */
+}
+
 int main(void)
 {
     planet_orange_then_pink();
@@ -517,6 +547,7 @@ int main(void)
     modal_nine_figures();
     hh_morph_sets_flip();
     snare_ends_smoothly();
+    scenes_share_meshes();
     printf("scene ok\n");
     return 0;
 }

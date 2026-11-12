@@ -4,12 +4,12 @@
 #include "fastmath.h"
 #include "plat.h"
 
-#define P3D_MAX 320                 /* a scene keeps under it: the planet uses about 90, the MARBLES canyon under 300 */
+#define P3D_MAX 300                 /* the spec's budget: the planet uses about 90, MODAL 244, the MARBLES canyon 268 */
 #define P3D_MAXV 160                /* vertices of one mesh: the SPEECH head has 154 */
 
 /* coordinates in quarter pixels and depth in quarter screen units, 16 bits: 256 of them in the room of 128 floats */
-typedef struct { int16_t x[3], y[3], z; uint16_t c, edge; uint8_t width, emask; } p3_prim;   /* width 0: a triangle, its
-                                                                                          emask edges outlined in edge */
+/* width 0: a triangle; emask bits 0-2 its edges outlined, bits 3-5 their colour in edges[] (18 bytes: the pool is short) */
+typedef struct { int16_t x[3], y[3], z; uint16_t c; uint8_t width, emask; } p3_prim;
 static int16_t q4(float v) { return (int16_t)fm_clampf(v * 4.0f, -8000.0f, 8000.0f); }
 #define F4(v) ((float)(v) * 0.25f)
 
@@ -25,8 +25,10 @@ float p3d_hash(uint32_t n)
 static p3_prim prims[P3D_MAX] PLAT_POOL;
 static p3_prim *order[P3D_MAX];
 static int nprims, sorted;
+static uint16_t edges[8];           /* the frame's outline colours */
+static int nedges;
 
-void p3d_begin(void) { nprims = sorted = 0; }
+void p3d_begin(void) { nprims = sorted = nedges = 0; }
 int p3d_count(void) { return nprims; }
 
 static p3_prim *add(float z, uint16_t c, uint8_t width)
@@ -126,7 +128,7 @@ void p3d_draw(int32_t oy)
             p3d_fill(F4(p->x[0]), F4(p->y[0]) + o, F4(p->x[1]), F4(p->y[1]) + o, F4(p->x[2]), F4(p->y[2]) + o, p->c);
             for (int k = 0; k < 3; k++)
                 if (p->emask >> k & 1)
-                    seg(F4(p->x[k]), F4(p->y[k]) + o, F4(p->x[(k + 1) % 3]), F4(p->y[(k + 1) % 3]) + o, 1, p->edge);
+                    seg(F4(p->x[k]), F4(p->y[k]) + o, F4(p->x[(k + 1) % 3]), F4(p->y[(k + 1) % 3]) + o, 1, edges[p->emask >> 3]);
         } else {
             seg(F4(p->x[0]), F4(p->y[0]) + o, F4(p->x[1]), F4(p->y[1]) + o, p->width, p->c);
         }
@@ -143,7 +145,15 @@ void p3d_mesh_parts(const p3_mesh *m, const p3_pose *p, const uint16_t (*tones)[
     static p3_vec r[P3D_MAXV];
     static const float L[3] = {-0.48795f, -0.63434f, 0.58554f};     /* (-0.5, -0.65, 0.6) normalised: up left front */
     float sy = fm_sinf(p->ay), cy = fm_cosf(p->ay), sx = fm_sinf(p->ax), cx = fm_cosf(p->ax);
-    int i;
+    int i, e = 0;
+    if (edge) {                             /* its colour in the frame's table (8 at most: the last one shared) */
+        while (e < nedges && edges[e] != *edge)
+            e++;
+        if (e == nedges && nedges < 8)
+            edges[nedges++] = *edge;
+        if (e == 8)
+            e = 7, edges[7] = *edge;
+    }
     for (i = 0; i < m->nv && i < P3D_MAXV; i++) {
         const p3_vec *v = &m->v[i];
         float x = v->x * cy + v->z * sy, z = -v->x * sy + v->z * cy;
@@ -163,10 +173,8 @@ void p3d_mesh_parts(const p3_mesh *m, const p3_pose *p, const uint16_t (*tones)[
         q = tri(p->cx + p->s * a->x, p->cy + p->s * a->y, p->cx + p->s * b->x, p->cy + p->s * b->y,
                 p->cx + p->s * c->x, p->cy + p->s * c->y, p->z + p->s * (a->z + b->z + c->z) * (1.0f / 3.0f),
                 tones[part ? part[i] : 0][d > 0.55f ? 0 : d > 0.15f ? 1 : 2]);
-        if (q && edge) {
-            q->edge = *edge;
-            q->emask = (uint8_t)(~m->f[i].hide & 7u);
-        }
+        if (q && edge)
+            q->emask = (uint8_t)(e << 3 | (~m->f[i].hide & 7u));
     }
 }
 

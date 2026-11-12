@@ -25,6 +25,20 @@ static const uint16_t PINK3[3] = {RGB(0xff, 0xb8, 0xdc), RGB(0xff, 0x2f, 0x8e), 
 static p3_vec planet_v[60];
 static p3_face planet_f[80];
 static p3_mesh planet;
+
+#define MD_N 11                     /* MODAL: quads a side, 242 triangles */
+#define MD_V (MD_N + 1)
+#define HD_LAT 10                   /* SPEECH: the head's sphere */
+#define HD_LON 14
+#define HD_NV ((HD_LAT + 1) * HD_LON)
+/* the meshes of MODAL, SPEECH and MARBLES: one scene shows at a time, so they share the room (RAM is short), each
+   built again when it comes back after another */
+static union {
+    struct { p3_vec v[MD_V * MD_V]; p3_face f[2 * MD_N * MD_N]; uint8_t part[2 * MD_N * MD_N]; float z[MD_V * MD_V]; } md;
+    struct { p3_vec base[HD_NV], v[HD_NV]; p3_face f[2 * HD_LAT * HD_LON]; uint8_t part[2 * HD_LAT * HD_LON]; } hd;
+    struct { p3_vec ico_v[12], spire_v[6][10], boulder_v[6][12], crys_v[6]; p3_face ico_f[20], spire_f[13], cf[8]; } fleet;
+} sb;
+static enum { SB_NONE, SB_MODAL, SB_SPEECH, SB_MARBLES } sb_owner;
 static struct { uint32_t hits[3], hit_ms[3]; int seen, model; float t; } sc;
 
 void scene_enter(void) { sc.seen = 0; }
@@ -293,17 +307,11 @@ static void kit_band(int32_t oy)
 }
 
 /* ---- MODAL: a Chladni relief (spec 5c, 4; docs/screens/scenes.html "Modal") ------------------------------------ */
-#define MD_N 11                     /* quads a side: 242 triangles */
-#define MD_V (MD_N + 1)
 static const uint16_t MD_TONES[3][3] = {
     {RGB(0x8f, 0xf5, 0xc8), RGB(0x8f, 0xf5, 0xc8), RGB(0x22, 0xd5, 0x8e)},     /* the nodal lines */
     {RGB(0x8f, 0xb4, 0xff), RGB(0x3a, 0x6d, 0xff), RGB(0x1c, 0x35, 0x90)},     /* above */
     {RGB(0x22, 0xd5, 0x8e), RGB(0x0f, 0x6d, 0x48), RGB(0x0a, 0x3f, 0x2a)}};    /* below */
 static const uint16_t MD_EDGE = RGB(0x0a, 0x0f, 0x2e);
-static p3_vec pl_v[MD_V * MD_V];
-static p3_face pl_f[2 * MD_N * MD_N];
-static uint8_t pl_part[2 * MD_N * MD_N];
-static float pl_z[MD_V * MD_V];               /* the mode's shape at each vertex */
 static p3_mesh plate;
 static int pl_m, pl_n;
 
@@ -318,22 +326,23 @@ static void plate_mode(int m, int n)
 {
     int i, j;
     pl_m = m, pl_n = n;
+    sb_owner = SB_MODAL;
     for (j = 0; j < MD_V; j++)
         for (i = 0; i < MD_V; i++) {
-            pl_z[j * MD_V + i] = chladni((float)i / MD_N, (float)j / MD_N, m, n);
-            pl_v[j * MD_V + i].x = ((float)i / MD_N - 0.5f) * 2.0f;
-            pl_v[j * MD_V + i].z = ((float)j / MD_N - 0.5f) * 2.0f;
+            sb.md.z[j * MD_V + i] = chladni((float)i / MD_N, (float)j / MD_N, m, n);
+            sb.md.v[j * MD_V + i].x = ((float)i / MD_N - 0.5f) * 2.0f;
+            sb.md.v[j * MD_V + i].z = ((float)j / MD_N - 0.5f) * 2.0f;
         }
     for (j = 0; j < MD_N; j++)
         for (i = 0; i < MD_N; i++) {
             uint8_t a = (uint8_t)(j * MD_V + i), b = (uint8_t)(a + MD_V), c = (uint8_t)(a + MD_V + 1), d = (uint8_t)(a + 1);
             int k = 2 * (j * MD_N + i);
             float z = chladni(((float)i + 0.5f) / MD_N, ((float)j + 0.5f) / MD_N, m, n);
-            pl_f[k] = (p3_face){a, b, c, 4};
-            pl_f[k + 1] = (p3_face){a, c, d, 1};
-            pl_part[k] = pl_part[k + 1] = (uint8_t)(fm_fabsf(z) < 0.12f ? 0 : z > 0.0f ? 1 : 2);
+            sb.md.f[k] = (p3_face){a, b, c, 4};
+            sb.md.f[k + 1] = (p3_face){a, c, d, 1};
+            sb.md.part[k] = sb.md.part[k + 1] = (uint8_t)(fm_fabsf(z) < 0.12f ? 0 : z > 0.0f ? 1 : 2);
         }
-    plate = (p3_mesh){pl_v, pl_f, MD_V * MD_V, 2 * MD_N * MD_N};
+    plate = (p3_mesh){sb.md.v, sb.md.f, MD_V * MD_V, 2 * MD_N * MD_N};
 }
 
 /* k: HARM (the mode), TIMB (the strike's force), MORPH (its damping), DECAY (the pink) */
@@ -345,18 +354,18 @@ static void modal_frame(const q_sview *v, uint32_t ms)
     int f = v->k[0] * 9 / 128, m = 1 + f / 3, n = m + 1 + f % 3, i;   /* 9 figures: m 1..3, n m + 1..m + 3 */
     uint16_t tones[3][3];
     p3_pose p = {0.6f + 0.25f * fm_sinf(0.2f * t), 0.95f, 62.0f, 120.0f, 82.0f, 0.0f};
-    if (!plate.nv || m != pl_m || n != pl_n)
+    if (sb_owner != SB_MODAL || m != pl_m || n != pl_n)
         plate_mode(m, n);
     if (since < 6.0f * tau)                    /* a strike: the plate shivers, then settles */
         amp += 0.05f * fm_expf(-since / tau) * force * fm_sinf(16.0f * since);
     for (i = 0; i < MD_V * MD_V; i++)
-        pl_v[i].y = -pl_z[i] * amp;
+        sb.md.v[i].y = -sb.md.z[i] * amp;
     __builtin_memcpy(tones, MD_TONES, sizeof tones);
     if (since < 0.15f + 0.6f * (float)v->k[3] / 127.0f)
         __builtin_memcpy(tones[0], PINK3, sizeof tones[0]);
     sc.t = t;
     p3d_begin();
-    p3d_mesh_parts(&plate, &p, (const uint16_t (*)[3])tones, pl_part, &MD_EDGE);
+    p3d_mesh_parts(&plate, &p, (const uint16_t (*)[3])tones, sb.md.part, &MD_EDGE);
     sz = 6.0f + 4.0f * (float)v->k[1] / 127.0f;        /* the striker, dropping on a note */
     cy = 10.0f + (since < 0.12f ? 14.0f * (1.0f - since / 0.12f) : 0.0f);
     p3d_tri(120.0f, cy - sz, 120.0f + sz, cy, 120.0f - sz, cy, 1000.0f, ORANGE[0]);
@@ -377,17 +386,11 @@ static void modal_band(int32_t oy)
 }
 
 /* ---- SPEECH: the head that speaks (spec 5c, 5; docs/screens/speech.html) ------------------------------------------ */
-#define HD_LAT 10
-#define HD_LON 14
-#define HD_NV ((HD_LAT + 1) * HD_LON)
 #define C_PUPIL RGB(0x8f, 0xf5, 0xff)
 static const uint16_t SP_VIOLET[3] = {RGB(0xe4, 0xdd, 0xff), RGB(0x9a, 0x7c, 0xff), RGB(0x4a, 0x36, 0xb0)};
 static const uint16_t SP_EYE[3] = {RGB(0x0b, 0x2a, 0x1f), RGB(0x06, 0x20, 0x1a), RGB(0x03, 0x14, 0x0f)};
 static const uint16_t SP_MOUTH[3] = {RGB(0xff, 0x2f, 0x8e), RGB(0x8a, 0x10, 0x50), RGB(0x4a, 0x08, 0x28)};
 static const uint16_t SP_WIRE[3] = {RGB(0x43, 0xdb, 0x9f), RGB(0x57, 0x83, 0xff), RGB(0xa9, 0x90, 0xff)};   /* the tints' base, 15 % white */
-static p3_vec hd_base[HD_NV], hd_v[HD_NV];
-static p3_face hd_f[2 * HD_LAT * HD_LON];
-static uint8_t hd_part[2 * HD_LAT * HD_LON];   /* 0 skin, 1 eyes, 2 mouth */
 static p3_mesh hd_mesh;
 static struct { float open; int tint; } spk;
 
@@ -395,9 +398,10 @@ static struct { float open; int tint; } spk;
 static void head_mesh(void)
 {
     p3_mesh m;
-    p3d_sphere(HD_LAT, HD_LON, hd_base, hd_f, &m);
+    sb_owner = SB_SPEECH;
+    p3d_sphere(HD_LAT, HD_LON, sb.hd.base, sb.hd.f, &m);
     for (int i = 0; i < HD_NV; i++) {
-        p3_vec *q = &hd_base[i];
+        p3_vec *q = &sb.hd.base[i];
         float x = q->x * 0.8f, y = q->y * 1.12f, z = q->z, ax;
         if (y < 0.0f) x *= 1.0f + y * 0.38f;                                         /* the jaw narrows */
         ax = fm_fabsf(x);
@@ -410,22 +414,22 @@ static void head_mesh(void)
         *q = (p3_vec){x, y, z};
     }
     for (int i = 0; i < m.nf; i++) {           /* a quad's part from its whole: its two halves are faces i, i + 1 */
-        int k = hd_f[i].hide == 1 ? i - 1 : i;  /* the quad's first half, or a pole's triangle */
-        const p3_vec *a = &hd_base[hd_f[k].a], *b = &hd_base[hd_f[k].b], *c = &hd_base[hd_f[k].c];
-        const p3_vec *d = hd_f[k].hide == 4 ? &hd_base[hd_f[k + 1].c] : c;
+        int k = sb.hd.f[i].hide == 1 ? i - 1 : i;  /* the quad's first half, or a pole's triangle */
+        const p3_vec *a = &sb.hd.base[sb.hd.f[k].a], *b = &sb.hd.base[sb.hd.f[k].b], *c = &sb.hd.base[sb.hd.f[k].c];
+        const p3_vec *d = sb.hd.f[k].hide == 4 ? &sb.hd.base[sb.hd.f[k + 1].c] : c;
         float x = (a->x + b->x + c->x + d->x) / 4.0f, y = (a->y + b->y + c->y + d->y) / 4.0f, z = (a->z + b->z + c->z + d->z) / 4.0f;
         float ax = fm_fabsf(x);
-        hd_part[i] = (uint8_t)(z > 0.35f && y > -0.08f && y < 0.2f && ax > 0.12f && ax < 0.5f ? 1 :
+        sb.hd.part[i] = (uint8_t)(z > 0.35f && y > -0.08f && y < 0.2f && ax > 0.12f && ax < 0.5f ? 1 :
                                z > 0.4f && y > -0.62f && y < -0.42f && ax < 0.32f ? 2 : 0);
     }
     for (int i = 0; i < m.nf; i++) {
-        p3_face *f = &hd_f[i];
+        p3_face *f = &sb.hd.f[i];
         uint8_t t = f->b;                       /* drawn with y down: the mirror turns the faces, turn them back */
         f->b = f->c;
         f->c = t;
         f->hide = (uint8_t)((f->hide & 2u) | (f->hide >> 2 & 1u) | (f->hide << 2 & 4u));
     }
-    hd_mesh = (p3_mesh){hd_v, hd_f, HD_NV, m.nf};
+    hd_mesh = (p3_mesh){sb.hd.v, sb.hd.f, HD_NV, m.nf};
 }
 
 /* k: HARM (the voice model: the tint), TIMB (the species: the size), MORPH (the phoneme: the mouth), DECAY (syllables) */
@@ -438,14 +442,14 @@ static void speech_frame(const q_sview *v, uint32_t ms)
     int tint = v->k[0] * 3 / 128;
     uint16_t tones[3][3], edge;
     p3_pose p = {ay, ax, 48.0f, 120.0f, 74.0f, 0.0f};
-    if (!hd_mesh.nv)
+    if (sb_owner != SB_SPEECH)
         head_mesh();
     if (since < dur)                           /* two syllables a note */
         open = fm_fabsf(fm_sinf(FM_TWO_PI * since / dur)) * (0.4f + 0.6f * (float)v->k[2] / 127.0f);
     for (int i = 0; i < HD_NV; i++) {
-        const p3_vec *b = &hd_base[i];
+        const p3_vec *b = &sb.hd.base[i];
         float y = b->y < -0.5f && b->z > -0.3f ? b->y - open * 0.3f : b->y;     /* the jaw drops */
-        hd_v[i] = (p3_vec){b->x * size, -y * size, b->z * size};
+        sb.hd.v[i] = (p3_vec){b->x * size, -y * size, b->z * size};
     }
     __builtin_memcpy(tones[0], TINT[tint], sizeof tones[0]);
     __builtin_memcpy(tones[1], SP_EYE, sizeof tones[1]);
@@ -455,7 +459,7 @@ static void speech_frame(const q_sview *v, uint32_t ms)
     spk.open = open;
     spk.tint = tint;
     p3d_begin();
-    p3d_mesh_parts(&hd_mesh, &p, (const uint16_t (*)[3])tones, hd_part, &edge);
+    p3d_mesh_parts(&hd_mesh, &p, (const uint16_t (*)[3])tones, sb.hd.part, &edge);
     for (int s = -1; s <= 1; s += 2) {          /* two small neon pupils on the dark eye band, seen from the front */
         float x = 0.24f * size * (float)s, y = -0.1f * size, z = 0.66f * size;
         float rx = x * cy + z * sy, rz = -x * sy + z * cy, ry = y * cx - rz * sx, d = y * sx + rz * cx, px, py;
@@ -531,10 +535,7 @@ static const char *const MB_NAME[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G
 static const int8_t FORM[7][3][2] = {{{0, 0}, {-10, 3}, {10, 3}}, {{0, 0}, {-10, 7}, {10, 7}}, {{0, 0}, {0, 8}, {0, 16}},
                                      {{0, 0}, {-8, 5}, {-16, 10}}, {{0, 0}, {-10, 4}, {10, -4}}, {{0, 6}, {-10, 0}, {10, 0}}, {{0}}};
 
-static p3_vec ico_v[12], spire_v[6][10], boulder_v[6][12];
-static p3_face ico_f[20], spire_f[13];
 static p3_mesh ico, boulder[6], spire[3];
-static p3_vec crys_v[6];
 static p3_mesh crystal;
 static struct {
     struct { uint8_t on, note, ship; uint32_t fire, land; } m[MB_SHOTS];
@@ -560,6 +561,7 @@ static void face_out(p3_face *f, const p3_vec *v)   /* turn a face to face out o
 
 static void meshes_build(void)
 {
+    sb_owner = SB_MARBLES;
     static const int8_t V[12][3] = {{-1, 2, 0}, {1, 2, 0}, {-1, -2, 0}, {1, -2, 0}, {0, -1, 2}, {0, 1, 2},
                                     {0, -1, -2}, {0, 1, -2}, {2, 0, -1}, {2, 0, 1}, {-2, 0, -1}, {-2, 0, 1}};   /* 2: the golden ratio */
     static const uint8_t F[20][3] = {{0, 11, 5}, {0, 5, 1}, {0, 1, 7}, {0, 7, 10}, {0, 10, 11}, {1, 5, 9}, {5, 11, 4},
@@ -571,56 +573,55 @@ static void meshes_build(void)
         float c[3];
         for (k = 0; k < 3; k++)
             c[k] = V[i][k] == 2 ? phi : V[i][k] == -2 ? -phi : (float)V[i][k];
-        ico_v[i] = (p3_vec){c[0] * n, c[1] * n, c[2] * n};
+        sb.fleet.ico_v[i] = (p3_vec){c[0] * n, c[1] * n, c[2] * n};
     }
     for (i = 0; i < 20; i++) {
-        ico_f[i] = (p3_face){F[i][0], F[i][1], F[i][2], 0};
-        face_out(&ico_f[i], ico_v);  /* (centred: the 1.5 shifts the centre, harmless for a sphere around 0) */
+        sb.fleet.ico_f[i] = (p3_face){F[i][0], F[i][1], F[i][2], 0};
+        face_out(&sb.fleet.ico_f[i], sb.fleet.ico_v);  /* (centred: the 1.5 shifts the centre, harmless for a sphere around 0) */
     }
-    ico = (p3_mesh){ico_v, ico_f, 12, 20};
+    ico = (p3_mesh){sb.fleet.ico_v, sb.fleet.ico_f, 12, 20};
     for (k = 0; k < 6; k++) {       /* boulders: a bumpy icosahedron, its bottom flattened to stand on y = 0 */
         for (i = 0; i < 12; i++) {
-            p3_vec q = ico_v[i];
+            p3_vec q = sb.fleet.ico_v[i];
             float j = 0.35f, y = q.y - 0.55f;
-            boulder_v[k][i] = (p3_vec){1.1f * q.x + (p3d_hash((uint32_t)(k * 97 + i * 7)) - 0.5f) * j,
+            sb.fleet.boulder_v[k][i] = (p3_vec){1.1f * q.x + (p3d_hash((uint32_t)(k * 97 + i * 7)) - 0.5f) * j,
                                        1.1f * (y < 0.0f ? y : 0.0f) + (p3d_hash((uint32_t)(k * 97 + i * 7 + 1)) - 0.5f) * j,
                                        q.z + (p3d_hash((uint32_t)(k * 97 + i * 7 + 2)) - 0.5f) * j};
         }
-        boulder[k] = (p3_mesh){boulder_v[k], ico_f, 12, 20};
+        boulder[k] = (p3_mesh){sb.fleet.boulder_v[k], sb.fleet.ico_f, 12, 20};
     }
     for (k = 0; k < 3; k++) {       /* spires: a 5-sided column narrowing to 0.18 at 3.2 high */
         for (i = 0; i < 5; i++) {
             float a = (float)i * (FM_TWO_PI / 5.0f) + p3d_hash((uint32_t)(k * 31 + i)) * 0.5f, r = 0.85f + p3d_hash((uint32_t)(k * 31 + i + 9)) * 0.3f;
-            spire_v[k][2 * i] = (p3_vec){fm_cosf(a) * r, 0.0f, fm_sinf(a) * r};
-            spire_v[k][2 * i + 1] = (p3_vec){fm_cosf(a) * r * 0.18f, -3.2f, fm_sinf(a) * r * 0.18f};
+            sb.fleet.spire_v[k][2 * i] = (p3_vec){fm_cosf(a) * r, 0.0f, fm_sinf(a) * r};
+            sb.fleet.spire_v[k][2 * i + 1] = (p3_vec){fm_cosf(a) * r * 0.18f, -3.2f, fm_sinf(a) * r * 0.18f};
         }
-        spire[k] = (p3_mesh){spire_v[k], spire_f, 10, 13};
+        spire[k] = (p3_mesh){sb.fleet.spire_v[k], sb.fleet.spire_f, 10, 13};
     }
     for (i = 0; i < 5; i++) {
         int j = (i + 1) % 5;
-        spire_f[2 * i] = (p3_face){(uint8_t)(2 * i), (uint8_t)(2 * j), (uint8_t)(2 * j + 1), 0};
-        spire_f[2 * i + 1] = (p3_face){(uint8_t)(2 * i), (uint8_t)(2 * j + 1), (uint8_t)(2 * i + 1), 0};
+        sb.fleet.spire_f[2 * i] = (p3_face){(uint8_t)(2 * i), (uint8_t)(2 * j), (uint8_t)(2 * j + 1), 0};
+        sb.fleet.spire_f[2 * i + 1] = (p3_face){(uint8_t)(2 * i), (uint8_t)(2 * j + 1), (uint8_t)(2 * i + 1), 0};
     }
-    spire_f[10] = (p3_face){1, 3, 5, 0};
-    spire_f[11] = (p3_face){1, 5, 7, 0};
-    spire_f[12] = (p3_face){1, 7, 9, 0};
+    sb.fleet.spire_f[10] = (p3_face){1, 3, 5, 0};
+    sb.fleet.spire_f[11] = (p3_face){1, 5, 7, 0};
+    sb.fleet.spire_f[12] = (p3_face){1, 7, 9, 0};
     for (i = 0; i < 13; i++)
-        face_out(&spire_f[i], spire_v[0]);
+        face_out(&sb.fleet.spire_f[i], sb.fleet.spire_v[0]);
     static const p3_face CF[8] = {{0, 4, 2, 0}, {4, 1, 2, 0}, {1, 5, 2, 0}, {5, 0, 2, 0}, {4, 0, 3, 0}, {1, 4, 3, 0}, {5, 1, 3, 0}, {0, 5, 3, 0}};
-    static p3_face cf[8];
-    crys_v[0] = (p3_vec){0.7f, 0, 0}, crys_v[1] = (p3_vec){-0.7f, 0, 0}, crys_v[2] = (p3_vec){0, 1.4f, 0};
-    crys_v[3] = (p3_vec){0, -1.4f, 0}, crys_v[4] = (p3_vec){0, 0, 0.7f}, crys_v[5] = (p3_vec){0, 0, -0.7f};
+    sb.fleet.crys_v[0] = (p3_vec){0.7f, 0, 0}, sb.fleet.crys_v[1] = (p3_vec){-0.7f, 0, 0}, sb.fleet.crys_v[2] = (p3_vec){0, 1.4f, 0};
+    sb.fleet.crys_v[3] = (p3_vec){0, -1.4f, 0}, sb.fleet.crys_v[4] = (p3_vec){0, 0, 0.7f}, sb.fleet.crys_v[5] = (p3_vec){0, 0, -0.7f};
     for (i = 0; i < 8; i++) {
-        cf[i] = CF[i];
-        const p3_vec *a = &crys_v[cf[i].a], *b = &crys_v[cf[i].b], *c = &crys_v[cf[i].c];
+        sb.fleet.cf[i] = CF[i];
+        const p3_vec *a = &sb.fleet.crys_v[sb.fleet.cf[i].a], *b = &sb.fleet.crys_v[sb.fleet.cf[i].b], *c = &sb.fleet.crys_v[sb.fleet.cf[i].c];
         float ux = b->x - a->x, uy = b->y - a->y, uz = b->z - a->z, wx = c->x - a->x, wy = c->y - a->y, wz = c->z - a->z;
         if ((uy * wz - uz * wy) * (a->x + b->x + c->x) + (uz * wx - ux * wz) * (a->y + b->y + c->y) + (ux * wy - uy * wx) * (a->z + b->z + c->z) < 0.0f) {
-            uint8_t t = cf[i].b;
-            cf[i].b = cf[i].c;
-            cf[i].c = t;
+            uint8_t t = sb.fleet.cf[i].b;
+            sb.fleet.cf[i].b = sb.fleet.cf[i].c;
+            sb.fleet.cf[i].c = t;
         }
     }
-    crystal = (p3_mesh){crys_v, cf, 6, 8};
+    crystal = (p3_mesh){sb.fleet.crys_v, sb.fleet.cf, 6, 8};
 }
 
 int marbles_bin(uint16_t allowed, int note, int *nbins)
@@ -722,7 +723,7 @@ void marbles_frame(const q_mview *v, uint32_t ms)
     float t = (float)(ms % 3600000u) * 0.001f, f;
     int i, n, b, deja = v->dejavu > 64;
     uint32_t base;
-    if (!ico.nv)
+    if (sb_owner != SB_MARBLES)
         meshes_build();
     if (!mb.started || v->allowed != mb.v.allowed) {   /* other notes allowed: the history starts again */
         __builtin_memset(mb.hist, 0, sizeof mb.hist);
