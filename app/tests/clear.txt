@@ -1,0 +1,36 @@
+# SEQ held and the first black key: CLEAR empties the pattern shown, steps and locks; the other patterns keep theirs
+wait 600
+tap SEQ
+press SEQ
+key 2 down
+key 2 up
+release SEQ
+key 0 down
+key 0 up
+expect stepon_1 1
+press SEQ
+key 0 down
+key 0 up
+release SEQ
+key 0 down
+turn K1 20
+key 0 up
+key 4 down
+key 4 up
+expect stepon_1 1
+expect stepon_3 1
+expect locks 1
+press SEQ
+key 1 down
+key 1 up
+release SEQ
+expect stepon_1 0
+expect stepon_3 0
+expect stepnote_1 60
+expect locks 0
+expect pattern 1
+press SEQ
+key 2 down
+key 2 up
+release SEQ
+expect stepon_1 1

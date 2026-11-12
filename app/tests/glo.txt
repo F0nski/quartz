@@ -28,11 +28,11 @@ turn K3 30
 expect comp 30
 turn K4 5
 expect duck 5
-turn SELECT 2
-expect page 3
+turn SELECT 3
+expect page 4
 turn K1 -2
 expect dtime 2
 wait 100
 shot glo_fx.png
 turn SELECT 1
-expect page 4
+expect page 5

@@ -17,6 +17,19 @@ core's load and LOST BLOCKS; a step is validated only with zero lost blocks in i
 | Steps 5b and 5c, scripted over USB (below): MODAL and 6-OP A, POLY 3, a 3-note chord on each of 16 steps, delay, reverb, two PHASER, COMP; 5b's firmware | 61-64 % / 46-48 % | 0 |
 | The same, 5c's firmware as first built (the audio code moved in the flash) | 74-84 % / 53-65 % | 2-8 a minute, scene or not |
 | The same, 5c with the audio code placed (o2_first, the screen's code last, a 512-byte pad), MODAL on ENGINE (20 fps) | 70-75 % / 58-63 % | 0 in 3 minutes |
+| Step 5d1 (the statics unmerged, the screen's code last), track 1 MODAL on ENGINE (21 fps) | 75 % / 63 % | 0 |
+| The same, track 1 VA VCF: the crests (25 fps) | 64 % / 46 % | 0 |
+| The same, track 1 WAVETABLE: the bowl (23 fps) | 61 % / 48 % | 0 |
+| The same, track 1 ADDITIVE: the crystal garden (16 fps, the heaviest to draw) | 71 % / 62 % | 0 |
+| The same, track 1 CHIPTUNE: the platforms (27 fps) | 47 % / 47 % | 0 |
+| Step 5d2, the same worst case, track 1 CHORDS: the choir (29 fps) | 67 % / 49 % | 0 |
+| The same, track 1 STRING: the tightrope walker (25 fps) | 69 % / 53 % | 0 |
+| The same, track 1 NOISE: the dancefloor (23 fps) | 70 % / 54 % | 0 |
+| The same, track 1 SWARM: the dancefloor (25 fps) | 68 % / 49 % | 0 |
+| The same, but track 1 MODAL and track 2 PHASE DIST: the crests over a heavier render (14 fps) | 79 % / 67 % | 0 |
+| Step 5e, the worst case (MODAL, 6-OP A) on HOME's tracks page (17 fps), three 45 s windows | 74-79 % / 57-63 % | 2, 4, 2 |
+| The same session, the ENV page (no scene), 45 s | 81 % / 57 % | 1 |
+| Step 5f, the same worst case on the ENV FILTER page: the harmonics (20 fps), two 45 s windows | 74 % / 65 % | 0 |
 
 One Plaits voice costs 5 to 11 % of a core for the light models, 12 to 16 % for the common ones and 20 to 21 % for
 ADDITIVE and MODAL; the cost is linear in voices and the second core halves the wall time. The generators run once
@@ -37,6 +50,15 @@ The pad before the DSP (dsp/cxx_runtime.cc pq_text_pad) was swept from 0 to 3.5 
 1, 512 the best; none got back 5b's 63 %, which was a lucky place. A change to the DSP's or the platform's code moves
 the audio code again: measure, and sweep the pad if needed.
 
-These figures come from a test build with the screen mirror (FM1B_MIRROR=1 FM1B_POOL_SPARE=0 ./build.sh), the setup
+The unity build's statics are not merged (fm1.toml unity_cflags = -mllvm -enable-global-merge=false): LLVM merged them
+into blocks, and a static added to the screen's code changed how the platform's and the render's code reached theirs,
+moving them by tens of bytes.
+
+Since 5d1 the setup is tools/device/worst_case.py, the readings tools/device/measure.sh (a mirror test build, the CPU
+page captured over USB). These figures come from a test build with the screen mirror (FM1B_MIRROR=1 FM1B_POOL_SPARE=0 ./build.sh), the setup
 played and the CPU page read over USB (base/tools/fm1_remote.py, fm1_mirror.py).
+
+The worst case runs at the edge: from one session to the next its render takes 74 to 81 % of core 1, and at the top of
+that range it loses a block now and then, whatever the page shows (step 5e: one on the ENV page, with no scene). The
+scenes' cost is the main loop's, not the render's; the margin would come from the render's hot loops in RAM.
 

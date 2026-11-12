@@ -347,6 +347,42 @@ static void live_notes_reach_voices(void)
     assert(found == 1);
 }
 
+static void audio_lfo_phase_none(void)
+{
+    setup();
+    block(256);
+    assert(audio_lfo_phase(0) == -1);
+}
+
+static void audio_lfo_phase_voice(void)
+{
+    setup();
+    audio_live_note(0, 60, 1);
+    block(256);
+    assert(audio_lfo_phase(0) >= 0);
+}
+
+static void audio_arp_held(void)
+{
+    uint8_t held[ARP_HELD]; int snd;
+    setup();
+    P.sound[0].amode = AM_UP;
+    audio_live_note(0, 64, 1);
+    audio_live_note(0, 60, 1);
+    for (int i = 0; i < 4; i++) block(256);
+    assert(audio_arp(0, held, &snd) == 2);
+    assert(held[0] == 64 && held[1] == 60);
+    assert(snd == 60 || snd == 64);
+}
+
+static void audio_arp_off(void)
+{
+    uint8_t held[ARP_HELD]; int snd = 0;
+    setup();
+    block(256);
+    assert(audio_arp(0, held, &snd) == 0 && snd == -1);
+}
+
 static int engine_calls(int v, float model)
 {
     int c = 0;
@@ -1730,6 +1766,7 @@ int main(void)
     load_fields();
     free_voices_skipped();
     live_notes_reach_voices();
+    audio_lfo_phase_none(); audio_lfo_phase_voice(); audio_arp_held(); audio_arp_off();
     slot_engine_follows_track();
     panic_silences();
     boot_prepared_play_switches_nothing();

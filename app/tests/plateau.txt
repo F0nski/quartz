@@ -55,4 +55,4 @@ wait 100
 expect anim 2
 shot plateau_page3.png
 tap EDIT
-expect anim 0
+expect anim 1

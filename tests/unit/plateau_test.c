@@ -9,6 +9,15 @@ static void lcd_blit(uint32_t x, uint32_t y, uint32_t w, uint32_t h, const uint1
 #include "gfx.c"
 #include "p3d.c"
 #include "scene.c"
+#include "scene_va.c"
+#include "scene_wave.c"
+#include "scene_garden.c"
+#include "scene_chip.c"
+#include "scene_choir.c"
+#include "scene_rope.c"
+#include "scene_dance.c"
+#include "scene_home.c"
+#include "scene_sound.c"
 #include "plateau.c"
 
 static q_plateau V;

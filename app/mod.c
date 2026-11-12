@@ -71,6 +71,9 @@ void mod_note_on(int v, int accent)
     if (s->p.ltrig) { s->ph = 0; s->cyc = 0; }
 }
 
+/* static: clang places a static function where it is first used, here the screen's code, after the render (app.h
+ * APP_LATE); used by audio_lfo_phase (audio.c), itself called by the screen; unity build only */
+static float mod_lfo_phase(int v) { return MV[v].ph; }
 void mod_note_off(int v) { if (MV[v].stage != E_IDLE) MV[v].stage = E_REL; }
 
 void mod_clock(int tempo, uint32_t n)

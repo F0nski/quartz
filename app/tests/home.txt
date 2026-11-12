@@ -52,3 +52,31 @@ expect pattern 3
 tap HOME
 wait 100
 shot home.png
+# the tracks page: the emblems on their pedestals, animated; a note, a muted track
+tap HOME
+expect domain 3
+expect page 1
+wait 100
+expect anim 5
+key 6 down
+wait 30
+shot home_tracks_note.png
+key 6 up
+press HOME
+key 2 down
+key 2 up
+release HOME
+wait 100
+expect anim 5
+shot home_tracks_mute.png
+# leaving for a page with no scene (TEMPO) and back: a fresh arrival, notes played meanwhile do not react
+tap GLO
+wait 100
+expect anim 0
+expect scene_key -1
+key 6 down
+wait 30
+key 6 up
+tap HOME
+wait 100
+expect anim 5

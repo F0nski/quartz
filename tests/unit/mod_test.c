@@ -130,6 +130,17 @@ static void lfo_trig_restarts(void)
     }
 }
 
+static void lfo_phase_advances(void)
+{
+    setup(); q_vparam p = dflt(); p.ltrig = 1; p.lrate = 5;
+    mod_set(0, &p, 120); mod_note_on(0, 0);
+    assert(mod_lfo_phase(0) == 0);
+    for (int i = 0; i < 10; i++) blk(0, &p, 120);
+    assert(mod_lfo_phase(0) > 0 && mod_lfo_phase(0) < 1);
+    mod_set(0, &p, 120); mod_note_on(0, 0);
+    assert(mod_lfo_phase(0) == 0);
+}
+
 static void lfo_sync_tempo_change_continuous(void)
 {
     setup(); q_vparam p = dflt(); p.cutoff = 60; p.lshape = LS_SAW; p.ldepth = 63; p.lrate = 5;
@@ -361,7 +372,7 @@ static void arp_untracked_noteoff_passes(void)
 int main(void)
 {
     adsr_default_is_gate(); adsr_times(); adsr_release_from_attack(); adsr_attack_from_current_level();
-    filter_env_amount_and_accent(); lfo_shapes(); lfo_free_shared_phase(); lfo_trig_restarts();
+    filter_env_amount_and_accent(); lfo_shapes(); lfo_free_shared_phase(); lfo_trig_restarts(); lfo_phase_advances();
     lfo_sync_tempo_change_continuous(); lfo_level_depth(); lfo_pitch_range(); sh_changes_once_per_cycle();
     arp_up_two_octaves(); arp_down(); arp_updown_no_repeat(); arp_order_follows_arrival(); arp_rand_in_set();
     arp_single_note_repeats(); arp_starts_at_first_note(); arp_gate_min(); arp_stops_when_empty(); arp_latch();

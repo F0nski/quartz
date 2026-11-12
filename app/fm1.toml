@@ -7,6 +7,8 @@ include = ["third_party", "dsp"]
 device_include = ["dsp/cxx"]
 o2 = ["dsp/*.cc", "third_party/plaits/**/*.cc", "third_party/stmlib/**/*.cc"]
 o2_cflags = ["-idirafter", "app/libc_include", "-std=gnu++11", "-fno-exceptions", "-fno-rtti", "-fno-threadsafe-statics", "-fno-math-errno"]
+unity_cflags = ["-mllvm", "-enable-global-merge=false"]   # the statics not merged: adding one to the screen's code no
+                            # longer changes how the platform's and the render's code reach theirs (docs/cpu.md)
 o2_first = true             # the DSP linked first, its tables from a 4 KiB boundary, the screen's code last (app.h
                             # APP_LATE): adding app code moved the audio code in the flash and cost the render 12 points
                             # of a core (docs/cpu.md)

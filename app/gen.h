@@ -13,6 +13,7 @@ typedef struct {
 } q_gen;
 
 extern const uint16_t SCALE_MASK[11];   /* bit n: n semitones above the tonic; CHROM..MIN PENTA, the order of ui.c MODE_NAME */
+uint16_t gen_scale(const q_project *p);   /* the project's scale: absolute pitch classes */
 uint16_t gen_allowed(const q_project *p, const q_pattern *pt);  /* absolute pitch classes; notes 0: the scale from the tonic */
 int gen_grids_level(const q_grids *g, int step, int voice);  /* a step's level 0..255 for the voice 0..2, without CHAOS */
 uint16_t gen_kept(uint16_t allowed, int tonic, int steps);  /* the pitch classes STEPS keeps, the strongest from the tonic */

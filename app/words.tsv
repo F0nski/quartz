@@ -127,6 +127,9 @@ SCALE	scale
 TONIC	tonic
 QUANT	quantize
 CLICK	click
+KEYS	keys
+IN SCALE	in scale
+ALL	all
 C	C
 C#	C sharp
 D	D

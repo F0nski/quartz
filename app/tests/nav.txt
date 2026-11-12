@@ -23,7 +23,7 @@ expect tempo 40
 shot glo1.png
 turn SELECT 1
 expect page 2
-turn SELECT 1
-expect page 3
+turn SELECT 2
+expect page 4
 wait 1200
 shot glo2.png

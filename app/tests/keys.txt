@@ -1,0 +1,59 @@
+# KEYS: the white keys play the scale (ALL, or MARBLES only), no doublons; the black ones nothing; NOTES still edits
+wait 600
+expect keys 0
+tap EDIT
+key 2 down
+key 2 up
+expect keynote 55
+# OFF: the keys in C major lit, the white ones
+expect keyleds 95247061
+# GLO page 3: KEYS ALL
+tap GLO
+turn SELECT 2
+expect page 3
+turn K1 2
+expect keys 2
+wait 100
+shot glo_keys.png
+tap EDIT
+# ALL: the white keys playing C lit, 1, 8 and 15
+expect keyleds 16781313
+# C major from C3: white keys 1, 2 and 9
+key 0 down
+key 0 up
+expect keynote 48
+key 2 down
+key 2 up
+expect keynote 50
+key 14 down
+key 14 up
+expect keynote 62
+key 1 down
+key 1 up
+expect keynote 62
+# MARBLES only: a STEP track stays chromatic
+tap GLO
+turn K1 -1
+expect keys 1
+tap EDIT
+key 0 down
+key 0 up
+expect keynote 53
+# the track on MARBLES: its keys follow its allowed notes
+tap SEQ
+turn K4 2
+expect src 2
+turn SELECT 3
+expect page 4
+# NOTES: the keys toggle pitch classes as before (D off)
+key 9 down
+key 9 up
+expect mnotes 2737
+turn SELECT -3
+expect page 1
+key 0 down
+key 0 up
+expect keynote 48
+key 2 down
+key 2 up
+expect keynote 52

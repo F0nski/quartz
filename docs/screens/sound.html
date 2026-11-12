@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sound Pages</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+:root { --bg: #efedf5; --fg: #1c1830; --muted: #5d5873; --device: #151320; --hot: #d4247a; --panel: #e4e1ee;
+  --display: "Chakra Petch", "Arial Narrow", sans-serif; --body: "IBM Plex Sans", system-ui, sans-serif }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.5; margin: 0; padding: 20px 16px 48px }
+main { max-width: 1000px; margin: 0 auto; display: grid; gap: 18px }
+h1 { font-family: var(--display); font-size: 1.7rem; margin: 0; text-transform: uppercase }
+h1 em { font-style: normal; color: var(--hot) }
+.lead { color: var(--muted); margin: 6px 0 0; max-width: 80ch }
+.knobs { position: sticky; top: 0; z-index: 1; background: var(--panel); border-radius: 10px; padding: 10px 14px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 6px 18px; align-items: center;
+  font-family: var(--display); font-size: .78rem; letter-spacing: .06em; text-transform: uppercase }
+.knobs label { display: grid }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px }
+figure { margin: 0; display: grid; gap: 6px; align-content: start; min-width: 0 }
+canvas { width: 100%; aspect-ratio: 1; background: #000; border: 12px solid var(--device); border-radius: 16px; box-sizing: border-box; image-rendering: pixelated }
+h3 { font-family: var(--display); font-size: 1rem; margin: 0; text-transform: uppercase }
+figcaption p { margin: 2px 0 0; font-size: .85rem; color: var(--muted) }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Pages de son <em>le ruban</em></h1>
+    <p class="lead">Les pages ENV, LFO, ARP et FX (spec 5f) : un ruban low poly en projection oblique sur un sol en fil de fer, chaque élément dans la couleur de son encodeur. Piste 1 en VA VCF, une note (C, E, G tenus pour l'ARP) toutes les 1,6 s. Les curseurs K1–K4 pilotent toutes les pages à la fois.</p>
+  </header>
+  <div class="knobs">
+    <label>K1 <input type="range" id="k0" value="20"></label>
+    <label>K2 <input type="range" id="k1" value="40"></label>
+    <label>K3 <input type="range" id="k2" value="60"></label>
+    <label>K4 <input type="range" id="k3" value="45"></label>
+    <label>Insert <select id="ins"><option value="0">auto</option><option>OVERDRIVE</option><option>WAVEFOLD</option><option>BITCRUSH</option><option>CHORUS</option><option>PHASER</option><option>RING MOD</option><option>COMB</option><option>INSERT OFF</option></select></label>
+    <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="auto" checked> encodeurs auto</label>
+  </div>
+  <div class="grid">
+    <figure><canvas id="adsr" width="240" height="240"></canvas><figcaption><h3>ENV · ADSR</h3><p>Le ruban de l'enveloppe, un segment par encodeur. Le segment que la note traverse passe en rose. Un moteur à enveloppe propre (KIT, MODAL…) garde le ruban, avec « FILTER ONLY » en ambre.</p></figcaption></figure>
+    <figure><canvas id="filter" width="240" height="240"></canvas><figcaption><h3>ENV · FILTER</h3><p>Derrière le ruban, les 16 harmoniques du son en colonnes : la part qui passe le filtre est pleine, la part coupée n'est qu'un fil. Un pilier vert marque le CUTOFF, un cristal blanc la résonance, un pilier orange en fil la cible de ENV AMT. À chaque note, ce qui passe s'allume en rose pendant que le coude revient de la cible.</p></figcaption></figure>
+    <figure><canvas id="lfo" width="240" height="240"></canvas><figcaption><h3>LFO</h3><p>Le ruban de l'onde : SHAPE sa forme, RATE le nombre de cycles, DEPTH son amplitude (inversée si négative), DEST en orange à droite. Un losange suit la phase ; à chaque note il passe en rose.</p></figcaption></figure>
+    <figure><canvas id="arp" width="240" height="240"></canvas><figcaption><h3>ARP</h3><p>Les notes de l'arpège en blocs, de gauche à droite dans l'ordre du MODE, sur OCT octaves (chaque octave d'un ton plus clair). Hauteur = note, largeur = GATE, DIV règle la vitesse. Le bloc joué est rose, son nom au-dessus. OFF : l'accord en une seule pile.</p></figcaption></figure>
+    <figure><canvas id="insert" width="240" height="240"></canvas><figcaption><h3>FX · INSERT</h3><p>Une onde passe par l'effet : l'entrée en fil gris, la sortie en ruban. Chaque type déforme l'onde à sa façon (écrêtage, repli, marches, doublure, encoches, battement, échos du peigne). MIX fond l'une dans l'autre. À chaque note, une vague rose court le long du ruban.</p></figcaption></figure>
+    <figure><canvas id="mix" width="240" height="240"></canvas><figcaption><h3>FX · MIX</h3><p>Une tranche de table de mixage en low poly : deux envois (DELAY, REVERB) et le PAN en boutons hexagonaux, LEVEL en fader, et un vumètre L/R qui montre le résultat. À chaque note, le vumètre monte en rose, réparti selon le PAN, et retombe.</p></figcaption></figure>
+  </div>
+</main>
+<script>
+const K = [["#8fb4ff", "#3a6dff", "#1c3590"], ["#8ff5c8", "#22d58e", "#0f6d48"], ["#ffffff", "#c9c3e4", "#6f6890"], ["#ffc196", "#ff7a2e", "#a3410c"]];
+const HOT = ["#ffb8dc", "#ff2f8e", "#8a1050"], GRAYT = ["#6f6890", "#4a4466", "#2c2844"];
+const UI = "#8b84a8", BAR = "#06041a", AMB = "#ffb02e", GRID = "#1d1838", WIRE = "#2e2850";
+const NOTE = 1.6, DX = 12, DY = -9, X0 = 16, X1 = 216, YT = 62, YB = 172;
+const font = (px, w = 700) => `${w} ${px}px "Chakra Petch", sans-serif`;
+const poly = (c, pts, fill) => { c.fillStyle = fill; c.beginPath(); pts.forEach(([x, y]) => c.lineTo(x, y)); c.closePath(); c.fill(); };
+const line = (c, pts, col, w = 1) => { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); pts.forEach(([x, y]) => c.lineTo(x, y)); c.stroke(); };
+const diamond = (c, x, y, r, col) => poly(c, [[x, y - r], [x + r, y], [x, y + r], [x - r, y]], col);
+const dim = (h, k) => "#" + [1, 3, 5].map(i => Math.round(parseInt(h.substr(i, 2), 16) * k).toString(16).padStart(2, "0")).join("");
+const tones = (T, k) => T.map(h => dim(h, k));
+const pick = (v, n) => Math.min(n - 1, Math.floor(v * n));
+const text = (c, s, x, y, col, px = 11, al = "left") => { c.fillStyle = col; c.font = font(px); c.textAlign = al; c.textBaseline = "middle"; c.fillText(s, x, y); c.textAlign = "left"; };
+const model = c => text(c, "VA VCF", 10, 42, "#f4f1ff", 12);
+
+function knobs(t) {
+  if (document.getElementById("auto").checked) return [0, 1, 2, 3].map(i => 0.5 + 0.45 * Math.sin(t * (0.3 + i * 0.11) + i * 1.9));
+  return [0, 1, 2, 3].map(i => document.getElementById("k" + i).value / 100);
+}
+function chrome(c, dom, page, n, labels, vals, v, hit) {
+  c.fillStyle = BAR; c.fillRect(0, 0, 240, 30); c.fillRect(0, 196, 240, 44);
+  poly(c, [[6, 5], [26, 5], [26, 25], [6, 25]], hit ? HOT[1] : "#e8e4ff");
+  text(c, "1", 16, 15.5, BAR, 13, "center");
+  c.font = font(14); const w = c.measureText(dom).width;
+  text(c, dom, 34, 15.5, "#f4f1ff", 14); text(c, page, 44 + w, 15.5, AMB, 14);
+  text(c, n, 234, 15.5, UI, 10, "right");
+  c.fillStyle = GRID; c.fillRect(0, 196, 240, 1);
+  labels.forEach((l, i) => {
+    const x = 60 * i + 6;
+    text(c, l, x, 205, K[i][1], 8); text(c, vals[i], x, 222, K[i][1], 13);
+    c.fillStyle = GRID; c.fillRect(x, 235, 48, 2); c.fillStyle = K[i][1]; c.fillRect(x, 235, 48 * v[i], 2);
+  });
+}
+/* a ribbon over polyline p (screen points on row 0) pushed back by row k; cols(i) gives segment i's tones */
+function ribbon(c, p, cols, base, k = 0, d = 1) {
+  const ox = DX * k, oy = DY * k, dx = DX * d, dy = DY * d;
+  p = p.map(([x, y]) => [x + ox, y + oy]); base += oy;
+  for (let i = 0; i < p.length - 1; i++) {
+    const a = p[i], b = p[i + 1], col = cols(i);
+    poly(c, [a, b, [b[0], base], [a[0], base]], col[2]);
+    const up = b[1] < a[1] - 0.5, down = b[1] > a[1] + 0.5;
+    poly(c, [a, b, [b[0] + dx, b[1] + dy], [a[0] + dx, a[1] + dy]], up ? col[0] : down ? dim(col[1], 0.75) : col[1]);
+    line(c, [[a[0] + dx, a[1] + dy], [b[0] + dx, b[1] + dy]], col[0]);
+  }
+}
+function box(c, x, w, yt, yb, T, k = 0, d = 1) {
+  const ox = DX * k, oy = DY * k, dx = DX * d, dy = DY * d; x += ox; yt += oy; yb += oy;
+  poly(c, [[x, yt], [x + w, yt], [x + w, yb], [x, yb]], T[1]);
+  poly(c, [[x, yt], [x + w, yt], [x + w + dx, yt + dy], [x + dx, yt + dy]], T[0]);
+  poly(c, [[x + w, yt], [x + w + dx, yt + dy], [x + w + dx, yb + dy], [x + w, yb]], T[2]);
+}
+const wbox = (c, x, w, yt, yb, col, k = 0) => {
+  const ox = DX * k, oy = DY * k; x += ox; yt += oy; yb += oy;
+  line(c, [[x, yb], [x, yt], [x + w, yt], [x + w, yb]], col); line(c, [[x, yt], [x + DX, yt + DY], [x + w + DX, yt + DY], [x + w, yt]], col);
+};
+
+function floor(c) {
+  for (let i = 0; i <= 8; i++) { const x = X0 + i * 25; line(c, [[x, YB], [x + DX * 2, YB + DY * 2]], GRID); }
+  for (let j = 0; j <= 2; j++) line(c, [[X0 + DX * j, YB + DY * j], [X1 + DX * j, YB + DY * j]], GRID);
+}
+const secs = v => (0.002 * Math.pow(4000, v)).toFixed(v < 0.6 ? 2 : 1) + "s";
+/* ---- ADSR ---- */
+function adsr(c, v, t, tn) {
+  floor(c); model(c);
+  const a = 0.05 + v[0] * 0.55, d = 0.05 + v[1] * 0.55, s = v[2], h = 0.45, r = 0.05 + v[3] * 0.8, T = a + d + h + r;
+  const X = q => X0 + (X1 - X0) * q / 2.3, Y = l => YB - (YB - YT) * l;
+  const p = [[X(0), Y(0)], [X(a), Y(1)], [X(a + d), Y(s)], [X(a + d + h), Y(s)], [X(T), Y(0)]];
+  const seg = tn > T ? -1 : tn < a ? 0 : tn < a + d ? 1 : tn < a + d + h ? 2 : 3;
+  ribbon(c, p, i => i === seg ? HOT : K[i]);
+  chrome(c, "ENV", "ADSR", "1/2", ["ATTACK", "DECAY", "SUSTAIN", "RELEASE"], [secs(v[0]), secs(v[1]), String(Math.round(v[2] * 127)), secs(v[3])], v, tn < 0.12);
+}
+
+/* ---- FILTER ---- */
+function resp(type, cut, q, x) {
+  const m = type == 0 ? (x < cut ? 1 : Math.max(0, 1 - (x - cut) * 3.5)) : type == 2 ? (x > cut ? 1 : Math.max(0, 1 - (cut - x) * 3.5)) : Math.max(0, 1 - Math.abs(x - cut) * 3.5);
+  return m + q * 0.7 * Math.max(0, 1 - Math.abs(x - cut) * 14);
+}
+const fvals = (v, type, e) => [["LP", "BP", "HP"][type], String(Math.round(v[1] * 127)), String(Math.round(v[2] * 127)), String(Math.round(e * 63))];
+const FLAB = ["TYPE", "CUTOFF", "RES", "ENV AMT"];
+const envk = tn => tn < 0.9 ? Math.pow(1 - tn / 0.9, 2) : 0;
+
+function filter(c, v, t, tn) {
+  model(c);
+  const type = pick(v[0], 3), cut = 0.1 + 0.8 * v[1], q = v[2], e = v[3] * 2 - 1, cut2 = Math.max(0.02, Math.min(0.98, cut + e * 0.4));
+  text(c, ["LOW-PASS", "BAND-PASS", "HIGH-PASS"][type], 230, 42, K[0][1], 11, "right");
+  const X0 = 14, X1 = 206, YB = 176, X = x => X0 + (X1 - X0) * x, Y = m => YB - 70 * m;
+  for (let j = 0; j <= 3; j++) line(c, [[X0 + DX * j, YB + DY * j], [X1 + DX * j, YB + DY * j]], GRID);
+  const cc = cut + (cut2 - cut) * envk(tn);
+  /* harmonics, pushed back two rows */
+  for (let i = 0; i < 16; i++) {
+    const x = (i + 0.5) / 16, h = 92 / (1 + i * 0.35), pass = h * Math.min(1, resp(type, cc, q, x));
+    const bx = X(x) - 3;
+    wbox(c, bx, 6, YB - h, YB, WIRE, 2);
+    if (pass > 1) box(c, bx, 6, YB - pass, YB, tn < 0.4 ? HOT : tones(K[2], 0.75), 2, 0.5);
+  }
+  const N = 40, p = [];
+  for (let i = 0; i <= N; i++) p.push([X(i / N), Y(Math.min(1.5, resp(type, cut, q, i / N)))]);
+  ribbon(c, p, i => K[1], YB, 0, 0.6);
+  /* ENV AMT target: an orange wire pillar, and the cutoff's green pillar */
+  const pil = (x, col, solid) => { const top = Y(resp(type, x, q, x)) - 10; solid ? box(c, X(x) - 2, 4, top, YB, col, 0, 0.4) : wbox(c, X(x) - 2, 4, top, YB, col); return top; };
+  const tt = pil(cut2, K[3][1], false), tc = pil(cut, K[1], true);
+  line(c, [[X(cut), tc - 4], [X(cut2), tt - 4]], K[3][1]);
+  diamond(c, X(cut2), tt - 4, 3, K[3][1]);
+  if (q > 0.08) { const py = Y(resp(type, cut, q, cut)) - 4, r = 3 + q * 4; poly(c, [[X(cut) + 4, py - r * 2.2], [X(cut) + 4 + r, py - r], [X(cut) + 4, py], [X(cut) + 4 - r, py - r]], "#ffffff"); poly(c, [[X(cut) + 4, py - r * 2.2], [X(cut) + 4 + r, py - r], [X(cut) + 4, py]], "#c9c3e4"); }
+  if (tn < 0.9) line(c, [[X(cc), YB], [X(cc), YB - 80]], HOT[1]);
+  chrome(c, "ENV", "FILTER", "2/2", FLAB, fvals(v, type, e), v, tn < 0.12);
+}
+
+/* LFO: a polyline of the wave over the plot, and the point at phase p in [0,1) */
+const sh = Array.from({ length: 64 }, (_, i) => Math.sin(i * 12.9898) * 43758.5453 % 1);
+function lfoPts(v, t) {
+  const shape = Math.min(4, Math.floor(v[0] * 5)), cyc = [1, 2, 3, 4, 6][Math.min(4, Math.floor(v[1] * 5))], dep = v[2] * 2 - 1;
+  const w = p => { const f = p % 1; return [Math.sin(f * Math.PI * 2), 1 - 4 * Math.abs(f - 0.5) - 0, 1 - 2 * f, f < 0.5 ? 1 : -1, sh[Math.floor(p) % 64] * 2 - 1][shape]; };
+  const ym = (YT + YB) / 2, amp = (YB - YT) / 2;
+  const pt = q => [X0 + (X1 - X0) * q, ym - amp * dep * w(q * cyc)];
+  const pts = []; for (let i = 0; i <= 120; i++) pts.push(pt(i / 120));
+  if (shape >= 3) for (let i = 0; i < pts.length - 1; i++) if (Math.abs(pts[i + 1][1] - pts[i][1]) > 2) pts.splice(++i, 0, [pts[i][0], pts[i - 1][1]]);
+  return { pts, ym, dot: pt((t / 2) % 1) };
+}
+
+function lfo(c, v, t, tn) {
+  floor(c); model(c);
+  const L = lfoPts(v, t), pts = L.pts.filter((_, i) => i % 3 == 0 || i == L.pts.length - 1);
+  ribbon(c, pts, () => K[0], YB);
+  diamond(c, L.dot[0] + DX / 2, L.dot[1] + DY / 2 - 3, 4, tn < 0.15 ? HOT[1] : "#f4f1ff");
+  const dest = ["HARM", "TIMB", "MORPH", "PITCH", "CUTOFF", "RES", "LEVEL"][pick(v[3], 7)];
+  text(c, "→ " + dest, 230, 42, K[3][1], 11, "right");
+  chrome(c, "LFO", "LFO", "1/1", ["SHAPE", "RATE", "DEPTH", "DEST"], [["SIN", "TRI", "SAW", "SQR", "S&H"][pick(v[0], 5)], "1/" + [1, 2, 4, 8, 16][pick(v[1], 5)], String(Math.round(v[2] * 127 - 64)), dest], v, tn < 0.12);
+}
+/* ---- ARP ---- */
+const NN = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+function arp(c, v, t, tn) {
+  floor(c); model(c);
+  const mode = pick(v[0], 6), oct = 1 + pick(v[1], 4), div = [1, 2, 4][pick(v[2], 3)], gate = 0.25 + 0.75 * v[3];
+  const held = [4, 0, 7];                 /* in the order played: E, C, G */
+  let seq = [];
+  for (let o = 0; o < oct; o++) for (const n of [0, 4, 7]) seq.push(n + 12 * o);
+  if (mode == 2) seq.reverse();
+  if (mode == 3) seq = seq.concat(seq.slice(1, -1).reverse());
+  if (mode == 4) seq = seq.map((n, i) => seq[(i * 7 + 3) % seq.length]);
+  if (mode == 5) { seq = []; for (let o = 0; o < oct; o++) for (const n of held) seq.push(n + 12 * o); }
+  const top = 12 * oct, H = n => YB - 14 - (YB - YT - 20) * n / Math.max(top, 12);
+  const sDur = 0.4 / div, cur = Math.floor(t / sDur);
+  if (mode == 0) {                         /* OFF: the chord at once, one pile */
+    [0, 4, 7].forEach((n, i) => box(c, 100, 26, H(n), H(n) + 10, tn < 0.3 ? HOT : K[0], 0));
+    text(c, "OFF", 230, 42, K[0][1], 11, "right");
+  } else {
+    const n = Math.min(seq.length, 12), w = (X1 - X0 - DX) / n, at = cur % seq.length, first = Math.floor(at / n) * n;
+    for (let i = 0; i < n && first + i < seq.length; i++) {
+      const s = seq[first + i], o = Math.floor(s / 12), T = first + i === at ? HOT : o % 2 ? [K[0][0], dim(K[0][1], 0.8), dim(K[0][2], 0.8)] : K[0];
+      box(c, X0 + i * w, Math.max(3, w * gate - 2), H(s), YB, T);
+      if (first + i === at) text(c, NN[s % 12] + (3 + o), X0 + i * w + w * gate / 2 + DX / 2, H(s) + DY - 8, HOT[0], 10, "center");
+    }
+    text(c, seq.length + " STEPS", 230, 42, UI, 10, "right");
+  }
+  chrome(c, "ARP", "ARP", "1/1", ["MODE", "OCT", "DIV", "GATE"], [["OFF", "UP", "DOWN", "UP-DN", "RAND", "ORDER"][mode], String(oct), ["1/8", "1/16", "1/32"][pick(v[2], 3)], Math.round(gate * 100) + "%"], v, tn < 0.12);
+}
+
+/* ---- INSERT ---- */
+const INS = ["OVERDRIVE", "WAVEFOLD", "BITCRUSH", "CHORUS", "PHASER", "RING MOD", "COMB", "INSERT OFF"];
+const LAB = [["DRIVE", "TONE", ""], ["FOLD", "BIAS", "TONE"], ["BITS", "RATE", ""], ["RATE", "DEPTH", ""], ["RATE", "DEPTH", "FEEDBK"], ["FREQ", "", ""], ["NOTE", "FEEDBK", "DAMP"], ["", "", ""]];
+const smooth = (a, k) => { const r = Math.round(k * 6); return a.map((_, i) => { let s = 0, n = 0; for (let j = -r; j <= r; j++) if (a[i + j] !== undefined) { s += a[i + j]; n++; } return s / n; }); };
+function insert(c, v, t, tn) {
+  floor(c); model(c);
+  const sel = +document.getElementById("ins").selectedIndex, ty = sel ? sel - 1 : Math.floor(t / 4) % 8, N = 72;
+  const s = q => Math.sin(Math.PI * 4 * q), inp = [], out0 = [];
+  for (let i = 0; i <= N; i++) inp.push(s(i / N));
+  for (let i = 0; i <= N; i++) {
+    const q = i / N, x = s(q);
+    let y;
+    switch (ty) {
+    case 0: { const g = 1 + v[0] * 9; y = Math.tanh(x * g) / Math.tanh(g); break; }
+    case 1: { const u = x * (1 + v[0] * 3) + (v[1] - 0.5); y = 4 * Math.abs(((u + 1) / 4 % 1 + 1) % 1 - 0.5) - 1; break; }
+    case 2: { const L = 1 + Math.round((1 - v[0]) * 7), hold = 1 + Math.round(v[1] * 8); y = Math.round(s(Math.floor(i / hold) * hold / N) * L) / L; break; }
+    case 3: y = 0.5 * (x + s(q + v[1] * 0.06 * Math.sin(t * (1 + v[0] * 6)))); break;
+    case 4: y = (x + v[2] * s(q + 0.25 * Math.sin(t * (0.5 + v[0] * 3)) * v[1])) / (1 + v[2]); break;
+    case 5: y = x * Math.sin(Math.PI * 2 * q * (3 + v[0] * 14)); break;
+    case 6: { const P = 0.04 + v[0] * 0.2; y = 0; for (let k = 0; k < 5; k++) y += Math.pow(v[1], k) * s(q - k * P); y /= 1 + v[1] * 2; break; }
+    default: y = x;
+    }
+    out0.push(y);
+  }
+  let out = ty == 0 || ty == 1 ? smooth(out0, 1 - v[ty == 0 ? 1 : 2]) : ty == 6 ? smooth(out0, v[2]) : out0;
+  const m = ty == 7 ? 0 : v[3];
+  out = out.map((y, i) => inp[i] * (1 - m) + y * m);
+  const X = q => X0 + (X1 - X0) * q, ym = (YT + YB) / 2 + 4, A = (YB - YT) / 2 - 6;
+  line(c, inp.map((y, i) => [X(i / N), ym - A * y]), GRAYT[0]);
+  const wave = tn < 1 ? Math.floor(tn / 1 * N) : -1;
+  ribbon(c, out.map((y, i) => [X(i / N), ym - A * y]), i => Math.abs(i - wave) < 4 ? HOT : ty == 7 ? GRAYT : K[0], ym);
+  const L = LAB[ty];
+  chrome(c, "FX", INS[ty], "1/2", [L[0], L[1], L[2], ty == 7 ? "" : "MIX"], [0, 1, 2, 3].map(k => String(Math.round(v[k] * 127))), v, tn < 0.12);
+}
+
+const mvals = v => { const p = v[2] * 2 - 1; return [String(Math.round(v[0] * 127)), String(Math.round(v[1] * 127)), p > 0.04 ? "R" + Math.round(p * 63) : p < -0.04 ? "L" + Math.round(-p * 63) : "C", String(Math.round(v[3] * 127))]; };
+const MLAB = ["DELAY", "REVERB", "PAN", "LEVEL"];
+function crystal(c, x, y, s, T) {
+  const t = [x, y - s * 1.4], b = [x, y + s * 1.4], l = [x - s, y], r = [x + s, y], f = [x + s * 0.25, y + s * 0.15];
+  poly(c, [t, l, f], T[0]); poly(c, [t, f, r], T[1]); poly(c, [l, b, f], T[1]); poly(c, [f, b, r], T[2]);
+}
+
+function hexknob(c, x, y, r, val, T, bip, lab) {
+  const P = a => [x + r * Math.cos(a), y + r * 0.8 * Math.sin(a)];
+  const hx = [0, 1, 2, 3, 4, 5].map(i => P(Math.PI / 6 + i * Math.PI / 3));
+  const side = hx.map(([a, b]) => [a, b + 5]);
+  poly(c, [hx[0], hx[1], hx[2], side[2], side[1], side[0]], T[2]);
+  poly(c, hx, T[1]); poly(c, [hx[3], hx[4], hx[5], [x, y]], T[0]);
+  /* ticks around: 11 segments, lit up to the value (from the middle when bipolar) */
+  for (let i = 0; i <= 10; i++) {
+    const a = Math.PI * (0.75 + 1.5 * i / 10), on = bip ? (val >= 0.5 ? i / 10 >= 0.5 && i / 10 <= val : i / 10 <= 0.5 && i / 10 >= val) : i / 10 <= val;
+    const q1 = [x + (r + 4) * Math.cos(a), y + (r + 4) * 0.8 * Math.sin(a)], q2 = [x + (r + 9) * Math.cos(a), y + (r + 9) * 0.8 * Math.sin(a)];
+    line(c, [q1, q2], on ? T[1] : WIRE, 2);
+  }
+  const a = Math.PI * (0.75 + 1.5 * val);
+  line(c, [[x, y], [x + r * 0.8 * Math.cos(a), y + r * 0.64 * Math.sin(a)]], BAR, 2);
+  text(c, lab, x, y + r + 12, T[1], 8, "center");
+}
+function mix(c, v, t, tn) {
+  model(c);
+  const lvl = v[3], pan = v[2] * 2 - 1;
+  hexknob(c, 44, 82, 16, v[0], K[0], false, "DELAY");
+  hexknob(c, 108, 82, 16, v[1], K[1], false, "REVERB");
+  hexknob(c, 76, 146, 16, v[2], K[2], true, "PAN");
+  /* fader rail and cap */
+  const rx = 160, top = 58, bot = 180;
+  box(c, rx, 4, top, bot, ["#2a2440", "#1a1530", "#100c20"], 0, 0.4);
+  for (let i = 0; i <= 8; i++) line(c, [[rx - 8, top + (bot - top) * i / 8], [rx - 3, top + (bot - top) * i / 8]], WIRE);
+  const cy = bot - (bot - top) * lvl;
+  box(c, rx - 9, 22, cy - 5, cy + 5, K[3], 0, 0.6);
+  line(c, [[rx - 9, cy], [rx + 13, cy]], BAR);
+  /* L/R meter: 14 segments each, level shaped by pan, kicked by the note */
+  const env = Math.max(0, 1 - tn / 0.9) * lvl, gl = Math.min(1, 1 - pan) * env, gr = Math.min(1, 1 + pan) * env;
+  [gl, gr].forEach((g, j) => {
+    const mx = 196 + j * 14;
+    for (let i = 0; i < 14; i++) {
+      const y = bot - 4 - i * 8.6, on = i < g * 14;
+      box(c, mx, 9, y - 6, y, on ? HOT : ["#2a2440", "#1a1530", "#100c20"], 0, 0.3);
+    }
+    text(c, j ? "R" : "L", mx + 5, bot + 8, UI, 8, "center");
+  });
+  chrome(c, "FX", "MIX", "2/2", MLAB, mvals(v), v, tn < 0.12);
+}
+
+const PAGES = { adsr, filter, lfo, arp, insert, mix };
+const cv = {}; for (const k in PAGES) cv[k] = document.getElementById(k).getContext("2d");
+function frame(ms) {
+  const t = ms / 1000, tn = t % NOTE, v = knobs(t);
+  for (const k in PAGES) { const c = cv[k]; c.fillStyle = "#000"; c.fillRect(0, 0, 240, 240); PAGES[k](c, v, t, tn); }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

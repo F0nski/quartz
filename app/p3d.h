@@ -24,4 +24,21 @@ void p3d_sphere(int lat, int lon, p3_vec *v, p3_face *f, p3_mesh *out);   /* (la
 float p3d_hash(uint32_t n);                               /* 0..1, the same for the same n: scattered, fixed */
 void p3d_fill(float x0, float y0, float x1, float y1, float x2, float y2, uint16_t c);  /* drawn now */
 
+/* A perspective camera (step 5d1, the scenes' mock-ups' own): world x right, y up, z away; seen from (0, h, -dist)
+ * turned by yaw, then tilted down by pitch; focal f, the horizon's centre at (120, cy) of the scene area. The world's
+ * primitives below are culled when they face away, toned by their normal against the light (in the camera's frame),
+ * fogged towards fog with distance (far), and dropped when a vertex is nearer than 0.3. bias: drawn as if nearer. */
+typedef struct { float yaw, pitch, dist, h, f, cy; } p3_cam;
+void p3d_camera(const p3_cam *c, p3_vec light, uint16_t fog, float far);   /* for the primitives that follow */
+int  p3d_project(p3_vec w, float *sx, float *sy, float *z);                 /* 0: too near (z: the view depth) */
+void p3d_tri3(const p3_vec p[3], const uint16_t tones[3], const uint16_t *edge, float bias);
+void p3d_quad3(const p3_vec p[4], const uint16_t tones[3], const uint16_t *edge, float bias);   /* p0-p2 hidden */
+void p3d_box3(p3_vec c, p3_vec half, const uint16_t tones[3], const uint16_t *edge);
+void p3d_corners3(const p3_vec v[8], const uint16_t tones[3], const uint16_t *edge);   /* a box by its corners:
+                                                    corner i at +x (bit 0), +y (bit 1), +z (bit 2), turned as it likes */
+void p3d_beam3(p3_vec a, p3_vec b, float w, const uint16_t tones[3], const uint16_t *edge);    /* half width w */
+void p3d_line3(p3_vec a, p3_vec b, uint8_t width, uint16_t c, float bias);
+uint16_t p3d_mix(uint16_t a, uint16_t b, float k);                          /* RGB565, channel by channel */
+uint16_t p3d_fogged(uint16_t c, float z);                                  /* c at the camera's view depth z */
+
 #endif

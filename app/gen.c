@@ -88,12 +88,16 @@ const uint16_t SCALE_MASK[11] = {
     0xFFF, 0xAB5, 0x5AD, 0x6AD, 0x5AB, 0xAD5, 0x6B5, 0x56B, 0x9AD, 0x295, 0x4A9,
 };
 
+uint16_t gen_scale(const q_project *p)
+{
+    uint16_t m = SCALE_MASK[p->mode];
+    return (uint16_t)(((m << p->tonic) | (m >> (12 - p->tonic))) & 0xFFF);
+}
+
 uint16_t gen_allowed(const q_project *p, const q_pattern *pt)
 {
     uint16_t m = (uint16_t)((pt->marbles.notes[0] | pt->marbles.notes[1] << 8) & 0xFFF);
-    if (m) return m;
-    m = SCALE_MASK[p->mode];
-    return (uint16_t)(((m << p->tonic) | (m >> (12 - p->tonic))) & 0xFFF);
+    return m ? m : gen_scale(p);
 }
 
 uint16_t gen_kept(uint16_t allowed, int tonic, int steps)

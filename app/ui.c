@@ -16,16 +16,16 @@
 
 enum { D_EDIT, D_SEQ, D_GLO, D_HOME, D_ENV, D_LFO, D_ARP, D_FX, ND };
 enum { P_ENGINE, P_SOUND, P_STEPS, P_TEMPO, P_SCALE, P_CPU, P_XY, P_TRACKS, P_SONG, P_GRIDS, P_MAP, P_DENS, P_MARBLES, P_T,
-       P_X, P_NOTES, P_PAD, P_KIT, P_ADSR, P_FILTER, P_LFO, P_ARP, P_INSERT, P_MIX, P_GFX };
+       P_X, P_NOTES, P_PAD, P_KIT, P_ADSR, P_FILTER, P_LFO, P_ARP, P_INSERT, P_MIX, P_GFX, P_KEYS };
 /* what PRESET sets on a held step; the black keys 0..7 pick RATCHET .. MICRO, 8 is CLEAR */
 enum { A_VEL, A_RATCHET, A_PROB, A_COND, A_SLIDE, A_ACCENT, A_NOTE, A_LEN, A_MICRO, A_N };
 #define COND_N 40                    /* NONE, FIRST, !FIRST, PRE, !PRE, then A:B for B = 2..8, A = 1..B */
 
-static const uint8_t DOMAIN_PAGES[ND][4] = {{P_ENGINE, P_SOUND}, {P_STEPS, P_XY}, {P_TEMPO, P_SCALE, P_GFX, P_CPU}, {P_TRACKS, P_SONG},
+static const uint8_t DOMAIN_PAGES[ND][5] = {{P_ENGINE, P_SOUND}, {P_STEPS, P_XY}, {P_TEMPO, P_SCALE, P_KEYS, P_GFX, P_CPU}, {P_TRACKS, P_SONG},
                                                 {P_ADSR, P_FILTER}, {P_LFO}, {P_ARP}, {P_INSERT, P_MIX}};
-static const uint8_t DOMAIN_N[ND] = {2, 1, 4, 2, 2, 1, 1, 2};      /* SEQ: 2 pages while PATH is XY (pages) */
-static const uint8_t GEN_PAGES[2][4] = {{P_GRIDS, P_MAP, P_DENS}, {P_MARBLES, P_T, P_X, P_NOTES}};
-static const uint8_t KIT_PAGES[4] = {P_PAD, P_KIT};
+static const uint8_t DOMAIN_N[ND] = {2, 1, 5, 2, 2, 1, 1, 2};      /* SEQ: 2 pages while PATH is XY (pages) */
+static const uint8_t GEN_PAGES[2][5] = {{P_GRIDS, P_MAP, P_DENS}, {P_MARBLES, P_T, P_X, P_NOTES}};
+static const uint8_t KIT_PAGES[5] = {P_PAD, P_KIT};
 static const uint8_t DOMAIN_BTN[ND] = {B_EDIT, B_SEQ, B_GLO, B_HOME, B_ENV, B_LFO, B_ARP, B_FX};
 static const char *const DOMAIN_NAME[ND] = {"EDIT", "SEQ", "GLO", "HOME", "ENV", "LFO", "ARP", "FX"};
 
@@ -56,6 +56,7 @@ static const q_page PAGE[] = {
     {"INSERT", {"", "", "", "MIX"}, {0, 0, 0, 0}, {127, 127, 127, 127}},      /* its name and knobs: INS_NAME, INS_LABEL */
     {"MIX", {"DELAY", "REVERB", "PAN", "LEVEL"}, {0, 0, -64, 0}, {127, 127, 63, 127}},
     {"FX", {"DLY TIME", "DLY FB", "REV SIZE", "REV TONE"}, {0, 0, 0, 0}, {DIV_N - 1, 127, 127, 127}},
+    {"KEYS", {"IN SCALE"}, {0}, {KEYS_ALL}},
 };
 
 /* Plaits' registration order (pq.h) */
@@ -84,6 +85,7 @@ static const char *const MODE_NAME[11] = {"CHROM", "MAJOR", "MINOR", "DORIAN", "
                                           "HARM MIN", "PENTA", "MIN PENTA"};
 static const char *const QUANT_NAME[3] = {"OFF", "50 %", "100 %"};
 static const char *const CLICK_NAME[4] = {"OFF", "METRO", "COUNT", "BOTH"};
+static const char *const KEYS_NAME[3] = {"OFF", "MARBLES", "ALL"};
 static const char *const ATTR_NAME[A_N] = {"VEL", "RATCHET", "PROB", "COND", "SLIDE", "ACCENT", "NOTE", "LEN", "MICRO"};
 static const uint8_t ATTR_ROW[A_N] = {A_NOTE, A_VEL, A_LEN, A_MICRO, A_PROB, A_COND, A_RATCHET, A_SLIDE, A_ACCENT};
 static const char *const COND_NAME[5] = {"NONE", "FIRST", "!FIRST", "PRE", "!PRE"};
@@ -111,8 +113,9 @@ typedef struct {
         uint16_t tempo;
         q_step st[16];
         int32_t cpu[8];                         /* the CPU page's numbers as shown; core 2 -1: OFF */
-        uint8_t anim;                           /* an animated scene, redrawn as it moves: 0 none, 1 the planet (v: its ENGINE
-                                                   knobs), 2 the SEQ plateau, 3 MARBLES (v: SPREAD, X BIAS, DEJA VU), 4 GRIDS */
+        uint8_t anim;                           /* an animated scene, redrawn as it moves: 0 none, 1 the sound's scene (v: its ENGINE
+                                                   knobs), 2 the SEQ plateau, 3 MARBLES (v: SPREAD, X BIAS, DEJA VU), 4 GRIDS,
+                                                   5 HOME's tracks (scene_home.c), 6 a sound page ADSR .. MIX (scene_sound.c) */
         q_trow tr[Q_TRACKS];                    /* TRACKS */
         struct { int8_t n, cursor, first, playing; q_entry e[6]; } song;               /* SONG: the 6 entries shown from first */
     } scene;
@@ -141,32 +144,32 @@ static struct {
 static q_pattern *pat(void) { return &ui.p->pat[ui.track][ui.p->pattern[ui.track]]; }
 static int kit(void) { return ui.p->sound[ui.track].model == M_KIT; }
 
-/* the domain's pages: their number, their ids in out (4 always written: a page index not yet brought back in range
+/* the domain's pages: their number, their ids in out (5 always written: a page index not yet brought back in range
    still names a page) */
 static int pages(int d, uint8_t *out)
 {
     const q_pattern *t = pat();
     if (d == D_SEQ && t->src != SRC_STEP) {
-        __builtin_memcpy(out, GEN_PAGES[t->src - 1], 4);
+        __builtin_memcpy(out, GEN_PAGES[t->src - 1], 5);
         return t->src == SRC_GRIDS ? 3 : kit() ? 2 : 4;     /* a KIT has no X section */
     }
     if (d == D_EDIT && kit()) {
-        __builtin_memcpy(out, KIT_PAGES, 4);
+        __builtin_memcpy(out, KIT_PAGES, 5);
         return 2;
     }
-    __builtin_memcpy(out, DOMAIN_PAGES[d], 4);
+    __builtin_memcpy(out, DOMAIN_PAGES[d], 5);
     return d == D_SEQ && t->path == PATH_XY ? 2 : DOMAIN_N[d];
 }
 
 static int domain_n(int d)
 {
-    uint8_t id[4];
+    uint8_t id[5];
     return pages(d, id);
 }
 
 static int page_id(void)
 {
-    uint8_t id[4];
+    uint8_t id[5];
     pages(ui.domain, id);
     return id[ui.page[ui.domain]];
 }
@@ -265,6 +268,7 @@ static int knob_get(int pid, int k)
     case P_SCALE * 4 + 1: return ui.p->mode;
     case P_SCALE * 4 + 2: return ui.p->quant;
     case P_SCALE * 4 + 3: return ui.p->click;
+    case P_KEYS * 4: return ui.p->keys;
     case P_XY * 4: return t->xlen;
     case P_XY * 4 + 1: return t->div;
     case P_XY * 4 + 2: return t->ylen;
@@ -368,6 +372,7 @@ static void knob_set(int pid, int k, int v)
     case P_SCALE * 4 + 1: ui.p->mode = (uint8_t)v; break;
     case P_SCALE * 4 + 2: ui.p->quant = (uint8_t)v; break;
     case P_SCALE * 4 + 3: ui.p->click = (uint8_t)v; break;
+    case P_KEYS * 4: ui.p->keys = (uint8_t)v; break;
     case P_XY * 4: t->xlen = (uint8_t)v; break;
     case P_XY * 4 + 1: t->div = (uint8_t)v; break;
     case P_XY * 4 + 2: t->ylen = (uint8_t)v; break;
@@ -716,6 +721,31 @@ static void punch_rec(void)
     }
 }
 
+/* the track's scale: MARBLES its allowed notes, the rest the project's */
+static uint16_t track_scale(void)
+{
+    const q_pattern *t = pat();
+    return t->src == SRC_MARBLES ? gen_allowed(ui.p, t) : gen_scale(ui.p);
+}
+
+/* KEYS on for the track: its white keys play the scale, the black ones nothing (a KIT keeps its pads) */
+static int keys_in_scale(void)
+{
+    return !kit() && (ui.p->keys == KEYS_ALL || (ui.p->keys == KEYS_MARBLES && pat()->src == SRC_MARBLES));
+}
+
+/* KEYS: the white key w (0..15) plays the w-th note of the track's scale up from the tonic in octave 3, -1 past 127
+   (a 1-note mask) */
+static int scale_note(int w)
+{
+    uint16_t m = track_scale();
+    int n = 48 + ui.p->tonic + 12 * ui.octave;
+    for (; n <= 127; n++)
+        if (m >> n % 12 & 1 && w-- == 0)
+            return n;
+    return -1;
+}
+
 static void key_down(int k)
 {
     q_pattern *t = pat();
@@ -777,6 +807,8 @@ static void key_down(int k)
             return;
         }
     }
+    if (keys_in_scale() && (w == 16 || (note = scale_note(w)) < 0))
+        return;
     if (kit()) {                        /* the white keys are the pads */
         if (w == 16)
             return;
@@ -926,6 +958,25 @@ void ui_input(void)
     }
 }
 
+/* the keys lit where they play notes: KEYS on, the white keys sounding the scale's first note; off, the keys in the scale */
+static uint32_t scale_keys(void)
+{
+    uint32_t keys = 0;
+    uint16_t m = track_scale();
+    int i, r;
+    if (kit())
+        return 0;
+    if (!keys_in_scale()) {
+        for (i = 0; i < NKEYS; i++)
+            keys |= (uint32_t)(m >> (53 + i) % 12 & 1) << i;
+        return keys;
+    }
+    for (r = scale_note(0) % 12, i = 0; i < 16; i++)
+        if (scale_note(i) >= 0 && scale_note(i) % 12 == r)
+            keys |= 1u << WHITE[i];
+    return keys;
+}
+
 static void lights(void)
 {
     const q_pattern *t = &ui.p->pat[ui.track][ui.p->pattern[ui.track]];
@@ -944,10 +995,13 @@ static void lights(void)
             keys |= (uint32_t)(!(ui.p->mute >> i & 1u)) << WHITE[i];
         for (i = 0; i < Q_SCENES; i++)
             keys |= (uint32_t)ui.p->scene[i].used << WHITE[8 + i];
-    } else if (ui.domain == D_SEQ && t->src == SRC_STEP)     /* a generator's keys play: no steps to show */
+    } else if (ui.domain == D_SEQ && t->src == SRC_STEP) {   /* a generator's keys play: no steps to show */
         for (i = 0; i < 16; i++)
             if (t->steps[ui.spage * 16 + i].flags & SF_ON || ui.spage * 16 + i == pos)
                 keys |= 1u << WHITE[i];
+    } else {
+        keys = scale_keys();
+    }
     plat_leds(btn, keys);
 }
 
@@ -1058,8 +1112,9 @@ static void knob_text(int pid, int k, int v, char *b)
         while ((*b++ = *s++) != 0) {}
         return;
     }
-    if (pid == P_SCALE) {
-        const char *s = k == 0 ? TONIC_NAME[v] : k == 1 ? MODE_NAME[v] : k == 2 ? QUANT_NAME[v] : CLICK_NAME[v];
+    if (pid == P_SCALE || pid == P_KEYS) {
+        const char *s = pid == P_KEYS ? KEYS_NAME[v] : k == 0 ? TONIC_NAME[v] : k == 1 ? MODE_NAME[v] : k == 2 ? QUANT_NAME[v]
+                                                                                                      : CLICK_NAME[v];
         while ((*b++ = *s++) != 0) {}
         return;
     }
@@ -1186,6 +1241,8 @@ static void view_now(q_view *v)
             if (pid == P_SOUND)         /* the scene shows the sound's ENGINE knobs on both pages */
                 for (k = 0; k < 4; k++)
                     v->scene.v[k] = (int16_t)knob_get(P_ENGINE, k);
+        } else if (pid >= P_ADSR && pid <= P_MIX) {      /* scene_sound.c */
+            v->scene.anim = 6;
         }
     } else if (pid == P_KIT) {
         v->scene.pad = (uint8_t)ui.pad;
@@ -1225,6 +1282,7 @@ static void view_now(q_view *v)
             v->scene.v[2] = t->marbles.dejavu;
         }
     } else if (pid == P_TRACKS) {
+        v->scene.anim = 5;                  /* HOME's emblems (scene_home.c) */
         for (k = 0; k < Q_TRACKS; k++) {
             v->scene.tr[k].model = ui.p->sound[k].model;
             v->scene.tr[k].pat = (uint8_t)(ui.p->pattern[k] + 1);
@@ -1394,21 +1452,9 @@ static void draw_scene(const q_view *v, int32_t oy)
     case P_ENGINE:
     case P_SOUND:
     case P_PAD:
-    case P_ADSR:
-    case P_FILTER:
-    case P_LFO:
-    case P_ARP:
-    case P_INSERT:
-    case P_MIX:
     case P_GFX:
         if (v->scene.pid != P_GFX)
             cv_text(10, oy + 8, &FONT_M, MODEL_NAME[v->scene.model], C_WHITE);
-        if (v->scene.pid == P_ARP && v->scene.model == M_KIT) {
-            cv_text(10, oy + 60, &FONT_M, "NO ARP ON KIT", C_GRAY);
-            break;
-        }
-        if (v->scene.pid == P_ADSR && own_env(v->scene.model))      /* its own envelope shapes the level */
-            cv_text(10, oy + 34, &FONT_S, "FILTER ONLY", C_AMB);
         for (k = 0; k < 4; k++) {
             const q_page *pg = &PAGE[v->scene.pid];
             int32_t x = 60 * k + 12, h = 108 * (v->scene.v[k] - pg->min[k]) / (pg->max[k] - pg->min[k]);
@@ -1503,6 +1549,9 @@ static void draw_scene(const q_view *v, int32_t oy)
         cv_text((240 - text_w(&FONT_L, TONIC_NAME[v->scene.v[0]])) / 2, oy + 40, &FONT_L, TONIC_NAME[v->scene.v[0]], C_WHITE);
         cv_text((240 - text_w(&FONT_M, MODE_NAME[v->scene.v[1]])) / 2, oy + 100, &FONT_M, MODE_NAME[v->scene.v[1]], C_GRAY);
         break;
+    case P_KEYS:
+        cv_text((240 - text_w(&FONT_M, KEYS_NAME[v->scene.v[0]])) / 2, oy + 60, &FONT_M, KEYS_NAME[v->scene.v[0]], C_WHITE);
+        break;
     case P_CPU: {
         static const char *const ROW[8] = {"CORE 1", "CORE 2", "LOST BLOCKS", "VOICES", "BYTES/VOICE", "CORE 2 STACK", "EFFECTS",
                                            "SCENE FPS"};
@@ -1586,8 +1635,9 @@ void ui_frame(void)
         if (ui.full || now - ui.scene_ms >= 30u || __builtin_memcmp(&v.scene, &ui.shown.scene, sizeof v.scene)) {
             /* shown anew (another scene, track, pattern or page of steps): the notes before do not hit */
             /* compared with the last frame drawn, not the last one shown: a change between two draws counts */
-            /* (another model, or another pad or its engine on a KIT, is another scene too) */
-            int key = v.scene.anim | v.head.track << 2 | v.head.pat << 5 | v.scene.spage << 9 | v.scene.pad << 13 | v.scene.model << 17;
+            /* (another model, or another pad or its engine on a KIT, is another scene too; so is another sound page) */
+            int key = v.scene.anim | v.head.track << 3 | v.head.pat << 6 | v.scene.spage << 10 | v.scene.pad << 14 | v.scene.model << 18
+                      | (v.scene.anim == 6 ? v.scene.pid : 0) << 23;
             int fresh = ui.full || key != ui.scene_key;
             ui.scene_key = key;
             ui.scene_ms = now;
@@ -1660,6 +1710,34 @@ void ui_frame(void)
                     note_name(t->grids.note, gv.top_r + 3);
                 }
                 grids_frame(&gv, now);
+            } else if (v.scene.anim == 5) {
+                q_hview hv;
+                if (fresh)
+                    scene_enter();
+                for (int k = 0; k < Q_TRACKS; k++) {   /* the pattern playing, and the one asked for when it differs */
+                    const q_trow *r = &v.scene.tr[k];
+                    hv.model[k] = r->model, hv.mute[k] = r->mute, hv.pos[k] = r->pos, hv.len[k] = r->len;
+                    hv.pat[k] = r->playing ? r->playing : r->pat;
+                    hv.next[k] = r->playing ? r->pat : 0;
+                    hv.hits[k] = audio_hits(k);
+                }
+                hv.sel = (int8_t)ui.track;
+                home_frame(&hv, now);
+            } else if (v.scene.anim == 6) {
+                const q_sound *s = &ui.p->sound[ui.track];
+                q_pview pv = {(uint8_t)(v.scene.pid - P_ADSR), v.scene.model, s->itype, (uint8_t)own_env(v.scene.model),
+                              v.scene.model == M_KIT, {v.scene.v[0], v.scene.v[1], v.scene.v[2], v.scene.v[3]},
+                              audio_hits(ui.track), audio_lfo_phase(ui.track), {0}, {0}, 0, 0};
+                int sounding, n = 0, k;
+                if (fresh)
+                    scene_enter();
+                pv.nheld = (int8_t)audio_arp(ui.track, pv.held, &sounding);
+                pv.sounding = (int8_t)sounding;
+                pv.chord[0] = (uint8_t)(60 + ui.p->tonic);  /* the tonic's 1, 3, 5: the scale's 3rd and 5th degrees */
+                for (k = 0; k < 12; k++)
+                    if (SCALE_MASK[ui.p->mode] >> k & 1 && (++n == 3 || n == 5))
+                        pv.chord[n / 2] = (uint8_t)(pv.chord[0] + k);
+                sound_frame(&pv, now);
             } else {
                 static q_plateau pv;
                 if (fresh)
@@ -1675,17 +1753,24 @@ void ui_frame(void)
                     marbles_band(-BAND_H * b);
                 else if (v.scene.anim == 4)
                     grids_band(-BAND_H * b);
+                else if (v.scene.anim == 5)
+                    home_band(-BAND_H * b);
+                else if (v.scene.anim == 6)
+                    sound_band(-BAND_H * b);
                 else
                     plateau_band(-BAND_H * b);
                 cv_blit(0, HEAD_H + BAND_H * b);
             }
         }
-    } else if (ui.full || __builtin_memcmp(&v.scene, &ui.shown.scene, sizeof v.scene))
-        for (b = 0; b < 2; b++) {
-            cv_begin(240, BAND_H, C_BLACK);
-            draw_scene(&v, -BAND_H * b);
-            cv_blit(0, HEAD_H + BAND_H * b);
-        }
+    } else {
+        ui.scene_key = -1;          /* coming back to an animated page is a fresh arrival: no reaction to notes played meanwhile */
+        if (ui.full || __builtin_memcmp(&v.scene, &ui.shown.scene, sizeof v.scene))
+            for (b = 0; b < 2; b++) {
+                cv_begin(240, BAND_H, C_BLACK);
+                draw_scene(&v, -BAND_H * b);
+                cv_blit(0, HEAD_H + BAND_H * b);
+            }
+    }
     if (ui.full || __builtin_memcmp(&v.foot, &ui.shown.foot, sizeof v.foot))
         draw_foot(&v);
     ui.fps_mixed |= !v.scene.anim;
@@ -1782,6 +1867,7 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "dtime")) *got = ui.p->dtime;
     else if (!strcmp(what, "scene3d")) *got = ui.shown.scene.anim == 1;
     else if (!strcmp(what, "anim")) *got = ui.shown.scene.anim;
+    else if (!strcmp(what, "scene_key")) *got = ui.scene_key;
     else if (!strcmp(what, "flying")) *got = marbles_flying();
     else if (!strcmp(what, "plive") || !strcmp(what, "pend") || !strcmp(what, "pnotelen")) {
         static q_view pv;
@@ -1804,6 +1890,9 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "mode")) *got = ui.p->mode;
     else if (!strcmp(what, "quant")) *got = ui.p->quant;
     else if (!strcmp(what, "click")) *got = ui.p->click;
+    else if (!strcmp(what, "keys")) *got = ui.p->keys;
+    else if (!strcmp(what, "keynote")) *got = ui.last_note[ui.track];
+    else if (!strcmp(what, "keyleds")) *got = (int)scale_keys();
     else if (!strcmp(what, "overdub")) *got = ui.rec && audio_playing();
     else if (!strcmp(what, "len")) *got = t->len;
     else if (!strcmp(what, "div")) *got = t->div;

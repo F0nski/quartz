@@ -1,0 +1,57 @@
+# The sound pages ADSR, FILTER, LFO, ARP, INSERT, MIX: animated scenes (anim 6)
+wait 600
+tap ENV
+wait 100
+expect anim 6
+expect scene_key 153092166
+key 0 down
+wait 30
+shot sound_adsr.png
+key 0 up
+# another page of the same scene is a fresh arrival: its key differs
+turn SELECT 1
+expect page 2
+wait 100
+expect anim 6
+expect scene_key 161480774
+key 0 down
+wait 30
+shot sound_filter.png
+key 0 up
+tap LFO
+wait 100
+expect anim 6
+key 0 down
+wait 30
+shot sound_lfo.png
+key 0 up
+tap ARP
+wait 100
+expect anim 6
+key 0 down
+wait 30
+shot sound_arp.png
+key 0 up
+tap FX
+wait 100
+expect anim 6
+key 0 down
+wait 30
+shot sound_insert.png
+key 0 up
+turn PRESET 1
+expect itype 1
+wait 100
+expect anim 6
+key 0 down
+wait 30
+shot sound_insert_od.png
+key 0 up
+turn SELECT 1
+expect page 2
+wait 100
+expect anim 6
+key 0 down
+wait 30
+shot sound_mix.png
+key 0 up

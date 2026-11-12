@@ -39,6 +39,7 @@ static void clamp_project(q_project *p)
     p->mode = (uint8_t)clampi(p->mode, 0, 10);
     p->quant = (uint8_t)clampi(p->quant, 0, 2);
     p->click = (uint8_t)clampi(p->click, 0, 3);
+    p->keys = (uint8_t)clampi(p->keys, 0, KEYS_ALL);
     p->nsong = (uint8_t)clampi(p->nsong, 0, Q_SONG);
     p->dtime = (uint8_t)clampi(p->dtime, 0, DIV_N - 1);
     p->dfb = (uint8_t)clampi(p->dfb, 0, 127); p->rsize = (uint8_t)clampi(p->rsize, 0, 127);

@@ -8,7 +8,7 @@
 #define Q_LOCKS 128
 #define Q_SCENES 8
 #define Q_SONG 32
-#define Q_VERSION 5                /* q_project.version: the saved layout */
+#define Q_VERSION 6                /* q_project.version: the saved layout */
 #define Q_PADS 16
 #define M_KIT 24                   /* q_sound.model: the 16-pad kit */
 #define KIT_NOTE 36                /* a KIT's note: KIT_NOTE + pad */
@@ -55,11 +55,13 @@ typedef struct {
 enum { PAD_BD, PAD_SN, PAD_HH };                          /* q_pad.engine */
 typedef struct { uint8_t engine; int8_t tune; uint8_t harm, timb, decay, level; } q_pad;   /* tune -24..24; the rest 0..127 */
 /* tempo in whole BPM, 40..240; dtime a DIV_*, dfb rsize rtone comp duck 0..127 (the delay and reverb returns, the master's compressor and duck) */
+/* q_project.keys: where the white keys play the scale's notes, the black ones nothing */
+enum { KEYS_OFF, KEYS_MARBLES, KEYS_ALL };
 typedef struct {
     uint8_t version; uint16_t tempo;
-    uint8_t swing, tonic, mode, quant, click, mute, song_on, nsong;   /* swing 50..75; tonic 0..11; mode 0..10;
+    uint8_t swing, tonic, mode, quant, click, keys, mute, song_on, nsong;   /* swing 50..75; tonic 0..11; mode 0..10;
                                                        quant 0 OFF 1 50 % 2 100 %; click bit 0 METRO, bit 1 COUNT;
-                                                       mute bit per track */
+                                                       keys a KEYS_*; mute bit per track */
     uint8_t dtime, dfb, rsize, rtone, comp, duck;
     uint8_t pattern[Q_TRACKS];                        /* the pattern each track is asked to play (and is edited) */
     q_sound sound[Q_TRACKS];

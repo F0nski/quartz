@@ -1,0 +1,69 @@
+# The step 5d1 scenes on ENGINE and SOUND: the crests (VA VCF 0, PHASE DIST 1, VA 8, WAVESHAPE 9), the bowl (WAVE
+# TERRAIN 5, WAVETABLE 13), the crystal garden (GRAIN FORM 11, ADDITIVE 12), the platforms (CHIPTUNE 7)
+wait 600
+tap EDIT
+turn PRESET -30
+expect model 0
+wait 100
+expect scene3d 1
+key 6 down
+wait 80
+shot crests_vavcf.png
+key 6 up
+turn PRESET 1
+expect model 1
+wait 100
+expect scene3d 1
+shot crests_phasedist.png
+turn PRESET 4
+expect model 5
+wait 100
+expect scene3d 1
+key 6 down
+wait 80
+shot bowl_terrain.png
+key 6 up
+turn PRESET 2
+expect model 7
+wait 100
+expect scene3d 1
+key 6 down
+wait 150
+shot platforms.png
+key 6 up
+turn PRESET 1
+expect model 8
+wait 100
+expect scene3d 1
+shot crests_va.png
+turn PRESET 1
+expect model 9
+wait 100
+expect scene3d 1
+shot crests_waveshape.png
+turn PRESET 2
+expect model 11
+wait 100
+expect scene3d 1
+shot garden_grainform.png
+turn PRESET 1
+expect model 12
+wait 100
+expect scene3d 1
+key 6 down
+wait 80
+shot garden_additive.png
+key 6 up
+turn PRESET 1
+expect model 13
+wait 100
+expect scene3d 1
+key 6 down
+wait 80
+shot bowl_wavetable.png
+key 6 up
+# SOUND shows the same scene
+turn SELECT 1
+expect page 2
+wait 100
+expect scene3d 1

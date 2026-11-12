@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -219,6 +220,100 @@ static void sphere_marks_diagonals(void)
     }
 }
 
+
+/* ---- 5d1: the perspective camera ---- */
+static const p3_cam CAM0 = {0, 0, 4, 0, 100, 41.5f};
+static const p3_vec LUP = {-0.5f, 0.75f, -0.45f};
+static const uint16_t BL3[3] = {BLUE, BLUE, BLUE};
+
+static void world_quad_projects(void)
+{
+    const p3_vec q[4] = {{-1, -1, 0}, {-1, 1, 0}, {1, 1, 0}, {1, -1, 0}};
+    cv_begin(240, 83, 0);
+    p3d_begin();
+    p3d_camera(&CAM0, LUP, 0, 12);
+    p3d_quad3(q, BL3, NULL, 0);
+    assert(p3d_count() == 2);
+    p3d_draw(0);
+    assert(px(120, 41) == BLUE);
+    assert(px(80, 41) != BLUE && px(160, 41) != BLUE);
+}
+
+static void world_back_face_culled(void)
+{
+    const p3_vec q[4] = {{1, -1, 0}, {1, 1, 0}, {-1, 1, 0}, {-1, -1, 0}};
+    p3d_begin();
+    p3d_camera(&CAM0, LUP, 0, 12);
+    p3d_quad3(q, BL3, NULL, 0);
+    assert(p3d_count() == 0);
+}
+
+static void world_fog_darkens(void)
+{
+    const p3_vec n[4] = {{-1, -1, 0}, {-1, 1, 0}, {1, 1, 0}, {1, -1, 0}};
+    const p3_vec f[4] = {{-1, -1, 10}, {-1, 1, 10}, {1, 1, 10}, {1, -1, 10}};
+    cv_begin(240, 83, 0);
+    p3d_begin();
+    p3d_camera(&CAM0, LUP, 0, 12);
+    p3d_quad3(n, BL3, NULL, 0);
+    p3d_draw(0);
+    uint16_t near = px(120, 41);
+    cv_begin(240, 83, 0);
+    p3d_begin();
+    p3d_quad3(f, BL3, NULL, 0);
+    p3d_draw(0);
+    uint16_t far = px(120, 41);
+    assert((far & 31) < (near & 31));       /* blue channel */
+}
+
+static void world_clip_behind(void)
+{
+    const p3_vec q[4] = {{-1, -1, -3.9f}, {-1, 1, 0}, {1, 1, 0}, {1, -1, 0}};
+    float x, y, z;
+    p3d_begin();
+    p3d_camera(&CAM0, LUP, 0, 12);
+    p3d_quad3(q, BL3, NULL, 0);
+    assert(p3d_count() == 0);
+    assert(!p3d_project((p3_vec){0, 0, -3.9f}, &x, &y, &z));
+    assert(p3d_project((p3_vec){0, 0, 0}, &x, &y, &z));
+    assert(fabsf(x - 120.0f) < 1e-3f && fabsf(y - 41.5f) < 1e-3f && fabsf(z - 4.0f) < 1e-3f);   /* (fastmath: cos 0 is not exactly 1) */
+}
+
+static void edge_palette_32(void)
+{
+    cv_begin(240, 83, 0);
+    p3d_begin();
+    p3d_camera(&CAM0, LUP, 0, 100);
+    for (int i = 0; i < 20; i++) {
+        float x = -4.5f + 0.45f * (float)i;
+        const p3_vec t[3] = {{x, -1, 0}, {x, 1, 0}, {x + 0.3f, 1, 0}};
+        const uint16_t e = (uint16_t)RGB(10 + 10 * i, 255, 0);
+        p3d_tri3(t, BL3, &e, 0);
+    }
+    p3d_draw(0);
+    for (int i = 0; i < 20; i++) {
+        int found = 0;
+        for (int y = 0; y < 83 && !found; y++)
+            for (int x = 0; x < 240 && !found; x++)
+                found = px(x, y) == (uint16_t)RGB(10 + 10 * i, 255, 0);
+        assert(found);
+    }
+}
+
+
+/* a box seen from the front and above: 3 faces (6 triangles), the front one around the centre */
+static void world_box_three_faces(void)
+{
+    const p3_cam c = {0.4f, 0.4f, 4, 1.5f, 100, 41.5f};
+    p3d_begin();
+    p3d_camera(&c, LUP, 0, 12);
+    p3d_box3((p3_vec){0, 0, 0}, (p3_vec){0.5f, 0.5f, 0.5f}, BL3, NULL);
+    assert(p3d_count() == 6);
+    p3d_begin();
+    p3d_beam3((p3_vec){0, -0.5f, 0}, (p3_vec){0, 0.5f, 0}, 0.5f, BL3, NULL);
+    assert(p3d_count() == 6);
+}
+
 int main(void)
 {
     fill_matches_centres();
@@ -233,6 +328,12 @@ int main(void)
     edge_skips_diagonal();
     edge_drawn_in_depth_order();
     sphere_marks_diagonals();
+    world_quad_projects();
+    world_back_face_culled();
+    world_fog_darkens();
+    world_clip_behind();
+    edge_palette_32();
+    world_box_three_faces();
     printf("p3d ok\n");
     return 0;
 }

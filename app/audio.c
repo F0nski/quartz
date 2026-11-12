@@ -896,3 +896,23 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
         sum1 = sum2 = sumfx = sum_budget = 0;
     }
 }
+
+/* The screen's accessors (ui.c, later in the same unity build): static, so that clang places them where the screen uses
+ * them, after the render, and the audio's code keeps its place in the flash (app.h APP_LATE, docs/cpu.md). The LFO phase
+ * of the track's first sounding voice, -1 without one */
+static float audio_lfo_phase(int track)
+{
+    for (int v = 0; v < PQ_VOICES; v++) if (pool.v[v].track == track && sounding(v)) return mod_lfo_phase(v);
+    return -1;
+}
+
+/* the held notes in arrival order (count), *sounding_note: the note playing, -1 none. Read without a lock from the main
+ * loop, as audio_hits: a torn read shows one odd frame */
+static int audio_arp(int track, uint8_t held[ARP_HELD], int *sounding_note)
+{
+    const q_arp *a = &arp[track];
+    int n = a->nh;
+    for (int i = 0; i < n; i++) held[i] = a->h[i].note;
+    *sounding_note = a->snd ? a->sn : -1;
+    return n;
+}

@@ -1,0 +1,77 @@
+# The step 5d2 scenes on ENGINE and SOUND: the choir (STRING MACH 6, CHORDS 14), the tightrope (STRING 19), the
+# dancefloor (SWARM 16, NOISE 17, PARTICLE 18)
+wait 600
+tap EDIT
+turn PRESET -2
+expect model 6
+wait 100
+expect scene3d 1
+turn SELECT 1
+expect page 2
+wait 60
+expect scene3d 1
+turn SELECT -1
+expect page 1
+key 6 down
+wait 60
+shot choir_stringmach.png
+key 6 up
+turn PRESET 8
+expect model 14
+wait 100
+expect scene3d 1
+turn SELECT 1
+expect page 2
+wait 60
+expect scene3d 1
+turn SELECT -1
+expect page 1
+shot choir_chords.png
+turn PRESET 2
+expect model 16
+wait 100
+expect scene3d 1
+turn SELECT 1
+expect page 2
+wait 60
+expect scene3d 1
+turn SELECT -1
+expect page 1
+shot dance_swarm.png
+turn PRESET 1
+expect model 17
+wait 100
+expect scene3d 1
+turn SELECT 1
+expect page 2
+wait 60
+expect scene3d 1
+turn SELECT -1
+expect page 1
+key 6 down
+wait 40
+shot dance_noise.png
+key 6 up
+turn PRESET 1
+expect model 18
+wait 100
+expect scene3d 1
+turn SELECT 1
+expect page 2
+wait 60
+expect scene3d 1
+turn SELECT -1
+expect page 1
+shot dance_particle.png
+turn PRESET 1
+expect model 19
+wait 100
+expect scene3d 1
+key 6 down
+wait 60
+shot rope.png
+key 6 up
+turn SELECT 1
+expect page 2
+wait 100
+expect scene3d 1

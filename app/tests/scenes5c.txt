@@ -30,11 +30,11 @@ expect model 22
 wait 100
 expect scene3d 1
 shot snare.png
-# STRING has no scene yet
+# STRING: its tightrope walker (5d2)
 turn PRESET -3
 expect model 19
 wait 100
-expect scene3d 0
+expect scene3d 1
 # a KIT: its PAD page shows the scene, its KIT page the pads
 turn PRESET 5
 expect model 24

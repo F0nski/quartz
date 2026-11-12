@@ -146,6 +146,7 @@ dans une croche ou une noire.
   les punch-ins sont enregistrés aussi.
 - REC n'écrit que dans un pattern STEP.
 - **REC sans PLAY** : saisie pas à pas. Une touche écrit la note au pas courant et avance d'un pas.
+- Modes, grille, pas à pas, live et effacement : `2026-11-12-quartz-step-entry-design.md`, qui prime sur cette section.
 - Décompte d'une mesure et métronome, activables dans GLO.
 
 ## 6. Générateurs
@@ -171,8 +172,8 @@ dans une croche ou une noire.
 | SEL (bouton) | valider (charger le preset choisi, confirmer une action) ; maintenu + K1–K4 : réglage fin |
 | MASTER | volume |
 | PLAY | lecture / stop |
-| REC | seul : saisie pas à pas ; REC + PLAY : overdub |
-| OCT− / OCT+ | octave du clavier ; dans SEQ, page de pas (1–16, 17–32…) |
+| REC | seul : grille dans SEQ, pas à pas ailleurs ; tenu + PLAY : live (spec `2026-11-12-quartz-step-entry-design.md`) |
+| OCT− / OCT+ | octave du clavier ; dans la grille (SEQ, REC armé), page de pas (1–16, 17–32…) ; pas tenu : durée |
 
 | Bouton de domaine | Pages (SELECT les parcourt) | Maintenu + touches |
 |---|---|---|
@@ -188,7 +189,8 @@ dans une croche ou une noire.
 
 Clavier :
 - Hors SEQ, les touches jouent la piste courante (et l'enregistrent quand REC est armé).
-- Dans SEQ, les 16 blanches sont les pas : un appui active ou coupe le pas ; pas maintenu + K = p-lock.
+- Dans SEQ, REC armé, les 16 blanches sont les pas : un appui active ou coupe le pas ; pas maintenu + K = p-lock.
+  Sans REC, elles jouent la piste.
 - Pas maintenu + touche noire : ratchet, probabilité, condition, slide, accent, note, durée,
   micro-timing, effacer (9 des 11 noires ; les 2 dernières restent libres).
 

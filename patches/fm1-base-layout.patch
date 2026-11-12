@@ -11,20 +11,29 @@ index e4492f0..53bdb42 100644
 +#include APP_LATE
 +#endif
 diff --git a/tools/build.py b/tools/build.py
-index a74366d..b2b5f52 100755
+index a74366d..99fa076 100755
 --- a/tools/build.py
 +++ b/tools/build.py
-@@ -21,6 +21,9 @@ APP_DIR holds the app (app.h, app.c, its sources) and its fm1.toml:
+@@ -21,6 +21,10 @@ APP_DIR holds the app (app.h, app.c, its sources) and its fm1.toml:
    usb_product = "..."
    o2 = ["dsp/engine.c"]      separate units compiled at -O2 (the app's DSP), relative to APP_DIR (globs too); each with
                               its own directory on the include path
 +  o2_first = true            (quartz) the o2 units linked before the unity build, and the constants from a 4 KiB
 +                             boundary: the DSP's code and tables keep their place in the XIP flash, so how they fit
 +                             the caches (8 ways of 4 KiB), as the app's code grows
++  unity_cflags = ["-x"]      (quartz) more flags for the unity build (the platform and the app but its o2 units)
    unity_opt = "z"            the unity build (the platform, the app but its o2 units) at -Oz instead of -Os: smaller,
                               a little slower (what runs in the audio interrupt outside the o2 units, too)
    o2_cflags = ["-DX=1"]      more flags for those; o2_include = ["lib/prefix.h"]: a header included first in each
-@@ -862,6 +865,10 @@ def build_app():
+@@ -771,6 +775,7 @@ def cpu2_stack_flags():
+ def build_app():
+     flags = [*CFLAGS, *FPU, *inc(BSP / "chip", BSP / "boards" / "fm1", SRC / "device", SRC / "include", SRC / "lib", APP, GEN,
+                                  *(APP / d for d in CONF.get("include", []) + CONF.get("device_include", [])))]
++    flags += CONF.get("unity_cflags", [])         # quartz: more flags for the unity build (fm1.toml unity_cflags)
+     if BLE and OWN:                               # the own stack: its units in the unity build (device/bt_own.c)
+         flags += ["-DFM1B_BLE=1", "-DFM1B_BLE_OWN=1", *inc(SRC / "bt" / "ble", SRC / "bt" / "br")]
+         if CONF.get("ble_central"):
+@@ -862,6 +867,10 @@ def build_app():
              units.append(("cc", *o2, *o2_more, *inc(f.parent), *ir_out, "-c", f, "-o", o.with_suffix(".ll") if ir else o))
              objs.append(o)
              o2_units.append((f, o))
@@ -35,7 +44,7 @@ index a74366d..b2b5f52 100755
      jieli = (BLE and not OWN) or WIFI             # JieLi's libraries linked (the shim, LTO)
      b_units, b_objs, b_libs = radio_units() if jieli else ([], [], [])
      tc_all(*units, *b_units)
-@@ -892,6 +899,13 @@ def build_app():
+@@ -892,6 +901,13 @@ def build_app():
             f"--plugin-opt=mcpu={CPU}", "--plugin-opt=-pi32v2-large-program=true"] if jieli else []
      global LAYOUT
      ld = SRC / "device" / ("app_wifi.ld" if WIFI else "app_packed.ld" if ram_packed() else "app.ld")

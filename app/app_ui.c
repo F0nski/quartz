@@ -4,6 +4,15 @@
  * simulator at the end of app.c. Nothing before calls into it: clang places a function where it is first named. */
 #include "p3d.c"
 #include "scene.c"
+#include "scene_va.c"
+#include "scene_wave.c"
+#include "scene_garden.c"
+#include "scene_chip.c"
+#include "scene_choir.c"
+#include "scene_rope.c"
+#include "scene_dance.c"
+#include "scene_home.c"
+#include "scene_sound.c"
 #include "plateau.c"
 #include "ui.c"
 

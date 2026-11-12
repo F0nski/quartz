@@ -8,7 +8,7 @@
 #define P3D_MAXV 160                /* vertices of one mesh: the SPEECH head has 154 */
 
 /* coordinates in quarter pixels and depth in quarter screen units, 16 bits: 256 of them in the room of 128 floats */
-/* width 0: a triangle; emask bits 0-2 its edges outlined, bits 3-5 their colour in edges[] (18 bytes: the pool is short) */
+/* width 0: a triangle; emask bits 0-2 its edges outlined, bits 3-7 their colour in edges[] (18 bytes: the pool is short) */
 typedef struct { int16_t x[3], y[3], z; uint16_t c; uint8_t width, emask; } p3_prim;
 static int16_t q4(float v) { return (int16_t)fm_clampf(v * 4.0f, -8000.0f, 8000.0f); }
 #define F4(v) ((float)(v) * 0.25f)
@@ -25,11 +25,24 @@ float p3d_hash(uint32_t n)
 static p3_prim prims[P3D_MAX] PLAT_POOL;
 static p3_prim *order[P3D_MAX];
 static int nprims, sorted;
-static uint16_t edges[8];           /* the frame's outline colours */
+static uint16_t edges[32];          /* the frame's outline colours */
 static int nedges;
 
 void p3d_begin(void) { nprims = sorted = nedges = 0; }
 int p3d_count(void) { return nprims; }
+
+/* an outline colour's place in the frame's table (32 at most: the last one shared) */
+static int edge_index(uint16_t c)
+{
+    int e = 0;
+    while (e < nedges && edges[e] != c)
+        e++;
+    if (e == nedges && nedges < 32)
+        edges[nedges++] = c;
+    if (e == 32)
+        e = 31, edges[31] = c;
+    return e;
+}
 
 static p3_prim *add(float z, uint16_t c, uint8_t width)
 {
@@ -146,14 +159,8 @@ void p3d_mesh_parts(const p3_mesh *m, const p3_pose *p, const uint16_t (*tones)[
     static const float L[3] = {-0.48795f, -0.63434f, 0.58554f};     /* (-0.5, -0.65, 0.6) normalised: up left front */
     float sy = fm_sinf(p->ay), cy = fm_cosf(p->ay), sx = fm_sinf(p->ax), cx = fm_cosf(p->ax);
     int i, e = 0;
-    if (edge) {                             /* its colour in the frame's table (8 at most: the last one shared) */
-        while (e < nedges && edges[e] != *edge)
-            e++;
-        if (e == nedges && nedges < 8)
-            edges[nedges++] = *edge;
-        if (e == 8)
-            e = 7, edges[7] = *edge;
-    }
+    if (edge)
+        e = edge_index(*edge);
     for (i = 0; i < m->nv && i < P3D_MAXV; i++) {
         const p3_vec *v = &m->v[i];
         float x = v->x * cy + v->z * sy, z = -v->x * sy + v->z * cy;
@@ -206,4 +213,144 @@ void p3d_sphere(int lat, int lon, p3_vec *v, p3_face *f, p3_mesh *out)
     out->f = f;
     out->nv = (uint16_t)((lat + 1) * lon);
     out->nf = (uint16_t)nf;
+}
+
+/* ---- the perspective camera (p3d.h) ---- */
+static struct { p3_cam c; float cy, sy, cp, sp, l[3], far; uint16_t fog; } pc;
+
+void p3d_camera(const p3_cam *c, p3_vec light, uint16_t fog, float far)
+{
+    float n = fm_sqrtf(light.x * light.x + light.y * light.y + light.z * light.z);
+    pc.c = *c;
+    pc.cy = fm_cosf(c->yaw), pc.sy = fm_sinf(c->yaw), pc.cp = fm_cosf(c->pitch), pc.sp = fm_sinf(c->pitch);
+    pc.l[0] = light.x / n, pc.l[1] = light.y / n, pc.l[2] = light.z / n;
+    pc.fog = fog;
+    pc.far = far;
+}
+
+static p3_vec view(p3_vec w)
+{
+    float X = w.x * pc.cy - w.z * pc.sy, Z = w.x * pc.sy + w.z * pc.cy + pc.c.dist, Y = w.y - pc.c.h;
+    return (p3_vec){X, Y * pc.cp + Z * pc.sp, Z * pc.cp - Y * pc.sp};
+}
+
+int p3d_project(p3_vec w, float *sx, float *sy, float *z)
+{
+    p3_vec v = view(w);
+    if (v.z < 0.3f)
+        return 0;
+    *sx = 120.0f + v.x * pc.c.f / v.z;
+    *sy = pc.c.cy - v.y * pc.c.f / v.z;
+    *z = v.z;
+    return 1;
+}
+
+uint16_t p3d_mix(uint16_t a, uint16_t b, float k)
+{
+    int r = (a >> 11) + (int)((float)((b >> 11) - (a >> 11)) * k + ((b >> 11) >= (a >> 11) ? 0.5f : -0.5f));
+    int g = (a >> 5 & 63) + (int)((float)((b >> 5 & 63) - (a >> 5 & 63)) * k + ((b >> 5 & 63) >= (a >> 5 & 63) ? 0.5f : -0.5f));
+    int u = (a & 31) + (int)((float)((b & 31) - (a & 31)) * k + ((b & 31) >= (a & 31) ? 0.5f : -0.5f));
+    return (uint16_t)(r << 11 | g << 5 | u);
+}
+
+/* the fog at sort depth z: towards pc.fog, in eighths */
+static float fog_at(float z)
+{
+    float k = fm_clampf((z - 0.35f * pc.far) / (0.65f * pc.far), 0.0f, 0.85f);
+    return fm_floorf(k * 8.0f + 0.5f) * 0.125f;
+}
+
+uint16_t p3d_fogged(uint16_t c, float z) { return p3d_mix(c, pc.fog, fog_at(z)); }
+
+/* n view-space points (3 or 4) as one face: culled when it faces away, toned, fogged; a quad is two triangles with
+   its p0-p2 diagonal hidden */
+static void face(const p3_vec *w, int n, const uint16_t tones[3], const uint16_t *edge, float bias)
+{
+    p3_vec v[4];
+    float x[4], y[4], z = 0.0f;
+    for (int i = 0; i < n; i++) {
+        v[i] = view(w[i]);
+        if (v[i].z < 0.3f)
+            return;
+        x[i] = 120.0f + v[i].x * pc.c.f / v[i].z;
+        y[i] = pc.c.cy - v[i].y * pc.c.f / v[i].z;
+        z += v[i].z;
+    }
+    float ux = v[1].x - v[0].x, uy = v[1].y - v[0].y, uz = v[1].z - v[0].z;
+    float wx = v[2].x - v[0].x, wy = v[2].y - v[0].y, wz = v[2].z - v[0].z;
+    float nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nz = ux * wy - uy * wx;
+    if (nx * v[0].x + ny * v[0].y + nz * v[0].z >= 0.0f)      /* facing away */
+        return;
+    float len = fm_sqrtf(nx * nx + ny * ny + nz * nz), d = len > 0.0f ? (nx * pc.l[0] + ny * pc.l[1] + nz * pc.l[2]) / len : 0.0f;
+    z = z / (float)n - bias;
+    float k = fog_at(z);
+    uint16_t c = p3d_mix(tones[d > 0.6f ? 0 : d > 0.2f ? 1 : 2], pc.fog, k);
+    int e = edge ? edge_index(p3d_mix(*edge, pc.fog, k)) : 0;
+    for (int t = 0; t < n - 2; t++) {
+        p3_prim *q = tri(x[0], y[0], x[t + 1], y[t + 1], x[t + 2], y[t + 2], -25.0f * z, c);
+        if (q && edge)                      /* a quad's diagonal p0-p2 is hidden */
+            q->emask = (uint8_t)(e << 3 | (n == 3 ? 7u : t == 0 ? 3u : 6u));
+    }
+}
+
+void p3d_tri3(const p3_vec p[3], const uint16_t tones[3], const uint16_t *edge, float bias) { face(p, 3, tones, edge, bias); }
+void p3d_quad3(const p3_vec p[4], const uint16_t tones[3], const uint16_t *edge, float bias) { face(p, 4, tones, edge, bias); }
+
+/* the faces of a box whose corner i is at (bit 0: +x, bit 1: +y, bit 2: +z), each a loop */
+static const uint8_t BOX_Q[6][4] = {{0, 1, 3, 2}, {4, 5, 7, 6}, {0, 1, 5, 4}, {2, 3, 7, 6}, {0, 2, 6, 4}, {1, 3, 7, 5}};
+
+static void box_faces(const p3_vec v[8], const uint16_t tones[3], const uint16_t *edge)
+{
+    p3_vec c = {0, 0, 0};
+    for (int i = 0; i < 8; i++)
+        c.x += v[i].x * 0.125f, c.y += v[i].y * 0.125f, c.z += v[i].z * 0.125f;
+    for (int f = 0; f < 6; f++) {           /* each face turned out of the box, then culled by face() */
+        p3_vec q[4] = {v[BOX_Q[f][0]], v[BOX_Q[f][1]], v[BOX_Q[f][2]], v[BOX_Q[f][3]]};
+        float ux = q[1].x - q[0].x, uy = q[1].y - q[0].y, uz = q[1].z - q[0].z;
+        float wx = q[2].x - q[0].x, wy = q[2].y - q[0].y, wz = q[2].z - q[0].z;
+        float mx = (q[0].x + q[2].x) * 0.5f - c.x, my = (q[0].y + q[2].y) * 0.5f - c.y, mz = (q[0].z + q[2].z) * 0.5f - c.z;
+        if ((uy * wz - uz * wy) * mx + (uz * wx - ux * wz) * my + (ux * wy - uy * wx) * mz < 0.0f) {
+            p3_vec t = q[1];
+            q[1] = q[3], q[3] = t;
+        }
+        face(q, 4, tones, edge, 0.0f);
+    }
+}
+
+void p3d_corners3(const p3_vec v[8], const uint16_t tones[3], const uint16_t *edge) { box_faces(v, tones, edge); }
+
+void p3d_box3(p3_vec c, p3_vec h, const uint16_t tones[3], const uint16_t *edge)
+{
+    p3_vec v[8];
+    for (int i = 0; i < 8; i++)
+        v[i] = (p3_vec){c.x + (i & 1 ? h.x : -h.x), c.y + (i & 2 ? h.y : -h.y), c.z + (i & 4 ? h.z : -h.z)};
+    box_faces(v, tones, edge);
+}
+
+void p3d_beam3(p3_vec a, p3_vec b, float w, const uint16_t tones[3], const uint16_t *edge)
+{
+    float dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, l = fm_sqrtf(dx * dx + dy * dy + dz * dz);
+    if (l <= 0.0f)
+        return;
+    dx /= l, dy /= l, dz /= l;
+    float rx = fm_fabsf(dy) < 0.9f ? 0.0f : 1.0f, ry = fm_fabsf(dy) < 0.9f ? 1.0f : 0.0f;   /* a reference not along u */
+    float n1x = dy * 0 - dz * ry, n1y = dz * rx - dx * 0, n1z = dx * ry - dy * rx, n1 = fm_sqrtf(n1x * n1x + n1y * n1y + n1z * n1z);
+    n1x /= n1, n1y /= n1, n1z /= n1;
+    float n2x = dy * n1z - dz * n1y, n2y = dz * n1x - dx * n1z, n2z = dx * n1y - dy * n1x;
+    p3_vec v[8];
+    for (int i = 0; i < 8; i++) {
+        const p3_vec *p = i & 4 ? &b : &a;
+        float s1 = (i & 1 ? w : -w), s2 = (i & 2 ? w : -w);
+        v[i] = (p3_vec){p->x + n1x * s1 + n2x * s2, p->y + n1y * s1 + n2y * s2, p->z + n1z * s1 + n2z * s2};
+    }
+    box_faces(v, tones, edge);
+}
+
+void p3d_line3(p3_vec a, p3_vec b, uint8_t width, uint16_t c, float bias)
+{
+    float xa, ya, za, xb, yb, zb;
+    if (!p3d_project(a, &xa, &ya, &za) || !p3d_project(b, &xb, &yb, &zb))
+        return;
+    float z = 0.5f * (za + zb) - bias;
+    p3d_line(xa, ya, xb, yb, -25.0f * z, width, p3d_mix(c, pc.fog, fog_at(z)));
 }

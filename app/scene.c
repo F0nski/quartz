@@ -37,9 +37,19 @@ static union {
     struct { p3_vec v[MD_V * MD_V]; p3_face f[2 * MD_N * MD_N]; uint8_t part[2 * MD_N * MD_N]; float z[MD_V * MD_V]; } md;
     struct { p3_vec base[HD_NV], v[HD_NV]; p3_face f[2 * HD_LAT * HD_LON]; uint8_t part[2 * HD_LAT * HD_LON]; } hd;
     struct { p3_vec ico_v[12], spire_v[6][10], boulder_v[6][12], crys_v[6]; p3_face ico_f[20], spire_f[13], cf[8]; } fleet;
+    struct { float h[11 * 13], tab[64]; int16_t k[3]; } va;   /* the crests: heights, the VA VCF's wave, its knobs */
+    struct { float h[9 * 9]; int16_t seg[48][4]; uint16_t segc[48]; } wave;   /* the bowl: the pit, the deck's lines */
+    struct { int16_t seg[96][4]; uint16_t segc[96]; int16_t pollen[16][2]; } garden;   /* the dome's lines, the pollen */
+    struct { int16_t sq[64][3]; uint16_t sqc[64][3]; float grid[40][4]; } chip;   /* the voxels, the ground's grid */
+    struct { float pipe[13][4]; int16_t seg[64][4]; uint16_t segc[64]; } choir;   /* the organ, the backdrop's lines */
+    struct { int16_t seg[64][4]; uint16_t segc[64]; } rope;   /* the big top's and the ground's lines */
+    struct { float b[48], y[48], tile[48][8]; int16_t seg[48][4], cell[84][4]; uint16_t segc[48], cellc[84], tilec[48]; } dance;
+                                                             /* the tiles' grains, the unlit tiles, the wall, the lines */
+    struct { int16_t seg[352][4]; uint16_t segc[352]; int grid; } home;   /* HOME: the grid, then the steps, rings */
 } sb;
-static enum { SB_NONE, SB_MODAL, SB_SPEECH, SB_MARBLES } sb_owner;
-static struct { uint32_t hits[3], hit_ms[3]; int seen, model; float t; } sc;
+static enum { SB_NONE, SB_MODAL, SB_SPEECH, SB_MARBLES, SB_VA, SB_WAVE, SB_GARDEN, SB_CHIP, SB_CHOIR, SB_ROPE, SB_DANCE, SB_HOME } sb_owner;
+static struct { uint32_t hits[3], hit_ms[3]; int seen, fresh, model; float t; } sc;   /* fresh: the first frame since
+                                                                                          scene_enter */
 
 void scene_enter(void) { sc.seen = 0; }
 
@@ -58,7 +68,12 @@ static void stars(int32_t oy, float t, int n, int y0, int h, float speed)
 
 #define M_KIT_SCENE 24              /* M_KIT (project.h is not included here) */
 static int is_fm(int model) { return model == 2 || model == 3 || model == 4 || model == 10; }
-int scene_has(int model) { return is_fm(model) || model == 15 || (model >= 20 && model <= 24); }
+static int is_va(int model) { return model == 0 || model == 1 || model == 8 || model == 9; }
+static int is_wave(int model) { return model == 5 || model == 13; }
+static int is_garden(int model) { return model == 11 || model == 12; }
+static int is_choir(int model) { return model == 6 || model == 14; }
+static int is_dance(int model) { return model >= 16 && model <= 18; }
+int scene_has(int model) { return is_fm(model) || is_choir(model) || model == 19 || is_dance(model) || is_va(model) || is_wave(model) || is_garden(model) || model == 7 || model == 15 || (model >= 20 && model <= 24); }
 
 /* the notes since the last frame: hit_ms[e] the last one of counter e (the first frame flashes nothing) */
 static void take_hits(const uint32_t hits[3], uint32_t ms)
@@ -493,6 +508,7 @@ static void speech_band(int32_t oy)
 
 void scene_frame(const q_sview *v, uint32_t ms)
 {
+    sc.fresh = !sc.seen;
     take_hits(v->hits, ms);
     sc.model = v->model;
     if (is_fm(v->model))
@@ -503,6 +519,20 @@ void scene_frame(const q_sview *v, uint32_t ms)
         modal_frame(v, ms);
     else if (v->model == 15)
         speech_frame(v, ms);
+    else if (is_va(v->model))
+        va_frame(v, ms);
+    else if (is_wave(v->model))
+        wave_frame(v, ms);
+    else if (is_garden(v->model))
+        garden_frame(v, ms);
+    else if (v->model == 7)
+        chip_frame(v, ms);
+    else if (is_choir(v->model))
+        choir_frame(v, ms);
+    else if (v->model == 19)
+        rope_frame(v, ms);
+    else if (is_dance(v->model))
+        dance_frame(v, ms);
     else
         p3d_begin();
 }
@@ -517,6 +547,20 @@ void scene_band(int32_t oy)
         modal_band(oy);
     else if (sc.model == 15)
         speech_band(oy);
+    else if (is_va(sc.model))
+        va_band(oy);
+    else if (is_wave(sc.model))
+        wave_band(oy);
+    else if (is_garden(sc.model))
+        garden_band(oy);
+    else if (sc.model == 7)
+        chip_band(oy);
+    else if (is_choir(sc.model))
+        choir_band(oy);
+    else if (sc.model == 19)
+        rope_band(oy);
+    else if (is_dance(sc.model))
+        dance_band(oy);
     else
         cv_rect(0, oy, 240, 166, C_SKY);
 }
