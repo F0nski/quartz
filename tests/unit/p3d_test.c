@@ -153,6 +153,72 @@ static void flat_on_centres(void)
     }
 }
 
+
+/* a 40-px square at (10, 10) facing the viewer, cut along its diagonal 0-2 */
+static const p3_vec SQ[4] = {{0, 0, 0}, {40, 0, 0}, {40, 40, 0}, {0, 40, 0}};
+static const p3_face SQF[2] = {{0, 1, 2, 4}, {0, 2, 3, 1}};
+static const uint16_t RB[2][3] = {{RED, RED, RED}, {BLUE, BLUE, BLUE}};
+
+static void parts_take_their_tones(void)
+{
+    static const uint8_t part[2] = {0, 1};
+    p3_mesh m = {SQ, SQF, 4, 2};
+    p3_pose p = {0, 0, 1, 10, 10};
+    cv_begin(240, 83, 0);
+    p3d_begin();
+    p3d_mesh_parts(&m, &p, RB, part, NULL);
+    p3d_draw(0);
+    assert(px(40, 20) == RED);           /* above the diagonal: face 0 */
+    assert(px(20, 40) == BLUE);
+}
+
+static void edge_skips_diagonal(void)
+{
+    static const uint8_t part[2] = {1, 1};
+    const uint16_t red = RED;
+    p3_mesh m = {SQ, SQF, 4, 2};
+    p3_pose p = {0, 0, 1, 10, 10};
+    cv_begin(240, 83, 0);
+    p3d_begin();
+    p3d_mesh_parts(&m, &p, RB, part, &red);
+    assert(p3d_count() == 2);
+    p3d_draw(0);
+    int top = 0, left = 0, right = 0, bottom = 0;
+    for (int k = 12; k < 48; k++) {
+        top += px(k, 10) == RED;
+        bottom += px(k, 50) == RED;
+        left += px(10, k) == RED;
+        right += px(50, k) == RED;
+    }
+    assert(top && bottom && left && right);
+    assert(px(30, 30) == BLUE);
+    assert(px(20, 20) == BLUE);
+}
+
+static void edge_drawn_in_depth_order(void)
+{
+    static const uint8_t part[2] = {1, 1};
+    const uint16_t red = RED;
+    p3_mesh m = {SQ, SQF, 4, 2};
+    p3_pose p = {0, 0, 1, 10, 10, -5};
+    cv_begin(240, 83, 0);
+    p3d_begin();
+    p3d_mesh_parts(&m, &p, RB, part, &red);
+    p3d_tri(0, 0, 30, 0, 0, 70, 5, ORANGE[1]);   /* nearer, over the square's left side */
+    p3d_draw(0);
+    for (int y = 12; y < 44; y++) assert(px(10, y) == ORANGE[1]);
+}
+
+static void sphere_marks_diagonals(void)
+{
+    p3_mesh m;
+    p3d_sphere(5, 10, SV, SF, &m);
+    for (int i = 0; i < m.nf; i++) {
+        int bits = __builtin_popcount(SF[i].hide);
+        assert(i < 10 || i >= m.nf - 10 ? bits == 0 : bits == 1);
+    }
+}
+
 int main(void)
 {
     fill_matches_centres();
@@ -163,6 +229,10 @@ int main(void)
     sphere_closed();
     mesh_culls_and_tones();
     flat_on_centres();
+    parts_take_their_tones();
+    edge_skips_diagonal();
+    edge_drawn_in_depth_order();
+    sphere_marks_diagonals();
     printf("p3d ok\n");
     return 0;
 }

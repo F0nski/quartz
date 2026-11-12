@@ -35,6 +35,7 @@ void audio_punch(uint16_t mask);                        /* the punch-ins held, b
 int audio_playing(void);
 int audio_pos(int track);                               /* step in progress, -1 when stopped */
 uint32_t audio_hits(int track);                         /* note-ons the track sounded since boot (compare by difference) */
+uint32_t audio_kit_hits(int track, int engine);         /* a KIT's note-ons whose pad had that engine (PAD_BD, PAD_SN, PAD_HH) */
 /* a MARBLES track's notes decided after the *seen-th (a step before they sound), oldest first, max at most, and the ms
    until each sounds; *seen moves on. More than 16 behind: the last 16 */
 int audio_notes(int track, uint32_t *seen, uint8_t *out, uint32_t *in_ms, int max);

@@ -1643,6 +1643,32 @@ static void hits_count_note_ons(void)
     assert(sum - sum0 == 1);
 }
 
+/* a KIT's note-ons per pad engine, taken at the note-on */
+static void kit_hits_per_engine(void)
+{
+    uint32_t h[2][3];
+    setup();
+    set_model(1, M_KIT);
+    P.kit[1][2].engine = PAD_SN;
+    P.kit[1][0].engine = PAD_BD;
+    for (int t = 0; t < 2; t++)
+        for (int e = 0; e < 3; e++) h[t][e] = audio_kit_hits(t, e);
+    audio_live_note(1, KIT_NOTE + 2, 1);
+    block(256);
+    assert(audio_kit_hits(1, PAD_SN) - h[1][PAD_SN] == 1);
+    assert(audio_kit_hits(1, PAD_BD) == h[1][PAD_BD] && audio_kit_hits(1, PAD_HH) == h[1][PAD_HH]);
+    for (int e = 0; e < 3; e++) assert(audio_kit_hits(0, e) == h[0][e]);
+    audio_live_note(1, KIT_NOTE + 2, 0);
+    audio_live_note(1, KIT_NOTE, 1);
+    block(256);
+    assert(audio_kit_hits(1, PAD_BD) - h[1][PAD_BD] == 1);
+    audio_live_note(1, KIT_NOTE, 0);
+    audio_live_note(1, KIT_NOTE + 16, 1);
+    block(256);
+    assert(audio_kit_hits(1, PAD_BD) - h[1][PAD_BD] == 1 && audio_kit_hits(1, PAD_SN) - h[1][PAD_SN] == 1);
+    assert(audio_kit_hits(1, PAD_HH) == h[1][PAD_HH]);
+}
+
 /* the MARBLES scene's notes: decided a step ahead, with the ms until they sound; not a STEP track's */
 static void marbles_notes_ahead(void)
 {
@@ -1762,6 +1788,7 @@ int main(void)
     recorded_punch_follows_pattern();
     free_phase_when_stopped();
     hits_count_note_ons();
+    kit_hits_per_engine();
     marbles_notes_ahead();
     notes_survive_restart();
     puts("audio_test ok");

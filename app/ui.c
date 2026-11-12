@@ -1178,7 +1178,10 @@ static void view_now(q_view *v)
     if (pid == P_ENGINE || pid == P_SOUND || pid == P_SCALE || pid == P_PAD || pid >= P_ADSR) {
         __builtin_memcpy(v->scene.v, v->foot.v, sizeof v->scene.v);
         v->scene.model = pid == P_PAD ? KIT_MODEL + ui.p->kit[ui.track][ui.pad].engine : ui.p->sound[ui.track].model;
-        if ((pid == P_ENGINE || pid == P_SOUND) && scene_has(v->scene.model)) {
+        if (pid == P_PAD) {                     /* a KIT's scene: the edited pad's knobs on its engine's polyhedron */
+            v->scene.anim = 1;
+            v->scene.pad = (uint8_t)ui.pad;
+        } else if ((pid == P_ENGINE || pid == P_SOUND) && scene_has(v->scene.model) && v->scene.model != M_KIT) {
             v->scene.anim = 1;
             if (pid == P_SOUND)         /* the scene shows the sound's ENGINE knobs on both pages */
                 for (k = 0; k < 4; k++)
@@ -1581,14 +1584,23 @@ void ui_frame(void)
         if (ui.full || now - ui.scene_ms >= 30u || __builtin_memcmp(&v.scene, &ui.shown.scene, sizeof v.scene)) {
             /* shown anew (another scene, track, pattern or page of steps): the notes before do not hit */
             /* compared with the last frame drawn, not the last one shown: a change between two draws counts */
-            int key = v.scene.anim | v.head.track << 2 | v.head.pat << 5 | v.scene.spage << 9, fresh = ui.full || key != ui.scene_key;
+            /* (another model, or another pad or its engine on a KIT, is another scene too) */
+            int key = v.scene.anim | v.head.track << 2 | v.head.pat << 5 | v.scene.spage << 9 | v.scene.pad << 13 | v.scene.model << 17;
+            int fresh = ui.full || key != ui.scene_key;
             ui.scene_key = key;
             ui.scene_ms = now;
             ui.frames++;
             if (v.scene.anim == 1) {
                 if (fresh)
                     scene_enter();
-                scene_frame(v.scene.v, audio_hits(ui.track), now);
+                q_sview sv = {v.scene.model, -1, {v.scene.v[0], v.scene.v[1], v.scene.v[2], v.scene.v[3]}, {audio_hits(ui.track), 0, 0}};
+                if (v.scene.pid == P_PAD) {     /* scene.model: the pad's engine's model */
+                    sv.model = M_KIT;
+                    sv.pad_eng = (int8_t)(v.scene.model - KIT_MODEL);
+                    for (int k = 0; k < 3; k++)
+                        sv.hits[k] = audio_kit_hits(ui.track, k);
+                }
+                scene_frame(&sv, now);
             } else if (v.scene.anim == 3) {
                 const q_pattern *t = pat();
                 q_mview mv;
@@ -1777,6 +1789,7 @@ int ui_expect(const char *what, int *got)
         *got = what[1] == 'l' ? pp.live : what[1] == 'e' ? pp.end : (int)strlen(pp.rows[0][1]);
     }
     else if (!strcmp(what, "hits")) *got = (int)audio_hits(ui.track);
+    else if (!strncmp(what, "kit_hits_", 9)) *got = m >= 1 && m <= 3 ? (int)audio_kit_hits(ui.track, m - 1) : 0;
     else if (!strcmp(what, "fps")) *got = ui.fps;
     else if (!strcmp(what, "dfb")) *got = ui.p->dfb;
     else if (!strcmp(what, "rsize")) *got = ui.p->rsize;

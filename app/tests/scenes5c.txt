@@ -1,0 +1,74 @@
+# The step 5c scenes: SPEECH, MODAL and a single drum on ENGINE and SOUND; a KIT on PAD, not on its KIT page
+wait 600
+tap EDIT
+turn PRESET 7
+expect model 15
+wait 100
+expect scene3d 1
+key 6 down
+wait 50
+expect hits 1
+wait 60
+shot speech_hit.png
+key 6 up
+turn SELECT 1
+expect page 2
+wait 100
+expect scene3d 1
+turn SELECT -1
+expect page 1
+turn PRESET 5
+expect model 20
+wait 100
+expect scene3d 1
+key 6 down
+wait 50
+shot modal_hit.png
+key 6 up
+turn PRESET 2
+expect model 22
+wait 100
+expect scene3d 1
+shot snare.png
+# STRING has no scene yet
+turn PRESET -3
+expect model 19
+wait 100
+expect scene3d 0
+# a KIT: its PAD page shows the scene, its KIT page the pads
+turn PRESET 5
+expect model 24
+expect page 1
+wait 100
+expect scene3d 1
+key 6 down
+wait 50
+expect kit_hits_3 1
+expect kit_hits_1 0
+expect pad 4
+shot kit_scene.png
+key 6 up
+turn SELECT 1
+expect page 2
+wait 100
+expect scene3d 0
+turn SELECT -1
+expect page 1
+wait 100
+expect scene3d 1
+# MODAL straight to KIT on SOUND: page 2 becomes the KIT page (no scene, nothing left of the plate), page 1 its PAD scene
+turn PRESET -4
+expect model 20
+wait 100
+turn SELECT 1
+expect page 2
+turn K1 4
+expect model 24
+wait 100
+expect page 2
+expect scene3d 0
+shot modal_to_kit.png
+turn SELECT -1
+expect page 1
+wait 100
+expect scene3d 1

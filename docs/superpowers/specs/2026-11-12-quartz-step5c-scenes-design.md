@@ -23,7 +23,7 @@ Zone de scène 240×166 ; en-tête et pied de page inchangés, les valeurs des e
 
 | Modèle | Pages | Encodeurs lus par la scène |
 |---|---|---|
-| KIT | SOUND, PAD | ceux de PAD pour le pad édité (`ui.pad`), sur les deux pages |
+| KIT | PAD (un KIT n'a pas de page SOUND) | ceux de PAD pour le pad édité (`ui.pad`, ou le pad tenu) |
 | BASS DRUM, SNARE, HI-HAT | ENGINE, SOUND | ceux d'ENGINE, sur les deux pages |
 | MODAL | ENGINE, SOUND | ceux d'ENGINE, sur les deux pages |
 | SPEECH | ENGINE, SOUND | ceux d'ENGINE, sur les deux pages |
@@ -31,6 +31,7 @@ Zone de scène 240×166 ; en-tête et pied de page inchangés, les valeurs des e
 - La page KIT (grille des 16 pads et de leurs moteurs) garde son affichage : une page qui sert à éditer reste lisible
   d'abord.
 - Sur SOUND, tourner MODEL vers un de ces modèles fait apparaître sa scène, vers un modèle sans scène la retire.
+  Passer une piste en KIT (MODEL de SOUND) mène à ses pages PAD et KIT.
 - Changer de pad édité ou de modèle relance la scène sans flash des notes d'avant (`scene_enter`).
 
 ## 3. La scène KIT : trois polyèdres dans un tunnel
@@ -52,7 +53,7 @@ Fidèle à la maquette `docs/screens/scenes.html` (« Kit »), dans la direction
 | Encodeur (PAD, pad édité) | Élément du polyèdre de son moteur | Plage |
 |---|---|---|
 | TUNE | taille | grave gros, aigu petit (±25 %) |
-| HARM | ampleur de la réaction : gonflement, écart des éclats, angle de bascule | faible à forte |
+| HARM | ampleur de la réaction : gonflement, écart des éclats, hauteur du saut pendant la bascule | faible à forte |
 | TIMB | vitesse de rotation | lente à vive |
 | DECAY | durée du flash rose | court à long |
 
@@ -122,7 +123,7 @@ Fidèle à `docs/screens/speech.html` (« En direct »).
 | `app/scene.c`, `scene.h` | Les scènes KIT, MODAL et SPEECH à côté de la planète. `scene_has` couvre MODAL, SPEECH, BASS DRUM, SNARE, HI-HAT ; `scene_frame` reçoit le modèle et, pour un KIT, les compteurs de frappes par moteur et le moteur du pad édité. |
 | `app/p3d.c`, `p3d.h` | Des tons par face (un indice de partie par face) et un contour optionnel des faces, dessiné avec elles dans l'ordre du tri, qui ne trace pas les arêtes marquées comme diagonales de quad. |
 | `app/audio.c`, `audio.h` | `audio_kit_hits(track, engine)` : les note-ons d'un KIT par moteur de pad (BD, SN, HH), comptés par le rendu au note-on à côté de `hits`. |
-| `app/ui.c` | Les pages de la section 2 donnent la scène ; la scène KIT reçoit les encodeurs de PAD du pad édité même sur SOUND. |
+| `app/ui.c` | Les pages de la section 2 donnent la scène ; la scène KIT reçoit les encodeurs de PAD du pad édité. |
 
 - La scène est calculée une fois par image puis dessinée en deux bandes, comme en 5a. Animations au temps (`plat_ms`).
 - Calcul en simple précision, sinus et cosinus par `fastmath.h`, aucun appel à libm dans les boucles.

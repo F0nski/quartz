@@ -25,7 +25,7 @@ static const uint16_t PINK3[3] = {RGB(0xff, 0xb8, 0xdc), RGB(0xff, 0x2f, 0x8e), 
 static p3_vec planet_v[60];
 static p3_face planet_f[80];
 static p3_mesh planet;
-static struct { uint32_t hits, hit_ms; int seen; float t; } sc;
+static struct { uint32_t hits[3], hit_ms[3]; int seen, model; float t; } sc;
 
 void scene_enter(void) { sc.seen = 0; }
 
@@ -42,7 +42,20 @@ static void stars(int32_t oy, float t, int n, int y0, int h, float speed)
     }
 }
 
-int scene_has(int model) { return model == 2 || model == 3 || model == 4 || model == 10; }
+#define M_KIT_SCENE 24              /* M_KIT (project.h is not included here) */
+static int is_fm(int model) { return model == 2 || model == 3 || model == 4 || model == 10; }
+int scene_has(int model) { return is_fm(model) || model == 15 || (model >= 20 && model <= 24); }
+
+/* the notes since the last frame: hit_ms[e] the last one of counter e (the first frame flashes nothing) */
+static void take_hits(const uint32_t hits[3], uint32_t ms)
+{
+    for (int e = 0; e < 3; e++)
+        if (!sc.seen || hits[e] != sc.hits[e]) {
+            sc.hit_ms[e] = sc.seen ? ms : ms - 100000u;
+            sc.hits[e] = hits[e];
+        }
+    sc.seen = 1;
+}
 
 /* a point of the orbit plane, tilted towards the viewer: the far side (depth < 0) is higher on the screen */
 static void orbit(float a, float r, float tilt_s, float tilt_c, float *x, float *y, float *z)
@@ -53,7 +66,7 @@ static void orbit(float a, float r, float tilt_s, float tilt_c, float *x, float 
     *z = r * s * tilt_c;
 }
 
-void scene_frame(const int16_t knobs[4], uint32_t hits, uint32_t ms)
+static void planet_frame(const int16_t knobs[4], uint32_t ms)
 {
     float t = (float)(ms % 3600000u) * 0.001f;    /* wrapped hourly: the angles stay small for fm_sinf */
     float tilt = 0.15f + 1.0f * (float)knobs[2] / 127.0f, ts = fm_sinf(tilt), tc = fm_cosf(tilt);
@@ -62,12 +75,7 @@ void scene_frame(const int16_t knobs[4], uint32_t hits, uint32_t ms)
     p3_pose pose = {0.6f * t, 0.0f, R, CX, CY};
     if (!planet.nv)
         p3d_sphere(5, 10, planet_v, planet_f, &planet);
-    if (!sc.seen || hits != sc.hits) {           /* a note since the last frame (the first frame flashes nothing) */
-        sc.hit_ms = sc.seen ? ms : ms - 100000u;
-        sc.hits = hits;
-        sc.seen = 1;
-    }
-    h = fm_expf(-(float)(ms - sc.hit_ms) / (50.0f + 250.0f * (float)knobs[3] / 127.0f));
+    h = fm_expf(-(float)(ms - sc.hit_ms[0]) / (50.0f + 250.0f * (float)knobs[3] / 127.0f));
     sc.t = t;
     p3d_begin();
     p3d_tri(CX - 34, 138, CX + 34, 138, CX + 22, 144, -1000.0f, C_SHADOW);   /* the planet's shadow on the floor */
@@ -103,7 +111,8 @@ void scene_frame(const int16_t knobs[4], uint32_t hits, uint32_t ms)
     }
 }
 
-void scene_band(int32_t oy)
+
+static void planet_band(int32_t oy)
 {
     float t = sc.t, f = 0.6f * t - fm_floorf(0.6f * t);
     int i;
@@ -119,6 +128,393 @@ void scene_band(int32_t oy)
         cv_rect(0, oy + HORIZON + (int32_t)(46.0f * p), 240, 1, C_GRID);
     }
     p3d_draw(oy);
+}
+
+
+/* ---- KIT and the single drums (spec 5c, 3; docs/screens/scenes.html "Kit") -------------------------------------- */
+#define C_BG RGB(0x0c, 0x08, 0x20)
+#define C_CYAN RGB(0x5f, 0xe0, 0xff)
+#define C_LABEL RGB(0x8b, 0x84, 0xa8)
+#define TUN_CY 83                   /* the tunnel's centre in the scene area */
+static const uint16_t KBLUE[3] = {RGB(0x8f, 0xb4, 0xff), RGB(0x3a, 0x6d, 0xff), RGB(0x1c, 0x35, 0x90)};
+static const uint16_t KGREEN[3] = {RGB(0x8f, 0xf5, 0xc8), RGB(0x22, 0xd5, 0x8e), RGB(0x0f, 0x6d, 0x48)};
+static const uint16_t KIT_EDGE[3] = {RGB(0x0a, 0x14, 0x40), RGB(0x06, 0x30, 0x1f), RGB(0x4a, 0x1d, 0x04)};
+static const char *const KIT_NAME[3] = {"BD", "SN", "HH"};
+static const float KIT_X[3] = {60.0f, 128.0f, 194.0f}, KIT_Y[3] = {88.0f, 82.0f, 78.0f}, KIT_S[3] = {24.0f, 14.0f, 13.0f};
+
+static const p3_vec OCTA_V[6] = {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
+static const p3_vec CUBE_V[8] = {{-1, -1, -1}, {1, -1, -1}, {1, 1, -1}, {-1, 1, -1}, {-1, -1, 1}, {1, -1, 1}, {1, 1, 1}, {-1, 1, 1}};
+static const p3_vec TETRA_V[4] = {{1, 1, 1}, {-1, -1, 1}, {-1, 1, -1}, {1, -1, -1}};
+static const uint8_t CUBE_Q[6][4] = {{4, 5, 6, 7}, {1, 0, 3, 2}, {5, 1, 2, 6}, {0, 4, 7, 3}, {3, 7, 6, 2}, {0, 1, 5, 4}};
+static p3_face octa_f[8], cube_f[12], tetra_f[4], shard_f[12];
+static p3_vec shard_v[24];
+static p3_mesh octa, cube, tetra, shards;
+static struct { int n, kick, edited; float x[3]; } kd;   /* polyhedra shown (1 or 3), the kick's flash, the cyan mark */
+
+/* turn a face of a mesh centred on the origin to face out, its hidden edges following */
+static void orient(p3_face *f, const p3_vec *v)
+{
+    const p3_vec *a = &v[f->a], *b = &v[f->b], *c = &v[f->c];
+    float ux = b->x - a->x, uy = b->y - a->y, uz = b->z - a->z, wx = c->x - a->x, wy = c->y - a->y, wz = c->z - a->z;
+    if ((uy * wz - uz * wy) * (a->x + b->x + c->x) + (uz * wx - ux * wz) * (a->y + b->y + c->y) +
+        (ux * wy - uy * wx) * (a->z + b->z + c->z) < 0.0f) {
+        uint8_t t = f->b;
+        f->b = f->c;
+        f->c = t;
+        f->hide = (uint8_t)((f->hide & 2u) | (f->hide >> 2 & 1u) | (f->hide << 2 & 4u));   /* a-b and c-a swap */
+    }
+}
+
+static void kit_meshes(void)
+{
+    static const uint8_t OF[8][3] = {{0, 4, 2}, {4, 1, 2}, {1, 5, 2}, {5, 0, 2}, {4, 0, 3}, {1, 4, 3}, {5, 1, 3}, {0, 5, 3}};
+    static const uint8_t TF[4][3] = {{0, 1, 2}, {0, 3, 1}, {0, 2, 3}, {1, 3, 2}};
+    int i;
+    for (i = 0; i < 8; i++) {
+        octa_f[i] = (p3_face){OF[i][0], OF[i][1], OF[i][2], 0};
+        orient(&octa_f[i], OCTA_V);
+    }
+    for (i = 0; i < 4; i++) {
+        tetra_f[i] = (p3_face){TF[i][0], TF[i][1], TF[i][2], 0};
+        orient(&tetra_f[i], TETRA_V);
+    }
+    for (i = 0; i < 6; i++) {               /* each square as two triangles, the diagonal hidden */
+        const uint8_t *q = CUBE_Q[i];
+        cube_f[2 * i] = (p3_face){q[0], q[1], q[2], 4};
+        cube_f[2 * i + 1] = (p3_face){q[0], q[2], q[3], 1};
+        orient(&cube_f[2 * i], CUBE_V);
+        orient(&cube_f[2 * i + 1], CUBE_V);
+        shard_f[2 * i] = (p3_face){(uint8_t)(4 * i), (uint8_t)(4 * i + 1), (uint8_t)(4 * i + 2), 4};
+        shard_f[2 * i + 1] = (p3_face){(uint8_t)(4 * i), (uint8_t)(4 * i + 2), (uint8_t)(4 * i + 3), 1};
+    }
+    octa = (p3_mesh){OCTA_V, octa_f, 6, 8};
+    cube = (p3_mesh){CUBE_V, cube_f, 8, 12};
+    tetra = (p3_mesh){TETRA_V, tetra_f, 4, 4};
+    shards = (p3_mesh){shard_v, shard_f, 24, 12};
+}
+
+/* the snare's cube with its 6 faces moved out by d along their normals */
+static void cube_shards(float d)
+{
+    for (int i = 0; i < 6; i++) {
+        const uint8_t *q = CUBE_Q[i];
+        float nx = 0, ny = 0, nz = 0;
+        for (int j = 0; j < 4; j++) nx += CUBE_V[q[j]].x, ny += CUBE_V[q[j]].y, nz += CUBE_V[q[j]].z;
+        for (int j = 0; j < 4; j++)
+            shard_v[4 * i + j] = (p3_vec){CUBE_V[q[j]].x + nx * 0.25f * d, CUBE_V[q[j]].y + ny * 0.25f * d, CUBE_V[q[j]].z + nz * 0.25f * d};
+        orient(&shard_f[2 * i], shard_v);       /* the shard's own face: oriented about the cube's centre too */
+        orient(&shard_f[2 * i + 1], shard_v);
+    }
+}
+
+/* k: the KIT's edited pad's TUNE, HARM, TIMB, DECAY, or a single drum's HARM, TIMB, MORPH, DECAY */
+static void kit_frame(const q_sview *v, uint32_t ms)
+{
+    float t = (float)(ms % 3600000u) * 0.001f;
+    int single = v->model != M_KIT_SCENE, e0 = single ? v->model - 21 : 0, e1 = single ? e0 + 1 : 3;
+    if (!octa.nv)
+        kit_meshes();
+    sc.t = t;
+    kd.n = e1 - e0;
+    kd.kick = 0;
+    kd.edited = single ? -1 : v->pad_eng;
+    p3d_begin();
+    for (int e = e0; e < e1; e++) {
+        int mine = single || e == v->pad_eng;
+        float tune = mine && !single ? (float)v->k[0] / 24.0f : 0.0f;
+        float harm = mine ? (float)v->k[single ? 0 : 1] / 127.0f : 0.5f, timb = mine ? (float)v->k[single ? 1 : 2] / 127.0f : 0.5f;
+        float flash = 0.06f + 0.3f * (mine ? (float)v->k[3] : 64.0f) / 127.0f;
+        float react = single ? 0.1f + 0.4f * (float)v->k[2] / 127.0f : 0.25f;   /* a single drum's MORPH: its decay */
+        float since = (float)(ms - sc.hit_ms[single ? 0 : e]) * 0.001f, amp = 0.3f + 0.7f * harm, spin = 0.3f + 1.2f * timb;
+        const uint16_t *tones = since < flash ? PINK3 : e == 0 ? KBLUE : e == 1 ? KGREEN : ORANGE;
+        p3_pose p = {spin * t, 0.4f, KIT_S[e] * (1.0f - 0.25f * tune) * (single ? 1.6f : 1.0f), single ? 120.0f : KIT_X[e],
+                     single ? 82.0f : KIT_Y[e], 0.0f};
+        kd.x[e - e0] = p.cx;
+        if (e == 0) {                       /* BD: swells */
+            if (since < flash)
+                kd.kick = 1;
+            if (since < 8.0f * react)
+                p.s *= 1.0f + 0.45f * amp * fm_expf(-since / react);
+            p3d_mesh_parts(&octa, &p, (const uint16_t (*)[3])tones, 0, &KIT_EDGE[0]);
+        } else if (e == 1) {                /* SN: bursts, its faces out and back */
+            p.ax = 0.5f;
+            if (since < react) {
+                cube_shards(1.6f * amp * fm_sinf(FM_PI * since / react));
+                p.ay += 0.5f * FM_PI * since / react;   /* a quarter turn: the cube closes as it was */
+                p3d_mesh_parts(&shards, &p, (const uint16_t (*)[3])tones, 0, &KIT_EDGE[1]);
+            } else {
+                p3d_mesh_parts(&cube, &p, (const uint16_t (*)[3])tones, 0, &KIT_EDGE[1]);
+            }
+        } else {                            /* HH: a quarter turn a hit with a hop as high as HARM, done in 120 ms (a
+                                               single hi-hat: as long as its MORPH says) */
+            uint32_t n = sc.hits[single ? 0 : 2];
+            float q = (float)(n & 3u), dur = single ? 0.4f * react : 0.12f;
+            if (n && since < dur) {
+                q += since / dur - 1.0f;
+                p.cy -= 8.0f * amp * fm_sinf(FM_PI * since / dur);
+            }
+            p.ax = 0.6f + q * (0.5f * FM_PI);
+            p3d_mesh_parts(&tetra, &p, (const uint16_t (*)[3])tones, 0, &KIT_EDGE[2]);
+        }
+    }
+}
+
+static void kit_band(int32_t oy)
+{
+    float f = 1.2f * sc.t - fm_floorf(1.2f * sc.t);
+    int i;
+    cv_rect(0, oy, 240, 166, C_BG);
+    for (i = 0; i < 2; i++) {               /* the vanishing lines to the corners */
+        cv_line(120, oy + TUN_CY, 240 * i, oy, RGB(0x22, 0x18, 0x4a));
+        cv_line(120, oy + TUN_CY, 240 * i, oy + 165, RGB(0x22, 0x18, 0x4a));
+    }
+    for (i = 0; i < 7; i++) {               /* the tunnel's squares rushing out, the nearest pink on a kick */
+        float p = ((float)i + f) / 7.0f, w;
+        int32_t x0, y0, ww, hh, th;
+        uint16_t c;
+        p *= p;
+        w = 10.0f + p * 230.0f;
+        x0 = (int32_t)(120.0f - w * 0.5f), y0 = (int32_t)((float)TUN_CY - w * 0.36f), ww = (int32_t)w, hh = (int32_t)(w * 0.72f);
+        c = kd.kick && i == 6 ? PINK3[1] : p > 0.5f ? RGB(0x3a, 0x24, 0x70) : RGB(0x22, 0x18, 0x4a);
+        th = kd.kick && p > 0.6f ? 2 : 1;
+        cv_rect(x0, oy + y0, ww, th, c);
+        cv_rect(x0, oy + y0 + hh - th, ww, th, c);
+        cv_rect(x0, oy + y0, th, hh, c);
+        cv_rect(x0 + ww - th, oy + y0, th, hh, c);
+    }
+    p3d_draw(oy);
+    if (kd.n == 3)
+        for (i = 0; i < 3; i++) {
+            int32_t x = (int32_t)kd.x[i];
+            cv_text(x - text_w(&FONT_S, KIT_NAME[i]) / 2, oy + 140, &FONT_S, KIT_NAME[i], C_LABEL);
+            if (i == kd.edited)
+                cv_rect(x - 10, oy + 157, 20, 2, C_CYAN);
+        }
+}
+
+/* ---- MODAL: a Chladni relief (spec 5c, 4; docs/screens/scenes.html "Modal") ------------------------------------ */
+#define MD_N 11                     /* quads a side: 242 triangles */
+#define MD_V (MD_N + 1)
+static const uint16_t MD_TONES[3][3] = {
+    {RGB(0x8f, 0xf5, 0xc8), RGB(0x8f, 0xf5, 0xc8), RGB(0x22, 0xd5, 0x8e)},     /* the nodal lines */
+    {RGB(0x8f, 0xb4, 0xff), RGB(0x3a, 0x6d, 0xff), RGB(0x1c, 0x35, 0x90)},     /* above */
+    {RGB(0x22, 0xd5, 0x8e), RGB(0x0f, 0x6d, 0x48), RGB(0x0a, 0x3f, 0x2a)}};    /* below */
+static const uint16_t MD_EDGE = RGB(0x0a, 0x0f, 0x2e);
+static p3_vec pl_v[MD_V * MD_V];
+static p3_face pl_f[2 * MD_N * MD_N];
+static uint8_t pl_part[2 * MD_N * MD_N];
+static float pl_z[MD_V * MD_V];               /* the mode's shape at each vertex */
+static p3_mesh plate;
+static int pl_m, pl_n;
+
+static float chladni(float x, float y, int m, int n)
+{
+    float X = x * FM_PI, Y = y * FM_PI;
+    return fm_cosf((float)n * X) * fm_cosf((float)m * Y) - fm_cosf((float)m * X) * fm_cosf((float)n * Y);
+}
+
+/* the mode (m, n): the shape at the vertices, and each face's part from the shape at its centre */
+static void plate_mode(int m, int n)
+{
+    int i, j;
+    pl_m = m, pl_n = n;
+    for (j = 0; j < MD_V; j++)
+        for (i = 0; i < MD_V; i++) {
+            pl_z[j * MD_V + i] = chladni((float)i / MD_N, (float)j / MD_N, m, n);
+            pl_v[j * MD_V + i].x = ((float)i / MD_N - 0.5f) * 2.0f;
+            pl_v[j * MD_V + i].z = ((float)j / MD_N - 0.5f) * 2.0f;
+        }
+    for (j = 0; j < MD_N; j++)
+        for (i = 0; i < MD_N; i++) {
+            uint8_t a = (uint8_t)(j * MD_V + i), b = (uint8_t)(a + MD_V), c = (uint8_t)(a + MD_V + 1), d = (uint8_t)(a + 1);
+            int k = 2 * (j * MD_N + i);
+            float z = chladni(((float)i + 0.5f) / MD_N, ((float)j + 0.5f) / MD_N, m, n);
+            pl_f[k] = (p3_face){a, b, c, 4};
+            pl_f[k + 1] = (p3_face){a, c, d, 1};
+            pl_part[k] = pl_part[k + 1] = (uint8_t)(fm_fabsf(z) < 0.12f ? 0 : z > 0.0f ? 1 : 2);
+        }
+    plate = (p3_mesh){pl_v, pl_f, MD_V * MD_V, 2 * MD_N * MD_N};
+}
+
+/* k: HARM (the mode), TIMB (the strike's force), MORPH (its damping), DECAY (the pink) */
+static void modal_frame(const q_sview *v, uint32_t ms)
+{
+    float t = (float)(ms % 3600000u) * 0.001f, since = (float)(ms - sc.hit_ms[0]) * 0.001f;
+    float force = 0.4f + 0.6f * (float)v->k[1] / 127.0f, tau = 0.15f + 0.6f * (float)v->k[2] / 127.0f;
+    float amp = 0.16f, sz, cy;
+    int f = v->k[0] * 9 / 128, m = 1 + f / 3, n = m + 1 + f % 3, i;   /* 9 figures: m 1..3, n m + 1..m + 3 */
+    uint16_t tones[3][3];
+    p3_pose p = {0.6f + 0.25f * fm_sinf(0.2f * t), 0.95f, 62.0f, 120.0f, 82.0f, 0.0f};
+    if (!plate.nv || m != pl_m || n != pl_n)
+        plate_mode(m, n);
+    if (since < 6.0f * tau)                    /* a strike: the plate shivers, then settles */
+        amp += 0.05f * fm_expf(-since / tau) * force * fm_sinf(16.0f * since);
+    for (i = 0; i < MD_V * MD_V; i++)
+        pl_v[i].y = -pl_z[i] * amp;
+    __builtin_memcpy(tones, MD_TONES, sizeof tones);
+    if (since < 0.15f + 0.6f * (float)v->k[3] / 127.0f)
+        __builtin_memcpy(tones[0], PINK3, sizeof tones[0]);
+    sc.t = t;
+    p3d_begin();
+    p3d_mesh_parts(&plate, &p, (const uint16_t (*)[3])tones, pl_part, &MD_EDGE);
+    sz = 6.0f + 4.0f * (float)v->k[1] / 127.0f;        /* the striker, dropping on a note */
+    cy = 10.0f + (since < 0.12f ? 14.0f * (1.0f - since / 0.12f) : 0.0f);
+    p3d_tri(120.0f, cy - sz, 120.0f + sz, cy, 120.0f - sz, cy, 1000.0f, ORANGE[0]);
+    p3d_tri(120.0f + sz, cy, 120.0f, cy + sz, 120.0f - sz, cy, 1000.0f, ORANGE[1]);
+}
+
+static void modal_band(int32_t oy)
+{
+    cv_rect(0, oy, 240, 166, C_BG);
+    for (int r = 1; r <= 5; r++)                /* rings on the floor */
+        for (int k = 0; k < 24; k++) {
+            float a0 = (float)k * (FM_TWO_PI / 24.0f), a1 = a0 + FM_TWO_PI / 24.0f;
+            cv_line((int32_t)(120.0f + 24.0f * (float)r * fm_cosf(a0)), oy + (int32_t)(94.0f + 9.0f * (float)r * fm_sinf(a0)),
+                    (int32_t)(120.0f + 24.0f * (float)r * fm_cosf(a1)), oy + (int32_t)(94.0f + 9.0f * (float)r * fm_sinf(a1)),
+                    RGB(0x1a, 0x14, 0x38));
+        }
+    p3d_draw(oy);
+}
+
+/* ---- SPEECH: the head that speaks (spec 5c, 5; docs/screens/speech.html) ------------------------------------------ */
+#define HD_LAT 10
+#define HD_LON 14
+#define HD_NV ((HD_LAT + 1) * HD_LON)
+#define C_PUPIL RGB(0x8f, 0xf5, 0xff)
+static const uint16_t SP_VIOLET[3] = {RGB(0xe4, 0xdd, 0xff), RGB(0x9a, 0x7c, 0xff), RGB(0x4a, 0x36, 0xb0)};
+static const uint16_t SP_EYE[3] = {RGB(0x0b, 0x2a, 0x1f), RGB(0x06, 0x20, 0x1a), RGB(0x03, 0x14, 0x0f)};
+static const uint16_t SP_MOUTH[3] = {RGB(0xff, 0x2f, 0x8e), RGB(0x8a, 0x10, 0x50), RGB(0x4a, 0x08, 0x28)};
+static const uint16_t SP_WIRE[3] = {RGB(0x43, 0xdb, 0x9f), RGB(0x57, 0x83, 0xff), RGB(0xa9, 0x90, 0xff)};   /* the tints' base, 15 % white */
+static p3_vec hd_base[HD_NV], hd_v[HD_NV];
+static p3_face hd_f[2 * HD_LAT * HD_LON];
+static uint8_t hd_part[2 * HD_LAT * HD_LON];   /* 0 skin, 1 eyes, 2 mouth */
+static p3_mesh hd_mesh;
+static struct { float open; int tint; } spk;
+
+/* a head from a sphere: skull, brow, eye sockets, nose, cheeks, a narrowing jaw and chin; model y up */
+static void head_mesh(void)
+{
+    p3_mesh m;
+    p3d_sphere(HD_LAT, HD_LON, hd_base, hd_f, &m);
+    for (int i = 0; i < HD_NV; i++) {
+        p3_vec *q = &hd_base[i];
+        float x = q->x * 0.8f, y = q->y * 1.12f, z = q->z, ax;
+        if (y < 0.0f) x *= 1.0f + y * 0.38f;                                         /* the jaw narrows */
+        ax = fm_fabsf(x);
+        if (y < -0.75f && z > 0.0f) z *= 1.08f;                                       /* chin */
+        if (z > 0.55f && y > 0.18f && y < 0.36f) z += 0.09f;                          /* brow ridge */
+        if (z > 0.45f && y > -0.05f && y < 0.2f && ax > 0.14f && ax < 0.5f) z -= 0.14f;   /* eye sockets */
+        if (z > 0.7f && ax < 0.16f && y > -0.3f && y < 0.15f)                         /* nose */
+            z += 0.32f * (1.0f - ax / 0.16f) * (1.0f - fm_fabsf(y + 0.08f) / 0.25f);
+        if (z > 0.3f && ax > 0.42f && y > -0.35f && y < 0.0f) { x *= 1.06f; z += 0.05f; }   /* cheekbones */
+        *q = (p3_vec){x, y, z};
+    }
+    for (int i = 0; i < m.nf; i++) {           /* a quad's part from its whole: its two halves are faces i, i + 1 */
+        int k = hd_f[i].hide == 1 ? i - 1 : i;  /* the quad's first half, or a pole's triangle */
+        const p3_vec *a = &hd_base[hd_f[k].a], *b = &hd_base[hd_f[k].b], *c = &hd_base[hd_f[k].c];
+        const p3_vec *d = hd_f[k].hide == 4 ? &hd_base[hd_f[k + 1].c] : c;
+        float x = (a->x + b->x + c->x + d->x) / 4.0f, y = (a->y + b->y + c->y + d->y) / 4.0f, z = (a->z + b->z + c->z + d->z) / 4.0f;
+        float ax = fm_fabsf(x);
+        hd_part[i] = (uint8_t)(z > 0.35f && y > -0.08f && y < 0.2f && ax > 0.12f && ax < 0.5f ? 1 :
+                               z > 0.4f && y > -0.62f && y < -0.42f && ax < 0.32f ? 2 : 0);
+    }
+    for (int i = 0; i < m.nf; i++) {
+        p3_face *f = &hd_f[i];
+        uint8_t t = f->b;                       /* drawn with y down: the mirror turns the faces, turn them back */
+        f->b = f->c;
+        f->c = t;
+        f->hide = (uint8_t)((f->hide & 2u) | (f->hide >> 2 & 1u) | (f->hide << 2 & 4u));
+    }
+    hd_mesh = (p3_mesh){hd_v, hd_f, HD_NV, m.nf};
+}
+
+/* k: HARM (the voice model: the tint), TIMB (the species: the size), MORPH (the phoneme: the mouth), DECAY (syllables) */
+static void speech_frame(const q_sview *v, uint32_t ms)
+{
+    static const uint16_t *const TINT[3] = {KGREEN, KBLUE, SP_VIOLET};
+    float t = (float)(ms % 3600000u) * 0.001f, since = (float)(ms - sc.hit_ms[0]) * 0.001f;
+    float dur = 0.15f + 0.35f * (float)v->k[3] / 127.0f, size = 0.85f + 0.3f * (float)v->k[1] / 127.0f, open = 0.0f;
+    float ay = 0.6f * fm_sinf(0.5f * t), ax = -0.08f, sy = fm_sinf(ay), cy = fm_cosf(ay), sx = fm_sinf(ax), cx = fm_cosf(ax);
+    int tint = v->k[0] * 3 / 128;
+    uint16_t tones[3][3], edge;
+    p3_pose p = {ay, ax, 48.0f, 120.0f, 74.0f, 0.0f};
+    if (!hd_mesh.nv)
+        head_mesh();
+    if (since < dur)                           /* two syllables a note */
+        open = fm_fabsf(fm_sinf(FM_TWO_PI * since / dur)) * (0.4f + 0.6f * (float)v->k[2] / 127.0f);
+    for (int i = 0; i < HD_NV; i++) {
+        const p3_vec *b = &hd_base[i];
+        float y = b->y < -0.5f && b->z > -0.3f ? b->y - open * 0.3f : b->y;     /* the jaw drops */
+        hd_v[i] = (p3_vec){b->x * size, -y * size, b->z * size};
+    }
+    __builtin_memcpy(tones[0], TINT[tint], sizeof tones[0]);
+    __builtin_memcpy(tones[1], SP_EYE, sizeof tones[1]);
+    __builtin_memcpy(tones[2], open > 0.15f ? SP_MOUTH : SP_EYE, sizeof tones[2]);
+    edge = open > 0.3f ? PINK3[1] : SP_WIRE[tint];
+    sc.t = t;
+    spk.open = open;
+    spk.tint = tint;
+    p3d_begin();
+    p3d_mesh_parts(&hd_mesh, &p, (const uint16_t (*)[3])tones, hd_part, &edge);
+    for (int s = -1; s <= 1; s += 2) {          /* two small neon pupils on the dark eye band, seen from the front */
+        float x = 0.24f * size * (float)s, y = -0.1f * size, z = 0.66f * size;
+        float rx = x * cy + z * sy, rz = -x * sy + z * cy, ry = y * cx - rz * sx, d = y * sx + rz * cx, px, py;
+        uint16_t c = open > 0.4f ? PINK3[0] : C_PUPIL;
+        if (d < 0.25f * size)
+            continue;
+        px = 120.0f + rx * 48.0f, py = 74.0f + ry * 48.0f;
+        p3d_tri(px - 3.0f, py, px, py - 2.0f, px + 3.0f, py, 1000.0f, c);   /* on top, as the mock-up draws them */
+        p3d_tri(px - 3.0f, py, px + 3.0f, py, px, py + 2.0f, 1000.0f, c);
+    }
+}
+
+static void speech_band(int32_t oy)
+{
+    static const uint16_t *const TINT[3] = {KGREEN, KBLUE, SP_VIOLET};
+    float t = sc.t, scan = 60.0f * t;
+    int i;
+    cv_rect(0, oy, 240, 166, C_BG);
+    for (i = 4; i < 240; i += 12)               /* the scan grid */
+        cv_rect(i, oy, 1, 166, RGB(0x1e, 0x16, 0x40));
+    for (i = 6; i < 166; i += 12)
+        cv_rect(0, oy + i, 240, 1, RGB(0x1e, 0x16, 0x40));
+    cv_rect(0, oy + (int32_t)(scan - 166.0f * fm_floorf(scan / 166.0f)), 240, 1, KGREEN[2]);
+    p3d_draw(oy);
+    for (i = 0; i < 9; i++) {                   /* the phoneme bars */
+        int32_t h = (int32_t)(fm_fabsf(fm_sinf(1.7f * (float)i + 2.3f * fm_floorf(4.0f * t))) * spk.open * 24.0f);
+        if (h > 0)
+            cv_rect(30 + 20 * i, oy + 158 - h, 14, h, TINT[spk.tint][i % 2 ? 1 : 2]);
+    }
+}
+
+void scene_frame(const q_sview *v, uint32_t ms)
+{
+    take_hits(v->hits, ms);
+    sc.model = v->model;
+    if (is_fm(v->model))
+        planet_frame(v->k, ms);
+    else if (v->model >= 21 && v->model <= M_KIT_SCENE)
+        kit_frame(v, ms);
+    else if (v->model == 20)
+        modal_frame(v, ms);
+    else if (v->model == 15)
+        speech_frame(v, ms);
+    else
+        p3d_begin();
+}
+
+void scene_band(int32_t oy)
+{
+    if (is_fm(sc.model))
+        planet_band(oy);
+    else if (sc.model >= 21 && sc.model <= M_KIT_SCENE)
+        kit_band(oy);
+    else if (sc.model == 20)
+        modal_band(oy);
+    else if (sc.model == 15)
+        speech_band(oy);
+    else
+        cv_rect(0, oy, 240, 166, C_SKY);
 }
 
 /* ---- MARBLES: the fleet (spec 5b, 3; docs/screens/marbles.html) --------------------------------------------- */
@@ -178,7 +574,7 @@ static void meshes_build(void)
         ico_v[i] = (p3_vec){c[0] * n, c[1] * n, c[2] * n};
     }
     for (i = 0; i < 20; i++) {
-        ico_f[i] = (p3_face){F[i][0], F[i][1], F[i][2]};
+        ico_f[i] = (p3_face){F[i][0], F[i][1], F[i][2], 0};
         face_out(&ico_f[i], ico_v);  /* (centred: the 1.5 shifts the centre, harmless for a sphere around 0) */
     }
     ico = (p3_mesh){ico_v, ico_f, 12, 20};
@@ -202,15 +598,15 @@ static void meshes_build(void)
     }
     for (i = 0; i < 5; i++) {
         int j = (i + 1) % 5;
-        spire_f[2 * i] = (p3_face){(uint8_t)(2 * i), (uint8_t)(2 * j), (uint8_t)(2 * j + 1)};
-        spire_f[2 * i + 1] = (p3_face){(uint8_t)(2 * i), (uint8_t)(2 * j + 1), (uint8_t)(2 * i + 1)};
+        spire_f[2 * i] = (p3_face){(uint8_t)(2 * i), (uint8_t)(2 * j), (uint8_t)(2 * j + 1), 0};
+        spire_f[2 * i + 1] = (p3_face){(uint8_t)(2 * i), (uint8_t)(2 * j + 1), (uint8_t)(2 * i + 1), 0};
     }
-    spire_f[10] = (p3_face){1, 3, 5};
-    spire_f[11] = (p3_face){1, 5, 7};
-    spire_f[12] = (p3_face){1, 7, 9};
+    spire_f[10] = (p3_face){1, 3, 5, 0};
+    spire_f[11] = (p3_face){1, 5, 7, 0};
+    spire_f[12] = (p3_face){1, 7, 9, 0};
     for (i = 0; i < 13; i++)
         face_out(&spire_f[i], spire_v[0]);
-    static const p3_face CF[8] = {{0, 4, 2}, {4, 1, 2}, {1, 5, 2}, {5, 0, 2}, {4, 0, 3}, {1, 4, 3}, {5, 1, 3}, {0, 5, 3}};
+    static const p3_face CF[8] = {{0, 4, 2, 0}, {4, 1, 2, 0}, {1, 5, 2, 0}, {5, 0, 2, 0}, {4, 0, 3, 0}, {1, 4, 3, 0}, {5, 1, 3, 0}, {0, 5, 3, 0}};
     static p3_face cf[8];
     crys_v[0] = (p3_vec){0.7f, 0, 0}, crys_v[1] = (p3_vec){-0.7f, 0, 0}, crys_v[2] = (p3_vec){0, 1.4f, 0};
     crys_v[3] = (p3_vec){0, -1.4f, 0}, crys_v[4] = (p3_vec){0, 0, 0.7f}, crys_v[5] = (p3_vec){0, 0, -0.7f};
