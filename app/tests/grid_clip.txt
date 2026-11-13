@@ -47,11 +47,11 @@ key w5 down
 wait 50
 expect hits 12
 tap OCT+
-expect steplen_6 8
-tap OCT+
 expect steplen_6 16
 tap OCT+
 expect steplen_6 24
+tap OCT+
+expect steplen_6 32
 tap OCT-
 tap OCT-
 tap OCT-

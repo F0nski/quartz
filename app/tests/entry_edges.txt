@@ -1,0 +1,129 @@
+# Edges of the step entry: a preview across a track change, a cut step's flag, generators, the page of NOTES' cursor,
+# a pattern change mid-chord, p-locks left on an empty step, a synth chord on a KIT, REC held while armed, SEL's map
+wait 600
+tap SEQ
+tap REC
+tapkey w0
+expect stepon_1 1
+# a step previewed, then another track: the preview still ends
+key w0 down
+wait 100
+expect active >0
+turn ALGO 1
+key w0 up
+wait 3000
+expect track 2
+expect active 0
+turn ALGO -1
+# a cut step's copy is not lit: pasting it lights the step once it is whole
+tapkey w0
+expect stepon_1 0
+expect clip_on 0
+tapkey w0
+expect stepon_1 1
+# a generator in SEQ: no badge, a short REC disarms
+spin K4 1
+expect src 1
+expect badge 0
+tap REC
+expect rec 0
+spin K4 -1
+expect src 0
+# NOTES: the cursor brought back to 1 by a shorter LEN shows its page
+tap REC
+tap REC
+expect rec 2
+spin K1 32
+expect len 48
+spin PRESET 39
+expect cursor 40
+expect spage 3
+spin K1 -24
+expect len 24
+expect cursor 1
+expect spage 1
+spin K1 -8
+expect len 16
+# another pattern while a key is down: the next key starts a new chord on the new pattern's step
+key 7 down
+press SEQ
+tapkey w1
+release SEQ
+expect pattern 2
+key 11 down
+key 11 up
+key 7 up
+expect stepnotes_1 1
+expect stepnote_1 64
+press SEQ
+tapkey w0
+release SEQ
+expect pattern 1
+# a step erased in LIVE keeps no p-lock for the next note written on it
+tap REC
+expect rec 0
+tap REC
+key w0 down
+spin K1 5
+key w0 up
+expect lockharm_1 69
+tap PLAY
+press REC
+tap PLAY
+release REC
+expect rec 3
+press REC
+key 7 down
+wait 2100
+key 7 up
+release REC
+expect stepon_1 0
+tap PLAY
+tap REC
+tap REC
+expect rec 2
+expect cursor 1
+tapkey 9
+expect stepon_1 1
+expect lockharm_1 -1
+# REC held while armed: the keys do nothing, the pattern stays
+tap REC
+expect rec 0
+press REC
+tap PLAY
+expect rec 4
+tapkey b0
+release REC
+expect stepon_1 1
+expect playing 0
+tap REC
+expect rec 0
+# a synth chord whose first note is a pad's, pasted on a KIT: the pads only
+tap EDIT
+turn SELECT 1
+turn K4 2
+expect poly 3
+tap OCT-
+key 0 down
+key 26 down
+key 26 up
+key 0 up
+expect clip_n 2
+expect clip_note 41
+tap OCT+
+turn ALGO 1
+spin K1 24
+expect model 24
+tap SEQ
+tap REC
+expect rec 1
+tapkey w3
+expect stepnotes_4 1
+expect stepnote_4 41
+# SEL's map gives way to the plateau at the first key
+press SEL
+wait 500
+expect layer 2
+tapkey w0
+expect layer 0
+release SEL

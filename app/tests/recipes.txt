@@ -14,9 +14,8 @@ tapkey w8
 tapkey w12
 expect nsteps_on 4
 expect stepnote_9 36
-# a note 3 steps long: hold the step, OCT+ three times
+# a note 3 steps long: hold the step, OCT+ twice (a step made by hand lasts half a step: 2, then 3 steps)
 key w0 down
-tap OCT+
 tap OCT+
 tap OCT+
 key w0 up

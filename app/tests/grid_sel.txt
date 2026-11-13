@@ -37,8 +37,8 @@ expect lockharm_5 -1
 expect lockharm_7 -1
 # OCT: each one's length
 tap OCT+
-expect steplen_1 8
-expect steplen_3 8
+expect steplen_1 16
+expect steplen_3 16
 expect steplen_5 4
 expect spage 1
 # out again
@@ -54,6 +54,6 @@ press SEL
 tapkey w0
 tapkey w2
 tap OCT+
-expect steplen_1 16
-expect steplen_3 8
+expect steplen_1 24
+expect steplen_3 16
 release SEL

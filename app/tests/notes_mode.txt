@@ -56,7 +56,7 @@ expect lockharm_4 69
 expect cursor 5
 # a tie: a key held and PRESET, two steps long; the cursor moves on by two
 key 7 down
-turn PRESET 2
+turn PRESET 1
 key 7 up
 expect steplen_5 16
 expect cursor 7

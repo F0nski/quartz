@@ -71,7 +71,6 @@ key w2 down
 tap OCT+
 tap OCT+
 tap OCT+
-tap OCT+
 key w2 up
 expect steplen_51 32
 expect leds_mid 16

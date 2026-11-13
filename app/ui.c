@@ -439,10 +439,12 @@ static int notes_on(void)
            (ui.domain == D_SEQ || !audio_playing());
 }
 
-/* a length by OCT: the next whole step up (d > 0) or down, 1 to 8 steps */
+/* a length by OCT: the next whole step up (d > 0) or down, 1 to 8 steps; up from a step or less it ties over the next
+   (2 steps: a step made by hand lasts half of one) */
 static int len_step(int len, int d)
 {
-    return d > 0 ? (len / 8 + 1) * 8 > 64 ? 64 : (len / 8 + 1) * 8 : len <= 8 ? len : ((len - 1) / 8) * 8;
+    int up = len < 8 ? 16 : (len / 8 + 1) * 8;
+    return d > 0 ? up > 64 ? 64 : up : len <= 8 ? len : ((len - 1) / 8) * 8;
 }
 
 static void button(int b)
@@ -691,6 +693,8 @@ static void pattern_set(int n)
 {
     ui.p->pattern[ui.track] = (uint8_t)n;
     ui.held = 0;                        /* the hold was another pattern's step: its release toggles nothing */
+    sel_clear();
+    ui.nchord = 0;                      /* the keys still down only sound */
     if (ui.cursor > pat()->len)
         ui.cursor = 1;
     ui.dirty = 1;
@@ -732,6 +736,7 @@ static void clip_cut(int step)
     q_pattern *t = pat();
     int i;
     ui.clip.st = t->steps[step];
+    ui.clip.st.flags &= (uint8_t)~SF_ON;    /* pasted, the step lights once it is whole */
     ui.clip.nlocks = 0;
     for (i = 0; i < t->nlocks; i++)
         if (t->locks[i].step == step && ui.clip.nlocks < 16)
@@ -747,13 +752,19 @@ static void clip_paste(int step)
     q_step *s = &t->steps[step];
     int i, poly = kit() ? 4 : ui.p->sound[ui.track].poly;
     *s = ui.clip.st;
-    s->flags &= (uint8_t)~SF_ON;
     for (i = poly; i < 4; i++)
         s->note[i] = 0;
-    if (kit() && (s->note[0] < KIT_NOTE || s->note[0] >= KIT_NOTE + Q_PADS)) {
-        __builtin_memset(s->note, 0, sizeof s->note);
-        s->note[0] = KIT_NOTE;
+    if (kit()) {                        /* its pads only */
+        uint8_t pads[4] = {0};
+        int m = 0;
+        for (i = 0; i < 4 && (i == 0 || s->note[i]); i++)
+            if (s->note[i] >= KIT_NOTE && s->note[i] < KIT_NOTE + Q_PADS)
+                pads[m++] = s->note[i];
+        if (!m)
+            pads[0] = KIT_NOTE;
+        __builtin_memcpy(s->note, pads, sizeof pads);
     }
+    lock_clear_step(t, step);           /* an empty step may keep p-locks (a live erase, a KIT's last pad out) */
     for (i = 0; i < ui.clip.nlocks; i++)
         if (lock_set(t, step, ui.clip.lk[i].param, ui.clip.lk[i].value))
             ui.locks_until = plat_ms() + MSG_MS;
@@ -774,11 +785,8 @@ static void family_key(int b, q_step *s)
 /* the only writer of ui.rec: the recorder armed in LIVE alone */
 static void rec_set(int r)
 {
-    if (r == R_NOTES && ui.rec != R_NOTES) {    /* from step 1, its page shown */
+    if (r == R_NOTES && ui.rec != R_NOTES)
         ui.cursor = 1;
-        if (ui.domain == D_SEQ)
-            ui.spage = 0;
-    }
     if (r != R_GRID) {                  /* a step held on the grid is let go: its release toggles nothing */
         ui.held = 0;
         sel_clear();
@@ -802,6 +810,8 @@ static void rec_release(void)
         rec_set(R_OFF);
     else if (ui.domain == D_SEQ && pat()->src == SRC_STEP)
         rec_set(ui.rec == R_OFF ? R_GRID : ui.rec == R_GRID ? R_NOTES : R_OFF);
+    else if (ui.domain == D_SEQ)        /* a generator is never written: an armed REC disarms */
+        rec_set(R_OFF);
     else if (ui.domain != D_SEQ)
         rec_set(ui.rec != R_OFF ? R_OFF : audio_playing() ? R_LIVE : R_NOTES);
 }
@@ -933,6 +943,8 @@ static void scene_apply(const q_scene *sc)
     for (t = 0; t < Q_TRACKS; t++)
         ui.p->pattern[t] = sc->pat[t];
     ui.p->mute = sc->mute;
+    sel_clear();
+    ui.nchord = 0;
     if (ui.cursor > pat()->len)
         ui.cursor = 1;
 }
@@ -1035,13 +1047,20 @@ static int key_play_note(int k)
     return 53 + k + 12 * ui.octave;
 }
 
-/* NOTES: the cursor d steps on, looping on LEN; in SEQ the page follows it */
+/* NOTES: the cursor d steps on, looping on LEN */
 static void cursor_move(int d)
 {
     int len = pat()->len;
     ui.cursor = ((ui.cursor - 1 + d) % len + len) % len + 1;
-    if (ui.domain == D_SEQ)
-        ui.spage = (ui.cursor - 1) / 16;
+}
+
+/* the held step's preview ends, on the track it sounds on */
+static void preview_off(void)
+{
+    int i;
+    for (i = 0; i < 4 && ui.preview[i]; i++)
+        audio_live_note(ui.track, ui.preview[i], 0);
+    __builtin_memset(ui.preview, 0, sizeof ui.preview);
 }
 
 static void key_down(int k)
@@ -1081,6 +1100,8 @@ static void key_down(int k)
         return;
     }
     if (ui.btn >> B_REC & 1u) {         /* REC held: the first black key empties the pattern shown, the second its p-locks */
+        if (ui.rec == R_ARM)            /* (armed: nothing, the first note comes once REC is let go) */
+            return;
         if (k == BLACK[0])
             for (i = 0; i < Q_STEPS; i++)
                 step_clear(t, i);
@@ -1113,8 +1134,10 @@ static void key_down(int k)
         if ((note = key_play_note(k)) < 0)
             return;
         if (!ui.nchord) {               /* the first note: a new step at the defaults, or a lit one's notes replaced */
-            if (!(s->flags & SF_ON))
+            if (!(s->flags & SF_ON)) {
                 step_default(s);
+                lock_clear_step(t, ui.cursor - 1);
+            }
             __builtin_memset(s->note, 0, sizeof s->note);
         }
         if (ui.nchord < (kit() ? 4 : ui.p->sound[ui.track].poly))
@@ -1220,11 +1243,8 @@ static void key_up(int k)
         }
         ui.held = 0;
     }
-    if (ui.preview[0] && !ui.held) {
-        for (w = 0; w < 4 && ui.preview[w]; w++)
-            audio_live_note(ui.track, ui.preview[w], 0);
-        __builtin_memset(ui.preview, 0, sizeof ui.preview);
-    }
+    if (!ui.held)
+        preview_off();
     if (ui.padheld == k + 1)
         ui.padheld = 0;
     for (w = 0; w < 8; w++)             /* (OCT is not changed while REC is held: the note is the one pressed) */
@@ -1301,6 +1321,7 @@ void ui_input(void)
     d = ui.domain;                      /* after the buttons: SELECT turns the page of the domain just picked */
     n = domain_n(d);
     if ((e = plat_enc(EN_ALGO)) != 0) {
+        preview_off();                  /* before the track changes */
         ui.track = clamp(ui.track + e, 0, Q_TRACKS - 1);
         ui.held = 0;
         sel_clear();
@@ -1364,6 +1385,8 @@ void ui_input(void)
                 rec_lock(kpid, i);
         }
     }
+    if (ui.domain == D_SEQ && notes_on())      /* NOTES: the cursor's page, after PRESET, LEN or another track */
+        ui.spage = (ui.cursor - 1) / 16;
 }
 
 /* the keys lit where they play notes: KEYS on, the white keys sounding the scale's first note; off, the keys in the scale */
@@ -1391,11 +1414,12 @@ static const uint8_t LAYER_BTN[7] = {B_HOME, B_FX, B_SAVE, B_SEQ, B_ARP, B_SEL, 
 static int layer_shown(void)
 {
     int i, b;
-    if (ui.layer && ui.btn >> (ui.layer - 1) & 1u)
+    if (ui.layer && ui.btn >> (ui.layer - 1) & 1u && (ui.layer - 1 != B_SEL || !(ui.used >> B_SEL & 1u)))   /* SEL's gives
+                                                                                       the plateau back at its first key */
         return ui.layer - 1;
     for (i = 0; i < 7; i++) {
         b = LAYER_BTN[i];
-        if (long_held(b) && !(ui.used >> b & 1u) && (b != B_SEL || grid_on() || notes_on()))
+        if (long_held(b) && !(ui.used >> b & 1u) && (b != B_SEL || grid_on() || notes_on()) && (b != B_REC || ui.rec != R_ARM))
             return b;
     }
     return -1;
@@ -1678,6 +1702,8 @@ static int badge(void)
 {
     if (ui.rec == R_ARM)
         return plat_ms() / 500u & 1u ? 0 : 4;
+    if (ui.domain == D_SEQ && pat()->src != SRC_STEP && ui.rec != R_LIVE)   /* a generator: nothing written */
+        return 0;
     return ui.rec == R_GRID ? (ui.domain == D_SEQ ? 1 : 2) : ui.rec;
 }
 
@@ -2496,6 +2522,7 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "selref")) *got = ui.sel_ref + 1;
     else if (!strcmp(what, "clip_n")) for (*got = 1; *got < 4 && ui.clip.st.note[*got]; ++*got) {}
     else if (!strcmp(what, "clip_note")) *got = ui.clip.st.note[0];
+    else if (!strcmp(what, "clip_on")) *got = ui.clip.st.flags & SF_ON;
     else if (!strcmp(what, "clip_locks")) *got = ui.clip.nlocks;
     else if (!strcmp(what, "spage")) *got = ui.spage + 1;
     else if (!strcmp(what, "model")) *got = s->model;
