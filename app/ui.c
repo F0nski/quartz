@@ -155,7 +155,8 @@ typedef struct {
                                                    5 HOME's tracks (scene_home.c), 6 a sound page ADSR .. MIX (scene_sound.c),
                                                    7 TEMPO, SCALE, KEYS, FX, SONG (scene_glo.c), 8 LIFE (scene_life.c),
                                                    9 LANES (scene_lanes.c), 10 CHORDS (scene_chords.c),
-                                                   11 TONNETZ (scene_tonnetz.c), 12 ORBITS (scene_orbits.c) */
+                                                   11 TONNETZ (scene_tonnetz.c), 12 ORBITS (scene_orbits.c),
+                                                   13 MIMIC (scene_mimic.c) */
         q_trow tr[Q_TRACKS];                    /* TRACKS */
         int8_t layer, lmode;                    /* a layer's map instead of the scene: its button + 1; REC in LIVE, SEL in NOTES */
         uint32_t lkeys, hot;                    /* its keys, and the keys pressed */
@@ -2329,6 +2330,8 @@ static void view_now(q_view *v)
             v->scene.anim = 11;                 /* scene_tonnetz.c; ui_frame fills its view */
         if (pid == P_ORBITS || pid == P_MOON || pid == P_MOONK)
             v->scene.anim = 12;                 /* scene_orbits.c; ui_frame fills its view */
+        if (pid == P_MIMIC || pid == P_LOOP)
+            v->scene.anim = 13;                 /* scene_mimic.c; ui_frame fills its view */
         if (pid == P_MARBLES || pid == P_T || pid == P_X) {
             v->scene.anim = 3;
             v->scene.v[0] = t->marbles.spread;
@@ -2806,6 +2809,7 @@ void ui_frame(void)
     static q_chview chv;                   /* CHORDS' */
     static q_tzview tzw;                   /* TONNETZ's */
     static q_orview orw;                   /* ORBITS' */
+    static q_miview miw;                   /* MIMIC's */
     int b;
     ui_input();
     lights();
@@ -3126,6 +3130,18 @@ void ui_frame(void)
                 }
                 orw.step_ms = 2500u * DIV96[t->div] / ui.p->tempo;
                 orbits_frame(&orw, now);
+            } else if (v.scene.anim == 13) {
+                const q_pattern *t = pat();
+                if (fresh)
+                    mimic_enter();
+                miw.m = t->mimic, miw.kit = (uint8_t)kit(), miw.listen = ui.rec == R_LISTEN;
+                miw.playing = (uint8_t)(v.scene.pos >= 0);
+                if (miw.playing)
+                    audio_mimic(ui.track, &miw.r);
+                else
+                    __builtin_memset(&miw.r, 0, sizeof miw.r);
+                miw.step_ms = 2500u * DIV96[t->div] / ui.p->tempo;
+                mimic_frame(&miw, now);
             } else if (v.scene.anim == 7) {
                 static char title[14];
                 int pid = v.scene.pid, k, w;
@@ -3211,6 +3227,8 @@ void ui_frame(void)
                     tonnetz_band(&tzw, -BAND_H * b);
                 else if (v.scene.anim == 12)
                     orbits_band(&orw, -BAND_H * b);
+                else if (v.scene.anim == 13)
+                    mimic_band(&miw, -BAND_H * b);
                 else
                     plateau_band(-BAND_H * b);
                 cv_blit(0, HEAD_H + BAND_H * b);
