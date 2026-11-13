@@ -21,6 +21,7 @@ static void lcd_blit(uint32_t x, uint32_t y, uint32_t w, uint32_t h, const uint1
 #include "scene_sound.c"
 #include "scene_glo.c"
 #include "scene_life.c"
+#include "scene_lanes.c"
 
 static uint16_t px(int x, int y) { return swap16(cv_px[y * 240 + x]); }
 static int is_orange(uint16_t c) { return c == ORANGE[0] || c == ORANGE[1] || c == ORANGE[2]; }
@@ -1787,8 +1788,158 @@ static void life_knobs_visible(void)
            ldiffers(ch_map) && ldiffers(ch_label));
 }
 
+/* ---- LANES: rows of blocks ---- */
+static q_laneview NV;
+static void nreset(void)
+{
+    static const char *const N[16] = {"C", "D", "E", "F", "G", "A", "B", "C", "D", "E", "F", "G", "A", "B", "C", "D"};
+    memset(&NV, 0, sizeof NV);
+    static const q_lanes D = { 48, { 7, 5, 3, 4, 6 }, {
+        { 1, 0, 1, 1, 0, 1, 0 }, { 0, 4, 2, 5, 3 }, { 2, 2, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 }, { 1, 3, 1, 2 }, { 3, 1, 2, 1, 3, 2 } } };
+    NV.lanes = D;                                    /* a fresh pattern's (seq.c) */
+    NV.head[0] = 3, NV.head[1] = 2, NV.head[2] = 1, NV.head[3] = 0, NV.head[4] = 5;
+    NV.sel = L_NOTE, NV.flash = -1, NV.n = 40, NV.step_ms = 125;
+    for (int c = 0; c < 16; c++) strcpy(NV.name[c], N[c]);
+    lanes_enter();
+}
+static void nfull(void)
+{
+    for (int b = 0; b < 2; b++) {
+        cv_begin(240, 83, 0);
+        lanes_band(&NV, -83 * b);
+        memcpy(FULL + 240 * 83 * b, cv_px, sizeof(uint16_t) * 240 * 83);
+    }
+}
+/* the overview's cell c of row r; the edited lane's big cell c */
+static int ntop_pink(int r, int c) { int x = (int)(34.0f + 12.5f * (float)c), y = 14 + 13 * r; return gpink(x, x + 12, y - 12, y + 1); }
+static int nbig_pink(int c) { int x = 6 + 29 * (c % 8), y = c < 8 ? 120 : 162; return gpink(x, x + 29, y - 40, y + 1); }
+#define LN_WALL_TEST RGB(0x9a, 0x16, 0x59)
+
+static void lanes_budget(void)
+{
+    nreset();
+    for (int l = 0; l < L_N; l++) { NV.lanes.len[l] = 16; memset(NV.lanes.v[l], l == L_TRIG ? 1 : l == L_NOTE ? 15 : l == L_VEL ? 3 : 4, 16); }
+    lanes_frame(&NV, 1000);
+    assert(p3d_count() <= 300);
+}
+
+static void lanes_budget_floor_last(void)
+{
+    nreset();
+    for (int l = 0; l < L_N; l++) { NV.lanes.len[l] = 16; memset(NV.lanes.v[l], 1, 16); NV.head[l] = -1; }
+    lanes_frame(&NV, 1000);
+    nfull();
+    for (int c = 0; c < 16; c++) assert(gcount(KBLUE[1], 6 + 29 * (c % 8), 6 + 29 * (c % 8) + 24, c < 8 ? 80 : 122, c < 8 ? 121 : 163) > 0);
+}
+
+static void lanes_heads_pink(void)
+{
+    nreset();
+    lanes_frame(&NV, 1000);
+    nfull();
+    for (int r = 0; r < L_N; r++) assert(ntop_pink(r, NV.head[r]) > 0);
+    assert(nbig_pink(NV.head[L_NOTE]) > 0);
+    assert(nbig_pink(NV.head[L_NOTE] + 1) == 0);
+}
+
+static void lanes_idle_heads(void)
+{
+    nreset();
+    for (int l = 0; l < L_N; l++) NV.head[l] = -1;
+    lanes_frame(&NV, 1000);
+    nfull();
+    assert(gpink(34, 240, 0, 70) == 0 && gpink(0, 240, 90, 166) == 0);   /* (the edited lane's name and title stay pink) */
+}
+
+static int wall_x(int y0, int y1)
+{
+    for (int x = 0; x < 240; x++) if (gcount(LN_WALL_TEST, x, x + 1, y0, y1) > 0) return x;
+    return -1;
+}
+static void lanes_wall_follows_len(void)
+{
+    nreset();
+    NV.lanes.len[L_NOTE] = 5;
+    lanes_frame(&NV, 1000);
+    nfull();
+    int top5 = wall_x(14 + 13 - 12, 14 + 13 + 1), big5 = wall_x(80, 121);
+    NV.lanes.len[L_NOTE] = 7;
+    lanes_frame(&NV, 1000);
+    nfull();
+    int top7 = wall_x(14 + 13 - 12, 14 + 13 + 1), big7 = wall_x(80, 121);
+    assert(top5 >= 0 && top7 > top5 && big5 >= 0 && big7 > big5);
+}
+
+static void lanes_kit_four_rows(void)
+{
+    static uint16_t a[240 * 166];
+    nreset();
+    NV.kit = 1;
+    lanes_frame(&NV, 1000); nfull(); memcpy(a, FULL, sizeof a);
+    memset(NV.lanes.v[L_OCT], 4, 16); NV.lanes.len[L_OCT] = 16;     /* a KIT has no OCT row: nothing changes */
+    lanes_frame(&NV, 1000); nfull();
+    assert(memcmp(a, FULL, sizeof a) == 0);
+}
+
+static void lanes_flash_white(void)
+{
+    nreset();
+    lanes_frame(&NV, 0);
+    NV.flash = 4, NV.flash_ms = 0;                  /* (not the head: a head stays pink) */
+    int x = 6 + 29 * 4;
+    lanes_frame(&NV, 100); nfull();
+    assert(gcount(MB_WHITE[1], x, x + 29, 80, 121) + gcount(MB_WHITE[0], x, x + 29, 80, 121) > 0);
+    lanes_frame(&NV, 400); nfull();
+    assert(gcount(MB_WHITE[1], x, x + 24, 80, 121) + gcount(MB_WHITE[0], x, x + 24, 80, 121) == 0);
+}
+
+static void lanes_floor_slides(void)
+{
+    static uint16_t a[240 * 166];
+    nreset();
+    lanes_frame(&NV, 0);
+    NV.n = 41;
+    lanes_frame(&NV, 1000); lanes_frame(&NV, 1020); nfull(); memcpy(a, FULL, sizeof a);
+    lanes_frame(&NV, 1080); nfull();
+    assert(memcmp(a, FULL, sizeof a) != 0);
+    lanes_frame(&NV, 1300); nfull(); memcpy(a, FULL, sizeof a);
+    lanes_frame(&NV, 1600); nfull();
+    assert(memcmp(a, FULL, sizeof a) == 0);
+}
+
+static int ndiffers(void (*change)(void))
+{
+    static uint16_t ref[240 * 166];
+    nreset();
+    lanes_frame(&NV, 5000);
+    nfull();
+    memcpy(ref, FULL, sizeof ref);
+    change();
+    lanes_frame(&NV, 5000);
+    nfull();
+    return memcmp(ref, FULL, sizeof ref) != 0;
+}
+static void nch_len0(void) { NV.lanes.len[L_TRIG] = 3; }
+static void nch_len4(void) { NV.lanes.len[L_VEL] = 2; }
+static void nch_sel(void) { NV.sel = L_DUR; }
+static void nch_name(void) { strcpy(NV.name[0], "D#"); }
+static void nch_head(void) { NV.head[L_TRIG] = 4; }
+static void lanes_knobs_visible(void)
+{
+    assert(ndiffers(nch_len0) && ndiffers(nch_len4) && ndiffers(nch_sel) && ndiffers(nch_name) && ndiffers(nch_head));
+}
+
 int main(void)
 {
+    lanes_budget();
+    lanes_budget_floor_last();
+    lanes_heads_pink();
+    lanes_idle_heads();
+    lanes_wall_follows_len();
+    lanes_kit_four_rows();
+    lanes_flash_white();
+    lanes_floor_slides();
+    lanes_knobs_visible();
     life_budget_full();
     life_column_first();
     life_no_flash_on_arrival();

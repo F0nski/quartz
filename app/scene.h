@@ -99,4 +99,18 @@ void life_enter(void);                           /* arrival: the counters seen a
 void life_frame(const q_lview *v, uint32_t ms);  /* builds the primitives */
 void life_band(const q_lview *v, int32_t oy);    /* the backdrop, p3d_draw, then the texts */
 
+/* LANES' rows of blocks (scene_lanes.c); ui.c fills the view */
+typedef struct {
+    q_lanes lanes;             /* the pattern's */
+    int8_t head[L_N];          /* each lane's cell playing, -1 none (stopped, or another pattern plays) */
+    uint8_t sel, kit;          /* the lane edited; a KIT: no OCT row */
+    int8_t flash;              /* the cell touched 0..15 on the edited lane, -1 none */
+    uint32_t flash_ms;         /* when */
+    char name[16][4];          /* NOTE cells' texts: note names, or "P1".."P16" on a KIT */
+    uint32_t n, step_ms;       /* audio_lanes' count (the floor slides a notch when it changes), a step in ms */
+} q_laneview;
+void lanes_enter(void);                              /* arrival: the floor stands until the next step */
+void lanes_frame(const q_laneview *v, uint32_t ms);  /* builds the primitives: the edited lane's blocks, the floor */
+void lanes_band(const q_laneview *v, int32_t oy);    /* p3d_draw, then the overview and the texts */
+
 #endif

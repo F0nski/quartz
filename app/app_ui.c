@@ -15,6 +15,7 @@
 #include "scene_sound.c"
 #include "scene_glo.c"
 #include "scene_life.c"
+#include "scene_lanes.c"
 #include "plateau.c"
 #include "ui.c"
 
