@@ -1,0 +1,163 @@
+# MIMIC: its 2 pages and their bounds; PRESET draws again (SEED); the default phrase
+wait 600
+tap SEQ
+expect poly 1
+turn K4 8
+expect src 8
+expect poly 3
+expect page 1
+expect mn 7
+expect mnote_4 67
+expect mgap_7 4
+spin K2 -9
+expect morder 1
+spin K2 9
+expect morder 2
+spin K3 -200
+expect mdrift 0
+spin K3 200
+expect mdrift 127
+wait 100
+shot mimic_page1.png
+turn SELECT 1
+expect page 2
+spin K1 -40
+expect mloop 0
+spin K1 40
+expect mloop 16
+turn PRESET 1
+expect mseed 1
+turn PRESET -2
+expect mseed 255
+wait 100
+shot mimic_page2.png
+turn SELECT 1
+expect page 1
+turn PRESET 1
+expect mseed 0
+# LISTEN: REC short learns the phrase from the keyboard, its gaps in steps (1/16 at 120 BPM: 125 ms)
+tap REC
+expect rec 5
+wait 500
+key 1 down
+key 1 up
+wait 250
+key 3 down
+key 3 up
+wait 125
+wait 100
+shot mimic_listen.png
+tap REC
+expect rec 0
+expect mn 2
+expect mgap_1 2
+expect mgap_2 2
+# LISTEN left without a note: the phrase kept
+tap REC
+expect rec 5
+tap REC
+expect rec 0
+expect mn 2
+# 33 notes: the last 32 kept
+tap REC
+key 1 down
+key 1 up
+key 2 down
+key 2 up
+key 3 down
+key 3 up
+key 4 down
+key 4 up
+key 5 down
+key 5 up
+key 6 down
+key 6 up
+key 7 down
+key 7 up
+key 8 down
+key 8 up
+key 1 down
+key 1 up
+key 2 down
+key 2 up
+key 3 down
+key 3 up
+key 4 down
+key 4 up
+key 5 down
+key 5 up
+key 6 down
+key 6 up
+key 7 down
+key 7 up
+key 8 down
+key 8 up
+key 1 down
+key 1 up
+key 2 down
+key 2 up
+key 3 down
+key 3 up
+key 4 down
+key 4 up
+key 5 down
+key 5 up
+key 6 down
+key 6 up
+key 7 down
+key 7 up
+key 8 down
+key 8 up
+key 1 down
+key 1 up
+key 2 down
+key 2 up
+key 3 down
+key 3 up
+key 4 down
+key 4 up
+key 5 down
+key 5 up
+key 6 down
+key 6 up
+key 7 down
+key 7 up
+key 8 down
+key 8 up
+key 1 down
+key 1 up
+tap REC
+expect mn 32
+# a STOP keeps LISTEN; another pattern, or another source, leaves it
+tap REC
+tap PLAY
+tap PLAY
+expect rec 5
+press SEQ
+tapkey w1
+release SEQ
+expect pattern 2
+expect rec 0
+press SEQ
+tapkey w0
+release SEQ
+tap REC
+expect rec 5
+turn K4 -1
+expect rec 0
+# a new project while in LISTEN: LISTEN left, the render told (else MIMIC stays silent on the track)
+turn K4 1
+expect src 8
+tap REC
+expect rec 5
+wait 100
+expect mlisten 1
+press SAVE
+key 1 down
+key 1 up
+key 1 down
+key 1 up
+release SAVE
+wait 100
+expect rec 0
+expect mlisten 0

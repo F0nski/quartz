@@ -1,0 +1,34 @@
+# MIMIC's scene on its two pages: playing, LOOP, LISTEN, a KIT
+wait 600
+tap SEQ
+turn K4 8
+expect anim 13
+tap PLAY
+wait 2500
+shot mimic_play.png
+turn SELECT 1
+expect anim 13
+spin K1 4
+wait 1500
+shot mimic_loop.png
+tap REC
+expect rec 5
+wait 500
+key 1 down
+key 1 up
+wait 120
+key 3 down
+key 3 up
+wait 100
+shot mimic_listen_scene.png
+tap REC
+expect rec 0
+wait 1500
+shot mimic_learnt.png
+tap EDIT
+turn PRESET 20
+expect model 24
+tap SEQ
+wait 1500
+shot mimic_kit.png
+tap PLAY

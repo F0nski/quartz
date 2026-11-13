@@ -31,7 +31,7 @@
 _Static_assert(APP_BLOCK <= QFX_BLOCK && APP_BLOCK % 2 == 0 && Q_TRACKS == QFX_TRACKS, "qfx_block's contract");
 
 /* SCENE: note = scene; PREP_REQ: note = model; DONE: track = slot, note = model */
-enum { CMD_NOTE, CMD_PLAY, CMD_MODEL, CMD_SCENE, CMD_PREP_REQ, CMD_PREP_DONE, CMD_DRAW };
+enum { CMD_NOTE, CMD_PLAY, CMD_MODEL, CMD_SCENE, CMD_PREP_REQ, CMD_PREP_DONE, CMD_DRAW, CMD_LISTEN };
 typedef struct { uint8_t kind, track, note, on; } q_cmd;
 
 static q_project *prj;
@@ -169,6 +169,7 @@ void audio_life(int track, q_life_run *out) { __builtin_memcpy(out, (const void 
 uint32_t audio_lanes(int track) { return seq.g[track].lanes_n; }
 void audio_chords(int track, q_chords_run *out) { __builtin_memcpy(out, (const void *)&seq.g[track].chords, sizeof *out); }
 uint32_t audio_orbits(int track) { return seq.g[track].orbits_n; }
+void audio_mimic(int track, q_mimic_run *out) { __builtin_memcpy(out, (const void *)&seq.g[track].mimic, sizeof *out); }
 void audio_tonnetz(int track, q_tonnetz_run *out) { __builtin_memcpy(out, (const void *)&seq.g[track].tonnetz, sizeof *out); }
 uint32_t audio_hits(int track) { return hits[track]; }
 uint32_t audio_kit_hits(int track, int engine) { return kit_hits[track][engine]; }
@@ -189,6 +190,7 @@ int audio_song_entry(void) { return seq_song_entry(&seq); }
 void audio_rec(int on) { recording = on; }
 void audio_scene(int scene) { push(CMD_SCENE, 0, scene, 0); }
 void audio_marbles_draw(int track) { push(CMD_DRAW, track, 0, 0); }
+void audio_mimic_listen(int track, int on) { push(CMD_LISTEN, track, on, 0); }
 
 int audio_take_rec(q_rec *r)
 {
@@ -676,6 +678,12 @@ static void commands(void)
             seq_launch(&seq, c.note);
         } else if (c.kind == CMD_DRAW) {          /* MARBLES: a new draw of the track's loops */
             gen_marbles_draw(&seq.g[c.track], &seq.rng);
+        } else if (c.kind == CMD_LISTEN) {        /* MIMIC: silent while it learns; after, a new phrase: as at the reset */
+            q_mimic_run *r = &seq.g[c.track].mimic;
+            if (c.note)
+                r->listen = 1;
+            else
+                __builtin_memset(r, 0, sizeof *r);
         } else if (c.kind == CMD_PREP_REQ) {
             int v = spare_slot(c.note, rmodel);
             if (v >= 0) {

@@ -18,20 +18,20 @@
 enum { D_EDIT, D_SEQ, D_GLO, D_HOME, D_ENV, D_LFO, D_ARP, D_FX, ND };
 enum { P_ENGINE, P_SOUND, P_STEPS, P_TEMPO, P_SCALE, P_CPU, P_XY, P_TRACKS, P_SONG, P_GRIDS, P_MAP, P_DENS, P_MARBLES, P_T,
        P_X, P_NOTES, P_LIFE, P_LIFEK, P_SEED, P_EVOL, P_PAD, P_KIT, P_ADSR, P_FILTER, P_LFO, P_ARP, P_INSERT, P_MIX, P_GFX, P_KEYS,
-       P_SN1, P_SN2, P_SN3, P_LANES, P_LENS, P_CHORDS, P_PROG, P_TONNETZ, P_WALK, P_PLAY, P_ORBITS, P_MOON, P_MOONK, P_CHORD, P_TZSTEP };            /* NOTES in SEQ: the cursor's step on K1-K4 */
+       P_SN1, P_SN2, P_SN3, P_LANES, P_LENS, P_CHORDS, P_PROG, P_TONNETZ, P_WALK, P_PLAY, P_ORBITS, P_MOON, P_MOONK, P_CHORD, P_TZSTEP, P_MIMIC, P_LOOP };            /* NOTES in SEQ: the cursor's step on K1-K4 */
 /* what PRESET sets on a held step; the black keys pick them by family (FAMILY) */
 /* REC: GRID the white keys are SEQ's steps, NOTES they write at a cursor, LIVE they record while playing, ARM the first
    note starts LIVE */
-enum { R_OFF, R_GRID, R_NOTES, R_LIVE, R_ARM };
+enum { R_OFF, R_GRID, R_NOTES, R_LIVE, R_ARM, R_LISTEN };   /* LISTEN: a MIMIC pattern learns from the keyboard */
 enum { A_VEL, A_RATCHET, A_PROB, A_COND, A_SLIDE, A_ACCENT, A_NOTE, A_LEN, A_MICRO, A_N };
 #define COND_N 40                    /* NONE, FIRST, !FIRST, PRE, !PRE, then A:B for B = 2..8, A = 1..B */
 
 static const uint8_t DOMAIN_PAGES[ND][5] = {{P_ENGINE, P_SOUND}, {P_STEPS, P_XY}, {P_TEMPO, P_SCALE, P_KEYS, P_GFX, P_CPU}, {P_TRACKS, P_SONG},
                                                 {P_ADSR, P_FILTER}, {P_LFO}, {P_ARP}, {P_MIX, P_INSERT}};
 static const uint8_t DOMAIN_N[ND] = {2, 1, 5, 2, 2, 1, 1, 2};      /* SEQ: 2 pages while PATH is XY (pages) */
-static const uint8_t GEN_PAGES[7][5] = {{P_GRIDS, P_MAP, P_DENS}, {P_MARBLES, P_T, P_X, P_NOTES}, {P_LIFE, P_SEED, P_EVOL},
+static const uint8_t GEN_PAGES[8][5] = {{P_GRIDS, P_MAP, P_DENS}, {P_MARBLES, P_T, P_X, P_NOTES}, {P_LIFE, P_SEED, P_EVOL},
                                         {P_LANES, P_LENS}, {P_CHORDS, P_PROG, P_CHORD},
-                                        {P_TONNETZ, P_WALK, P_PLAY, P_TZSTEP}, {P_ORBITS, P_MOON}};
+                                        {P_TONNETZ, P_WALK, P_PLAY, P_TZSTEP}, {P_ORBITS, P_MOON}, {P_MIMIC, P_LOOP}};
 static const uint8_t KIT_PAGES[5] = {P_PAD, P_KIT};
 static const uint8_t NOTES_PAGES[5] = {P_SN1, P_SN2, P_SN3, P_STEPS, P_XY};
 static const uint8_t DOMAIN_BTN[ND] = {B_EDIT, B_SEQ, B_GLO, B_HOME, B_ENV, B_LFO, B_ARP, B_FX};
@@ -84,6 +84,8 @@ static const q_page PAGE[] = {
     {"MOON", {"PERIOD", "PHASE", "PAD"}, {1, 0, 0}, {32, 31, 15}},       /* a KIT's: PAD for NOTE */
     {"CHORD", {"DEGREE", "SIZE"}, {0, 0}, {6, CS_N - 1}},                 /* the chord under PRESET's cursor */
     {"STEP", {"OP"}, {0}, {3}},                                          /* the TONNETZ step under PRESET's cursor */
+    {"MIMIC", {"DIV", "ORDER", "DRIFT", "SOURCE"}, {0, 1, 0, 0}, {DIV_N - 1, 2, 127, SRC_N - 1}},
+    {"LOOP", {"LOOP"}, {0}, {16}},                                       /* 0 FREE */
 };
 
 /* Plaits' registration order (pq.h) */
@@ -103,7 +105,7 @@ static const char *const INS_NAME[IT_N] = {"INSERT OFF", "OVERDRIVE", "WAVEFOLD"
 static const char *const INS_LABEL[IT_N][3] = {{"", "", ""}, {"DRIVE", "TONE", ""}, {"FOLD", "BIAS", "TONE"}, {"BITS", "RATE", ""},
                                                 {"RATE", "DEPTH", ""}, {"RATE", "DEPTH", "FEEDBK"}, {"FREQ", "", ""}, {"NOTE", "FEEDBK", "DAMP"}};
 static const char *const AMODE_NAME[6] = {"OFF", "UP", "DOWN", "UP-DN", "RAND", "ORDER"};
-static const char *const SRC_NAME[SRC_N] = {"STEP", "ATLAS", "FLEET", "COLONY", "LOOM", "CADENCE", "LATTICE", "MOONS"};
+static const char *const SRC_NAME[SRC_N] = {"STEP", "ATLAS", "FLEET", "COLONY", "LOOM", "CADENCE", "LATTICE", "MOONS", "MIMIC"};
 /* Marbles' T models, its TGeneratorModel order (gen.c) */
 static const char *const T_MODE_NAME[7] = {"C.BERN", "CLUSTERS", "DRUMS", "I.BERN", "DIVIDER", "3 STATES", "MARKOV"};
 static const char *const PATH_NAME[PATH_N] = {"FWD", "REV", "PING-PONG", "SNAKE", "COLUMNS", "SPIRAL", "RANDOM", "XY"};
@@ -153,7 +155,8 @@ typedef struct {
                                                    5 HOME's tracks (scene_home.c), 6 a sound page ADSR .. MIX (scene_sound.c),
                                                    7 TEMPO, SCALE, KEYS, FX, SONG (scene_glo.c), 8 LIFE (scene_life.c),
                                                    9 LANES (scene_lanes.c), 10 CHORDS (scene_chords.c),
-                                                   11 TONNETZ (scene_tonnetz.c), 12 ORBITS (scene_orbits.c) */
+                                                   11 TONNETZ (scene_tonnetz.c), 12 ORBITS (scene_orbits.c),
+                                                   13 MIMIC (scene_mimic.c) */
         q_trow tr[Q_TRACKS];                    /* TRACKS */
         int8_t layer, lmode;                    /* a layer's map instead of the scene: its button + 1; REC in LIVE, SEL in NOTES */
         uint32_t lkeys, hot;                    /* its keys, and the keys pressed */
@@ -185,6 +188,8 @@ static struct {
     int lane, cell, cell_key, cell_edited;     /* LANES: the lane edited (L_*); the cell held 1..16, 0 none, its key */
     int cell_lane;                             /* the lane of the cell last touched */
     int moon;                                  /* ORBITS: the moon MOON sets, 0..moons - 1 */
+    uint32_t listen_ms;                        /* LISTEN: the last note learnt's time, its pattern; listen_n notes so far */
+    int listen_track, listen_pat, listen_n;
     int chcur, tzcur;                          /* CHORDS, TONNETZ: PRESET's cursor, 0..len - 1 */
     int draws;                                 /* MARBLES: new draws asked (a probe) */
     int cell_flash;                            /* the cell last touched 1..16 (0 none) and when, for the scene */
@@ -218,7 +223,7 @@ static int pages(int d, uint8_t *out)
             out[0] = P_LIFEK;
         if (t->src == SRC_ORBITS && kit())
             out[1] = P_MOONK;
-        return t->src == SRC_TONNETZ ? 4 : t->src == SRC_CHORDS ? 3 : t->src == SRC_ORBITS || t->src == SRC_LANES ? 2 : t->src != SRC_MARBLES ? 3 : kit() ? 2 : 4;   /* a KIT has no X section */
+        return t->src == SRC_TONNETZ ? 4 : t->src == SRC_CHORDS ? 3 : t->src == SRC_ORBITS || t->src == SRC_LANES || t->src == SRC_MIMIC ? 2 : t->src != SRC_MARBLES ? 3 : kit() ? 2 : 4;   /* a KIT has no X section */
     }
     if (d == D_SEQ && notes_on()) {     /* the cursor's step first, then SEQ's own */
         __builtin_memcpy(out, NOTES_PAGES, 5);
@@ -293,7 +298,8 @@ static int knob_get(int pid, int k)
     case P_LANES * 4 + 3:
     case P_CHORDS * 4 + 3:
     case P_TONNETZ * 4 + 3:
-    case P_ORBITS * 4 + 3: return t->src;
+    case P_ORBITS * 4 + 3:
+    case P_MIMIC * 4 + 3: return t->src;
     case P_GRIDS * 4:
     case P_MARBLES * 4:
     case P_LIFE * 4:
@@ -301,12 +307,16 @@ static int knob_get(int pid, int k)
     case P_LANES * 4:
     case P_CHORDS * 4:
     case P_TONNETZ * 4:
-    case P_ORBITS * 4: return t->div;
+    case P_ORBITS * 4:
+    case P_MIMIC * 4: return t->div;
     case P_CHORD * 4: return CH_DEG(t->chords.ch[ui.chcur]);
     case P_CHORD * 4 + 1: return CH_SIZE(t->chords.ch[ui.chcur]);
     case P_TZSTEP * 4: return TZ_OP(&t->tonnetz, ui.tzcur);
     case P_ORBITS * 4 + 1: return t->orbits.note;
     case P_ORBITS * 4 + 2: return t->orbits.moons;
+    case P_MIMIC * 4 + 1: return t->mimic.order;
+    case P_MIMIC * 4 + 2: return t->mimic.drift;
+    case P_LOOP * 4: return t->mimic.loop;
     case P_MOON * 4:
     case P_MOONK * 4: return t->orbits.per[ui.moon];
     case P_MOON * 4 + 1:
@@ -458,11 +468,15 @@ static void knob_set(int pid, int k, int v)
     case P_LANES * 4:
     case P_CHORDS * 4:
     case P_TONNETZ * 4:
-    case P_ORBITS * 4: t->div = (uint8_t)v; break;
+    case P_ORBITS * 4:
+    case P_MIMIC * 4: t->div = (uint8_t)v; break;
     case P_CHORD * 4: t->chords.ch[ui.chcur] = CH_MAKE(v, CH_SIZE(t->chords.ch[ui.chcur])); break;
     case P_CHORD * 4 + 1: t->chords.ch[ui.chcur] = CH_MAKE(CH_DEG(t->chords.ch[ui.chcur]), v); break;
     case P_TZSTEP * 4: TZ_SET(&t->tonnetz, ui.tzcur, v); break;
     case P_ORBITS * 4 + 1: t->orbits.note = (uint8_t)v; break;
+    case P_MIMIC * 4 + 1: t->mimic.order = (uint8_t)v; break;
+    case P_MIMIC * 4 + 2: t->mimic.drift = (uint8_t)v; break;
+    case P_LOOP * 4: t->mimic.loop = (uint8_t)v; break;
     case P_ORBITS * 4 + 2:
         t->orbits.moons = (uint8_t)v;
         if (ui.moon >= v) ui.moon = v - 1;   /* fewer moons: the one set among them */
@@ -514,8 +528,9 @@ static void knob_set(int pid, int k, int v)
     case P_CHORDS * 4 + 3:
     case P_TONNETZ * 4 + 3:
     case P_ORBITS * 4 + 3:
+    case P_MIMIC * 4 + 3:
         t->src = (uint8_t)v;
-        if ((v == SRC_CHORDS || v == SRC_TONNETZ || v == SRC_ORBITS) && !kit() && s->poly < 3)   /* chords, conjunctions: POLY 3 at least */
+        if ((v == SRC_CHORDS || v == SRC_TONNETZ || v == SRC_ORBITS || v == SRC_MIMIC) && !kit() && s->poly < 3)   /* chords, conjunctions: POLY 3 at least */
             s->poly = 3;
         break;
     case P_GRIDS * 4 + 1: t->grids.voice = (uint8_t)v; break;
@@ -673,7 +688,7 @@ static void button(int b)
                 rec_set(R_ARM);
             }
         } else if (audio_playing()) {   /* the stop ends LIVE; GRID and NOTES stay */
-            if (ui.rec >= R_LIVE)
+            if (ui.rec == R_LIVE || ui.rec == R_ARM)
                 rec_set(R_OFF);
             audio_play(0);
         } else {                        /* NOTES out of SEQ starts LIVE; armed before the start: the count-in */
@@ -991,9 +1006,24 @@ static void family_key(int b, q_step *s)
         ui.attr = f[0] == ui.attr && f[1] != 0xFF ? f[1] : f[0];
 }
 
-/* the only writer of ui.rec: the recorder armed in LIVE alone */
+/* LISTEN's pattern's step in ms, its gaps' unit */
+static uint32_t listen_step_ms(void) { return 2500u * DIV96[ui.p->pat[ui.listen_track][ui.listen_pat].div] / ui.p->tempo; }
+
+/* the only writer of ui.rec: the recorder armed in LIVE alone; LISTEN tells the render, and its end closes the phrase
+   (the last note's gap: the time to the end) */
 static void rec_set(int r)
 {
+    if (ui.rec == R_LISTEN && r != R_LISTEN) {
+        q_mimic *m = &ui.p->pat[ui.listen_track][ui.listen_pat].mimic;
+        if (ui.listen_n) {
+            m->ev[m->n - 1][1] = (uint8_t)gen_mimic_gap(plat_ms() - ui.listen_ms, listen_step_ms(), 1);
+            ui.dirty = 1;
+        }
+        audio_mimic_listen(ui.listen_track, 0);
+    } else if (r == R_LISTEN && ui.rec != R_LISTEN) {
+        ui.listen_track = ui.track, ui.listen_pat = ui.p->pattern[ui.track], ui.listen_n = 0;
+        audio_mimic_listen(ui.track, 1);
+    }
     if (r == R_NOTES && ui.rec != R_NOTES)
         ui.cursor = 1;
     if ((r == R_NOTES) != (ui.rec == R_NOTES))  /* SEQ's pages change: the first one */
@@ -1023,6 +1053,8 @@ static void rec_release(void)
         rec_set(ui.rec == R_OFF ? R_GRID : ui.rec == R_GRID ? R_NOTES : R_OFF);
     else if (lanes_on() || chords_on() || tonnetz_on())   /* LANES, CHORDS, TONNETZ: the grid only, no NOTES */
         rec_set(ui.rec == R_OFF ? R_GRID : R_OFF);
+    else if (ui.domain == D_SEQ && pat()->src == SRC_MIMIC)
+        rec_set(ui.rec == R_LISTEN ? R_OFF : R_LISTEN);
     else if (ui.domain == D_SEQ)        /* a generator is never written: an armed REC disarms */
         rec_set(R_OFF);
     else if (ui.domain != D_SEQ)
@@ -1300,6 +1332,7 @@ static void key_down(int k)
             ui.wipe_until = plat_ms() + 2 * MSG_MS;
             return;
         }
+        rec_set(R_OFF);                 /* (ui_init clears ui.rec: LISTEN must tell the render first) */
         audio_play(0);
         project_defaults(ui.p);
         ui_init(ui.p);
@@ -1479,6 +1512,16 @@ static void key_down(int k)
     }
     /* written to the held step: not overdubbed too; ARP held: the arp keeps the note after its key is released */
     audio_live_note(ui.track, note, s ? 2 : ui.arpdown && !kit() ? 3 : 1);
+    if (!s && ui.rec == R_LISTEN) {     /* learnt: the first note of LISTEN starts a new phrase */
+        q_mimic *m = &pat()->mimic;
+        uint32_t now = plat_ms();
+        if (!ui.listen_n)
+            m->n = 0;
+        gen_mimic_learn(m, note, ui.listen_n ? gen_mimic_gap(now - ui.listen_ms, listen_step_ms(), 0) : 0);
+        ui.listen_ms = now;
+        ui.listen_n++;
+        ui.dirty = 1;
+    }
     if (!s && ui.rec == R_OFF) {        /* disarmed: the note, or the chord with the keys still held, is the clipboard */
         for (i = 0; i < NKEYS && ui.key_note[i] < 0; i++) {}
         if (i == NKEYS) {
@@ -1662,6 +1705,9 @@ void ui_input(void)
             ui.tzcur = clamp(ui.tzcur + e, 0, pat()->tonnetz.len - 1);
         } else if (ui.domain == D_SEQ && pat()->src == SRC_ORBITS) {   /* the moon set (MOON page) */
             ui.moon = clamp(ui.moon + e, 0, pat()->orbits.moons - 1);
+        } else if (ui.domain == D_SEQ && pat()->src == SRC_MIMIC) {    /* a new draw: SEED */
+            pat()->mimic.seed = (uint8_t)(pat()->mimic.seed + e);
+            ui.dirty = 1;
         } else if (lanes_on()) {        /* the lane edited; a KIT has no OCT */
             ui.lane = clamp(ui.lane + e, 0, L_N - 1);
             if (kit() && ui.lane == L_OCT)
@@ -1687,6 +1733,9 @@ void ui_input(void)
         ui.page[D_SEQ] = 0;
     if (ui.cell && !lanes_on() && !chords_on() && !tonnetz_on())   /* another domain: the cell or chord held lets go, its release does nothing */
         ui.cell = 0;
+    if (ui.rec == R_LISTEN && (ui.domain != D_SEQ || ui.track != ui.listen_track || ui.p->pattern[ui.track] != ui.listen_pat ||
+                               pat()->src != SRC_MIMIC))   /* LISTEN is its pattern's */
+        rec_set(R_OFF);
     if (ui.moon >= pat()->orbits.moons)         /* fewer moons: the one set among them */
         ui.moon = pat()->orbits.moons - 1;
     if (ui.chcur >= pat()->chords.len)          /* a shorter progression or sequence: the cursor within it */
@@ -1841,6 +1890,15 @@ static uint32_t key_lights(uint32_t *mid)
             if (hits >> i & 1)
                 keys |= 1u << WHITE[i];
         }
+    } else if (ui.domain == D_SEQ && t->src == SRC_MIMIC && ui.rec == R_LISTEN) {   /* LISTEN: the phrase filling, in eighths */
+        for (i = 0; i < t->mimic.n * 8 / MIMIC_EV; i++)
+            keys |= 1u << WHITE[i];
+    } else if (ui.domain == D_SEQ && t->src == SRC_MIMIC) {     /* the place read in the phrase, in eighths */
+        q_mimic_run r;
+        audio_mimic(ui.track, &r);
+        /* (last[0] past n: a run not yet told of a shorter phrase, no light) */
+        if (pos >= 0 && r.nlast && r.last[0] < t->mimic.n && audio_pattern(ui.track) == ui.p->pattern[ui.track])
+            keys |= 1u << WHITE[r.last[0] * 8 / t->mimic.n];
     } else if (ui.domain == D_SEQ && t->src == SRC_TONNETZ) {   /* the steps at mid level, the one applied lit; held: black keys 1-4 */
         q_tonnetz_run r;
         audio_tonnetz(ui.track, &r);
@@ -2072,11 +2130,16 @@ static void knob_text(int pid, int k, int v, char *b)
         while ((*b++ = *s++) != 0) {}
         return;
     }
+    if (pid == P_LOOP && !v) {
+        const char *s = "FREE";
+        while ((*b++ = *s++) != 0) {}
+        return;
+    }
     if (pid == P_EVOL && !k) {          /* tours per generation */
         int_text(1 << v, b);
         return;
     }
-    if ((k == 3 && (pid == P_STEPS || pid == P_GRIDS || pid == P_MARBLES || pid == P_LIFE || pid == P_LIFEK || pid == P_LANES || pid == P_CHORDS || pid == P_TONNETZ || pid == P_ORBITS)) || (pid == P_T && !k)) {
+    if ((k == 3 && (pid == P_STEPS || pid == P_GRIDS || pid == P_MARBLES || pid == P_LIFE || pid == P_LIFEK || pid == P_LANES || pid == P_CHORDS || pid == P_TONNETZ || pid == P_ORBITS || pid == P_MIMIC)) || (pid == P_T && !k)) {
         const char *s = pid == P_T ? T_MODE_NAME[v] : SRC_NAME[v];
         while ((*b++ = *s++) != 0) {}
         return;
@@ -2085,7 +2148,7 @@ static void knob_text(int pid, int k, int v, char *b)
         note_name(v, b);
         return;
     }
-    if ((pid == P_STEPS && k > 0) || (pid == P_XY && k & 1) || ((pid == P_GRIDS || pid == P_MARBLES || pid == P_LIFE || pid == P_LIFEK || pid == P_LANES || pid == P_CHORDS || pid == P_TONNETZ || pid == P_ORBITS) && !k)) {
+    if ((pid == P_STEPS && k > 0) || (pid == P_XY && k & 1) || ((pid == P_GRIDS || pid == P_MARBLES || pid == P_LIFE || pid == P_LIFEK || pid == P_LANES || pid == P_CHORDS || pid == P_TONNETZ || pid == P_ORBITS || pid == P_MIMIC) && !k)) {
         const char *s = pid == P_STEPS && k == 2 ? PATH_NAME[v] : DIV_NAME[v];
         while ((*b++ = *s++) != 0) {}
         return;
@@ -2159,8 +2222,8 @@ static int shown_step(void)
 /* REC's badge: 1 GRID (in SEQ), 2 NOTES (GRID out of SEQ too), 3 LIVE, 4 ARM (blinking: 0 half the time) */
 static int badge(void)
 {
-    if (ui.rec == R_ARM)
-        return plat_ms() / 500u & 1u ? 0 : 4;
+    if (ui.rec == R_ARM || ui.rec == R_LISTEN)
+        return plat_ms() / 500u & 1u ? 0 : ui.rec == R_ARM ? 4 : 5;
     if (ui.domain == D_SEQ && (pat()->src == SRC_LANES || pat()->src == SRC_CHORDS || pat()->src == SRC_TONNETZ) && ui.rec == R_NOTES)   /* NOTES left from a STEP pattern */
         return 0;
     if (ui.domain == D_SEQ && pat()->src != SRC_STEP && pat()->src != SRC_LANES && pat()->src != SRC_CHORDS && pat()->src != SRC_TONNETZ && ui.rec != R_LIVE)   /* a generator: nothing written */
@@ -2269,6 +2332,8 @@ static void view_now(q_view *v)
             v->scene.anim = 11;                 /* scene_tonnetz.c; ui_frame fills its view */
         if (pid == P_ORBITS || pid == P_MOON || pid == P_MOONK)
             v->scene.anim = 12;                 /* scene_orbits.c; ui_frame fills its view */
+        if (pid == P_MIMIC || pid == P_LOOP)
+            v->scene.anim = 13;                 /* scene_mimic.c; ui_frame fills its view */
         if (pid == P_MARBLES || pid == P_T || pid == P_X) {
             v->scene.anim = 3;
             v->scene.v[0] = t->marbles.spread;
@@ -2430,8 +2495,8 @@ static void draw_head(const q_view *v)
     x = 234 - text_w(&FONT_S, t);
     cv_text(x, 7, &FONT_S, t, C_GRAY);
     if (v->head.badge) {                /* REC's state, boxed in its colour */
-        static const char *const BADGE[4] = {"GRID", "NOTES", "LIVE", "ARM"};
-        static const uint16_t BCOL[4] = {RGB(34, 213, 142), RGB(58, 109, 255), RGB(255, 47, 142), RGB(255, 122, 46)};
+        static const char *const BADGE[5] = {"GRID", "NOTES", "LIVE", "ARM", "LISTEN"};
+        static const uint16_t BCOL[5] = {RGB(34, 213, 142), RGB(58, 109, 255), RGB(255, 47, 142), RGB(255, 122, 46), RGB(255, 47, 142)};
         char b[10];
         int i = 0;
         const char *n = BADGE[v->head.badge - 1];
@@ -2746,6 +2811,7 @@ void ui_frame(void)
     static q_chview chv;                   /* CHORDS' */
     static q_tzview tzw;                   /* TONNETZ's */
     static q_orview orw;                   /* ORBITS' */
+    static q_miview miw;                   /* MIMIC's */
     int b;
     ui_input();
     lights();
@@ -3066,6 +3132,18 @@ void ui_frame(void)
                 }
                 orw.step_ms = 2500u * DIV96[t->div] / ui.p->tempo;
                 orbits_frame(&orw, now);
+            } else if (v.scene.anim == 13) {
+                const q_pattern *t = pat();
+                if (fresh)
+                    mimic_enter();
+                miw.m = t->mimic, miw.kit = (uint8_t)kit(), miw.listen = ui.rec == R_LISTEN;
+                miw.playing = (uint8_t)(v.scene.pos >= 0);
+                if (miw.playing)
+                    audio_mimic(ui.track, &miw.r);
+                else
+                    __builtin_memset(&miw.r, 0, sizeof miw.r);
+                miw.step_ms = 2500u * DIV96[t->div] / ui.p->tempo;
+                mimic_frame(&miw, now);
             } else if (v.scene.anim == 7) {
                 static char title[14];
                 int pid = v.scene.pid, k, w;
@@ -3151,6 +3229,8 @@ void ui_frame(void)
                     tonnetz_band(&tzw, -BAND_H * b);
                 else if (v.scene.anim == 12)
                     orbits_band(&orw, -BAND_H * b);
+                else if (v.scene.anim == 13)
+                    mimic_band(&miw, -BAND_H * b);
                 else
                     plateau_band(-BAND_H * b);
                 cv_blit(0, HEAD_H + BAND_H * b);
@@ -3238,7 +3318,7 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "leds_lit") || !strcmp(what, "leds_mid")) {
         uint32_t mid, lit = key_lights(&mid);
         *got = (int)(what[5] == 'l' ? lit : mid);
-    } else if (!strcmp(what, "badge")) *got = ui.rec == R_ARM ? 4 : badge();
+    } else if (!strcmp(what, "badge")) *got = ui.rec == R_ARM ? 4 : ui.rec == R_LISTEN ? 5 : badge();
     else if (!strcmp(what, "selref")) *got = ui.sel_ref + 1;
     else if (!strcmp(what, "clip_n")) for (*got = 1; *got < 4 && ui.clip.st.note[*got]; ++*got) {}
     else if (!strcmp(what, "clip_note")) *got = ui.clip.st.note[0];
@@ -3360,6 +3440,14 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "onote")) *got = t->orbits.note;
     else if (!strcmp(what, "omoons")) *got = t->orbits.moons;
     else if (!strcmp(what, "osel")) *got = ui.moon;
+    else if (!strcmp(what, "morder")) *got = t->mimic.order;
+    else if (!strcmp(what, "mdrift")) *got = t->mimic.drift;
+    else if (!strcmp(what, "mloop")) *got = t->mimic.loop;
+    else if (!strcmp(what, "mseed")) *got = t->mimic.seed;
+    else if (!strcmp(what, "mn")) *got = t->mimic.n;
+    else if (!strcmp(what, "mlisten")) { q_mimic_run r; audio_mimic(ui.track, &r); *got = r.listen; }
+    else if (!strncmp(what, "mnote_", 6) && atoi(what + 6) >= 1 && atoi(what + 6) <= MIMIC_EV) *got = t->mimic.ev[atoi(what + 6) - 1][0];
+    else if (!strncmp(what, "mgap_", 5) && atoi(what + 5) >= 1 && atoi(what + 5) <= MIMIC_EV) *got = t->mimic.ev[atoi(what + 5) - 1][1];
     else if (!strcmp(what, "chcur")) *got = ui.chcur;
     else if (!strcmp(what, "tzcur")) *got = ui.tzcur;
     else if (!strcmp(what, "mdraws")) *got = ui.draws;

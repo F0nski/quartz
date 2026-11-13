@@ -138,6 +138,8 @@ static void loop_lengths(void)
     assert(gen_loop(pt) == 16);
     pt->src = SRC_ORBITS;
     assert(gen_loop(pt) == 16);
+    pt->src = SRC_MIMIC;
+    assert(gen_loop(pt) == 16);
 }
 
 /* MARBLES */
@@ -1295,6 +1297,224 @@ static void orbits_moons(void)
     assert(G.orbits_n == 17);
 }
 
+/* MIMIC */
+
+static q_pattern *mimic_setup(int model, const uint8_t *notes, const uint8_t *gaps, int count)
+{
+    project_defaults(&P);
+    P.sound[0].model = model;
+    q_pattern *pt = &P.pat[0][0];
+    pt->src = SRC_MIMIC;
+    if (notes) {
+        pt->mimic.n = (uint8_t)count;
+        for (int i = 0; i < count; i++) pt->mimic.ev[i][0] = notes[i], pt->mimic.ev[i][1] = gaps[i];
+    }
+    if (notes) pt->mimic.order = 1, pt->mimic.drift = 0;
+    memset(&G, 0, sizeof G);
+    return pt;
+}
+
+/* the notes step k plays; their number */
+static int mplay(q_pattern *pt, int k, uint8_t out[4])
+{
+    q_step st;
+    gen_step(&G, &P, 0, pt, k % 16, &R, &st);
+    int nb = 0;
+    if (st.flags & SF_ON)
+        for (; nb < 4 && st.note[nb]; nb++) out[nb] = st.note[nb];
+    return nb;
+}
+
+static void mimic_defaults(void)
+{
+    const q_mimic *m = &mimic_setup(8, 0, 0, 0)->mimic;
+    assert(sizeof(q_mimic) == 69);
+    static const uint8_t n[7] = { 60, 62, 64, 67, 64, 62, 60 }, g[7] = { 2, 1, 1, 2, 1, 1, 4 };
+    assert(m->n == 7 && m->order == 1 && m->drift == 16 && m->loop == 0 && m->seed == 0);
+    for (int i = 0; i < 7; i++) assert(m->ev[i][0] == n[i] && m->ev[i][1] == g[i]);
+}
+
+static void mimic_in_order(void)
+{
+    static const uint8_t n[3] = { 60, 62, 64 }, g[3] = { 1, 2, 1 };
+    q_pattern *pt = mimic_setup(8, n, g, 3);
+    uint8_t o[4];
+    assert(mplay(pt, 0, o) == 1 && o[0] == 60);
+    assert(mplay(pt, 1, o) == 1 && o[0] == 62);
+    assert(mplay(pt, 2, o) == 0);
+    assert(mplay(pt, 3, o) == 1 && o[0] == 64);
+    assert(mplay(pt, 4, o) == 1 && o[0] == 60);
+    q_step st;
+    gen_step(&G, &P, 0, pt, 5, &R, &st);
+    assert(st.len == 4 && st.vel == 100 && st.prob == 20);
+}
+
+static void mimic_chord(void)
+{
+    static const uint8_t n[3] = { 60, 64, 67 }, g[3] = { 0, 0, 2 };
+    q_pattern *pt = mimic_setup(8, n, g, 3);
+    uint8_t o[4];
+    assert(mplay(pt, 0, o) == 3 && o[0] == 60 && o[1] == 64 && o[2] == 67);
+    assert(mplay(pt, 1, o) == 0);
+    assert(mplay(pt, 2, o) == 3 && o[0] == 60 && o[1] == 64 && o[2] == 67);
+}
+
+static void mimic_all_chord(void)
+{
+    static const uint8_t n[5] = { 60, 62, 64, 65, 67 }, g[5] = { 0 };
+    q_pattern *pt = mimic_setup(8, n, g, 5);
+    uint8_t o[4];
+    for (int k = 0; k < 32; k++) assert(mplay(pt, k, o) <= 4);
+    assert(G.mimic.n == 32);
+}
+
+static void mimic_order2(void)
+{
+    static const uint8_t n[4] = { 60, 62, 60, 64 }, g[4] = { 1, 1, 1, 1 };
+    q_pattern *pt = mimic_setup(8, n, g, 4);
+    pt->mimic.order = 2;
+    uint8_t o[4];
+    int a = 0, b = 0, seen62 = 0, seen64 = 0;
+    for (int k = 0; k < 200; k++) {
+        mplay(pt, k, o);
+        if (a == 62 && b == 60) assert(o[0] == 64);
+        a = b, b = o[0];
+    }
+    mimic_setup(8, n, g, 4);
+    a = 0;
+    for (int k = 0; k < 200; k++) {
+        mplay(pt, k, o);
+        if (a == 60) seen62 |= o[0] == 62, seen64 |= o[0] == 64;
+        a = o[0];
+    }
+    assert(seen62 && seen64);
+}
+
+static void mimic_fallback(void)
+{
+    static const uint8_t n[4] = { 60, 62, 64, 65 }, g[4] = { 1, 1, 1, 1 };
+    q_pattern *pt = mimic_setup(8, n, g, 4);
+    pt->mimic.order = 2;
+    uint8_t o[4];
+    mplay(pt, 0, o);
+    G.mimic.prev = 1, G.mimic.cur = 3;  /* after a jump: 62 then 65, a pair the phrase does not hold */
+    assert(mplay(pt, 1, o) == 1 && o[0] == 60);
+}
+
+static void mimic_drift(void)
+{
+    q_pattern *pt = mimic_setup(8, 0, 0, 0);
+    pt->mimic.drift = 127;
+    unsigned places = 0;
+    int jumped = 0;
+    uint8_t o[4];
+    for (int k = 0; k < 400; k++) {
+        if (mplay(pt, k, o)) {
+            places |= 1u << G.mimic.last[0];
+            jumped |= G.mimic.jumps & 1;
+        }
+    }
+    assert(places == 0x7f && jumped);
+}
+
+static void mimic_run(q_pattern *pt, int steps, uint8_t *notes)
+{
+    uint8_t o[4];
+    memset(&G, 0, sizeof G);
+    for (int k = 0; k < steps; k++) notes[k] = mplay(pt, k, o) ? o[0] : 0;
+}
+
+static void mimic_loop(void)
+{
+    q_pattern *pt = mimic_setup(8, 0, 0, 0);
+    pt->mimic.drift = 64; pt->mimic.loop = 8;
+    uint8_t a[24];
+    mimic_run(pt, 24, a);
+    assert(!memcmp(a, a + 8, 8) && !memcmp(a, a + 16, 8));
+}
+
+static void mimic_seed(void)
+{
+    q_pattern *pt = mimic_setup(8, 0, 0, 0);
+    pt->mimic.drift = 64; pt->mimic.seed = 5;
+    uint8_t a[64], b[64], c[64];
+    mimic_run(pt, 64, a);
+    mimic_run(pt, 64, b);
+    assert(!memcmp(a, b, 64));
+    pt->mimic.seed = 6;
+    mimic_run(pt, 64, c);
+    assert(memcmp(a, c, 64));
+    pt->mimic.seed = 5;                 /* changed while playing: drawn again from the new SEED */
+    uint8_t o[4];
+    memset(&G, 0, sizeof G);
+    for (int k = 0; k < 10; k++) mplay(pt, k, o);
+    assert(G.mimic.seed == 5);
+    pt->mimic.seed = 9;
+    mplay(pt, 10, o);
+    assert(G.mimic.seed == 9);
+}
+
+static void mimic_silent(void)
+{
+    q_pattern *pt = mimic_setup(8, 0, 0, 0);
+    uint8_t o[4];
+    G.mimic.listen = 1;
+    for (int k = 0; k < 16; k++) assert(mplay(pt, k, o) == 0);
+    G.mimic.listen = 0;
+    pt->mimic.n = 0;
+    for (int k = 0; k < 16; k++) assert(mplay(pt, k, o) == 0);
+}
+
+static void mimic_listen_kept_on_reset(void)
+{
+    mimic_setup(8, 0, 0, 0);
+    G.mimic.listen = 1;
+    gen_reset(&G, &R);
+    assert(G.mimic.listen == 1);
+}
+
+static void mimic_kit(void)
+{
+    static const uint8_t n[2] = { 60, 30 }, g[2] = { 1, 1 };
+    q_pattern *pt = mimic_setup(M_KIT, n, g, 2);
+    uint8_t o[4];
+    assert(mplay(pt, 0, o) == 1 && o[0] == KIT_NOTE + 8);
+    assert(mplay(pt, 1, o) == 1 && o[0] == KIT_NOTE + 10);
+}
+
+static void mimic_shrunk(void)
+{
+    q_pattern *pt = mimic_setup(8, 0, 0, 0);
+    pt->mimic.drift = 0;
+    uint8_t o[4];
+    for (int k = 0; k < 40 && G.mimic.cur != 6; k++) mplay(pt, k, o);
+    assert(G.mimic.cur == 6);
+    pt->mimic.n = 3;
+    for (int k = 40; k < 60; k++)
+        for (int i = 0, nb = mplay(pt, k, o); i < nb; i++) assert(o[i] == 60 || o[i] == 62 || o[i] == 64);
+}
+
+static void mimic_gap(void)
+{
+    assert(gen_mimic_gap(250, 125, 0) == 2);
+    assert(gen_mimic_gap(60, 125, 0) == 0);
+    assert(gen_mimic_gap(63, 125, 0) == 1);
+    assert(gen_mimic_gap(5000, 125, 0) == 7);
+    assert(gen_mimic_gap(0, 125, 1) == 1);
+    assert(gen_mimic_gap(4000000000u, 1000, 0) == 7);
+}
+
+static void mimic_learn(void)
+{
+    q_mimic m = { 0 };
+    gen_mimic_learn(&m, 60, 0);
+    gen_mimic_learn(&m, 62, 2);
+    assert(m.n == 2 && m.ev[0][0] == 60 && m.ev[0][1] == 2 && m.ev[1][0] == 62 && m.ev[1][1] == 1);
+    m.n = 0;
+    for (int i = 0; i < 33; i++) gen_mimic_learn(&m, 40 + i, 1);
+    assert(m.n == 32 && m.ev[0][0] == 41 && m.ev[31][0] == 72);
+}
+
 /* MARBLES' new draw (PRESET): the deja vu loops drawn again */
 static void marbles_draw_new_loops(void)
 {
@@ -1385,6 +1605,21 @@ int main(void)
     orbits_period_change();
     orbits_four();
     orbits_moons();
+    mimic_defaults();
+    mimic_in_order();
+    mimic_chord();
+    mimic_all_chord();
+    mimic_order2();
+    mimic_fallback();
+    mimic_drift();
+    mimic_loop();
+    mimic_seed();
+    mimic_silent();
+    mimic_listen_kept_on_reset();
+    mimic_kit();
+    mimic_shrunk();
+    mimic_gap();
+    mimic_learn();
     marbles_draw_new_loops();
     puts("gen ok");
     return 0;

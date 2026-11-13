@@ -25,6 +25,7 @@ static void lcd_blit(uint32_t x, uint32_t y, uint32_t w, uint32_t h, const uint1
 #include "scene_chords.c"
 #include "scene_tonnetz.c"
 #include "scene_orbits.c"
+#include "scene_mimic.c"
 
 static uint16_t px(int x, int y) { return swap16(cv_px[y * 240 + x]); }
 static int is_orange(uint16_t c) { return c == ORANGE[0] || c == ORANGE[1] || c == ORANGE[2]; }
@@ -2380,8 +2381,134 @@ static void orbits_knobs_visible(void)
     assert(ovdiffers(och_name) && ovdiffers(och_moons) && ovdiffers(och_per) && ovdiffers(och_pha) && ovdiffers(och_sel) && ovdiffers(och_n));
 }
 
+/* ---- MIMIC: the two rolls ---- */
+static q_miview MIV;
+static void mvreset(void)
+{
+    memset(&MIV, 0, sizeof MIV);
+    MIV.m = (q_mimic){ 7, 1, 0, 0, 0, { { 60, 2 }, { 62, 1 }, { 64, 1 }, { 67, 2 }, { 64, 1 }, { 62, 1 }, { 60, 4 } } };
+    MIV.playing = 1, MIV.step_ms = 125;
+    mimic_enter();
+}
+/* the run after a step that played place e, left from place f */
+static void mvplay(uint32_t n, int e, int f, int jump)
+{
+    MIV.r.n = n + 1, MIV.r.at = n, MIV.r.nlast = 1, MIV.r.last[0] = (uint8_t)e, MIV.r.from = (int8_t)f, MIV.r.cur = (int8_t)e;
+    MIV.r.jumps = (uint8_t)jump;
+}
+static void mvfull(void)
+{
+    for (int b = 0; b < 2; b++) {
+        cv_begin(240, 83, 0);
+        mimic_band(&MIV, -83 * b);
+        memcpy(FULL + 240 * 83 * b, cv_px, sizeof(uint16_t) * 240 * 83);
+    }
+}
+static int mvlit(int x0, int x1, int y0, int y1)   /* pixels of a cell's colour: the four quarters' */
+{
+    int n = 0;
+    for (int i = 0; i < 3; i++)
+        n += gcount(KBLUE[i], x0, x1, y0, y1) + gcount(KGREEN[i], x0, x1, y0, y1) + gcount(ORANGE[i], x0, x1, y0, y1) +
+             gcount(MB_WHITE[i], x0, x1, y0, y1);
+    return n;
+}
+
+static void mimic_budget(void)
+{
+    mvreset();
+    MIV.m.n = 32;
+    for (int i = 0; i < 32; i++) MIV.m.ev[i][0] = (uint8_t)(40 + i), MIV.m.ev[i][1] = (uint8_t)(i % 3);
+    for (uint32_t k = 0; k < 40; k++) { mvplay(k, (int)(k % 32), (int)((k + 5) % 32), (int)(k & 1)); mimic_frame(&MIV, 1000 + k * 125); }
+    assert(p3d_count() <= 300);
+}
+/* the default phrase: 12 steps over 202 px from x 30; 4 rows of 13 px from y 24: 67 on the top one, 60 on the bottom one */
+static void mimic_cells(void)
+{
+    mvreset();
+    MIV.playing = 0;
+    mimic_frame(&MIV, 1000); mvfull();
+    assert(mvlit(100, 128, 24, 37) > 0 && mvlit(100, 128, 63, 76) == 0);   /* place 3 (67): x 97..131 */
+    assert(mvlit(32, 62, 63, 76) > 0 && mvlit(32, 62, 24, 50) == 0);       /* place 0 (60): x 30..63 */
+    assert(mvlit(30, 232, 90, 160) == 0);                                  /* nothing played */
+}
+static void mimic_head(void)
+{
+    mvreset();
+    mimic_frame(&MIV, 0);                         /* (arrival: nothing played yet) */
+    mvplay(4, 3, 2, 0);
+    mimic_frame(&MIV, 1000);
+    mimic_frame(&MIV, 1010); mvfull();
+    assert(gpink(97, 132, 24, 77) > 0 && gpink(30, 63, 18, 77) == 0);
+}
+static void mimic_jump_arrow(void)
+{
+    const uint16_t LINK = RGB(0xc9, 0xc3, 0xe4);
+    mvreset();
+    mimic_frame(&MIV, 0);                         /* (arrival: nothing played yet) */
+    mvplay(4, 5, 1, 1);                          /* DRIFT: from place 1 to place 5, pink */
+    mimic_frame(&MIV, 1000);
+    mimic_frame(&MIV, 1100); mvfull();
+    assert(gpink(60, 170, 17, 23) > 0);
+    mvreset();
+    mimic_frame(&MIV, 0);                         /* (arrival: nothing played yet) */
+    mvplay(4, 5, 1, 0);                          /* a link: light */
+    mimic_frame(&MIV, 1000);
+    mimic_frame(&MIV, 1100); mvfull();
+    assert(gcount(LINK, 60, 170, 17, 23) > 0 && gpink(60, 140, 17, 23) == 0);
+    mvreset();
+    mimic_frame(&MIV, 0);                         /* (arrival: nothing played yet) */
+    mvplay(4, 5, 4, 0);                          /* the next place: no arrow */
+    mimic_frame(&MIV, 1000);
+    mimic_frame(&MIV, 1100); mvfull();
+    assert(gcount(LINK, 30, 232, 17, 23) == 0);
+    mvreset();
+    mimic_frame(&MIV, 0);                         /* (arrival: nothing played yet) */
+    mvplay(4, 5, 1, 1);                          /* 600 ms on: gone */
+    mimic_frame(&MIV, 1000);
+    mimic_frame(&MIV, 1700); mvfull();
+    assert(gpink(60, 140, 17, 23) == 0);
+}
+static void mimic_listen(void)
+{
+    mvreset();
+    MIV.listen = 1;
+    mvplay(4, 3, 2, 0);
+    mimic_frame(&MIV, 1000); mvfull();
+    assert(gpink(198, 232, 63, 77) > 0);         /* the last place (60, x 164..232): pink */
+    assert(gpink(30, 164, 18, 77) == 0 && gpink(0, 240, 86, 166) == 0);   /* no head, no improvisation */
+}
+static int mvdiffers(void (*change)(void))
+{
+    static uint16_t ref[240 * 166];
+    mvreset();
+    mvplay(3, 2, 1, 0); mimic_frame(&MIV, 0);
+    mvplay(4, 3, 2, 0); mimic_frame(&MIV, 125);
+    mimic_frame(&MIV, 185); mvfull();
+    memcpy(ref, FULL, sizeof ref);
+    change();
+    mimic_frame(&MIV, 185); mvfull();
+    return memcmp(ref, FULL, sizeof ref) != 0;
+}
+static void mch_order(void) { MIV.m.order = 2; }
+static void mch_drift(void) { MIV.m.drift = 64; }
+static void mch_loop(void) { MIV.m.loop = 4; }
+static void mch_seed(void) { MIV.m.seed = 7; }
+static void mch_div(void) { MIV.step_ms = 250; }
+static void mch_listen(void) { MIV.listen = 1; }
+static void mimic_knobs_visible(void)
+{
+    assert(mvdiffers(mch_order) && mvdiffers(mch_drift) && mvdiffers(mch_loop) && mvdiffers(mch_seed) && mvdiffers(mch_div) &&
+           mvdiffers(mch_listen));
+}
+
 int main(void)
 {
+    mimic_budget();
+    mimic_cells();
+    mimic_head();
+    mimic_jump_arrow();
+    mimic_listen();
+    mimic_knobs_visible();
     orbits_budget();
     orbits_pass_pink();
     orbits_sync_flash();

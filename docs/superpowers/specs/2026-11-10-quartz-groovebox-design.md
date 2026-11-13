@@ -168,6 +168,8 @@ dans une croche ou une noire.
   RETURN), joué comme CHORDS. Détail : `2026-11-13-quartz-tonnetz-design.md`.
 - **ORBITS** : 1 à 4 lunes, chacune sa période, sa phase et sa note (degré ou pad), jouent en passant devant la
   planète ; accent aux conjonctions. Détail : `2026-11-13-quartz-orbits-design.md`.
+- **MIMIC** : une phrase apprise au clavier (REC court : LISTEN), notes et écarts, improvisée en recollant ses morceaux
+  (ORDER, DRIFT, LOOP, SEED). Détail : `2026-11-13-quartz-mimic-design.md`.
 - Étape ultérieure (demandée, non planifiée) : un LEN de 1 à 32 pour GRIDS, sur le 4e encodeur libre de MAP ou de DENS ;
   la boucle repart au pas 1 après LEN, les pas au-delà s'affichent sombres.
 
@@ -177,12 +179,12 @@ dans une croche ou une noire.
 |---|---|
 | ALGORITHM | choisir la piste 1–4 |
 | SELECT (encodeur) | passer d'une page à l'autre dans le domaine courant |
-| PRESET | parcourir ce qui est à l'écran : presets du moteur, type d'insert, pattern… ; dans SEQ selon la source : STEP le pattern (un pas tenu : sa fonction), GRIDS les 25 rythmes de la carte (X et Y sur ses nœuds), MARBLES un nouveau tirage des boucles, LIFE SEED, LANES la ligne éditée, CHORDS et TONNETZ un curseur (pages CHORD et STEP), ORBITS la lune réglée |
+| PRESET | parcourir ce qui est à l'écran : presets du moteur, type d'insert, pattern… ; dans SEQ selon la source : STEP le pattern (un pas tenu : sa fonction), GRIDS les 25 rythmes de la carte (X et Y sur ses nœuds), MARBLES un nouveau tirage des boucles, LIFE SEED, LANES la ligne éditée, CHORDS et TONNETZ un curseur (pages CHORD et STEP), ORBITS la lune réglée, MIMIC un nouveau tirage (SEED) |
 | K1–K4 | les 4 paramètres de la page ; couleurs fixes bleu, vert, blanc, orange |
 | SEL (bouton) | valider (charger le preset choisi, confirmer une action) ; maintenu : Shift des pas (sélection dans la grille, p-locks en NOTES) |
 | MASTER | volume |
 | PLAY | lecture / stop |
-| REC | appuis courts : GRILLE puis NOTES dans SEQ, NOTES ailleurs ; tenu + PLAY : live ; tenu : couche (CLEAR…) (spec `2026-11-12-quartz-step-entry-design.md`) |
+| REC | appuis courts : GRILLE puis NOTES dans SEQ, NOTES ailleurs, LISTEN sur un pattern MIMIC ; tenu + PLAY : live ; tenu : couche (CLEAR…) (spec `2026-11-12-quartz-step-entry-design.md`) |
 | OCT− / OCT+ | octave du clavier ; dans la grille (SEQ, REC armé), page de pas (1–16, 17–32…) ; pas tenu : durée |
 
 | Bouton de domaine | Pages (SELECT les parcourt) | Maintenu + touches |

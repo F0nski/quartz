@@ -29,14 +29,16 @@ void gen_marbles_draw(q_gen *g, uint32_t *rng)
 
 void gen_reset(q_gen *g, uint32_t *rng)
 {
+    uint8_t listen = g->mimic.listen;   /* LISTEN is the interface's: a STOP/PLAY keeps the improvisation silent */
     __builtin_memset(g, 0, sizeof *g);
+    g->mimic.listen = listen;
     gen_marbles_draw(g, rng);
     g->drum_step = 8;          /* the first step draws a drum pattern */
 }
 
 int gen_loop(const q_pattern *pt)
 {
-    return pt->src == SRC_MARBLES ? pt->marbles.len : pt->src == SRC_LIFE || pt->src == SRC_LANES || pt->src == SRC_CHORDS || pt->src == SRC_TONNETZ || pt->src == SRC_ORBITS ? LIFE_W : GRIDS_STEPS;
+    return pt->src == SRC_MARBLES ? pt->marbles.len : pt->src == SRC_LIFE || pt->src == SRC_LANES || pt->src == SRC_CHORDS || pt->src == SRC_TONNETZ || pt->src == SRC_ORBITS || pt->src == SRC_MIMIC ? LIFE_W : GRIDS_STEPS;
 }
 
 /* settings 0..127 as Grids' 0..255 */
@@ -721,6 +723,93 @@ static int orbits_step(q_gen *g, const q_project *p, int track, const q_pattern 
     return nb > 1 ? (1 << nb) - 1 : 0;
 }
 
+/* MIMIC */
+
+int gen_mimic_gap(uint32_t ms, uint32_t step_ms, int lo)
+{
+    uint32_t g = ms / step_ms + (ms % step_ms * 2 >= step_ms);
+    return g > 7 ? 7 : (int)g < lo ? lo : (int)g;
+}
+
+void gen_mimic_learn(q_mimic *m, int note, int gap)
+{
+    if (m->n)
+        m->ev[m->n - 1][1] = (uint8_t)gap;
+    if (m->n == MIMIC_EV) {
+        for (int i = 1; i < MIMIC_EV; i++)    /* (no libc: no memmove) */
+            m->ev[i - 1][0] = m->ev[i][0], m->ev[i - 1][1] = m->ev[i][1];
+        m->n--;
+    }
+    m->ev[m->n][0] = (uint8_t)note, m->ev[m->n][1] = 1;
+    m->n++;
+}
+
+/* place i holds cur's note and, at order 2, prev's before it (the phrase is a loop) */
+static int mimic_match(const q_mimic *m, int c, int p, int i, int o)
+{
+    return m->ev[i][0] == m->ev[c][0] && (o < 2 || m->ev[(i + m->n - 1) % m->n][0] == m->ev[p][0]);
+}
+
+/* the place after cur: with DRIFT's chance anywhere, else the one after a matching place drawn at random (none at ORDER
+   2: order 1, which cur itself matches) */
+static int mimic_next(const q_mimic *m, q_mimic_run *r, int *jump)
+{
+    int n = m->n, c = r->cur, p = r->prev, o = p >= 0 ? m->order : 1, nb = 0, i;
+    *jump = 0;
+    if (c < 0)
+        return 0;
+    if (gen_rand(&r->rng) % 127 < m->drift) {
+        *jump = 1;
+        return (int)(gen_rand(&r->rng) % (uint32_t)n);
+    }
+    for (; !nb; o--)
+        for (i = 0; i < n; i++) nb += mimic_match(m, c, p, i, o);
+    int pick = (int)(gen_rand(&r->rng) % (uint32_t)nb);
+    for (o++, i = 0; ; i++)
+        if (mimic_match(m, c, p, i, o) && pick-- == 0)
+            return (i + 1) % n;
+}
+
+/* the step r->n: the events whose wait ends, chained on the same step while their gap is 0 (4 at most) */
+static int mimic_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, q_step *st)
+{
+    const q_mimic *m = &pt->mimic;
+    q_mimic_run *r = &g->mimic;
+    uint32_t n = r->n++;
+    if (r->listen || !m->n)
+        return 0;
+    if (!r->seeded || r->seed != m->seed || (m->loop && n % m->loop == 0)) {
+        r->rng = m->seed * 2654435761u | 1u;
+        r->seed = m->seed, r->seeded = 1;
+        if (m->loop && n % m->loop == 0)
+            r->cur = r->prev = -1, r->wait = 0;
+    }
+    if (n == 0)
+        r->cur = r->prev = r->from = -1;
+    if (r->cur >= m->n) r->cur = -1;
+    if (r->prev >= m->n) r->prev = -1;
+    if (r->wait > 1) {
+        r->wait--;
+        return 0;
+    }
+    int kit = p->sound[track].model == M_KIT, nb = 0, jump;
+    r->jumps = 0;
+    do {
+        int e = mimic_next(m, r, &jump);
+        if (!nb) r->from = r->cur;
+        r->prev = r->cur, r->cur = (int8_t)e;
+        int note = m->ev[e][0];
+        st->note[nb] = (uint8_t)(kit ? KIT_NOTE + ((note - KIT_NOTE) % 16 + 16) % 16 : note);
+        r->last[nb] = (uint8_t)e, r->jumps |= (uint8_t)(jump << nb);
+        r->wait = m->ev[e][1];
+        nb++;
+    } while (!r->wait && nb < 4);
+    if (!r->wait) r->wait = 1;          /* 4 notes on the step: the next one on the next step */
+    r->nlast = (uint8_t)nb, r->at = n;
+    st->flags = SF_ON; st->len = 4; st->vel = 100; st->prob = 20;
+    return 0;
+}
+
 int gen_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, int k, uint32_t *rng, q_step *st)
 {
     __builtin_memset(st, 0, sizeof *st);
@@ -730,5 +819,6 @@ int gen_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, int k
     if (pt->src == SRC_CHORDS) return chords_step(g, p, track, pt, k, st);
     if (pt->src == SRC_TONNETZ) return tonnetz_step(g, p, track, pt, k, rng, st);
     if (pt->src == SRC_ORBITS) return orbits_step(g, p, track, pt, st);
+    if (pt->src == SRC_MIMIC) return mimic_step(g, p, track, pt, st);
     return marbles_step(g, p, track, pt, rng, st);
 }
