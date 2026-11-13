@@ -31,7 +31,7 @@ void gen_reset(q_gen *g, uint32_t *rng)
 
 int gen_loop(const q_pattern *pt)
 {
-    return pt->src == SRC_MARBLES ? pt->marbles.len : GRIDS_STEPS;
+    return pt->src == SRC_MARBLES ? pt->marbles.len : pt->src == SRC_LIFE ? LIFE_W : GRIDS_STEPS;
 }
 
 /* settings 0..127 as Grids' 0..255 */
@@ -342,9 +342,150 @@ static int marbles_step(q_gen *g, const q_project *p, int track, const q_pattern
     return 0;      /* Marbles has no accent */
 }
 
+/* LIFE: Conway's Game of Life on a 16 x 8 torus, read a column per step */
+
+static uint16_t rotl16(uint16_t v, int n) { return (uint16_t)(v << n | v >> (16 - n)); }
+
+/* B3/S23: a cell is born with 3 living neighbours, survives with 2 or 3 */
+static void life_next(const uint16_t in[LIFE_H], uint16_t out[LIFE_H])
+{
+    for (int r = 0; r < LIFE_H; r++) {
+        uint16_t nb[8], row[3] = { in[(r + LIFE_H - 1) % LIFE_H], in[r], in[(r + 1) % LIFE_H] };
+        int n = 0;
+        for (int i = 0; i < 3; i++) {
+            nb[n++] = rotl16(row[i], 1);
+            nb[n++] = rotl16(row[i], 15);
+            if (i != 1) nb[n++] = row[i];
+        }
+        uint16_t res = 0;
+        for (int c = 0; c < LIFE_W; c++) {
+            int cnt = 0;
+            for (int i = 0; i < 8; i++) cnt += nb[i] >> c & 1;
+            if (cnt == 3 || (cnt == 2 && (in[r] >> c & 1))) res |= (uint16_t)(1u << c);
+        }
+        out[r] = res;
+    }
+}
+
+/* a grid drawn with the run's own xorshift; a cell lives with probability dens / 127 x 0.55 */
+static void life_draw(q_life_run *l)
+{
+    uint32_t lim = (uint32_t)l->dens * 72657u;      /* 0.55 x 2^24 / 127 */
+    for (int r = 0; r < LIFE_H; r++) {
+        uint16_t v = 0;
+        for (int c = 0; c < LIFE_W; c++)
+            if ((gen_rand(&l->rng) >> 8) < lim) v |= (uint16_t)(1u << c);
+        l->grid[r] = v;
+    }
+    __builtin_memcpy(l->born, l->grid, sizeof l->born);
+    __builtin_memset(l->prev, 0, sizeof l->prev);
+    __builtin_memset(l->mut, 0, sizeof l->mut);
+    l->stuck = 0;
+}
+
+static void life_seed(q_life_run *l, int seed, int dens)
+{
+    l->seed = (uint8_t)seed, l->dens = (uint8_t)dens, l->seeded = 1;
+    l->rng = ((uint32_t)seed * 2654435761u ^ (uint32_t)dens * 40503u ^ 0x9e3779b9u) | 1;
+    life_draw(l);
+}
+
+/* NOTE in the scale, then r degrees of the scale up; above 127, the scale's last note below */
+static int life_note(int note, uint16_t scale, int tonic, int r)
+{
+    int n = gen_quantize(note, scale, tonic, 0);
+    while (r > 0) {
+        int m = n + 1;
+        while (m <= 127 && !(scale >> (m % 12) & 1)) m++;
+        if (m > 127) break;
+        n = m, r--;
+    }
+    return n;
+}
+
+int gen_life_rows(const q_life *l, int kit, const uint16_t grid[LIFE_H], int col, uint8_t rows[4])
+{
+    int cap = kit && l->poly > 3 ? 3 : l->poly, n = 0, band = -1;
+    for (int r = 0; r < LIFE_H && n < cap; r++) {
+        if (!(grid[r] >> col & 1)) continue;
+        if (kit && l->map) {
+            int b = r < 3 ? 0 : r < 6 ? 1 : 2;
+            if (b == band) continue;
+            band = b;
+        }
+        rows[n++] = (uint8_t)r;
+    }
+    return n;
+}
+
+static void life_generation(q_life_run *l, const q_life *s)
+{
+    uint16_t next[LIFE_H];
+    life_next(l->grid, next);
+    int empty = 1, same0 = 1, same1 = 1;
+    for (int r = 0; r < LIFE_H; r++) {
+        empty &= !next[r];
+        same0 &= next[r] == l->grid[r];
+        same1 &= next[r] == l->prev[0][r];
+    }
+    __builtin_memset(l->mut, 0, sizeof l->mut);
+    for (int i = (s->mut * 6 + 63) / 127; i > 0; i--) {
+        int c = (int)(gen_rand(&l->rng) % LIFE_W), r = (int)(gen_rand(&l->rng) % LIFE_H);
+        next[r] |= (uint16_t)(1u << c);
+        l->mut[r] |= (uint16_t)(1u << c);
+    }
+    l->gens++;
+    if (!s->mut && (empty || same0 || same1)) {
+        if (s->autos) {                 /* the run's next draw: SEED stays */
+            l->reseeds++;
+            life_draw(l);
+            return;
+        }
+        l->stuck = 1;
+    } else {
+        l->stuck = 0;
+    }
+    __builtin_memcpy(l->prev[1], l->prev[0], sizeof l->prev[1]);
+    __builtin_memcpy(l->prev[0], l->grid, sizeof l->prev[0]);
+    for (int r = 0; r < LIFE_H; r++) l->born[r] = (uint16_t)(next[r] & ~l->grid[r]);
+    __builtin_memcpy(l->grid, next, sizeof l->grid);
+}
+
+static int life_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, int k, q_step *st)
+{
+    q_life_run *l = &g->life;
+    const q_life *s = &pt->life;
+    if (!l->seeded) {
+        life_seed(l, s->seed, s->dens);
+    } else if (k == 0) {
+        if (l->seed != s->seed || l->dens != s->dens) {
+            l->reseeds++;
+            life_seed(l, s->seed, s->dens);
+            l->tours = 0;
+        } else if (++l->tours >= 1 << s->gen) {
+            l->tours = 0;
+            life_generation(l, s);
+        }
+    }
+    int kit = p->sound[track].model == M_KIT, acc = 0;
+    uint8_t rows[4];
+    int n = gen_life_rows(s, kit, l->grid, k, rows);
+    if (!n) return 0;
+    for (int i = 0; i < n; i++) {
+        int r = rows[i];
+        st->note[i] = (uint8_t)(!kit ? life_note(s->note, gen_scale(p), p->tonic, r)
+                                     : KIT_NOTE + (s->map ? (r < 3 ? 0 : r < 6 ? 1 : 2) : r));
+        if (l->born[r] >> k & 1) acc |= 1 << i;
+    }
+    st->flags |= SF_ON;
+    st->vel = 95; st->len = 4; st->prob = 20;
+    return acc;
+}
+
 int gen_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, int k, uint32_t *rng, q_step *st)
 {
     __builtin_memset(st, 0, sizeof *st);
     if (pt->src == SRC_GRIDS) return grids_step(g, p, track, pt, k, rng, st);
+    if (pt->src == SRC_LIFE) return life_step(g, p, track, pt, k, st);
     return marbles_step(g, p, track, pt, rng, st);
 }

@@ -128,6 +128,8 @@ static void loop_lengths(void)
     assert(gen_loop(pt) == 32);
     pt->src = SRC_MARBLES; pt->marbles.len = 7;
     assert(gen_loop(pt) == 7);
+    pt->src = SRC_LIFE;
+    assert(gen_loop(pt) == 16);
 }
 
 /* MARBLES */
@@ -367,6 +369,260 @@ static void grids_level_matches_step(void)
     }
 }
 
+/* LIFE */
+
+static q_pattern *life_setup(int model)
+{
+    project_defaults(&P);
+    P.sound[0].model = model;
+    q_pattern *pt = &P.pat[0][0];
+    pt->src = SRC_LIFE;
+    memset(&G, 0, sizeof G);
+    return pt;
+}
+
+static int cell(const uint16_t g[LIFE_H], int c, int r) { return g[(r + LIFE_H) % LIFE_H] >> ((c + LIFE_W) % LIFE_W) & 1; }
+static void set_cell(uint16_t g[LIFE_H], int c, int r) { g[r] |= (uint16_t)(1u << c); }
+static int alive(const uint16_t g[LIFE_H]) { int n = 0; for (int r = 0; r < LIFE_H; r++) n += __builtin_popcount(g[r]); return n; }
+
+/* the 16 steps of a tour: notes and accents per step */
+static void life_tour(const q_pattern *pt, q_step st[16], int acc[16])
+{
+    for (int k = 0; k < 16; k++) acc[k] = gen_step(&G, &P, 0, pt, k, &R, &st[k]);
+}
+
+static int tour_notes(const q_pattern *pt)
+{
+    q_step st[16]; int acc[16], n = 0;
+    life_tour(pt, st, acc);
+    for (int k = 0; k < 16; k++) if (st[k].flags & SF_ON) for (int i = 0; i < 4; i++) n += st[k].note[i] != 0;
+    return n;
+}
+
+static void life_blinker(void)
+{
+    uint16_t a[LIFE_H] = {0}, b[LIFE_H], c[LIFE_H];
+    for (int x = 4; x <= 6; x++) set_cell(a, x, 3);
+    life_next(a, b);
+    assert(alive(b) == 3 && cell(b, 5, 2) && cell(b, 5, 3) && cell(b, 5, 4));
+    life_next(b, c);
+    assert(!memcmp(a, c, sizeof a));
+}
+
+static void life_glider_wraps(void)
+{
+    uint16_t g[LIFE_H] = {0}, n[LIFE_H], g0[LIFE_H];
+    /* a glider going right and down the rows' indices, near the top right corner */
+    set_cell(g, 14, 7); set_cell(g, 15, 6); set_cell(g, 13, 5); set_cell(g, 14, 5); set_cell(g, 15, 5);
+    memcpy(g0, g, sizeof g);
+    for (int i = 0; i < 64; i++) { life_next(g, n); memcpy(g, n, sizeof g); assert(alive(g) == 5); }
+    assert(!memcmp(g, g0, sizeof g));
+}
+
+static void life_block_still(void)
+{
+    uint16_t g[LIFE_H] = {0}, n[LIFE_H];
+    set_cell(g, 0, 0); set_cell(g, 1, 0); set_cell(g, 0, 1); set_cell(g, 1, 1);
+    life_next(g, n);
+    assert(!memcmp(g, n, sizeof g));
+}
+
+static void life_seed_repeats(void)
+{
+    q_pattern *pt = life_setup(M_KIT);
+    q_step st;
+    pt->life.seed = 17; pt->life.dens = 70;
+    gen_step(&G, &P, 0, pt, 0, &R, &st);
+    uint16_t a[LIFE_H]; memcpy(a, G.life.grid, sizeof a);
+    assert(alive(a) > 0);
+    memset(&G, 0, sizeof G);
+    gen_step(&G, &P, 0, pt, 0, &R, &st);
+    assert(!memcmp(a, G.life.grid, sizeof a));
+    pt->life.seed = 18; memset(&G, 0, sizeof G);
+    gen_step(&G, &P, 0, pt, 0, &R, &st);
+    assert(memcmp(a, G.life.grid, sizeof a));
+    pt->life.dens = 0; memset(&G, 0, sizeof G);
+    assert(tour_notes(pt) == 0 && alive(G.life.grid) == 0);
+    pt->life.dens = 127; memset(&G, 0, sizeof G);
+    gen_step(&G, &P, 0, pt, 0, &R, &st);
+    assert(alive(G.life.grid) >= 128 * 40 / 100 && alive(G.life.grid) <= 128 * 70 / 100);
+}
+
+static void life_gen_every_n_tours(void)
+{
+    q_pattern *pt = life_setup(M_KIT);
+    pt->life.gen = 2; pt->life.mut = 0;
+    q_step st;
+    gen_step(&G, &P, 0, pt, 0, &R, &st);            /* seeded */
+    memset(G.life.grid, 0, sizeof G.life.grid);
+    for (int x = 4; x <= 6; x++) set_cell(G.life.grid, x, 3);
+    uint16_t a[LIFE_H]; memcpy(a, G.life.grid, sizeof a);
+    for (int k = 1; k < 16; k++) gen_step(&G, &P, 0, pt, k, &R, &st);
+    for (int t = 2; t <= 4; t++)                     /* tours 2..4: nothing */
+        for (int k = 0; k < 16; k++) { gen_step(&G, &P, 0, pt, k, &R, &st); assert(G.life.gens == 0 && !memcmp(a, G.life.grid, sizeof a)); }
+    gen_step(&G, &P, 0, pt, 0, &R, &st);            /* tour 5's step 0 */
+    assert(G.life.gens == 1 && cell(G.life.grid, 5, 2) && !cell(G.life.grid, 4, 3));
+}
+
+static void life_auto_reseeds_dead(void)
+{
+    for (int autos = 0; autos <= 1; autos++) {
+        q_pattern *pt = life_setup(M_KIT);
+        pt->life.gen = 0; pt->life.autos = (uint8_t)autos; pt->life.mut = 0;
+        q_step st;
+        gen_step(&G, &P, 0, pt, 0, &R, &st);
+        memset(G.life.grid, 0, sizeof G.life.grid);
+        for (int k = 1; k < 16; k++) gen_step(&G, &P, 0, pt, k, &R, &st);
+        gen_step(&G, &P, 0, pt, 0, &R, &st);
+        if (autos) { assert(G.life.reseeds == 1 && G.life.stuck == 0 && alive(G.life.grid) > 0); }
+        else {
+            assert(G.life.reseeds == 0 && G.life.stuck == 1);
+            assert(tour_notes(pt) == 0);
+        }
+    }
+}
+
+static void life_frozen_kept_without_auto(void)
+{
+    for (int autos = 0; autos <= 1; autos++) {
+        q_pattern *pt = life_setup(M_KIT);
+        pt->life.gen = 0; pt->life.autos = (uint8_t)autos; pt->life.mut = 0;
+        q_step st;
+        gen_step(&G, &P, 0, pt, 0, &R, &st);
+        memset(G.life.grid, 0, sizeof G.life.grid);
+        set_cell(G.life.grid, 0, 0); set_cell(G.life.grid, 1, 0); set_cell(G.life.grid, 0, 1); set_cell(G.life.grid, 1, 1);
+        for (int k = 1; k < 16; k++) gen_step(&G, &P, 0, pt, k, &R, &st);
+        if (autos) { gen_step(&G, &P, 0, pt, 0, &R, &st); assert(G.life.reseeds == 1); }
+        else {
+            for (int t = 0; t < 3; t++) assert(tour_notes(pt) == 4);   /* columns 0 and 1, rows 0 and 1, every tour */
+            assert(G.life.stuck == 1 && G.life.reseeds == 0);
+        }
+    }
+}
+
+static void life_mut_never_stuck(void)
+{
+    q_pattern *pt = life_setup(M_KIT);
+    pt->life.gen = 0; pt->life.autos = 1; pt->life.mut = 127;
+    q_step st;
+    gen_step(&G, &P, 0, pt, 0, &R, &st);
+    memset(G.life.grid, 0, sizeof G.life.grid);
+    set_cell(G.life.grid, 0, 0); set_cell(G.life.grid, 1, 0); set_cell(G.life.grid, 0, 1); set_cell(G.life.grid, 1, 1);
+    for (int k = 1; k < 16; k++) gen_step(&G, &P, 0, pt, k, &R, &st);
+    for (int g = 0; g < 8; g++) {
+        gen_step(&G, &P, 0, pt, 0, &R, &st);
+        assert(G.life.reseeds == 0 && G.life.stuck == 0);
+        assert(alive(G.life.mut) >= 1 && alive(G.life.mut) <= 6);
+        for (int k = 1; k < 16; k++) gen_step(&G, &P, 0, pt, k, &R, &st);
+    }
+}
+
+static void life_seed_change_next_tour(void)
+{
+    q_pattern *pt = life_setup(M_KIT);
+    pt->life.gen = 3;                                 /* no generation in the way */
+    q_step st;
+    for (int k = 0; k < 5; k++) gen_step(&G, &P, 0, pt, k, &R, &st);
+    uint16_t a[LIFE_H]; memcpy(a, G.life.grid, sizeof a);
+    pt->life.seed = 3;
+    gen_step(&G, &P, 0, pt, 5, &R, &st);
+    pt->life.seed = 9;
+    for (int k = 6; k < 16; k++) { gen_step(&G, &P, 0, pt, k, &R, &st); assert(!memcmp(a, G.life.grid, sizeof a)); }
+    gen_step(&G, &P, 0, pt, 0, &R, &st);
+    assert(G.life.reseeds == 1);
+    q_life_run want; memset(&want, 0, sizeof want);
+    life_seed(&want, 9, pt->life.dens);
+    assert(!memcmp(want.grid, G.life.grid, sizeof want.grid));
+}
+
+static void life_rows_poly(void)
+{
+    q_life l = { 2, 48, 0, 0, 70, 1, 1, 0 };
+    uint16_t g[LIFE_H] = {0};
+    uint8_t rows[4];
+    set_cell(g, 3, 1); set_cell(g, 3, 2); set_cell(g, 3, 5); set_cell(g, 3, 7);
+    assert(gen_life_rows(&l, 0, g, 3, rows) == 2 && rows[0] == 1 && rows[1] == 2);
+    l.poly = 4;
+    assert(gen_life_rows(&l, 1, g, 3, rows) == 3 && rows[0] == 1 && rows[1] == 2 && rows[2] == 5);
+    l.map = 1;
+    assert(gen_life_rows(&l, 1, g, 3, rows) == 3 && rows[0] == 1 && rows[1] == 5 && rows[2] == 7);
+    l.poly = 2;
+    assert(gen_life_rows(&l, 1, g, 3, rows) == 2 && rows[0] == 1 && rows[1] == 5);
+    assert(gen_life_rows(&l, 0, g, 4, rows) == 0);
+}
+
+static void life_notes_synth(void)
+{
+    q_pattern *pt = life_setup(8);
+    uint16_t sc = gen_scale(&P);                      /* C major */
+    assert(life_note(48, sc, 0, 0) == 48 && life_note(48, sc, 0, 1) == 50 && life_note(48, sc, 0, 2) == 52);
+    assert(life_note(49, sc, 0, 0) == 48);
+    /* through gen_step: column 0 with rows 0 and 2 living */
+    pt->life.gen = 3; pt->life.poly = 4; pt->life.note = 48;
+    q_step st;
+    gen_step(&G, &P, 0, pt, 0, &R, &st);
+    memset(G.life.grid, 0, sizeof G.life.grid); memset(G.life.born, 0, sizeof G.life.born);
+    set_cell(G.life.grid, 1, 0); set_cell(G.life.grid, 1, 2);
+    int acc = gen_step(&G, &P, 0, pt, 1, &R, &st);
+    assert((st.flags & SF_ON) && st.note[0] == 48 && st.note[1] == 52 && st.note[2] == 0 && acc == 0);
+    assert(st.vel == 95 && st.len == 4 && st.prob == 20);
+}
+
+static void life_degrees_clamp(void)
+{
+    life_setup(8);
+    uint16_t sc = gen_scale(&P);
+    for (int r = 0; r < LIFE_H; r++) { int n = life_note(127, sc, 0, r); assert(n >= 1 && n <= 127); }
+}
+
+static void life_notes_kit(void)
+{
+    q_pattern *pt = life_setup(M_KIT);
+    pt->life.gen = 3; pt->life.poly = 4;
+    q_step st;
+    gen_step(&G, &P, 0, pt, 0, &R, &st);
+    memset(G.life.grid, 0, sizeof G.life.grid);
+    set_cell(G.life.grid, 2, 4); set_cell(G.life.grid, 2, 7);
+    gen_step(&G, &P, 0, pt, 2, &R, &st);
+    assert(st.note[0] == KIT_NOTE + 4 && st.note[1] == KIT_NOTE + 7);
+    pt->life.map = 1;
+    gen_step(&G, &P, 0, pt, 2, &R, &st);
+    assert(st.note[0] == KIT_NOTE + 1 && st.note[1] == KIT_NOTE + 2 && st.note[2] == 0);
+}
+
+static void life_born_accented(void)
+{
+    q_pattern *pt = life_setup(M_KIT);
+    pt->life.gen = 0; pt->life.poly = 4; pt->life.autos = 0;
+    q_step st[16]; int acc[16];
+    life_tour(pt, st, acc);                           /* the seed: every cell is born */
+    for (int k = 0; k < 16; k++) {
+        int n = 0; while (n < 4 && st[k].note[n]) n++;
+        assert(acc[k] == (1 << n) - 1);
+    }
+    q_step s1;
+    gen_step(&G, &P, 0, pt, 0, &R, &s1);              /* a generation, then a still block with no newborn */
+    memset(G.life.grid, 0, sizeof G.life.grid); memset(G.life.born, 0, sizeof G.life.born);
+    set_cell(G.life.grid, 1, 0); set_cell(G.life.grid, 1, 1);
+    assert(gen_step(&G, &P, 0, pt, 1, &R, &s1) == 0 && s1.note[0]);
+}
+
+/* the sequencer resets the generator on a pattern change (seq.c): the new pattern's seed, not the old grid */
+static void life_pattern_switch_reseeds(void)
+{
+    q_pattern *pt = life_setup(M_KIT);
+    pt->life.seed = 1;
+    for (int t = 0; t < 3; t++) tour_notes(pt);
+    q_pattern *p2 = &P.pat[0][1];
+    p2->src = SRC_LIFE; p2->life.seed = 2;
+    gen_reset(&G, &R);
+    q_step st;
+    gen_step(&G, &P, 0, p2, 0, &R, &st);
+    q_life_run want; memset(&want, 0, sizeof want);
+    life_seed(&want, 2, p2->life.dens);
+    assert(!memcmp(want.grid, G.life.grid, sizeof want.grid));
+}
+
 int main(void)
 {
     grids_level_matches_step();
@@ -387,6 +643,21 @@ int main(void)
     marbles_tout3_on_t3();
     marbles_jitter_bounds();
     marbles_divider_ratchets();
+    life_blinker();
+    life_glider_wraps();
+    life_block_still();
+    life_seed_repeats();
+    life_gen_every_n_tours();
+    life_auto_reseeds_dead();
+    life_frozen_kept_without_auto();
+    life_mut_never_stuck();
+    life_seed_change_next_tour();
+    life_rows_poly();
+    life_notes_synth();
+    life_degrees_clamp();
+    life_notes_kit();
+    life_born_accented();
+    life_pattern_switch_reseeds();
     puts("gen ok");
     return 0;
 }

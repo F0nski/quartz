@@ -35,6 +35,7 @@ void project_defaults(q_project *p)
             pt->xlen = pt->ylen = 4; pt->ydiv = DIV_4;
             pt->grids = (q_grids){ 64, 64, 0, { 64, 64, 64 }, 1, 60 };
             pt->marbles = (q_marbles){ 1, 8, 0, 64, 0, 0, 64, 64, 0, 48, 2, { 0, 0 } };
+            pt->life = (q_life){ 2, 48, 0, 0, 70, 1, 1, 0 };
             for (int k = 0; k < Q_STEPS; k++) {
                 q_step *st = &pt->steps[k];
                 st->note[0] = 60; st->vel = 100; st->len = 4; st->prob = 20;
