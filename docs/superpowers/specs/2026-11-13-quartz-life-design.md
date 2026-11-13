@@ -37,7 +37,7 @@ voix).
 
 | Piste | Ce que joue la ligne r |
 |---|---|
-| Synthé | NOTE, monté de r degrés dans les notes permises (`gen_allowed`, `gen_quantize`, comme MARBLES) |
+| Synthé | NOTE ramené dans la gamme du projet (`gen_scale`, `gen_quantize`), monté de r degrés de la gamme |
 | KIT, MAP = PADS | le pad r + 1 |
 | KIT, MAP = BANDS | lignes 0–2 : pad 1 ; 3–5 : pad 2 ; 6–7 : pad 3. Une bande joue si l'une de ses cellules vit ; POLY compte les bandes |
 
@@ -72,8 +72,10 @@ VOICE et NOTE de GRIDS). Les touches blanches 1–8 gardent le choix du pattern.
 
 Direction M3 de la maquette : des molécules vues de face, la grille sur toute la zone de scène.
 
-- **Disposition** : 16 × 8 cases de 13,6 × 18,5 px, de x = 22 à 240 et de y = 38 à 186 (zone de scène) ; les noms
-  des lignes à gauche (notes en synthé, pads ou bandes en KIT) ; la colonne lue en bande plus claire.
+- **Disposition** (coordonnées de la zone de scène 240 × 166 ; l'en-tête reste celui de `ui.c`) : une bande du haut
+  (y 0 à 13) pour la graine, GEN et AUTO ; les crans POLY au-dessus de la colonne lue (y 14 à 17) ; 16 × 8 cases de
+  13,5 × 18 px, de x = 22 à 238 et de y = 18 à 162 ; les noms des lignes à gauche (notes en synthé, pads ou bandes en
+  KIT) ; la colonne lue en bande plus claire.
 - **Atomes** : un hexagone plat à facettes par cellule vivante, 4 triangles en 3 tons ; ses sommets tournent
   lentement, les facettes changent de ton. Bleu sur une piste synthé ; sur un KIT, la couleur du pad ou de la bande.
 - **Liaisons** vers les voisins vivants (droite, haut et les deux diagonales du dessus, sans traverser le bord du
@@ -82,19 +84,20 @@ Direction M3 de la maquette : des molécules vues de face, la grille sur toute l
   vide qui va naître (3 voisins) montre un fantôme filaire (losange de 4 lignes).
 - **Notes** : un atome qui joue grossit, passe au rose et émet 6 photons ; ses liaisons rosissent.
 - **Naissances** : l'atome grandit en rose, 3 électrons tournent autour ; **morts** : l'atome rétrécit en gris.
-- **Mort ou figée, AUTO inactif** : atomes gris et « FIGÉ » ou « ÉTEINT » au centre.
+- **Mort ou figée, AUTO inactif** : atomes gris et « FROZEN » ou « EXTINCT » au centre
+  (les textes de l'écran sont en anglais).
 
 Ce que règle chaque encodeur à l'écran :
 
 | Encodeur | Effet visible |
 |---|---|
 | DIV | la vitesse de la bande de lecture |
-| POLY | des crans au-dessus de la colonne lue (barre du haut) ; le nombre d'atomes qui s'excitent |
+| POLY | des crans au-dessus de la colonne lue ; le nombre d'atomes qui s'excitent |
 | NOTE | les noms de notes à gauche |
 | MAP | couleurs et étiquettes par pad ou par bande |
-| SEED, DENS | la pluie d'atomes au resemis ; le numéro « S017 » à droite de la barre du haut |
-| AUTO | deux flèches qui tournent dans la barre du haut (actif) ou un carré éteint |
-| GEN | des losanges dans la barre du haut, un allumé par tour écoulé |
+| SEED, DENS | la pluie d'atomes au resemis ; le numéro « S017 » à droite de la bande du haut |
+| AUTO | deux flèches qui tournent dans la bande du haut (actif) ou un carré éteint |
+| GEN | des losanges dans la bande du haut, un allumé par tour écoulé |
 | MUT | des étincelles roses qui tombent sur les atomes ajoutés |
 
 **Données de la scène** : le rendu écrit à chaque génération et à chaque resemis un instantané lu par
