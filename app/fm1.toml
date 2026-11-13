@@ -18,3 +18,5 @@ cpu2_fallback = true
 ble = false
 words = "words.tsv"
 device_libs = ["libm.a", "libcompiler_rt.a"]
+pool_spare = 4096           # half the default 8 KB: the pool holds the project, and the new pattern sources (LANES,
+                            # then CHORDS, TONNETZ, ORBITS) take their room from this spare
