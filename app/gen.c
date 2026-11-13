@@ -736,7 +736,8 @@ void gen_mimic_learn(q_mimic *m, int note, int gap)
     if (m->n)
         m->ev[m->n - 1][1] = (uint8_t)gap;
     if (m->n == MIMIC_EV) {
-        __builtin_memmove(m->ev, m->ev + 1, sizeof m->ev - sizeof m->ev[0]);
+        for (int i = 1; i < MIMIC_EV; i++)    /* (no libc: no memmove) */
+            m->ev[i - 1][0] = m->ev[i][0], m->ev[i - 1][1] = m->ev[i][1];
         m->n--;
     }
     m->ev[m->n][0] = (uint8_t)note, m->ev[m->n][1] = 1;

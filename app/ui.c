@@ -22,7 +22,7 @@ enum { P_ENGINE, P_SOUND, P_STEPS, P_TEMPO, P_SCALE, P_CPU, P_XY, P_TRACKS, P_SO
 /* what PRESET sets on a held step; the black keys pick them by family (FAMILY) */
 /* REC: GRID the white keys are SEQ's steps, NOTES they write at a cursor, LIVE they record while playing, ARM the first
    note starts LIVE */
-enum { R_OFF, R_GRID, R_NOTES, R_LIVE, R_ARM };
+enum { R_OFF, R_GRID, R_NOTES, R_LIVE, R_ARM, R_LISTEN };   /* LISTEN: a MIMIC pattern learns from the keyboard */
 enum { A_VEL, A_RATCHET, A_PROB, A_COND, A_SLIDE, A_ACCENT, A_NOTE, A_LEN, A_MICRO, A_N };
 #define COND_N 40                    /* NONE, FIRST, !FIRST, PRE, !PRE, then A:B for B = 2..8, A = 1..B */
 
@@ -187,6 +187,8 @@ static struct {
     int lane, cell, cell_key, cell_edited;     /* LANES: the lane edited (L_*); the cell held 1..16, 0 none, its key */
     int cell_lane;                             /* the lane of the cell last touched */
     int moon;                                  /* ORBITS: the moon MOON sets, 0..moons - 1 */
+    uint32_t listen_ms;                        /* LISTEN: the last note learnt's time, its pattern; listen_n notes so far */
+    int listen_track, listen_pat, listen_n;
     int chcur, tzcur;                          /* CHORDS, TONNETZ: PRESET's cursor, 0..len - 1 */
     int draws;                                 /* MARBLES: new draws asked (a probe) */
     int cell_flash;                            /* the cell last touched 1..16 (0 none) and when, for the scene */
@@ -685,7 +687,7 @@ static void button(int b)
                 rec_set(R_ARM);
             }
         } else if (audio_playing()) {   /* the stop ends LIVE; GRID and NOTES stay */
-            if (ui.rec >= R_LIVE)
+            if (ui.rec == R_LIVE || ui.rec == R_ARM)
                 rec_set(R_OFF);
             audio_play(0);
         } else {                        /* NOTES out of SEQ starts LIVE; armed before the start: the count-in */
@@ -1003,9 +1005,24 @@ static void family_key(int b, q_step *s)
         ui.attr = f[0] == ui.attr && f[1] != 0xFF ? f[1] : f[0];
 }
 
-/* the only writer of ui.rec: the recorder armed in LIVE alone */
+/* LISTEN's pattern's step in ms, its gaps' unit */
+static uint32_t listen_step_ms(void) { return 2500u * DIV96[ui.p->pat[ui.listen_track][ui.listen_pat].div] / ui.p->tempo; }
+
+/* the only writer of ui.rec: the recorder armed in LIVE alone; LISTEN tells the render, and its end closes the phrase
+   (the last note's gap: the time to the end) */
 static void rec_set(int r)
 {
+    if (ui.rec == R_LISTEN && r != R_LISTEN) {
+        q_mimic *m = &ui.p->pat[ui.listen_track][ui.listen_pat].mimic;
+        if (ui.listen_n) {
+            m->ev[m->n - 1][1] = (uint8_t)gen_mimic_gap(plat_ms() - ui.listen_ms, listen_step_ms(), 1);
+            ui.dirty = 1;
+        }
+        audio_mimic_listen(ui.listen_track, 0);
+    } else if (r == R_LISTEN && ui.rec != R_LISTEN) {
+        ui.listen_track = ui.track, ui.listen_pat = ui.p->pattern[ui.track], ui.listen_n = 0;
+        audio_mimic_listen(ui.track, 1);
+    }
     if (r == R_NOTES && ui.rec != R_NOTES)
         ui.cursor = 1;
     if ((r == R_NOTES) != (ui.rec == R_NOTES))  /* SEQ's pages change: the first one */
@@ -1035,6 +1052,8 @@ static void rec_release(void)
         rec_set(ui.rec == R_OFF ? R_GRID : ui.rec == R_GRID ? R_NOTES : R_OFF);
     else if (lanes_on() || chords_on() || tonnetz_on())   /* LANES, CHORDS, TONNETZ: the grid only, no NOTES */
         rec_set(ui.rec == R_OFF ? R_GRID : R_OFF);
+    else if (ui.domain == D_SEQ && pat()->src == SRC_MIMIC)
+        rec_set(ui.rec == R_LISTEN ? R_OFF : R_LISTEN);
     else if (ui.domain == D_SEQ)        /* a generator is never written: an armed REC disarms */
         rec_set(R_OFF);
     else if (ui.domain != D_SEQ)
@@ -1491,6 +1510,16 @@ static void key_down(int k)
     }
     /* written to the held step: not overdubbed too; ARP held: the arp keeps the note after its key is released */
     audio_live_note(ui.track, note, s ? 2 : ui.arpdown && !kit() ? 3 : 1);
+    if (!s && ui.rec == R_LISTEN) {     /* learnt: the first note of LISTEN starts a new phrase */
+        q_mimic *m = &pat()->mimic;
+        uint32_t now = plat_ms();
+        if (!ui.listen_n)
+            m->n = 0;
+        gen_mimic_learn(m, note, ui.listen_n ? gen_mimic_gap(now - ui.listen_ms, listen_step_ms(), 0) : 0);
+        ui.listen_ms = now;
+        ui.listen_n++;
+        ui.dirty = 1;
+    }
     if (!s && ui.rec == R_OFF) {        /* disarmed: the note, or the chord with the keys still held, is the clipboard */
         for (i = 0; i < NKEYS && ui.key_note[i] < 0; i++) {}
         if (i == NKEYS) {
@@ -1702,6 +1731,9 @@ void ui_input(void)
         ui.page[D_SEQ] = 0;
     if (ui.cell && !lanes_on() && !chords_on() && !tonnetz_on())   /* another domain: the cell or chord held lets go, its release does nothing */
         ui.cell = 0;
+    if (ui.rec == R_LISTEN && (ui.domain != D_SEQ || ui.track != ui.listen_track || ui.p->pattern[ui.track] != ui.listen_pat ||
+                               pat()->src != SRC_MIMIC))   /* LISTEN is its pattern's */
+        rec_set(R_OFF);
     if (ui.moon >= pat()->orbits.moons)         /* fewer moons: the one set among them */
         ui.moon = pat()->orbits.moons - 1;
     if (ui.chcur >= pat()->chords.len)          /* a shorter progression or sequence: the cursor within it */
@@ -1856,6 +1888,9 @@ static uint32_t key_lights(uint32_t *mid)
             if (hits >> i & 1)
                 keys |= 1u << WHITE[i];
         }
+    } else if (ui.domain == D_SEQ && t->src == SRC_MIMIC && ui.rec == R_LISTEN) {   /* LISTEN: the phrase filling, in eighths */
+        for (i = 0; i < t->mimic.n * 8 / MIMIC_EV; i++)
+            keys |= 1u << WHITE[i];
     } else if (ui.domain == D_SEQ && t->src == SRC_MIMIC) {     /* the place read in the phrase, in eighths */
         q_mimic_run r;
         audio_mimic(ui.track, &r);
@@ -2184,8 +2219,8 @@ static int shown_step(void)
 /* REC's badge: 1 GRID (in SEQ), 2 NOTES (GRID out of SEQ too), 3 LIVE, 4 ARM (blinking: 0 half the time) */
 static int badge(void)
 {
-    if (ui.rec == R_ARM)
-        return plat_ms() / 500u & 1u ? 0 : 4;
+    if (ui.rec == R_ARM || ui.rec == R_LISTEN)
+        return plat_ms() / 500u & 1u ? 0 : ui.rec == R_ARM ? 4 : 5;
     if (ui.domain == D_SEQ && (pat()->src == SRC_LANES || pat()->src == SRC_CHORDS || pat()->src == SRC_TONNETZ) && ui.rec == R_NOTES)   /* NOTES left from a STEP pattern */
         return 0;
     if (ui.domain == D_SEQ && pat()->src != SRC_STEP && pat()->src != SRC_LANES && pat()->src != SRC_CHORDS && pat()->src != SRC_TONNETZ && ui.rec != R_LIVE)   /* a generator: nothing written */
@@ -2455,8 +2490,8 @@ static void draw_head(const q_view *v)
     x = 234 - text_w(&FONT_S, t);
     cv_text(x, 7, &FONT_S, t, C_GRAY);
     if (v->head.badge) {                /* REC's state, boxed in its colour */
-        static const char *const BADGE[4] = {"GRID", "NOTES", "LIVE", "ARM"};
-        static const uint16_t BCOL[4] = {RGB(34, 213, 142), RGB(58, 109, 255), RGB(255, 47, 142), RGB(255, 122, 46)};
+        static const char *const BADGE[5] = {"GRID", "NOTES", "LIVE", "ARM", "LISTEN"};
+        static const uint16_t BCOL[5] = {RGB(34, 213, 142), RGB(58, 109, 255), RGB(255, 47, 142), RGB(255, 122, 46), RGB(255, 47, 142)};
         char b[10];
         int i = 0;
         const char *n = BADGE[v->head.badge - 1];
@@ -3263,7 +3298,7 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "leds_lit") || !strcmp(what, "leds_mid")) {
         uint32_t mid, lit = key_lights(&mid);
         *got = (int)(what[5] == 'l' ? lit : mid);
-    } else if (!strcmp(what, "badge")) *got = ui.rec == R_ARM ? 4 : badge();
+    } else if (!strcmp(what, "badge")) *got = ui.rec == R_ARM ? 4 : ui.rec == R_LISTEN ? 5 : badge();
     else if (!strcmp(what, "selref")) *got = ui.sel_ref + 1;
     else if (!strcmp(what, "clip_n")) for (*got = 1; *got < 4 && ui.clip.st.note[*got]; ++*got) {}
     else if (!strcmp(what, "clip_note")) *got = ui.clip.st.note[0];
