@@ -83,14 +83,14 @@ void lanes_frame(const q_laneview *v, uint32_t ms)
         if (len % 8 == 0) x = LN_BX + LN_BW * 8.0f - 3.0f, y = LN_BASE[len / 8 - 1];
         ln_quad(x, y, x + 2.0f, y, x + 6.0f, y - 30.0f, x + 4.0f, y - 30.0f, 0.0f, LN_WALL);
     }
-    /* the floor, sent last (dropped first) and far (drawn first): a notch a step */
+    /* the floor, sent last (dropped first) and far (drawn first: the lowest depth): a notch a step */
     float f = v->step_ms ? (float)(ms - ln.step_t) / (float)v->step_ms : 1.0f;
     if (f > 1.0f) f = 1.0f;
     for (int i = -10; i <= 10; i++)
-        p3d_line(120.0f + 10.0f * (float)i, 78.0f, 120.0f + 44.0f * (float)i, 166.0f, 10.0f, 1, LN_FLOOR);
+        p3d_line(120.0f + 10.0f * (float)i, 78.0f, 120.0f + 44.0f * (float)i, 166.0f, -10.0f, 1, LN_FLOOR);
     for (int j = 0; j < 7; j++) {
         float u = ((float)j + f) / 7.0f, y = 80.0f + u * u * 86.0f;
-        p3d_line(0.0f, y, 240.0f, y, 10.0f, 1, LN_FLOOR);
+        p3d_line(0.0f, y, 240.0f, y, -10.0f, 1, LN_FLOOR);
     }
 }
 

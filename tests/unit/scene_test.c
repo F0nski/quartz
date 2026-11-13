@@ -1912,6 +1912,20 @@ static void lanes_floor_slides(void)
     assert(memcmp(a, FULL, sizeof a) == 0);
 }
 
+static void lanes_floor_behind(void)
+{
+    nreset();
+    lanes_set_len(&NV.lanes, L_NOTE, 16);
+    for (int c = 0; c < 16; c++) lanes_set(&NV.lanes, L_NOTE, c, 15);
+    for (int l = 0; l < L_N; l++) NV.head[l] = -1;
+    lanes_frame(&NV, 1000);
+    nfull();
+    for (int c = 0; c < 16; c++) {                   /* each big block's front: no floor line across it */
+        int x = 6 + 29 * (c % 8), y = c < 8 ? 120 : 162;
+        assert(gcount(RGB(0x14, 0x0e, 0x30), x + 1, x + 23, y - 24, y - 1) == 0);
+    }
+}
+
 static int ndiffers(void (*change)(void))
 {
     static uint16_t ref[240 * 166];
@@ -1944,6 +1958,7 @@ int main(void)
     lanes_kit_four_rows();
     lanes_flash_white();
     lanes_floor_slides();
+    lanes_floor_behind();
     lanes_knobs_visible();
     life_budget_full();
     life_column_first();

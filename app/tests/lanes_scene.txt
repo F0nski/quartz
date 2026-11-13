@@ -1,0 +1,30 @@
+# The LANES rows of blocks on the LANES and LENS pages, on a synth track then a KIT
+wait 600
+tap SEQ
+turn K4 4
+expect src 4
+wait 100
+expect anim 9
+tap PLAY
+wait 1500
+shot lanes_play.png
+turn PRESET 1
+expect lsel 1
+wait 300
+shot lanes_note.png
+turn SELECT 1
+expect anim 9
+turn K1 -2
+expect llen_1 3
+wait 600
+shot lanes_len.png
+tap PLAY
+tap EDIT
+turn PRESET 20
+expect model 24
+tap SEQ
+tap PLAY
+wait 1500
+expect anim 9
+shot lanes_kit_play.png
+tap PLAY

@@ -140,7 +140,8 @@ typedef struct {
         uint8_t anim;                           /* an animated scene, redrawn as it moves: 0 none, 1 the sound's scene (v: its ENGINE
                                                    knobs), 2 the SEQ plateau, 3 MARBLES (v: SPREAD, X BIAS, DEJA VU), 4 GRIDS,
                                                    5 HOME's tracks (scene_home.c), 6 a sound page ADSR .. MIX (scene_sound.c),
-                                                   7 TEMPO, SCALE, KEYS, FX, SONG (scene_glo.c) */
+                                                   7 TEMPO, SCALE, KEYS, FX, SONG (scene_glo.c), 8 LIFE (scene_life.c),
+                                                   9 LANES (scene_lanes.c) */
         q_trow tr[Q_TRACKS];                    /* TRACKS */
         int8_t layer, lmode;                    /* a layer's map instead of the scene: its button + 1; REC in LIVE, SEL in NOTES */
         uint32_t lkeys, hot;                    /* its keys, and the keys pressed */
@@ -2003,6 +2004,8 @@ static void view_now(q_view *v)
             v->scene.anim = 4;
         if (pid == P_LIFE || pid == P_LIFEK || pid == P_SEED || pid == P_EVOL)
             v->scene.anim = 8;                  /* scene_life.c; ui_frame fills its view */
+        if (pid == P_LANES || pid == P_LENS)
+            v->scene.anim = 9;                  /* scene_lanes.c; ui_frame fills its view */
         if (pid == P_MARBLES || pid == P_T || pid == P_X) {
             v->scene.anim = 3;
             v->scene.v[0] = t->marbles.spread;
@@ -2470,6 +2473,7 @@ void ui_frame(void)
     q_view v;
     static q_glview glv;                   /* the global pages' view: the bands drawn after the frame read it */
     static q_lview lfv;                    /* LIFE's view, the same way */
+    static q_laneview lnv;                 /* LANES' */
     int b;
     ui_input();
     lights();
@@ -2610,6 +2614,33 @@ void ui_frame(void)
                 }
                 lfv.step_ms = 2500u * DIV96[t->div] / ui.p->tempo;
                 life_frame(&lfv, now);
+            } else if (v.scene.anim == 9) {
+                const q_pattern *t = pat();
+                uint32_t n = audio_lanes(ui.track);
+                if (fresh)
+                    lanes_enter();
+                lnv.lanes = t->lanes;
+                for (int l = 0; l < L_N; l++)  /* the heads: the step in progress, when the pattern shown plays */
+                    lnv.head[l] = (int8_t)(v.scene.pos >= 0 && n ? (int)((n - 1) % (uint32_t)lanes_len(&t->lanes, l)) : -1);
+                lnv.sel = (uint8_t)ui.lane, lnv.kit = (uint8_t)kit();
+                lnv.flash = (int8_t)(ui.cell_flash - 1), lnv.flash_ms = ui.cell_ms;
+                for (int c = 0; c < 16; c++) {
+                    if (kit()) {
+                        char *o = lnv.name[c];
+                        *o++ = 'P';
+                        if (c >= 9) *o++ = '1';
+                        *o++ = (char)('0' + (c + 1) % 10);
+                        *o = 0;
+                    } else {                    /* the note name without its octave: 3 characters at most */
+                        char b[6], *o = lnv.name[c];
+                        note_name(gen_life_note(t->lanes.note, gen_scale(ui.p), ui.p->tonic, c), b);
+                        for (int i = 0; b[i] && i < 3 && (b[i] < '0' || b[i] > '9') && b[i] != '-'; i++) *o++ = b[i];
+                        *o = 0;
+                    }
+                }
+                lnv.n = n;
+                lnv.step_ms = 2500u * DIV96[t->div] / ui.p->tempo;
+                lanes_frame(&lnv, now);
             } else if (v.scene.anim == 7) {
                 static char title[14];
                 int pid = v.scene.pid, k, w;
@@ -2687,6 +2718,8 @@ void ui_frame(void)
                     glo_band(&glv, -BAND_H * b);
                 else if (v.scene.anim == 8)
                     life_band(&lfv, -BAND_H * b);
+                else if (v.scene.anim == 9)
+                    lanes_band(&lnv, -BAND_H * b);
                 else
                     plateau_band(-BAND_H * b);
                 cv_blit(0, HEAD_H + BAND_H * b);

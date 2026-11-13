@@ -160,6 +160,8 @@ dans une croche ou une noire.
 - Les deux suivent l'horloge et la division du pattern. Détail : `2026-11-10-quartz-step4-generators-design.md`.
 - **LIFE** : une grille du jeu de la vie de 16 × 8 lue colonne par colonne, une génération tous les GEN tours.
   Détail : `2026-11-13-quartz-life-design.md`.
+- **LANES** : cinq lignes (TRIG, NOTE, OCT, DUR, VEL), chacune une boucle de 1 à 16 cases avec sa longueur ; les
+  boucles se décalent (polymétrie à la Kria). Détail : `2026-11-13-quartz-lanes-design.md`.
 - Étape ultérieure (demandée, non planifiée) : un LEN de 1 à 32 pour GRIDS, sur le 4e encodeur libre de MAP ou de DENS ;
   la boucle repart au pas 1 après LEN, les pas au-delà s'affichent sombres.
 
@@ -169,7 +171,7 @@ dans une croche ou une noire.
 |---|---|
 | ALGORITHM | choisir la piste 1–4 |
 | SELECT (encodeur) | passer d'une page à l'autre dans le domaine courant |
-| PRESET | parcourir ce qui est à l'écran : presets du moteur, type d'insert, pattern… |
+| PRESET | parcourir ce qui est à l'écran : presets du moteur, type d'insert, pattern… ; dans SEQ, sur un pattern LANES, la ligne éditée |
 | K1–K4 | les 4 paramètres de la page ; couleurs fixes bleu, vert, blanc, orange |
 | SEL (bouton) | valider (charger le preset choisi, confirmer une action) ; maintenu : Shift des pas (sélection dans la grille, p-locks en NOTES) |
 | MASTER | volume |
