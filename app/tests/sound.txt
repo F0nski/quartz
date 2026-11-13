@@ -3,7 +3,7 @@ wait 600
 tap ENV
 wait 100
 expect anim 6
-expect scene_key 153092166
+expect scene_key 186646598
 key 0 down
 wait 30
 shot sound_adsr.png
@@ -13,7 +13,7 @@ turn SELECT 1
 expect page 2
 wait 100
 expect anim 6
-expect scene_key 161480774
+expect scene_key 195035206
 key 0 down
 wait 30
 shot sound_filter.png

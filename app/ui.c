@@ -17,7 +17,7 @@
 
 enum { D_EDIT, D_SEQ, D_GLO, D_HOME, D_ENV, D_LFO, D_ARP, D_FX, ND };
 enum { P_ENGINE, P_SOUND, P_STEPS, P_TEMPO, P_SCALE, P_CPU, P_XY, P_TRACKS, P_SONG, P_GRIDS, P_MAP, P_DENS, P_MARBLES, P_T,
-       P_X, P_NOTES, P_PAD, P_KIT, P_ADSR, P_FILTER, P_LFO, P_ARP, P_INSERT, P_MIX, P_GFX, P_KEYS,
+       P_X, P_NOTES, P_LIFE, P_LIFEK, P_SEED, P_EVOL, P_PAD, P_KIT, P_ADSR, P_FILTER, P_LFO, P_ARP, P_INSERT, P_MIX, P_GFX, P_KEYS,
        P_SN1, P_SN2, P_SN3 };            /* NOTES in SEQ: the cursor's step on K1-K4 */
 /* what PRESET sets on a held step; the black keys pick them by family (FAMILY) */
 /* REC: GRID the white keys are SEQ's steps, NOTES they write at a cursor, LIVE they record while playing, ARM the first
@@ -29,7 +29,7 @@ enum { A_VEL, A_RATCHET, A_PROB, A_COND, A_SLIDE, A_ACCENT, A_NOTE, A_LEN, A_MIC
 static const uint8_t DOMAIN_PAGES[ND][5] = {{P_ENGINE, P_SOUND}, {P_STEPS, P_XY}, {P_TEMPO, P_SCALE, P_KEYS, P_GFX, P_CPU}, {P_TRACKS, P_SONG},
                                                 {P_ADSR, P_FILTER}, {P_LFO}, {P_ARP}, {P_MIX, P_INSERT}};
 static const uint8_t DOMAIN_N[ND] = {2, 1, 5, 2, 2, 1, 1, 2};      /* SEQ: 2 pages while PATH is XY (pages) */
-static const uint8_t GEN_PAGES[2][5] = {{P_GRIDS, P_MAP, P_DENS}, {P_MARBLES, P_T, P_X, P_NOTES}};
+static const uint8_t GEN_PAGES[3][5] = {{P_GRIDS, P_MAP, P_DENS}, {P_MARBLES, P_T, P_X, P_NOTES}, {P_LIFE, P_SEED, P_EVOL}};
 static const uint8_t KIT_PAGES[5] = {P_PAD, P_KIT};
 static const uint8_t NOTES_PAGES[5] = {P_SN1, P_SN2, P_SN3, P_STEPS, P_XY};
 static const uint8_t DOMAIN_BTN[ND] = {B_EDIT, B_SEQ, B_GLO, B_HOME, B_ENV, B_LFO, B_ARP, B_FX};
@@ -53,6 +53,10 @@ static const q_page PAGE[] = {
     {"T", {"MODE", "BIAS", "JITTER", "DEJA VU"}, {0, 0, 0, 0}, {6, 127, 127, 127}},
     {"X", {"SPREAD", "X BIAS", "STEPS"}, {0, 0, 0}, {127, 127, 127}},
     {"NOTES", {"NOTE", "RANGE"}, {1, 1}, {127, 4}},
+    {"LIFE", {"DIV", "POLY", "NOTE", "SOURCE"}, {0, 1, 1, 0}, {DIV_N - 1, 4, 127, SRC_N - 1}},
+    {"LIFE", {"DIV", "POLY", "MAP", "SOURCE"}, {0, 1, 0, 0}, {DIV_N - 1, 4, 1, SRC_N - 1}},     /* a KIT's: MAP for NOTE */
+    {"SEED", {"SEED", "DENS", "AUTO"}, {0, 0, 0}, {127, 127, 1}},
+    {"EVOL", {"GEN", "MUT"}, {0, 0}, {3, 127}},
     {"PAD", {"TUNE", "HARM", "TIMB", "DECAY"}, {-24, 0, 0, 0}, {24, 127, 127, 127}},
     {"KIT", {"MODEL", "ENGINE", "LEVEL"}, {0, 0, 0}, {M_KIT, 2, 127}},
     {"ADSR", {"ATTACK", "DECAY", "SUSTAIN", "RELEASE"}, {0, 0, 0, 0}, {127, 127, 127, 127}},
@@ -85,7 +89,7 @@ static const char *const INS_NAME[IT_N] = {"INSERT OFF", "OVERDRIVE", "WAVEFOLD"
 static const char *const INS_LABEL[IT_N][3] = {{"", "", ""}, {"DRIVE", "TONE", ""}, {"FOLD", "BIAS", "TONE"}, {"BITS", "RATE", ""},
                                                 {"RATE", "DEPTH", ""}, {"RATE", "DEPTH", "FEEDBK"}, {"FREQ", "", ""}, {"NOTE", "FEEDBK", "DAMP"}};
 static const char *const AMODE_NAME[6] = {"OFF", "UP", "DOWN", "UP-DN", "RAND", "ORDER"};
-static const char *const SRC_NAME[SRC_N] = {"STEP", "GRIDS", "MARBLES"};
+static const char *const SRC_NAME[SRC_N] = {"STEP", "GRIDS", "MARBLES", "LIFE"};
 /* Marbles' T models, its TGeneratorModel order (gen.c) */
 static const char *const T_MODE_NAME[7] = {"C.BERN", "CLUSTERS", "DRUMS", "I.BERN", "DIVIDER", "3 STATES", "MARKOV"};
 static const char *const PATH_NAME[PATH_N] = {"FWD", "REV", "PING-PONG", "SNAKE", "COLUMNS", "SPIRAL", "RANDOM", "XY"};
@@ -186,7 +190,9 @@ static int pages(int d, uint8_t *out)
     const q_pattern *t = pat();
     if (d == D_SEQ && t->src != SRC_STEP) {
         __builtin_memcpy(out, GEN_PAGES[t->src - 1], 5);
-        return t->src == SRC_GRIDS ? 3 : kit() ? 2 : 4;     /* a KIT has no X section */
+        if (t->src == SRC_LIFE && kit())
+            out[0] = P_LIFEK;
+        return t->src != SRC_MARBLES ? 3 : kit() ? 2 : 4;   /* a KIT has no X section */
     }
     if (d == D_SEQ && notes_on()) {     /* the cursor's step first, then SEQ's own */
         __builtin_memcpy(out, NOTES_PAGES, 5);
@@ -254,9 +260,22 @@ static int knob_get(int pid, int k)
     case P_STEPS * 4 + 2: return t->path;
     case P_STEPS * 4 + 3:
     case P_GRIDS * 4 + 3:
-    case P_MARBLES * 4 + 3: return t->src;
+    case P_MARBLES * 4 + 3:
+    case P_LIFE * 4 + 3:
+    case P_LIFEK * 4 + 3: return t->src;
     case P_GRIDS * 4:
-    case P_MARBLES * 4: return t->div;
+    case P_MARBLES * 4:
+    case P_LIFE * 4:
+    case P_LIFEK * 4: return t->div;
+    case P_LIFE * 4 + 1:
+    case P_LIFEK * 4 + 1: return t->life.poly;
+    case P_LIFE * 4 + 2: return t->life.note;
+    case P_LIFEK * 4 + 2: return t->life.map;
+    case P_SEED * 4: return t->life.seed;
+    case P_SEED * 4 + 1: return t->life.dens;
+    case P_SEED * 4 + 2: return t->life.autos;
+    case P_EVOL * 4: return t->life.gen;
+    case P_EVOL * 4 + 1: return t->life.mut;
     case P_GRIDS * 4 + 1: return t->grids.voice;
     case P_GRIDS * 4 + 2: return t->grids.note;
     case P_MAP * 4: return t->grids.x;
@@ -364,14 +383,27 @@ static void knob_set(int pid, int k, int v)
         break;
     case P_STEPS * 4 + 1:
     case P_GRIDS * 4:
-    case P_MARBLES * 4: t->div = (uint8_t)v; break;
+    case P_MARBLES * 4:
+    case P_LIFE * 4:
+    case P_LIFEK * 4: t->div = (uint8_t)v; break;
+    case P_LIFE * 4 + 1:
+    case P_LIFEK * 4 + 1: t->life.poly = (uint8_t)v; break;
+    case P_LIFE * 4 + 2: t->life.note = (uint8_t)v; break;
+    case P_LIFEK * 4 + 2: t->life.map = (uint8_t)v; break;
+    case P_SEED * 4: t->life.seed = (uint8_t)v; break;
+    case P_SEED * 4 + 1: t->life.dens = (uint8_t)v; break;
+    case P_SEED * 4 + 2: t->life.autos = (uint8_t)v; break;
+    case P_EVOL * 4: t->life.gen = (uint8_t)v; break;
+    case P_EVOL * 4 + 1: t->life.mut = (uint8_t)v; break;
     case P_STEPS * 4 + 2:
         t->path = (uint8_t)v;
         ui.path_until = plat_ms() + MSG_MS;     /* the path is drawn while it is being chosen */
         break;
     case P_STEPS * 4 + 3:               /* the steps and the generators' settings stay */
     case P_GRIDS * 4 + 3:
-    case P_MARBLES * 4 + 3: t->src = (uint8_t)v; break;
+    case P_MARBLES * 4 + 3:
+    case P_LIFE * 4 + 3:
+    case P_LIFEK * 4 + 3: t->src = (uint8_t)v; break;
     case P_GRIDS * 4 + 1: t->grids.voice = (uint8_t)v; break;
     case P_GRIDS * 4 + 2: t->grids.note = (uint8_t)v; break;
     case P_MAP * 4: t->grids.x = (uint8_t)v; break;
@@ -1670,16 +1702,25 @@ static void knob_text(int pid, int k, int v, char *b)
         while ((*b++ = *s++) != 0) {}
         return;
     }
-    if ((k == 3 && (pid == P_STEPS || pid == P_GRIDS || pid == P_MARBLES)) || (pid == P_T && !k)) {
+    if ((pid == P_LIFEK && k == 2) || (pid == P_SEED && k == 2)) {
+        const char *s = pid == P_SEED ? (v ? "ON" : "OFF") : v ? "BANDS" : "PADS";
+        while ((*b++ = *s++) != 0) {}
+        return;
+    }
+    if (pid == P_EVOL && !k) {          /* tours per generation */
+        int_text(1 << v, b);
+        return;
+    }
+    if ((k == 3 && (pid == P_STEPS || pid == P_GRIDS || pid == P_MARBLES || pid == P_LIFE || pid == P_LIFEK)) || (pid == P_T && !k)) {
         const char *s = pid == P_T ? T_MODE_NAME[v] : SRC_NAME[v];
         while ((*b++ = *s++) != 0) {}
         return;
     }
-    if ((pid == P_GRIDS && k == 2) || (pid == P_NOTES && !k)) {
+    if ((pid == P_GRIDS && k == 2) || (pid == P_NOTES && !k) || (pid == P_LIFE && k == 2)) {
         note_name(v, b);
         return;
     }
-    if ((pid == P_STEPS && k > 0) || (pid == P_XY && k & 1) || ((pid == P_GRIDS || pid == P_MARBLES) && !k)) {
+    if ((pid == P_STEPS && k > 0) || (pid == P_XY && k & 1) || ((pid == P_GRIDS || pid == P_MARBLES || pid == P_LIFE || pid == P_LIFEK) && !k)) {
         const char *s = pid == P_STEPS && k == 2 ? PATH_NAME[v] : DIV_NAME[v];
         while ((*b++ = *s++) != 0) {}
         return;
@@ -2685,6 +2726,14 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "mtout")) *got = t->marbles.tout;
     else if (!strcmp(what, "gvoice")) *got = t->grids.voice;
     else if (!strcmp(what, "gnote")) *got = t->grids.note;
+    else if (!strcmp(what, "lpoly")) *got = t->life.poly;
+    else if (!strcmp(what, "lnote")) *got = t->life.note;
+    else if (!strcmp(what, "lmap")) *got = t->life.map;
+    else if (!strcmp(what, "lseed")) *got = t->life.seed;
+    else if (!strcmp(what, "ldens")) *got = t->life.dens;
+    else if (!strcmp(what, "lauto")) *got = t->life.autos;
+    else if (!strcmp(what, "lgen")) *got = t->life.gen;
+    else if (!strcmp(what, "lmut")) *got = t->life.mut;
     else if (!strcmp(what, "mnote")) *got = t->marbles.note;
     else if (!strncmp(what, "trlen_", 6) && m >= 1 && m <= Q_TRACKS) *got = ui.shown.scene.tr[m - 1].len;
     else if (!strcmp(what, "pad")) *got = ui.pad + 1;

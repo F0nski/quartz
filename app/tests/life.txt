@@ -1,0 +1,64 @@
+# LIFE: the SOURCE knob, its 3 pages and their bounds; MAP in place of NOTE on a KIT
+wait 600
+tap SEQ
+turn K4 3
+expect src 3
+expect page 1
+wait 100
+shot life_page1.png
+spin K3 -127
+expect lnote 1
+spin K3 127
+expect lnote 127
+spin K2 -9
+expect lpoly 1
+spin K2 9
+expect lpoly 4
+turn SELECT 1
+expect page 2
+spin K1 -127
+expect lseed 0
+spin K1 127
+expect lseed 127
+spin K2 -127
+expect ldens 0
+spin K2 127
+expect ldens 127
+spin K3 -3
+expect lauto 0
+spin K3 3
+expect lauto 1
+wait 100
+shot life_page2.png
+turn SELECT 1
+expect page 3
+spin K1 -9
+expect lgen 0
+spin K1 9
+expect lgen 3
+spin K2 -127
+expect lmut 0
+spin K2 127
+expect lmut 127
+wait 100
+shot life_page3.png
+turn SELECT 1
+expect page 1
+# a KIT: K3 sets MAP, NOTE stays
+tap EDIT
+turn PRESET 20
+expect model 24
+tap SEQ
+expect page 1
+turn K3 1
+expect lmap 1
+expect lnote 127
+wait 100
+shot life_kit.png
+# SEQ held and a white key still picks the pattern
+press SEQ
+key 2 down
+key 2 up
+release SEQ
+expect pattern 2
+expect src 0
