@@ -430,13 +430,13 @@ static int decide(q_seq *s, q_seq_track *tr, const q_step *st)
    last repetition. A legato or tied note-on comes no earlier than the last one queued, so they leave the queue in
    the order planned (micro-timing can otherwise put a step's notes before the step before's) and a legato removes
    the note-off of the note it replaces. acc: the accented note slots (bit i: note[i]), on top of SF_ACCENT's all. */
-static void plan_notes(q_seq *s, const q_project *p, int t, const q_step *st, int step, int acc)
+static void plan_notes(q_seq *s, const q_project *p, int t, const q_step *st, int step, int acc, int gen)
 {
     q_seq_track *tr = &s->t[t];
     q_queue *q = &s->q[t];
     int r = STEP_RATCHET(st), g = r > 1 && st->len > 8 ? 8 : st->len, hold = 0;
     int64_t f = 200 * st->micro + (tr->k & 1 ? 96 * (p->swing - 50) : 0), from = tie_date(q);
-    int strum = p->pat[t][tr->pat].src != SRC_STEP ? 200 * SF_STRUM(st) : 0;   /* a generator's notes one after the other */
+    int strum = gen ? 200 * SF_STRUM(st) : 0;   /* a generator's notes one after the other */
     if (st->flags & SF_ACCENT) acc = 15;
     for (int j = 0; j < r; j++) {
         for (int i = 0; i < 4; i++) {
@@ -513,7 +513,7 @@ static void plan(q_seq *s, const q_project *p, int t, uint64_t end, const q_cloc
         if (gen) acc = gen_step(&s->g[t], p, t, pt, tr->k, &s->rng, &g);
         else st = &pt->steps[step];
         if ((st->flags & SF_ON) && (gen || decide(s, tr, st)) && !(s->mute >> t & 1))
-            plan_notes(s, p, t, st, step, acc);
+            plan_notes(s, p, t, st, step, acc, gen);
         else if (tr->tie) untie(s, t);
         tr->planned = 1;
     }

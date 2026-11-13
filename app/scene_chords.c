@@ -122,7 +122,7 @@ void chords_band(const q_chview *v, int32_t oy)
         }
     }
     /* the keyboard from NOTE - 12: the notes struck pink, each white as it starts (STRUM one after the other) */
-    int lo = v->chords.note - 12, wx;
+    int lo = v->chords.note >= 12 ? v->chords.note - 12 : 0, wx;
     for (int pass = 0; pass < 2; pass++) {
         wx = 6;
         for (int m = lo; wx < 232 && m < 128; m++) {

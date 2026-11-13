@@ -92,6 +92,8 @@ passe en LIVE pour jouer sans rien écrire, comme pour les autres générateurs.
   - synthé : écrit le degré de gamme le plus proche de la note jouée (octave du clavier comprise), compté depuis NOTE
     et borné entre 0 et 15 ;
   - KIT : écrit le pad que joue cette touche.
+- Une autre touche pressée pendant qu'une case est tenue (même sans effet) fait de son relâchement un relâchement
+  sans appui court : la valeur ne change pas.
 - Une case au-delà de LEN ne fait rien.
 - **Case tenue plus de 0,4 s** (sans rien éditer) : son aide remplace la scène, comme celle d'un bouton tenu
   (`+ K1 SET THE CELL`, sur NOTE `+ KEY WRITES ITS NOTE` avec les touches qui écrivent allumées, `HOLD NOTHING ON

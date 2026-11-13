@@ -943,6 +943,18 @@ static void chords_smooth_no_drift(void)
     for (int b = 7; b < 14; b++) assert(!memcmp(a[b].note, a[b + 28].note, 4));
 }
 
+/* SOURCE switched to CHORDS mid-tour: its bars line up with the tour, the first strike on the next step 0 */
+static void chords_source_mid_bar(void)
+{
+    q_pattern *pt = chords_setup(8);
+    pt->chords.rate = 0; pt->chords.voice = 0;
+    memset(&G, 0, sizeof G);
+    q_step st;
+    for (int k = 5; k < 16; k++) { gen_step(&G, &P, 0, pt, k, &R, &st); assert(!(st.flags & SF_ON)); }
+    gen_step(&G, &P, 0, pt, 0, &R, &st);
+    assert(st.flags & SF_ON && st.note[0] == 57);     /* the tour's start: bar 1 (vi), bar 0 was the partial one */
+}
+
 static void chords_rate_len(void)
 {
     q_pattern *pt = chords_setup(8);
@@ -1048,6 +1060,7 @@ int main(void)
     chords_smooth_counts();
     chords_smooth_stable();
     chords_smooth_no_drift();
+    chords_source_mid_bar();
     chords_note_clamp();
     chords_rate_len();
     chords_strum_bits();

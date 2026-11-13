@@ -560,22 +560,23 @@ int gen_chord_notes(const q_project *p, const q_chords *c, int slot, int poly, c
 }
 
 /* the step chords.n: a strike on every 16 / strikes step of the bar, the chord (n / 16) mod LEN */
-static int chords_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, q_step *st)
+static int chords_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, int k, q_step *st)
 {
     static const uint8_t STRIKES[5] = {1, 2, 4, 8, 16};
     const q_chords *c = &pt->chords;
+    if (!g->chords.n)                   /* the source set mid-tour: its bars line up with the tour */
+        g->chords.n = (uint32_t)k;
     uint32_t n = g->chords.n++;
     int step = (int)(n % 16), every = 16 / STRIKES[c->rate], poly = p->sound[track].poly ? p->sound[track].poly : 1;
     if (p->sound[track].model == M_KIT || step % every)
         return 0;
     uint8_t out[4];
-    int k = gen_chord_notes(p, c, (int)(n / 16 % c->len), poly, g->chords.last, g->chords.nlast, out);
-    for (int i = 0; i < k; i++) st->note[i] = g->chords.last[i] = out[i];
-    g->chords.nlast = (uint8_t)k;
-    g->chords.strikes++;
+    int nn = gen_chord_notes(p, c, (int)(n / 16 % c->len), poly, g->chords.last, g->chords.nlast, out);
+    for (int i = 0; i < nn; i++) st->note[i] = g->chords.last[i] = out[i];
+    g->chords.nlast = (uint8_t)nn;
     st->flags = (uint8_t)(SF_ON | c->strum << 5);
     st->len = (uint8_t)(128 / STRIKES[c->rate]); st->vel = 100; st->prob = 20;
-    return step == 0 ? (1 << k) - 1 : 0;   /* the bar's first strike: every note accented */
+    return step == 0 ? (1 << nn) - 1 : 0;   /* the bar's first strike: every note accented */
 }
 
 int gen_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, int k, uint32_t *rng, q_step *st)
@@ -584,6 +585,6 @@ int gen_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, int k
     if (pt->src == SRC_GRIDS) return grids_step(g, p, track, pt, k, rng, st);
     if (pt->src == SRC_LIFE) return life_step(g, p, track, pt, k, st);
     if (pt->src == SRC_LANES) return lanes_step(g, p, track, pt, st);
-    if (pt->src == SRC_CHORDS) return chords_step(g, p, track, pt, st);
+    if (pt->src == SRC_CHORDS) return chords_step(g, p, track, pt, k, st);
     return marbles_step(g, p, track, pt, rng, st);
 }

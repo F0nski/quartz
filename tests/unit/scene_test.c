@@ -2070,6 +2070,17 @@ static void chords_kit_text(void)
     assert(lit > 0 && gpink(0, 240, 0, 166) == 0);
 }
 
+/* NOTE below C0: the keyboard starts at note 0, its black keys black */
+static void chords_low_note(void)
+{
+    cvreset();
+    CV.chords.note = 5, CV.n = 1, CV.notes[0] = 6;   /* F#-1, a black key */
+    chords_frame(&CV, 1000);
+    cvfull();
+    assert(gpink(50, 59, 140, 154) > 0);              /* F#: between F (white 3) and G (white 4) from C0 at x 6 */
+    assert(gpink(0, 240, 156, 162) == 0);             /* a black key: in the upper part only */
+}
+
 static int cvdiffers(void (*change)(void))
 {
     static uint16_t ref[240 * 166];
@@ -2107,6 +2118,7 @@ int main(void)
     chords_keyboard();
     chords_strum_order();
     chords_kit_text();
+    chords_low_note();
     chords_knobs_visible();
     lanes_budget();
     lanes_budget_floor_last();

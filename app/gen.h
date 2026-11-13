@@ -14,8 +14,8 @@ typedef struct {
     uint8_t tours, stuck;             /* tours since the last generation; stuck: dead or frozen, AUTO off */
     uint8_t gens, reseeds;            /* counters (wrap): the scene starts its animations on a change */
 } q_life_run;
-/* CHORDS' run: steps since the reset; the last strike's notes (ascending); strikes played (wrap) */
-typedef struct { uint32_t n; uint8_t last[4], nlast, strikes; } q_chords_run;
+/* CHORDS' run: steps since the reset (lined up on the tour); the last strike's notes (ascending) */
+typedef struct { uint32_t n; uint8_t last[4], nlast; } q_chords_run;
 /* Per track, the render's: what a generator pattern remembers from step to step. */
 typedef struct {
     uint8_t perturb[3];                       /* GRIDS */

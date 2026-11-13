@@ -173,6 +173,7 @@ static struct {
     int erase_pos;                             /* LIVE, REC held: the last step erased, -1 none */
     uint8_t erase_notes[8];                    /* the notes of the keys held then, 0 none */
     int lane, cell, cell_key, cell_edited;     /* LANES: the lane edited (L_*); the cell held 1..16, 0 none, its key */
+    int cell_lane;                             /* the lane of the cell last touched */
     int cell_flash;                            /* the cell last touched 1..16 (0 none) and when, for the scene */
     uint32_t cell_ms;
     int layer;                                 /* the layer whose map is shown: its button + 1, 0 none */                               /* ARM: the key that started the playing, played once step 1 is under way (key + 1) */
@@ -448,7 +449,11 @@ static void knob_set(int pid, int k, int v)
     case P_LIFE * 4 + 3:
     case P_LIFEK * 4 + 3:
     case P_LANES * 4 + 3:
-    case P_CHORDS * 4 + 3: t->src = (uint8_t)v; break;
+    case P_CHORDS * 4 + 3:
+        t->src = (uint8_t)v;
+        if (v == SRC_CHORDS && !kit() && s->poly < 3)   /* chords need voices: POLY 3 at least */
+            s->poly = 3;
+        break;
     case P_GRIDS * 4 + 1: t->grids.voice = (uint8_t)v; break;
     case P_GRIDS * 4 + 2: t->grids.note = (uint8_t)v; break;
     case P_MAP * 4: t->grids.x = (uint8_t)v; break;
@@ -1300,6 +1305,7 @@ static void key_down(int k)
         }
         if (w < lanes_len(l, ui.lane)) {   /* past LEN: nothing */
             ui.cell = ui.cell_flash = w + 1;
+            ui.cell_lane = ui.lane;
             ui.cell_key = k;
             ui.cell_edited = 0;
             ui.cell_ms = plat_ms();
@@ -1571,6 +1577,8 @@ void ui_input(void)
     }
     if (ui.page[D_SEQ] >= domain_n(D_SEQ))      /* another pattern or track, no XY page */
         ui.page[D_SEQ] = 0;
+    if (ui.cell && !lanes_on() && !chords_on())   /* another domain: the cell or chord held lets go, its release does nothing */
+        ui.cell = 0;
     if (kit() && ui.lane == L_OCT)              /* the track became a KIT: no OCT lane */
         ui.lane = L_NOTE;
     kpid = knob_page();
@@ -1728,7 +1736,9 @@ static uint32_t key_lights(uint32_t *mid)
         for (i = 0; i < len; i++)
             if (lanes_get(&t->lanes, ui.lane, i))
                 *mid |= 1u << WHITE[i];
-        if (pos >= 0 && n && audio_pattern(ui.track) == ui.p->pattern[ui.track])
+        if (!audio_playing())                   /* stopped: the head on cell 1 */
+            keys |= 1u << WHITE[0];
+        else if (pos >= 0 && n && audio_pattern(ui.track) == ui.p->pattern[ui.track])
             keys |= 1u << WHITE[(n - 1) % (uint32_t)len];
     } else if (ui.domain == D_SEQ && t->src == SRC_STEP) {   /* the steps lit at mid level, the one playing and the selection lit */
         for (i = 0; i < 16; i++) {
@@ -1991,6 +2001,8 @@ static int badge(void)
 {
     if (ui.rec == R_ARM)
         return plat_ms() / 500u & 1u ? 0 : 4;
+    if (ui.domain == D_SEQ && (pat()->src == SRC_LANES || pat()->src == SRC_CHORDS) && ui.rec == R_NOTES)   /* NOTES left from a STEP pattern */
+        return 0;
     if (ui.domain == D_SEQ && pat()->src != SRC_STEP && pat()->src != SRC_LANES && pat()->src != SRC_CHORDS && ui.rec != R_LIVE)   /* a generator: nothing written */
         return 0;
     return ui.rec == R_GRID ? (ui.domain == D_SEQ ? 1 : 2) : ui.rec;
@@ -2542,7 +2554,7 @@ void ui_init(q_project *p)
 {
     int k, dirty = ui.dirty;
     uint32_t btn = ui.btn, keys = ui.keys;
-    ui.held = 0;                        /* (a hold's release must not toggle its step) */
+    ui.held = ui.cell = 0;              /* (a hold's release must not toggle its step nor step its cell) */
     if (ui.p)
         for (k = 0; k < NKEYS; k++)
             key_up(k);
@@ -2715,9 +2727,10 @@ void ui_frame(void)
                     lanes_enter();
                 lnv.lanes = t->lanes;
                 for (int l = 0; l < L_N; l++)  /* the heads: the step in progress, when the pattern shown plays */
-                    lnv.head[l] = (int8_t)(v.scene.pos >= 0 && n ? (int)((n - 1) % (uint32_t)lanes_len(&t->lanes, l)) : -1);
+                    lnv.head[l] = (int8_t)(!audio_playing() ? 0                  /* stopped: every head on cell 1 */
+                                         : v.scene.pos >= 0 && n ? (int)((n - 1) % (uint32_t)lanes_len(&t->lanes, l)) : -1);
                 lnv.sel = (uint8_t)ui.lane, lnv.kit = (uint8_t)kit();
-                lnv.flash = (int8_t)(ui.cell_flash - 1), lnv.flash_ms = ui.cell_ms;
+                lnv.flash = (int8_t)(ui.cell_lane == ui.lane ? ui.cell_flash - 1 : -1), lnv.flash_ms = ui.cell_ms;
                 for (int c = 0; c < 16; c++) {
                     if (kit()) {
                         char *o = lnv.name[c];
@@ -2746,8 +2759,16 @@ void ui_frame(void)
                 chv.chords = *c;
                 chv.kit = (uint8_t)kit();
                 chv.slot = (int8_t)(v.scene.pos >= 0 && r.n ? (int)((r.n - 1) / 16 % c->len) : -1);
-                chv.step = (uint8_t)(r.n ? (r.n - 1) % 16 : 0);
-                chv.strikes = r.strikes;
+                {                               /* a strike lights as it sounds: on the step playing, not when planned */
+                    static int last_pos = -1;
+                    static uint8_t strikes;
+                    int every = 16 >> c->rate;
+                    if (v.scene.pos >= 0 && v.scene.pos != last_pos && v.scene.pos % every == 0)
+                        strikes++;
+                    last_pos = v.scene.pos;
+                    chv.strikes = strikes;
+                    chv.step = (uint8_t)(v.scene.pos >= 0 ? v.scene.pos % 16 : 0);
+                }
                 chv.held = (int8_t)(chords_on() && ui.rec == R_GRID && ui.cell ? ui.cell - 1 : -1);
                 for (int d = 0; d < 7; d++)
                     chv.scale_pc[d] = (uint8_t)(gen_life_note(c->note, sc, ui.p->tonic, d) % 12);
@@ -2773,6 +2794,7 @@ void ui_frame(void)
                     int fifth = (gen_life_note(c->note, sc, ui.p->tonic, d + 4) - root) % 12;
                     int seventh = (gen_life_note(c->note, sc, ui.p->tonic, d + 6) - root) % 12;
                     const char *q = CH_SIZE(ch) >= CS_SUS2 ? SZ[CH_SIZE(ch)]          /* the quality, from the scale */
+                                  : __builtin_popcount(sc) != 7 ? ""                    /* not a 7-note scale: no quality to name */
                                   : CH_SIZE(ch) == CS_SEVENTH ? (fifth == 6 ? "m7b5" : third == 3 ? "m7" : seventh == 11 ? "maj7" : "7")
                                   : fifth == 6 ? "dim" : third == 3 ? "m" : "";
                     char *o = chv.name;

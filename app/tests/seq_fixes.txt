@@ -1,0 +1,31 @@
+# LANES and CHORDS edges: SOURCE to CHORDS raises POLY to 3; a REC left in NOTES shows no badge on LANES;
+# a held cell lets go when the domain changes (K1 there sets that domain's knob, not the cell)
+wait 600
+tap SEQ
+expect poly 1
+turn K4 5
+expect src 5
+expect poly 3
+spin K4 -1
+expect src 4
+tap REC
+expect badge 1
+key 0 down
+expect lcell 1
+tap EDIT
+expect lcell 0
+turn K1 3
+key 0 up
+expect lv_0_1 1
+tap SEQ
+tap REC
+expect badge 0
+spin K4 -4
+expect src 0
+tap REC
+tap REC
+expect badge 2
+turn SELECT 3
+spin K4 4
+expect src 4
+expect badge 0
