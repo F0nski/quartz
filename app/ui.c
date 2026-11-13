@@ -725,7 +725,7 @@ static void pad_toggle(q_step *s, int note)
 static void clip_notes(const uint8_t *notes, int n)
 {
     step_default(&ui.clip.st);
-    __builtin_memcpy(ui.clip.st.note, notes, (size_t)n);
+    __builtin_memcpy(ui.clip.st.note, notes, (uint32_t)n);
     ui.clip.nlocks = 0;
 }
 
