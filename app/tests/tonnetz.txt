@@ -1,0 +1,52 @@
+# TONNETZ: the SOURCE knob raises POLY to 3; its 3 pages and their bounds
+wait 600
+tap SEQ
+expect poly 1
+turn K4 6
+expect src 6
+expect poly 3
+expect page 1
+spin K2 -127
+expect tnote 1
+spin K2 127
+expect tnote 127
+spin K3 -9
+expect trate 0
+spin K3 9
+expect trate 4
+wait 100
+shot tonnetz_page1.png
+turn SELECT 1
+expect page 2
+spin K1 -9
+expect tlen 1
+spin K1 9
+expect tlen 8
+spin K2 -127
+expect tchaos 0
+spin K2 127
+expect tchaos 127
+spin K3 -3
+expect tscale 0
+spin K3 3
+expect tscale 1
+spin K4 -3
+expect tret 0
+spin K4 3
+expect tret 1
+wait 100
+shot tonnetz_page2.png
+turn SELECT 1
+expect page 3
+spin K1 -9
+expect tstrum 0
+spin K1 9
+expect tstrum 7
+spin K2 -3
+expect tvoice 0
+spin K2 3
+expect tvoice 1
+wait 100
+shot tonnetz_page3.png
+turn SELECT 1
+expect page 1

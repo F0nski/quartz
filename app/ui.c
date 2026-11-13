@@ -18,7 +18,7 @@
 enum { D_EDIT, D_SEQ, D_GLO, D_HOME, D_ENV, D_LFO, D_ARP, D_FX, ND };
 enum { P_ENGINE, P_SOUND, P_STEPS, P_TEMPO, P_SCALE, P_CPU, P_XY, P_TRACKS, P_SONG, P_GRIDS, P_MAP, P_DENS, P_MARBLES, P_T,
        P_X, P_NOTES, P_LIFE, P_LIFEK, P_SEED, P_EVOL, P_PAD, P_KIT, P_ADSR, P_FILTER, P_LFO, P_ARP, P_INSERT, P_MIX, P_GFX, P_KEYS,
-       P_SN1, P_SN2, P_SN3, P_LANES, P_LENS, P_CHORDS, P_PROG };            /* NOTES in SEQ: the cursor's step on K1-K4 */
+       P_SN1, P_SN2, P_SN3, P_LANES, P_LENS, P_CHORDS, P_PROG, P_TONNETZ, P_WALK, P_PLAY };            /* NOTES in SEQ: the cursor's step on K1-K4 */
 /* what PRESET sets on a held step; the black keys pick them by family (FAMILY) */
 /* REC: GRID the white keys are SEQ's steps, NOTES they write at a cursor, LIVE they record while playing, ARM the first
    note starts LIVE */
@@ -29,8 +29,9 @@ enum { A_VEL, A_RATCHET, A_PROB, A_COND, A_SLIDE, A_ACCENT, A_NOTE, A_LEN, A_MIC
 static const uint8_t DOMAIN_PAGES[ND][5] = {{P_ENGINE, P_SOUND}, {P_STEPS, P_XY}, {P_TEMPO, P_SCALE, P_KEYS, P_GFX, P_CPU}, {P_TRACKS, P_SONG},
                                                 {P_ADSR, P_FILTER}, {P_LFO}, {P_ARP}, {P_MIX, P_INSERT}};
 static const uint8_t DOMAIN_N[ND] = {2, 1, 5, 2, 2, 1, 1, 2};      /* SEQ: 2 pages while PATH is XY (pages) */
-static const uint8_t GEN_PAGES[5][5] = {{P_GRIDS, P_MAP, P_DENS}, {P_MARBLES, P_T, P_X, P_NOTES}, {P_LIFE, P_SEED, P_EVOL},
-                                        {P_LANES, P_LENS}, {P_CHORDS, P_PROG}};
+static const uint8_t GEN_PAGES[6][5] = {{P_GRIDS, P_MAP, P_DENS}, {P_MARBLES, P_T, P_X, P_NOTES}, {P_LIFE, P_SEED, P_EVOL},
+                                        {P_LANES, P_LENS}, {P_CHORDS, P_PROG},
+                                        {P_TONNETZ, P_WALK, P_PLAY}};
 static const uint8_t KIT_PAGES[5] = {P_PAD, P_KIT};
 static const uint8_t NOTES_PAGES[5] = {P_SN1, P_SN2, P_SN3, P_STEPS, P_XY};
 static const uint8_t DOMAIN_BTN[ND] = {B_EDIT, B_SEQ, B_GLO, B_HOME, B_ENV, B_LFO, B_ARP, B_FX};
@@ -75,6 +76,9 @@ static const q_page PAGE[] = {
     {"LENS", {"NOTE LEN", "OCT LEN", "DUR LEN", "VEL LEN"}, {1, 1, 1, 1}, {16, 16, 16, 16}},
     {"CHORDS", {"DIV", "NOTE", "RATE", "SOURCE"}, {0, 1, 0, 0}, {DIV_N - 1, 127, 4, SRC_N - 1}},
     {"PROG", {"LEN", "STRUM", "VOICE"}, {1, 0, 0}, {8, 7, 1}},
+    {"TONNETZ", {"DIV", "NOTE", "RATE", "SOURCE"}, {0, 1, 0, 0}, {DIV_N - 1, 127, 4, SRC_N - 1}},
+    {"WALK", {"LEN", "CHAOS", "SCALE", "RETURN"}, {1, 0, 0, 0}, {8, 127, 1, 1}},
+    {"PLAY", {"STRUM", "VOICE"}, {0, 0}, {7, 1}},
 };
 
 /* Plaits' registration order (pq.h) */
@@ -94,7 +98,7 @@ static const char *const INS_NAME[IT_N] = {"INSERT OFF", "OVERDRIVE", "WAVEFOLD"
 static const char *const INS_LABEL[IT_N][3] = {{"", "", ""}, {"DRIVE", "TONE", ""}, {"FOLD", "BIAS", "TONE"}, {"BITS", "RATE", ""},
                                                 {"RATE", "DEPTH", ""}, {"RATE", "DEPTH", "FEEDBK"}, {"FREQ", "", ""}, {"NOTE", "FEEDBK", "DAMP"}};
 static const char *const AMODE_NAME[6] = {"OFF", "UP", "DOWN", "UP-DN", "RAND", "ORDER"};
-static const char *const SRC_NAME[SRC_N] = {"STEP", "GRIDS", "MARBLES", "LIFE", "LANES", "CHORDS"};
+static const char *const SRC_NAME[SRC_N] = {"STEP", "GRIDS", "MARBLES", "LIFE", "LANES", "CHORDS", "TONNETZ"};
 /* Marbles' T models, its TGeneratorModel order (gen.c) */
 static const char *const T_MODE_NAME[7] = {"C.BERN", "CLUSTERS", "DRUMS", "I.BERN", "DIVIDER", "3 STATES", "MARKOV"};
 static const char *const PATH_NAME[PATH_N] = {"FWD", "REV", "PING-PONG", "SNAKE", "COLUMNS", "SPIRAL", "RANDOM", "XY"};
@@ -203,7 +207,7 @@ static int pages(int d, uint8_t *out)
         __builtin_memcpy(out, GEN_PAGES[t->src - 1], 5);
         if (t->src == SRC_LIFE && kit())
             out[0] = P_LIFEK;
-        return t->src == SRC_LANES || t->src == SRC_CHORDS ? 2 : t->src != SRC_MARBLES ? 3 : kit() ? 2 : 4;   /* a KIT has no X section */
+        return t->src == SRC_TONNETZ ? 3 : t->src == SRC_LANES || t->src == SRC_CHORDS ? 2 : t->src != SRC_MARBLES ? 3 : kit() ? 2 : 4;   /* a KIT has no X section */
     }
     if (d == D_SEQ && notes_on()) {     /* the cursor's step first, then SEQ's own */
         __builtin_memcpy(out, NOTES_PAGES, 5);
@@ -276,13 +280,23 @@ static int knob_get(int pid, int k)
     case P_LIFE * 4 + 3:
     case P_LIFEK * 4 + 3:
     case P_LANES * 4 + 3:
-    case P_CHORDS * 4 + 3: return t->src;
+    case P_CHORDS * 4 + 3:
+    case P_TONNETZ * 4 + 3: return t->src;
     case P_GRIDS * 4:
     case P_MARBLES * 4:
     case P_LIFE * 4:
     case P_LIFEK * 4:
     case P_LANES * 4:
-    case P_CHORDS * 4: return t->div;
+    case P_CHORDS * 4:
+    case P_TONNETZ * 4: return t->div;
+    case P_TONNETZ * 4 + 1: return t->tonnetz.note;
+    case P_TONNETZ * 4 + 2: return t->tonnetz.rate;
+    case P_WALK * 4: return t->tonnetz.len;
+    case P_WALK * 4 + 1: return t->tonnetz.chaos;
+    case P_WALK * 4 + 2: return t->tonnetz.scale;
+    case P_WALK * 4 + 3: return t->tonnetz.ret;
+    case P_PLAY * 4: return t->tonnetz.strum;
+    case P_PLAY * 4 + 1: return t->tonnetz.voice;
     case P_CHORDS * 4 + 1: return t->chords.note;
     case P_CHORDS * 4 + 2: return t->chords.rate;
     case P_PROG * 4: return t->chords.len;
@@ -418,7 +432,16 @@ static void knob_set(int pid, int k, int v)
     case P_LIFE * 4:
     case P_LIFEK * 4:
     case P_LANES * 4:
-    case P_CHORDS * 4: t->div = (uint8_t)v; break;
+    case P_CHORDS * 4:
+    case P_TONNETZ * 4: t->div = (uint8_t)v; break;
+    case P_TONNETZ * 4 + 1: t->tonnetz.note = (uint8_t)v; break;
+    case P_TONNETZ * 4 + 2: t->tonnetz.rate = (uint8_t)v; break;
+    case P_WALK * 4: t->tonnetz.len = (uint8_t)v; break;
+    case P_WALK * 4 + 1: t->tonnetz.chaos = (uint8_t)v; break;
+    case P_WALK * 4 + 2: t->tonnetz.scale = (uint8_t)v; break;
+    case P_WALK * 4 + 3: t->tonnetz.ret = (uint8_t)v; break;
+    case P_PLAY * 4: t->tonnetz.strum = (uint8_t)v; break;
+    case P_PLAY * 4 + 1: t->tonnetz.voice = (uint8_t)v; break;
     case P_CHORDS * 4 + 1: t->chords.note = (uint8_t)v; break;
     case P_CHORDS * 4 + 2: t->chords.rate = (uint8_t)v; break;
     case P_PROG * 4: t->chords.len = (uint8_t)v; break;
@@ -450,8 +473,9 @@ static void knob_set(int pid, int k, int v)
     case P_LIFEK * 4 + 3:
     case P_LANES * 4 + 3:
     case P_CHORDS * 4 + 3:
+    case P_TONNETZ * 4 + 3:
         t->src = (uint8_t)v;
-        if (v == SRC_CHORDS && !kit() && s->poly < 3)   /* chords need voices: POLY 3 at least */
+        if ((v == SRC_CHORDS || v == SRC_TONNETZ) && !kit() && s->poly < 3)   /* chords need voices: POLY 3 at least */
             s->poly = 3;
         break;
     case P_GRIDS * 4 + 1: t->grids.voice = (uint8_t)v; break;
@@ -1901,9 +1925,9 @@ static void knob_text(int pid, int k, int v, char *b)
         while ((*b++ = *s++) != 0) {}
         return;
     }
-    if ((pid == P_CHORDS && k == 2) || (pid == P_PROG && k == 2)) {   /* strikes a bar; VOICE */
+    if (((pid == P_CHORDS || pid == P_TONNETZ) && k == 2) || (pid == P_PROG && k == 2) || (pid == P_PLAY && k == 1) || (pid == P_WALK && k >= 2)) {   /* strikes a bar; VOICE; SCALE, RETURN */
         static const char *const RATE_NAME[5] = {"1/BAR", "2/BAR", "4/BAR", "8/BAR", "16/BAR"};
-        const char *s = pid == P_CHORDS ? RATE_NAME[v] : v ? "SMOOTH" : "ROOT";
+        const char *s = pid == P_CHORDS || pid == P_TONNETZ ? RATE_NAME[v] : pid == P_WALK ? (k == 2 ? (v ? "IN SCALE" : "FREE") : v ? "ON" : "OFF") : v ? "SMOOTH" : "ROOT";
         while ((*b++ = *s++) != 0) {}
         return;
     }
@@ -1916,16 +1940,16 @@ static void knob_text(int pid, int k, int v, char *b)
         int_text(1 << v, b);
         return;
     }
-    if ((k == 3 && (pid == P_STEPS || pid == P_GRIDS || pid == P_MARBLES || pid == P_LIFE || pid == P_LIFEK || pid == P_LANES || pid == P_CHORDS)) || (pid == P_T && !k)) {
+    if ((k == 3 && (pid == P_STEPS || pid == P_GRIDS || pid == P_MARBLES || pid == P_LIFE || pid == P_LIFEK || pid == P_LANES || pid == P_CHORDS || pid == P_TONNETZ)) || (pid == P_T && !k)) {
         const char *s = pid == P_T ? T_MODE_NAME[v] : SRC_NAME[v];
         while ((*b++ = *s++) != 0) {}
         return;
     }
-    if ((pid == P_GRIDS && k == 2) || (pid == P_NOTES && !k) || (pid == P_LIFE && k == 2) || ((pid == P_LANES || pid == P_CHORDS) && k == 1)) {
+    if ((pid == P_GRIDS && k == 2) || (pid == P_NOTES && !k) || (pid == P_LIFE && k == 2) || ((pid == P_LANES || pid == P_CHORDS || pid == P_TONNETZ) && k == 1)) {
         note_name(v, b);
         return;
     }
-    if ((pid == P_STEPS && k > 0) || (pid == P_XY && k & 1) || ((pid == P_GRIDS || pid == P_MARBLES || pid == P_LIFE || pid == P_LIFEK || pid == P_LANES || pid == P_CHORDS) && !k)) {
+    if ((pid == P_STEPS && k > 0) || (pid == P_XY && k & 1) || ((pid == P_GRIDS || pid == P_MARBLES || pid == P_LIFE || pid == P_LIFEK || pid == P_LANES || pid == P_CHORDS || pid == P_TONNETZ) && !k)) {
         const char *s = pid == P_STEPS && k == 2 ? PATH_NAME[v] : DIV_NAME[v];
         while ((*b++ = *s++) != 0) {}
         return;
@@ -3093,6 +3117,14 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "crate")) *got = t->chords.rate;
     else if (!strcmp(what, "cstrum")) *got = t->chords.strum;
     else if (!strcmp(what, "cvoice")) *got = t->chords.voice;
+    else if (!strcmp(what, "tnote")) *got = t->tonnetz.note;
+    else if (!strcmp(what, "tlen")) *got = t->tonnetz.len;
+    else if (!strcmp(what, "trate")) *got = t->tonnetz.rate;
+    else if (!strcmp(what, "tstrum")) *got = t->tonnetz.strum;
+    else if (!strcmp(what, "tvoice")) *got = t->tonnetz.voice;
+    else if (!strcmp(what, "tchaos")) *got = t->tonnetz.chaos;
+    else if (!strcmp(what, "tscale")) *got = t->tonnetz.scale;
+    else if (!strcmp(what, "tret")) *got = t->tonnetz.ret;
     else if (!strncmp(what, "cdeg_", 5) && atoi(what + 5) >= 1 && atoi(what + 5) <= 8) *got = CH_DEG(t->chords.ch[atoi(what + 5) - 1]);
     else if (!strncmp(what, "csize_", 6) && atoi(what + 6) >= 1 && atoi(what + 6) <= 8) *got = CH_SIZE(t->chords.ch[atoi(what + 6) - 1]);
     else if (!strcmp(what, "lsel")) *got = ui.lane;
