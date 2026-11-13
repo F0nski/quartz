@@ -1,0 +1,152 @@
+# LIVE, REC held: the keys pressed sound nothing, record nothing, and take their notes off the steps the playhead
+# crosses (a step left without notes goes off); with OCT- held, every step crossed is cleared
+wait 600
+tap GLO
+spin K1 200
+expect tempo 240
+tap SEQ
+# 16 steps of C4 (the clipboard at the start)
+tap REC
+expect rec 1
+tapkey w0
+tapkey w1
+tapkey w2
+tapkey w3
+tapkey w4
+tapkey w5
+tapkey w6
+tapkey w7
+tapkey w8
+tapkey w9
+tapkey w10
+tapkey w11
+tapkey w12
+tapkey w13
+tapkey w14
+tapkey w15
+expect nsteps_on 16
+tap PLAY
+press REC
+tap PLAY
+release REC
+expect rec 3
+expect playing 1
+press REC
+key 7 down
+wait 1000
+expect nsteps_on 0
+expect hits 18
+# a key pressed now sounds nothing
+key 9 down
+wait 100
+expect hits 18
+key 9 up
+key 7 up
+release REC
+expect rec 3
+expect playing 1
+expect overdub 1
+tap PLAY
+expect rec 0
+# C4 + E4 on every step: E4 stays
+tap EDIT
+turn SELECT 1
+turn K4 1
+expect poly 2
+key 7 down
+key 11 down
+key 11 up
+key 7 up
+expect clip_n 2
+tap SEQ
+tap REC
+expect rec 1
+tapkey w0
+tapkey w1
+tapkey w2
+tapkey w3
+tapkey w4
+tapkey w5
+tapkey w6
+tapkey w7
+tapkey w8
+tapkey w9
+tapkey w10
+tapkey w11
+tapkey w12
+tapkey w13
+tapkey w14
+tapkey w15
+expect nsteps_on 16
+tap PLAY
+press REC
+tap PLAY
+release REC
+expect rec 3
+expect playing 1
+press REC
+key 7 down
+wait 1000
+key 7 up
+release REC
+expect nsteps_on 16
+expect stepnotes_1 1
+expect stepnote_1 64
+expect stepnotes_9 1
+expect stepnote_9 64
+tap PLAY
+expect rec 0
+# OCT- held: every step crossed cleared, the octave kept
+tap PLAY
+press REC
+tap PLAY
+release REC
+expect rec 3
+press REC
+press OCT-
+wait 1000
+release OCT-
+release REC
+expect nsteps_on 0
+expect octave 0
+expect locks 0
+tap PLAY
+expect rec 0
+# DIV 1/32 (a step every 31 ms) and the loop wrapping: none missed
+turn K2 -2
+expect div 0
+tap REC
+expect rec 1
+tapkey w0
+tapkey w1
+tapkey w2
+tapkey w3
+tapkey w4
+tapkey w5
+tapkey w6
+tapkey w7
+tapkey w8
+tapkey w9
+tapkey w10
+tapkey w11
+tapkey w12
+tapkey w13
+tapkey w14
+tapkey w15
+expect nsteps_on 16
+tap PLAY
+press REC
+tap PLAY
+release REC
+expect rec 3
+expect playing 1
+press REC
+key 7 down
+key 11 down
+wait 700
+key 11 up
+key 7 up
+release REC
+expect nsteps_on 0
+tap PLAY
+expect rec 0

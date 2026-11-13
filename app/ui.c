@@ -150,7 +150,9 @@ static struct {
     uint16_t sel;                              /* SEL held on the grid: the page's cells selected */
     int sel_ref;                               /* the selection's reference cell, the first pressed; -1 none */                        /* the held step's notes sounding at the stop, 0 none */
     int arm_key;
-    int nchord;                                /* NOTES: notes written since all the keys were up */                               /* ARM: the key that started the playing, played once step 1 is under way (key + 1) */
+    int nchord;                                /* NOTES: notes written since all the keys were up */
+    int erase_pos;                             /* LIVE, REC held: the last step erased, -1 none */
+    uint8_t erase_notes[8];                    /* the notes of the keys held then, 0 none */                               /* ARM: the key that started the playing, played once step 1 is under way (key + 1) */
     q_view shown;
     int full;                                  /* the next frame draws everything */
     uint32_t scene_ms, fps_ms;                 /* the last scene drawn (every other 16-ms frame: 30 a second); the second being counted */
@@ -485,7 +487,8 @@ static void button(int b)
     case B_OCTDN:
     case B_OCTUP:
         d = b == B_OCTUP ? 1 : -1;
-        if (grid_on() && ui.held) {     /* the held step's length */
+        if (ui.rec == R_LIVE && ui.btn >> B_REC & 1u) {    /* REC held in LIVE: OCT- erases (live_erase) */
+        } else if (grid_on() && ui.held) {     /* the held step's length */
             q_step *s = &pat()->steps[ui.held - 1];
             s->len = (uint8_t)len_step(s->len, d);
             ui.edited = ui.dirty = 1;
@@ -852,6 +855,58 @@ static void sel_lock(int k, int d)
             ui.locks_until = plat_ms() + MSG_MS;
 }
 
+/* LIVE, REC held: the step loses the keys' notes, off when none is left; OCT- held, it is cleared */
+static void erase_step(q_pattern *t, int n)
+{
+    q_step *s = &t->steps[n];
+    int i, j, m = 0;
+    uint8_t keep[4] = {0};
+    if (ui.btn >> B_OCTDN & 1u) {
+        step_clear(t, n);
+        ui.dirty = 1;
+        return;
+    }
+    if (!(s->flags & SF_ON))
+        return;
+    for (i = 0; i < 4 && (i == 0 || s->note[i]); i++) {
+        for (j = 0; j < 8 && ui.erase_notes[j] != s->note[i]; j++) {}
+        if (j == 8)
+            keep[m++] = s->note[i];
+    }
+    if (!m) {                           /* the notes stay behind the flag, as a KIT's last pad out */
+        s->flags &= (uint8_t)~SF_ON;
+    } else if (m < i) {
+        __builtin_memcpy(s->note, keep, sizeof keep);
+    } else {
+        return;
+    }
+    ui.dirty = 1;
+}
+
+/* LIVE, REC held with keys or OCT-: every step from the last erased to the one playing (the step playing only when the
+   PATH is not FWD), at each frame: none is missed at a fast tempo */
+static void live_erase(void)
+{
+    q_pattern *t = pat();
+    int pos = audio_pos(ui.track), i, on = 0;
+    for (i = 0; i < 8; i++)
+        on |= ui.erase_notes[i];
+    if (!(ui.rec == R_LIVE && ui.btn >> B_REC & 1u && (on || ui.btn >> B_OCTDN & 1u)) || pos < 0 || t->src != SRC_STEP ||
+        audio_pattern(ui.track) != ui.p->pattern[ui.track]) {
+        ui.erase_pos = -1;
+        return;
+    }
+    pos %= t->len;
+    i = ui.erase_pos < 0 || t->path != PATH_FWD ? pos : ui.erase_pos;
+    for (;;) {                          /* the step playing again too: a key pressed during it */
+        erase_step(t, i);
+        if (i == pos)
+            break;
+        i = (i + 1) % t->len;
+    }
+    ui.erase_pos = pos;
+}
+
 static void save_release(void)
 {
     if (!short_press(B_SAVE))
@@ -1007,6 +1062,15 @@ static void key_down(int k)
         }
         return;
     }
+    if (ui.rec == R_LIVE && ui.btn >> B_REC & 1u) {    /* REC held in LIVE: the key's note is erased, not played */
+        if ((note = key_play_note(k)) >= 0)
+            for (i = 0; i < 8; i++)
+                if (!ui.erase_notes[i]) {
+                    ui.erase_notes[i] = (uint8_t)note;
+                    break;
+                }
+        return;
+    }
     if (ui.domain == D_SEQ && ui.seqdown) {    /* SEQ held: the white keys 1..8 are the patterns, the first black one CLEAR */
         if (w < Q_PATTERNS) {
             pattern_set(w);
@@ -1150,6 +1214,9 @@ static void key_up(int k)
     }
     if (ui.padheld == k + 1)
         ui.padheld = 0;
+    for (w = 0; w < 8; w++)             /* (OCT is not changed while REC is held: the note is the one pressed) */
+        if (ui.erase_notes[w] && ui.erase_notes[w] == key_play_note(k))
+            ui.erase_notes[w] = 0;
     if (ui.key_note[k] < 0)
         return;
     audio_live_note(ui.key_track[k], ui.key_note[k], 0);
@@ -1211,6 +1278,9 @@ void ui_input(void)
     }
     ui.btn = btn;
     ui.keys = keys;
+    if (!(btn >> B_REC & 1u))
+        __builtin_memset(ui.erase_notes, 0, sizeof ui.erase_notes);
+    live_erase();
     if (ui.domain == D_SEQ && (ui.rec == R_OFF || ui.rec == R_LIVE) && audio_pos(ui.track) >= 0)   /* the page playing shown */
         ui.spage = audio_pos(ui.track) / 16;
     punch_rec();
@@ -1959,7 +2029,7 @@ void ui_init(q_project *p)
     step_default(&ui.clip.st);
     ui.p = p;
     ui.cursor = 1;
-    ui.sel_ref = -1;
+    ui.sel_ref = ui.erase_pos = -1;
     ui.full = 1;
     ui.dirty = dirty;
     ui.btn = btn;
@@ -2182,6 +2252,11 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "cursor")) *got = ui.cursor;
     else if (!strcmp(what, "octave")) *got = ui.octave;
     else if (!strcmp(what, "sel")) *got = ui.sel;
+    else if (!strcmp(what, "nsteps_on")) {
+        int i;
+        for (*got = 0, i = 0; i < Q_STEPS; i++)
+            *got += t->steps[i].flags & SF_ON ? 1 : 0;
+    }
     else if (!strcmp(what, "leds_lit")) *got = (int)key_lights();
     else if (!strcmp(what, "selref")) *got = ui.sel_ref + 1;
     else if (!strcmp(what, "clip_n")) for (*got = 1; *got < 4 && ui.clip.st.note[*got]; ++*got) {}
