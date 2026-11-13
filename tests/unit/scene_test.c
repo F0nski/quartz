@@ -1922,7 +1922,7 @@ static void lanes_floor_behind(void)
     nfull();
     for (int c = 0; c < 16; c++) {                   /* each big block's front: no floor line across it */
         int x = 6 + 29 * (c % 8), y = c < 8 ? 120 : 162;
-        assert(gcount(RGB(0x14, 0x0e, 0x30), x + 1, x + 23, y - 24, y - 1) == 0);
+        assert(gcount(RGB(0x0c, 0x08, 0x1e), x + 1, x + 23, y - 24, y - 1) == 0);
     }
 }
 

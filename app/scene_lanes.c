@@ -13,7 +13,7 @@
 static const float LN_BASE[2] = {120.0f, 162.0f};
 static const uint16_t LN_OFF[3] = {RGB(0x3a, 0x2f, 0x63), RGB(0x2a, 0x21, 0x48), RGB(0x16, 0x0f, 0x30)};
 #define LN_WALL RGB(0x9a, 0x16, 0x59)
-#define LN_FLOOR RGB(0x14, 0x0e, 0x30)
+#define LN_FLOOR RGB(0x0c, 0x08, 0x1e)        /* barely off the black: a backdrop, not a grid to read */
 #define LN_GROUND RGB(0x24, 0x18, 0x50)
 #define LN_UI RGB(0x8b, 0x84, 0xa8)
 #define LN_DIM RGB(0x2a, 0x21, 0x48)
@@ -86,10 +86,10 @@ void lanes_frame(const q_laneview *v, uint32_t ms)
     /* the floor, sent last (dropped first) and far (drawn first: the lowest depth): a notch a step */
     float f = v->step_ms ? (float)(ms - ln.step_t) / (float)v->step_ms : 1.0f;
     if (f > 1.0f) f = 1.0f;
-    for (int i = -10; i <= 10; i++)
-        p3d_line(120.0f + 10.0f * (float)i, 78.0f, 120.0f + 44.0f * (float)i, 166.0f, -10.0f, 1, LN_FLOOR);
-    for (int j = 0; j < 7; j++) {
-        float u = ((float)j + f) / 7.0f, y = 80.0f + u * u * 86.0f;
+    for (int i = -5; i <= 5; i++)
+        p3d_line(120.0f + 20.0f * (float)i, 78.0f, 120.0f + 88.0f * (float)i, 166.0f, -10.0f, 1, LN_FLOOR);
+    for (int j = 0; j < 4; j++) {
+        float u = ((float)j + f) / 4.0f, y = 80.0f + u * u * 86.0f;
         p3d_line(0.0f, y, 240.0f, y, -10.0f, 1, LN_FLOOR);
     }
 }

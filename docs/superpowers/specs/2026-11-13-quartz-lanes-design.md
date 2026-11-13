@@ -115,10 +115,10 @@ l'en-tête et les encodeurs restent ceux de `ui.c`. Les textes de l'écran sont 
   - Le numéro de la touche est écrit au pied du bloc ; la valeur au-dessus : nom de note (`P1`…`P16` sur un KIT),
     `-2`…`+2`, `1/4` `1/2` `1` `2` `4`, `pp` `mf` `f` `ff`. TRIG n'a pas de texte.
   - Les cases au-delà de LEN sont un trait et un numéro sombres ; un mur rose de 30 px suit la case LEN.
-- **Sol filaire** (décor), derrière la ligne éditée, en `#140e30` : 21 lignes qui fuient d'un point à (120, 78) vers
-  le bas de la zone (écart 10 px à l'horizon, 44 px en bas) et 7 lignes horizontales à
-  y = 80 + ((j + f) / 7)² × 86, où f est la fraction du pas en cours. Les lignes avancent d'un cran par pas ; à
-  l'arrêt, le sol est immobile.
+- **Sol filaire** (décor), derrière la ligne éditée, en `#0c081e`, à peine plus clair que le noir : 11 lignes qui
+  fuient d'un point à (120, 78) vers le bas de la zone (écart 20 px à l'horizon, 88 px en bas) et 4 lignes
+  horizontales à y = 80 + ((j + f) / 4)² × 86, où f est la fraction du pas en cours. Les lignes avancent d'un cran par
+  pas ; à l'arrêt, le sol est immobile.
 - **Case tenue ou touchée** : elle clignote en blanc 300 ms, en haut comme en bas.
 
 Ce que règle chaque encodeur à l'écran :
