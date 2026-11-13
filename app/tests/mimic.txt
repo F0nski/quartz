@@ -145,3 +145,19 @@ tap REC
 expect rec 5
 turn K4 -1
 expect rec 0
+# a new project while in LISTEN: LISTEN left, the render told (else MIMIC stays silent on the track)
+turn K4 1
+expect src 8
+tap REC
+expect rec 5
+wait 100
+expect mlisten 1
+press SAVE
+key 1 down
+key 1 up
+key 1 down
+key 1 up
+release SAVE
+wait 100
+expect rec 0
+expect mlisten 0

@@ -1332,6 +1332,7 @@ static void key_down(int k)
             ui.wipe_until = plat_ms() + 2 * MSG_MS;
             return;
         }
+        rec_set(R_OFF);                 /* (ui_init clears ui.rec: LISTEN must tell the render first) */
         audio_play(0);
         project_defaults(ui.p);
         ui_init(ui.p);
@@ -1895,7 +1896,8 @@ static uint32_t key_lights(uint32_t *mid)
     } else if (ui.domain == D_SEQ && t->src == SRC_MIMIC) {     /* the place read in the phrase, in eighths */
         q_mimic_run r;
         audio_mimic(ui.track, &r);
-        if (pos >= 0 && r.nlast && t->mimic.n && audio_pattern(ui.track) == ui.p->pattern[ui.track])
+        /* (last[0] past n: a run not yet told of a shorter phrase, no light) */
+        if (pos >= 0 && r.nlast && r.last[0] < t->mimic.n && audio_pattern(ui.track) == ui.p->pattern[ui.track])
             keys |= 1u << WHITE[r.last[0] * 8 / t->mimic.n];
     } else if (ui.domain == D_SEQ && t->src == SRC_TONNETZ) {   /* the steps at mid level, the one applied lit; held: black keys 1-4 */
         q_tonnetz_run r;
@@ -3443,6 +3445,7 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "mloop")) *got = t->mimic.loop;
     else if (!strcmp(what, "mseed")) *got = t->mimic.seed;
     else if (!strcmp(what, "mn")) *got = t->mimic.n;
+    else if (!strcmp(what, "mlisten")) { q_mimic_run r; audio_mimic(ui.track, &r); *got = r.listen; }
     else if (!strncmp(what, "mnote_", 6) && atoi(what + 6) >= 1 && atoi(what + 6) <= MIMIC_EV) *got = t->mimic.ev[atoi(what + 6) - 1][0];
     else if (!strncmp(what, "mgap_", 5) && atoi(what + 5) >= 1 && atoi(what + 5) <= MIMIC_EV) *got = t->mimic.ev[atoi(what + 5) - 1][1];
     else if (!strcmp(what, "chcur")) *got = ui.chcur;
