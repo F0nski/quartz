@@ -496,6 +496,23 @@ static void chords_clamped_on_load(void)
     assert(a.pat[2][2].chords.len == 8);
 }
 
+/* TONNETZ's settings out of range in flash: brought back */
+static void tonnetz_clamped_on_load(void)
+{
+    static q_project a, b;
+    project_defaults(&a);
+    store_save(&a);
+    b = a;
+    b.pat[3][1].tonnetz = (q_tonnetz){ 0, 0, 7, 9, 3, 200, 5, 4, 0x5555 };
+    b.pat[3][2].tonnetz.len = 9;
+    write_raw(&b);
+    memset(&a, 0xAA, sizeof a);
+    assert(store_load(&a) == 0);
+    const q_tonnetz *t = &a.pat[3][1].tonnetz;
+    assert(t->note == 1 && t->len == 1 && t->rate == 4 && t->strum == 7 && t->voice == 1 && t->chaos == 127 && t->scale == 1 && t->ret == 1 && t->seq == 0x5555);
+    assert(a.pat[3][2].tonnetz.len == 8);
+}
+
 int main(void)
 {
     forget();
@@ -512,6 +529,7 @@ int main(void)
     store_clamps_life();
     lanes_clamped_on_load();
     chords_clamped_on_load();
+    tonnetz_clamped_on_load();
     store_v2_gives_defaults();
     store_roundtrip_v4();
     store_clamps_v4();

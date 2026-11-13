@@ -8,7 +8,7 @@
 #define Q_LOCKS 128
 #define Q_SCENES 8
 #define Q_SONG 32
-#define Q_VERSION 9                /* q_project.version: the saved layout */
+#define Q_VERSION 10                /* q_project.version: the saved layout */
 #define Q_PADS 16
 #define M_KIT 24                   /* q_sound.model: the 16-pad kit */
 #define KIT_NOTE 36                /* a KIT's note: KIT_NOTE + pad */
@@ -36,7 +36,7 @@ typedef struct { uint8_t note[4], vel, len, prob, cond, flags; int8_t micro; } q
 typedef struct { uint8_t step, param, value; } q_lock;    /* value: the q_sound field's byte (tune as uint8_t) */
 enum { PATH_FWD, PATH_REV, PATH_PINGPONG, PATH_SNAKE, PATH_COLUMNS, PATH_SPIRAL, PATH_RANDOM, PATH_XY, PATH_N };
 /* XY: xlen, ylen 1..4, ydiv a DIV_* (the X clock is div) */
-enum { SRC_STEP, SRC_GRIDS, SRC_MARBLES, SRC_LIFE, SRC_LANES, SRC_CHORDS, SRC_N };         /* q_pattern.src: where the notes come from */
+enum { SRC_STEP, SRC_GRIDS, SRC_MARBLES, SRC_LIFE, SRC_LANES, SRC_CHORDS, SRC_TONNETZ, SRC_N };         /* q_pattern.src: where the notes come from */
 /* 0..127 except voice 1..3, note 1..127 (0 is no note) */
 typedef struct { uint8_t x, y, chaos, dens[3], voice, note; } q_grids;
 /* 0..127 except tout 1..3, len 1..16, note 1..127, mode 0..6, range 1..4; notes: pitch classes allowed (bit n = C + n), 0 = the project's scale */
@@ -75,7 +75,13 @@ typedef struct { uint8_t note, len, rate, strum, voice, ch[8]; } q_chords;
 #define CH_DEG(c) ((c) & 7)
 #define CH_SIZE(c) ((c) >> 3 & 3)
 #define CH_MAKE(d, s) ((uint8_t)((d) | (s) << 3))
-typedef struct { uint8_t len, div, nlocks, path, xlen, ylen, ydiv, src; q_grids grids; q_marbles marbles; q_life life; q_lanes lanes; q_chords chords; q_step steps[Q_STEPS]; q_lock locks[Q_LOCKS]; } q_pattern;
+enum { TZ_STAY, TZ_P, TZ_L, TZ_R };                       /* TONNETZ's steps */
+/* note 1..127, len 1..8, rate 0..4, strum 0..7, voice 0..1, chaos 0..127, scale 0 FREE / 1 IN SCALE, ret 0..1; seq: step i in
+   bits 2i..2i+1 (TZ_*) */
+typedef struct { uint8_t note, len, rate, strum, voice, chaos, scale, ret; uint16_t seq; } q_tonnetz;
+#define TZ_OP(t, i) ((t)->seq >> 2 * (i) & 3)
+#define TZ_SET(t, i, o) ((t)->seq = (uint16_t)(((t)->seq & ~(3u << 2 * (i))) | (unsigned)(o) << 2 * (i)))
+typedef struct { uint8_t len, div, nlocks, path, xlen, ylen, ydiv, src; q_grids grids; q_marbles marbles; q_life life; q_lanes lanes; q_chords chords; q_tonnetz tonnetz; q_step steps[Q_STEPS]; q_lock locks[Q_LOCKS]; } q_pattern;
 typedef struct { uint8_t used, mute, pat[Q_TRACKS]; } q_scene;
 typedef struct { uint8_t scene, reps; } q_entry;          /* scene 0..7, reps 1..16 */
 /* 0..127 except model 0..24, poly 1..4, tune -24..24, ftype 0..2, envamt and ldepth -64..63, lshape 0..4, ltrig 0 FREE 1 TRIG,

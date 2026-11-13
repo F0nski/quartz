@@ -31,7 +31,7 @@ void gen_reset(q_gen *g, uint32_t *rng)
 
 int gen_loop(const q_pattern *pt)
 {
-    return pt->src == SRC_MARBLES ? pt->marbles.len : pt->src == SRC_LIFE || pt->src == SRC_LANES || pt->src == SRC_CHORDS ? LIFE_W : GRIDS_STEPS;
+    return pt->src == SRC_MARBLES ? pt->marbles.len : pt->src == SRC_LIFE || pt->src == SRC_LANES || pt->src == SRC_CHORDS || pt->src == SRC_TONNETZ ? LIFE_W : GRIDS_STEPS;
 }
 
 /* settings 0..127 as Grids' 0..255 */
@@ -517,6 +517,39 @@ static int lanes_step(q_gen *g, const q_project *p, int track, const q_pattern *
 
 /* CHORDS */
 
+/* SMOOTH: t[0..n-1] (ascending) moved to the inversion and octave nearest the last strike, the bass within a fifth of t[0]'s
+   (no drift loop after loop); a tie: the lower. CHORDS and TONNETZ. */
+static void voice_smooth(int t[4], int n, const uint8_t *prev, int nprev)
+{
+    int i, j;
+    int best[4], cost = 1 << 30, sum = 0;
+    for (int inv = 0; inv < n; inv++)
+        for (int o = -2; o <= 1; o++) {
+            int v[4], ok = 1, cs = 0, s = 0;
+            int low = 127;
+            for (i = 0; i < n; i++) {
+                v[i] = t[i] + (i < inv ? 12 : 0) + 12 * o;
+                ok &= v[i] >= 1 && v[i] <= 127;
+                if (v[i] < low) low = v[i];
+            }
+            ok &= low >= t[0] - 7 && low <= t[0] + 7;   /* the bass within a fifth of the root: no drift loop after loop */
+            if (!ok) continue;
+            for (i = 0; i < n; i++) {
+                int e = 1000;
+                for (j = 0; j < nprev; j++) { int x = v[i] > prev[j] ? v[i] - prev[j] : prev[j] - v[i]; if (x < e) e = x; }
+                cs += e, s += v[i];
+            }
+            if (cs < cost || (cs == cost && s < sum)) {
+                cost = cs, sum = s;
+                for (i = 0; i < n; i++) best[i] = v[i];
+            }
+        }
+    if (cost < 1 << 30)
+        for (i = 0; i < n; i++) t[i] = best[i];
+    for (i = 1; i < n; i++)
+        for (j = i; j > 0 && t[j - 1] > t[j]; j--) { int x = t[j]; t[j] = t[j - 1]; t[j - 1] = x; }
+}
+
 int gen_chord_notes(const q_project *p, const q_chords *c, int slot, int poly, const uint8_t *prev, int nprev, uint8_t out[4])
 {
     static const uint8_t STACK[CS_N][4] = {{0, 2, 4, 0}, {0, 2, 4, 6}, {0, 1, 4, 0}, {0, 3, 4, 0}};
@@ -527,56 +560,127 @@ int gen_chord_notes(const q_project *p, const q_chords *c, int slot, int poly, c
         if (KEEP[i] < m) t[n++] = gen_life_note(c->note, sc, p->tonic, d + STACK[sz][KEEP[i]]);
     for (i = 1; i < n; i++)
         for (j = i; j > 0 && t[j - 1] > t[j]; j--) { int x = t[j]; t[j] = t[j - 1]; t[j - 1] = x; }
-    if (c->voice && nprev) {             /* SMOOTH: the inversion and octave nearest the last strike; a tie: the lower */
-        int best[4], cost = 1 << 30, sum = 0;
-        for (int inv = 0; inv < n; inv++)
-            for (int o = -2; o <= 1; o++) {
-                int v[4], ok = 1, cs = 0, s = 0;
-                int low = 127;
-                for (i = 0; i < n; i++) {
-                    v[i] = t[i] + (i < inv ? 12 : 0) + 12 * o;
-                    ok &= v[i] >= 1 && v[i] <= 127;
-                    if (v[i] < low) low = v[i];
-                }
-                ok &= low >= t[0] - 7 && low <= t[0] + 7;   /* the bass within a fifth of the root: no drift loop after loop */
-                if (!ok) continue;
-                for (i = 0; i < n; i++) {
-                    int e = 1000;
-                    for (j = 0; j < nprev; j++) { int x = v[i] > prev[j] ? v[i] - prev[j] : prev[j] - v[i]; if (x < e) e = x; }
-                    cs += e, s += v[i];
-                }
-                if (cs < cost || (cs == cost && s < sum)) {
-                    cost = cs, sum = s;
-                    for (i = 0; i < n; i++) best[i] = v[i];
-                }
-            }
-        if (cost < 1 << 30)
-            for (i = 0; i < n; i++) t[i] = best[i];
-        for (i = 1; i < n; i++)
-            for (j = i; j > 0 && t[j - 1] > t[j]; j--) { int x = t[j]; t[j] = t[j - 1]; t[j - 1] = x; }
-    }
+    if (c->voice && nprev)
+        voice_smooth(t, n, prev, nprev);
     for (i = 0; i < n; i++) out[i] = (uint8_t)t[i];
     return n;
+}
+
+/* a strike of nn notes (ascending) into st, remembered in last: held until the next strike, STRUM in flags, the bar's first
+   strike accented on every note. CHORDS and TONNETZ. */
+static int strike_fill(q_step *st, const uint8_t *out, int nn, int rate, int strum, int step, uint8_t last[4], uint8_t *nlast)
+{
+    for (int i = 0; i < nn; i++) st->note[i] = last[i] = out[i];
+    *nlast = (uint8_t)nn;
+    st->flags = (uint8_t)(SF_ON | strum << 5);
+    st->len = (uint8_t)(128 >> rate); st->vel = 100; st->prob = 20;
+    return step == 0 ? (1 << nn) - 1 : 0;
 }
 
 /* the step chords.n: a strike on every 16 / strikes step of the bar, the chord (n / 16) mod LEN */
 static int chords_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, int k, q_step *st)
 {
-    static const uint8_t STRIKES[5] = {1, 2, 4, 8, 16};
     const q_chords *c = &pt->chords;
     if (!g->chords.n)                   /* the source set mid-tour: its bars line up with the tour */
         g->chords.n = (uint32_t)k;
     uint32_t n = g->chords.n++;
-    int step = (int)(n % 16), every = 16 / STRIKES[c->rate], poly = p->sound[track].poly ? p->sound[track].poly : 1;
+    int step = (int)(n % 16), every = 16 >> c->rate, poly = p->sound[track].poly ? p->sound[track].poly : 1;
     if (p->sound[track].model == M_KIT || step % every)
         return 0;
     uint8_t out[4];
     int nn = gen_chord_notes(p, c, (int)(n / 16 % c->len), poly, g->chords.last, g->chords.nlast, out);
-    for (int i = 0; i < nn; i++) st->note[i] = g->chords.last[i] = out[i];
-    g->chords.nlast = (uint8_t)nn;
-    st->flags = (uint8_t)(SF_ON | c->strum << 5);
-    st->len = (uint8_t)(128 / STRIKES[c->rate]); st->vel = 100; st->prob = 20;
-    return step == 0 ? (1 << nn) - 1 : 0;   /* the bar's first strike: every note accented */
+    return strike_fill(st, out, nn, c->rate, c->strum, step, g->chords.last, &g->chords.nlast);
+}
+
+/* TONNETZ */
+
+static int tz_pc(int i, int j) { return ((7 * i + 4 * j) % 12 + 12) % 12; }
+
+q_tz gen_tz_move(q_tz s, int op)
+{
+    if (op == TZ_P) s.j = (int16_t)(s.j + (s.m ? 1 : -1));
+    else if (op == TZ_R) s.i = (int16_t)(s.i + (s.m ? 1 : -1));
+    if (op != TZ_STAY) s.m ^= 1;
+    return s;
+}
+
+void gen_tz_pcs(q_tz s, int base, uint8_t pcs[3])
+{
+    int r = s.m ? tz_pc(s.i, s.j + 1) : tz_pc(s.i, s.j);
+    pcs[0] = (uint8_t)((r + base + 24) % 12);
+    pcs[1] = (uint8_t)((r + (s.m ? 3 : 4) + base + 24) % 12);
+    pcs[2] = (uint8_t)((r + 7 + base + 24) % 12);
+}
+
+static int tz_in_scale(q_tz s, uint16_t scale, int base)
+{
+    uint8_t x[3];
+    gen_tz_pcs(s, base, x);
+    return (scale >> x[0] & 1) && (scale >> x[1] & 1) && (scale >> x[2] & 1);
+}
+
+q_tz gen_tz_step(q_tz s, int op, int in_scale, uint16_t scale, int base)
+{
+    if (op == TZ_STAY || !in_scale)
+        return gen_tz_move(s, op);
+    for (int t = 0; t < 3; t++) {
+        q_tz n = gen_tz_move(s, 1 + (op - 1 + t) % 3);
+        if (tz_in_scale(n, scale, base)) return n;
+    }
+    return s;
+}
+
+void gen_tz_start(const q_project *p, const q_tonnetz *t, q_tz *s, int *base)
+{
+    uint16_t sc = gen_scale(p);
+    int r = gen_life_note(t->note, sc, p->tonic, 0), third = gen_life_note(t->note, sc, p->tonic, 2) - r;
+    *s = (q_tz){0, 0, (uint8_t)(third == 3)};      /* a diminished triad starts minor */
+    *base = ((r - (s->m ? 4 : 0)) % 12 + 12) % 12;   /* the minor (0, 0)'s root is the lattice's 4 */
+}
+
+/* the step tonnetz.n: a bar's chord from the walk, struck as CHORDS does */
+static int tonnetz_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, int k, uint32_t *rng, q_step *st)
+{
+    const q_tonnetz *t = &pt->tonnetz;
+    q_tonnetz_run *r = &g->tonnetz;
+    int fresh = !r->n;
+    if (fresh)                          /* the source set mid-tour: its bars line up with the tour */
+        r->n = (uint32_t)k;
+    uint32_t n = r->n++;
+    int step = (int)(n % 16), b = (int)(n / 16);
+    if (fresh || step == 0) {
+        int rr = t->ret ? (b - 1) % (t->len + 1) : (b - 1) % t->len;
+        r->chaos_hit = 0;
+        if (b == 0 || fresh || (t->ret && rr == t->len)) {   /* the start, or RETURN */
+            int base;
+            gen_tz_start(p, t, &r->cur, &base);
+            r->base = (int8_t)base, r->applied = -1;
+        } else {
+            int op = TZ_OP(t, rr);
+            if (t->chaos && (int)(gen_rand(rng) >> 8 & 127) < t->chaos) {   /* CHAOS: one of the other two (a stay: any) */
+                int x = (int)(gen_rand(rng) >> 8);
+                op = op == TZ_STAY ? 1 + x % 3 : 1 + (op - 1 + 1 + x % 2) % 3;
+                r->chaos_hit = 1;
+            }
+            r->cur = gen_tz_step(r->cur, op, t->scale, gen_scale(p), r->base);
+            r->applied = (int8_t)rr;
+        }
+    }
+    if (p->sound[track].model == M_KIT || step % (16 >> t->rate))
+        return 0;
+    uint8_t x[3], out[4];
+    int poly = p->sound[track].poly ? p->sound[track].poly : 1, nn = poly < 3 ? poly : 3, v[4], i, j;
+    gen_tz_pcs(r->cur, r->base, x);
+    int root = t->note + (x[0] - t->note % 12 + 12) % 12;         /* ROOT: the root in the octave from NOTE */
+    for (i = 0; i < nn; i++) v[i] = root + (x[i] - x[0] + 12) % 12;
+    while (v[nn - 1 < 2 ? nn - 1 : 2] > 127 || root > 127)
+        for (i = 0, root -= 12; i < nn; i++) v[i] -= 12;
+    for (i = 1; i < nn; i++)
+        for (j = i; j > 0 && v[j - 1] > v[j]; j--) { int y = v[j]; v[j] = v[j - 1]; v[j - 1] = y; }
+    if (t->voice && r->nlast)
+        voice_smooth(v, nn, r->last, r->nlast);
+    for (i = 0; i < nn; i++) out[i] = (uint8_t)v[i];
+    return strike_fill(st, out, nn, t->rate, t->strum, step, r->last, &r->nlast);
 }
 
 int gen_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, int k, uint32_t *rng, q_step *st)
@@ -586,5 +690,6 @@ int gen_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, int k
     if (pt->src == SRC_LIFE) return life_step(g, p, track, pt, k, st);
     if (pt->src == SRC_LANES) return lanes_step(g, p, track, pt, st);
     if (pt->src == SRC_CHORDS) return chords_step(g, p, track, pt, k, st);
+    if (pt->src == SRC_TONNETZ) return tonnetz_step(g, p, track, pt, k, rng, st);
     return marbles_step(g, p, track, pt, rng, st);
 }

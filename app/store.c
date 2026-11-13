@@ -115,6 +115,11 @@ static void clamp_project(q_project *p)
             l->map = (uint8_t)clampi(l->map, 0, 1); l->seed = (uint8_t)clampi(l->seed, 0, 127);
             l->dens = (uint8_t)clampi(l->dens, 0, 127); l->autos = (uint8_t)clampi(l->autos, 0, 1);
             l->gen = (uint8_t)clampi(l->gen, 0, 3); l->mut = (uint8_t)clampi(l->mut, 0, 127);
+            q_tonnetz *tz = &q->tonnetz;
+            tz->note = (uint8_t)clampi(tz->note, 1, 127); tz->len = (uint8_t)clampi(tz->len, 1, 8);
+            tz->rate = (uint8_t)clampi(tz->rate, 0, 4); tz->strum = (uint8_t)clampi(tz->strum, 0, 7);
+            tz->voice = (uint8_t)clampi(tz->voice, 0, 1); tz->chaos = (uint8_t)clampi(tz->chaos, 0, 127);
+            tz->scale = (uint8_t)clampi(tz->scale, 0, 1); tz->ret = (uint8_t)clampi(tz->ret, 0, 1);
             q_chords *ch = &q->chords;
             ch->note = (uint8_t)clampi(ch->note, 1, 127); ch->len = (uint8_t)clampi(ch->len, 1, 8);
             ch->rate = (uint8_t)clampi(ch->rate, 0, 4); ch->strum = (uint8_t)clampi(ch->strum, 0, 7);

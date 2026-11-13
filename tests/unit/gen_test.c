@@ -134,6 +134,8 @@ static void loop_lengths(void)
     assert(gen_loop(pt) == 16);
     pt->src = SRC_CHORDS;
     assert(gen_loop(pt) == 16);
+    pt->src = SRC_TONNETZ;
+    assert(gen_loop(pt) == 16);
 }
 
 /* MARBLES */
@@ -1005,6 +1007,189 @@ static void chords_len_shrink(void)
     assert(st.note[0] == 48);                         /* 6 mod 3 = chord 0, I */
 }
 
+/* TONNETZ */
+
+static q_pattern *tonnetz_setup(int model)
+{
+    project_defaults(&P);
+    P.sound[0].model = model;
+    P.sound[0].poly = 3;
+    q_pattern *pt = &P.pat[0][0];
+    pt->src = SRC_TONNETZ;
+    memset(&G, 0, sizeof G);
+    return pt;
+}
+static int has3(const uint8_t a[3], int x, int y, int z)
+{
+    int m = 0;
+    for (int i = 0; i < 3; i++) m |= 1 << a[i];
+    return m == (1 << x | 1 << y | 1 << z);
+}
+static int shared(q_tz a, q_tz b)
+{
+    uint8_t x[3], y[3];
+    int n = 0;
+    gen_tz_pcs(a, 0, x), gen_tz_pcs(b, 0, y);
+    for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++) n += x[i] == y[j];
+    return n;
+}
+/* the roots of bars 0..nb-1 (rate 0, ROOT): the first note of each bar's strike, mod 12 */
+static void tonnetz_roots(q_pattern *pt, int nb, int *root)
+{
+    memset(&G, 0, sizeof G);
+    for (int n = 0; n < 16 * nb; n++) {
+        q_step st;
+        gen_step(&G, &P, 0, pt, n % 16, &R, &st);
+        if (n % 16 == 0) { uint8_t pcs[3]; gen_tz_pcs(G.tonnetz.cur, G.tonnetz.base, pcs); root[n / 16] = pcs[0]; }
+    }
+}
+
+static void tonnetz_defaults(void)
+{
+    const q_pattern *pt = tonnetz_setup(8);
+    const q_tonnetz *t = &pt->tonnetz;
+    assert(sizeof(q_tonnetz) == 10);
+    assert(t->len == 4 && t->note == 48 && t->rate == 2 && t->strum == 0 && t->voice == 1 && t->chaos == 0 && t->scale == 1 && t->ret == 1);
+    assert(TZ_OP(t, 0) == TZ_R && TZ_OP(t, 1) == TZ_L && TZ_OP(t, 2) == TZ_R && TZ_OP(t, 3) == TZ_L);
+}
+
+static void tonnetz_moves(void)
+{
+    q_tz c = { 0, 0, 0 }, s;
+    uint8_t x[3];
+    s = gen_tz_move(c, TZ_P); gen_tz_pcs(s, 0, x); assert(s.m == 1 && has3(x, 0, 3, 7) && x[0] == 0);
+    s = gen_tz_move(c, TZ_L); gen_tz_pcs(s, 0, x); assert(s.m == 1 && has3(x, 4, 7, 11) && x[0] == 4);
+    s = gen_tz_move(c, TZ_R); gen_tz_pcs(s, 0, x); assert(s.m == 1 && has3(x, 9, 0, 4) && x[0] == 9);
+    q_tz am = gen_tz_move(c, TZ_R);
+    s = gen_tz_move(am, TZ_P); gen_tz_pcs(s, 0, x); assert(s.m == 0 && has3(x, 9, 1, 4) && x[0] == 9);
+    s = gen_tz_move(am, TZ_L); gen_tz_pcs(s, 0, x); assert(s.m == 0 && has3(x, 5, 9, 0) && x[0] == 5);
+    s = gen_tz_move(am, TZ_R); gen_tz_pcs(s, 0, x); assert(s.m == 0 && has3(x, 0, 4, 7) && x[0] == 0);
+    for (int o = TZ_P; o <= TZ_R; o++) {
+        q_tz a = gen_tz_move(c, o), b = gen_tz_move(a, o);
+        assert(shared(c, a) == 2 && b.i == c.i && b.j == c.j && b.m == c.m);
+        assert(gen_tz_move(c, TZ_STAY).i == c.i);
+    }
+}
+
+static void tonnetz_start(void)
+{
+    q_pattern *pt = tonnetz_setup(8);
+    q_tz s; int base; uint8_t x[3];
+    gen_tz_start(&P, &pt->tonnetz, &s, &base); gen_tz_pcs(s, base, x); assert(s.i == 0 && s.j == 0 && has3(x, 0, 4, 7) && x[0] == 0);
+    pt->tonnetz.note = 50; gen_tz_start(&P, &pt->tonnetz, &s, &base); gen_tz_pcs(s, base, x); assert(s.m == 1 && has3(x, 2, 5, 9) && x[0] == 2);
+    pt->tonnetz.note = 59; gen_tz_start(&P, &pt->tonnetz, &s, &base); gen_tz_pcs(s, base, x); assert(s.m == 1 && has3(x, 11, 2, 6) && x[0] == 11);
+}
+
+static void tonnetz_walk_free(void)
+{
+    q_pattern *pt = tonnetz_setup(8);
+    pt->tonnetz.scale = 0; pt->tonnetz.ret = 0; pt->tonnetz.rate = 0; pt->tonnetz.voice = 0;
+    int r[6];
+    tonnetz_roots(pt, 6, r);
+    assert(r[0] == 0 && r[1] == 9 && r[2] == 5 && r[3] == 2 && r[4] == 10 && r[5] == 7);
+}
+
+static void tonnetz_walk_return(void)
+{
+    q_pattern *pt = tonnetz_setup(8);
+    pt->tonnetz.rate = 0; pt->tonnetz.voice = 0;
+    int r[7];
+    tonnetz_roots(pt, 7, r);
+    assert(r[0] == 0 && r[1] == 9 && r[2] == 5 && r[3] == 2 && r[4] == 5 && r[5] == 0 && r[6] == 9);
+}
+
+static void tonnetz_in_scale(void)
+{
+    static const uint16_t SEQS[2] = { 0x55, (uint16_t)(TZ_L | TZ_R << 2 | TZ_P << 4 | TZ_L << 6) };
+    q_pattern *pt = tonnetz_setup(8);
+    uint16_t sc = gen_scale(&P);
+    for (int q = 0; q < 2; q++) {
+        pt->tonnetz.seq = SEQS[q]; pt->tonnetz.ret = 0;
+        memset(&G, 0, sizeof G);
+        for (int n = 0; n < 16 * 4 * 16; n++) {
+            q_step st;
+            gen_step(&G, &P, 0, pt, n % 16, &R, &st);
+            for (int i = 0; i < 4 && st.note[i]; i++) assert(sc >> (st.note[i] % 12) & 1);
+        }
+    }
+}
+
+static void tonnetz_in_scale_stuck(void)
+{
+    q_pattern *pt = tonnetz_setup(8);
+    P.mode = 9;                                       /* MAJ PENTA: C D E G A */
+    pt->tonnetz.seq = 0x55; pt->tonnetz.len = 1; pt->tonnetz.ret = 0;
+    memset(&G, 0, sizeof G);
+    for (int n = 0; n < 16 * 8; n++) { q_step st; gen_step(&G, &P, 0, pt, n % 16, &R, &st); }
+    uint8_t x[3];
+    gen_tz_pcs(G.tonnetz.cur, G.tonnetz.base, x);
+    assert(x[0] <= 11 && x[1] <= 11 && x[2] <= 11);
+}
+
+static void tonnetz_chaos(void)
+{
+    q_pattern *pt = tonnetz_setup(8);
+    pt->tonnetz.rate = 0; pt->tonnetz.scale = 0; pt->tonnetz.ret = 0;
+    int a[20], b[20];
+    tonnetz_roots(pt, 20, a);
+    tonnetz_roots(pt, 20, b);
+    for (int i = 0; i < 20; i++) assert(a[i] == b[i]);
+    pt->tonnetz.chaos = 127;
+    memset(&G, 0, sizeof G);
+    int hits = 0;
+    for (int n = 0; n < 16 * 41; n++) {
+        q_step st;
+        gen_step(&G, &P, 0, pt, n % 16, &R, &st);
+        if (n % 16 == 0 && n) hits += G.tonnetz.chaos_hit;
+    }
+    assert(hits >= 30);
+}
+
+static void tonnetz_len_shrink(void)
+{
+    q_pattern *pt = tonnetz_setup(8);
+    pt->tonnetz.len = 8; pt->tonnetz.rate = 0;
+    memset(&G, 0, sizeof G);
+    q_step st;
+    for (int n = 0; n < 16 * 6; n++) gen_step(&G, &P, 0, pt, n % 16, &R, &st);
+    pt->tonnetz.len = 3;
+    for (int n = 16 * 6; n < 16 * 12; n++) { gen_step(&G, &P, 0, pt, n % 16, &R, &st); assert(G.tonnetz.applied < 3); }
+}
+
+static void tonnetz_long_walk(void)
+{
+    q_pattern *pt = tonnetz_setup(8);
+    pt->tonnetz.scale = 0; pt->tonnetz.ret = 0; pt->tonnetz.chaos = 127; pt->tonnetz.rate = 4;
+    memset(&G, 0, sizeof G);
+    for (int n = 0; n < 16 * 4000; n++) {
+        q_step st;
+        gen_step(&G, &P, 0, pt, n % 16, &R, &st);
+        for (int i = 0; i < 4 && st.note[i]; i++) assert(st.note[i] >= 1 && st.note[i] <= 127);
+        assert(G.tonnetz.cur.i >= -2000 && G.tonnetz.cur.i <= 2000 && G.tonnetz.cur.j >= -2000 && G.tonnetz.cur.j <= 2000);
+    }
+}
+
+static void tonnetz_play_like_chords(void)
+{
+    q_pattern *pt = tonnetz_setup(8);
+    static const int strikes[5] = { 1, 2, 4, 8, 16 }, len[5] = { 128, 64, 32, 16, 8 };
+    for (int r = 0; r < 5; r++) {
+        pt->tonnetz.rate = (uint8_t)r; pt->tonnetz.strum = 3;
+        memset(&G, 0, sizeof G);
+        int n = 0;
+        for (int k = 0; k < 16; k++) {
+            q_step st;
+            int acc = gen_step(&G, &P, 0, pt, k, &R, &st);
+            if (!(st.flags & SF_ON)) continue;
+            n++;
+            assert(st.len == len[r] && st.vel == 100 && SF_STRUM(&st) == 3 && acc == (k == 0 ? 7 : 0));
+        }
+        assert(n == strikes[r]);
+    }
+    pt = tonnetz_setup(M_KIT);
+    for (int k = 0; k < 16; k++) { q_step st; gen_step(&G, &P, 0, pt, k, &R, &st); assert(!(st.flags & SF_ON)); }
+}
+
 int main(void)
 {
     grids_level_matches_step();
@@ -1066,6 +1251,17 @@ int main(void)
     chords_strum_bits();
     chords_kit();
     chords_len_shrink();
+    tonnetz_defaults();
+    tonnetz_moves();
+    tonnetz_start();
+    tonnetz_walk_free();
+    tonnetz_walk_return();
+    tonnetz_in_scale();
+    tonnetz_in_scale_stuck();
+    tonnetz_chaos();
+    tonnetz_len_shrink();
+    tonnetz_long_walk();
+    tonnetz_play_like_chords();
     puts("gen ok");
     return 0;
 }
