@@ -583,6 +583,8 @@ static int lanes_on(void) { return ui.domain == D_SEQ && pat()->src == SRC_LANES
 static const uint8_t LANE_MAX[L_N] = { 1, 15, 4, 4, 3 };
 /* CHORDS in SEQ: the grid's white keys 1-8 are its chords */
 static int chords_on(void) { return ui.domain == D_SEQ && pat()->src == SRC_CHORDS; }
+/* TONNETZ in SEQ: the grid's white keys 1-8 are its steps */
+static int tonnetz_on(void) { return ui.domain == D_SEQ && pat()->src == SRC_TONNETZ; }
 /* the degree 0..6 whose note has note's pitch class, -1 out of the scale */
 static int chord_degree(const q_chords *c, int note)
 {
@@ -979,7 +981,7 @@ static void rec_release(void)
         rec_set(R_OFF);
     else if (ui.domain == D_SEQ && pat()->src == SRC_STEP)
         rec_set(ui.rec == R_OFF ? R_GRID : ui.rec == R_GRID ? R_NOTES : R_OFF);
-    else if (lanes_on() || chords_on())   /* LANES, CHORDS: the grid only, no NOTES */
+    else if (lanes_on() || chords_on() || tonnetz_on())   /* LANES, CHORDS, TONNETZ: the grid only, no NOTES */
         rec_set(ui.rec == R_OFF ? R_GRID : R_OFF);
     else if (ui.domain == D_SEQ)        /* a generator is never written: an armed REC disarms */
         rec_set(R_OFF);
@@ -1297,6 +1299,25 @@ static void key_down(int k)
             pattern_set(w);
         return;
     }
+    if (tonnetz_on() && ui.rec == R_GRID) {    /* TONNETZ on the grid: the white keys 1-8 are the steps */
+        q_tonnetz *z = &t->tonnetz;
+        if (ui.cell) {                  /* a step held: black keys 1-4 are P, L, R, stay */
+            for (b = 0; b < 4 && BLACK[b] != k; b++) {}
+            if (b < 4) {
+                TZ_SET(z, ui.cell - 1, b == 3 ? TZ_STAY : TZ_P + b);
+                ui.dirty = 1;
+            }
+            ui.cell_edited = 1;         /* another key came: the release is no tap */
+            return;
+        }
+        if (w < 8 && w < z->len) {      /* past LEN: nothing */
+            ui.cell = ui.cell_flash = w + 1;
+            ui.cell_key = k;
+            ui.cell_edited = 0;
+            ui.cell_ms = plat_ms();
+        }
+        return;
+    }
     if (chords_on() && ui.rec == R_GRID) {     /* CHORDS on the grid: the white keys 1-8 are the chords */
         q_chords *c = &t->chords;
         if (ui.cell) {                  /* a chord held: a note of the scale gives its degree; out of the scale, nothing */
@@ -1456,6 +1477,10 @@ static void key_up(int k)
             q_lanes *l = &pat()->lanes;
             lanes_set(l, ui.lane, ui.cell - 1, (lanes_get(l, ui.lane, ui.cell - 1) + 1) % (LANE_MAX[ui.lane] + 1));
             ui.dirty = 1;
+        } else if (!ui.cell_edited && plat_ms() - ui.cell_ms <= HOLD_MS && pat()->src == SRC_TONNETZ) {   /* the next op */
+            q_tonnetz *z = &pat()->tonnetz;
+            TZ_SET(z, ui.cell - 1, (TZ_OP(z, ui.cell - 1) + 1) % 4);
+            ui.dirty = 1;
         } else if (!ui.cell_edited && plat_ms() - ui.cell_ms <= HOLD_MS && pat()->src == SRC_CHORDS) {   /* the next size */
             uint8_t *ch = &pat()->chords.ch[ui.cell - 1];
             *ch = CH_MAKE(CH_DEG(*ch), (CH_SIZE(*ch) + 1) % CS_N);
@@ -1601,7 +1626,7 @@ void ui_input(void)
     }
     if (ui.page[D_SEQ] >= domain_n(D_SEQ))      /* another pattern or track, no XY page */
         ui.page[D_SEQ] = 0;
-    if (ui.cell && !lanes_on() && !chords_on())   /* another domain: the cell or chord held lets go, its release does nothing */
+    if (ui.cell && !lanes_on() && !chords_on() && !tonnetz_on())   /* another domain: the cell or chord held lets go, its release does nothing */
         ui.cell = 0;
     if (kit() && ui.lane == L_OCT)              /* the track became a KIT: no OCT lane */
         ui.lane = L_NOTE;
@@ -1612,6 +1637,10 @@ void ui_input(void)
             if (!i && e && pat()->src == SRC_LANES) {
                 q_lanes *l = &pat()->lanes;
                 lanes_set(l, ui.lane, ui.cell - 1, clamp(lanes_get(l, ui.lane, ui.cell - 1) + e, 0, LANE_MAX[ui.lane]));
+                ui.cell_edited = ui.dirty = 1;
+            } else if (!i && e && pat()->src == SRC_TONNETZ) {   /* a step held: K1 its op */
+                q_tonnetz *z = &pat()->tonnetz;
+                TZ_SET(z, ui.cell - 1, clamp(TZ_OP(z, ui.cell - 1) + e, 0, 3));
                 ui.cell_edited = ui.dirty = 1;
             } else if (i < 2 && e && pat()->src == SRC_CHORDS) {   /* a chord held: K1 its degree, K2 its size */
                 uint8_t *ch = &pat()->chords.ch[ui.cell - 1];
@@ -1739,6 +1768,18 @@ static uint32_t key_lights(uint32_t *mid)
             keys |= (uint32_t)ui.p->scene[i].used << WHITE[8 + i];
     } else if (notes_on()) {                    /* the cursor's step's notes */
         keys = step_keys(&t->steps[ui.cursor - 1]);
+    } else if (ui.domain == D_SEQ && t->src == SRC_TONNETZ) {   /* the steps at mid level, the one applied lit; held: black keys 1-4 */
+        q_tonnetz_run r;
+        audio_tonnetz(ui.track, &r);
+        if (ui.cell) {
+            for (i = 0; i < 4; i++)
+                keys |= 1u << BLACK[i];
+        } else {
+            for (i = 0; i < t->tonnetz.len; i++)
+                *mid |= 1u << WHITE[i];
+            if (pos >= 0 && r.applied >= 0 && r.applied < t->tonnetz.len && audio_pattern(ui.track) == ui.p->pattern[ui.track])
+                keys |= 1u << WHITE[r.applied];
+        }
     } else if (ui.domain == D_SEQ && t->src == SRC_CHORDS) { /* the chords at mid level, the one playing lit; held: the scale's keys */
         q_chords_run r;
         audio_chords(ui.track, &r);
@@ -2025,9 +2066,9 @@ static int badge(void)
 {
     if (ui.rec == R_ARM)
         return plat_ms() / 500u & 1u ? 0 : 4;
-    if (ui.domain == D_SEQ && (pat()->src == SRC_LANES || pat()->src == SRC_CHORDS) && ui.rec == R_NOTES)   /* NOTES left from a STEP pattern */
+    if (ui.domain == D_SEQ && (pat()->src == SRC_LANES || pat()->src == SRC_CHORDS || pat()->src == SRC_TONNETZ) && ui.rec == R_NOTES)   /* NOTES left from a STEP pattern */
         return 0;
-    if (ui.domain == D_SEQ && pat()->src != SRC_STEP && pat()->src != SRC_LANES && pat()->src != SRC_CHORDS && ui.rec != R_LIVE)   /* a generator: nothing written */
+    if (ui.domain == D_SEQ && pat()->src != SRC_STEP && pat()->src != SRC_LANES && pat()->src != SRC_CHORDS && pat()->src != SRC_TONNETZ && ui.rec != R_LIVE)   /* a generator: nothing written */
         return 0;
     return ui.rec == R_GRID ? (ui.domain == D_SEQ ? 1 : 2) : ui.rec;
 }
@@ -3125,6 +3166,7 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "tchaos")) *got = t->tonnetz.chaos;
     else if (!strcmp(what, "tscale")) *got = t->tonnetz.scale;
     else if (!strcmp(what, "tret")) *got = t->tonnetz.ret;
+    else if (!strncmp(what, "top_", 4) && atoi(what + 4) >= 1 && atoi(what + 4) <= 8) *got = TZ_OP(&t->tonnetz, atoi(what + 4) - 1);
     else if (!strncmp(what, "cdeg_", 5) && atoi(what + 5) >= 1 && atoi(what + 5) <= 8) *got = CH_DEG(t->chords.ch[atoi(what + 5) - 1]);
     else if (!strncmp(what, "csize_", 6) && atoi(what + 6) >= 1 && atoi(what + 6) <= 8) *got = CH_SIZE(t->chords.ch[atoi(what + 6) - 1]);
     else if (!strcmp(what, "lsel")) *got = ui.lane;

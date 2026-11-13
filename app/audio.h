@@ -38,6 +38,7 @@ int audio_playing(void);
 void audio_life(int track, q_life_run *out);
 uint32_t audio_lanes(int track);                        /* a LANES pattern's steps played since its reset (0: stopped or just reset) */
 void audio_chords(int track, q_chords_run *out);        /* a CHORDS pattern's run as the render left it */
+void audio_tonnetz(int track, q_tonnetz_run *out);      /* a TONNETZ pattern's run as the render left it */
 int audio_pos(int track);                               /* step in progress, -1 when stopped */
 uint32_t audio_hits(int track);                         /* note-ons the track sounded since boot (compare by difference) */
 uint32_t audio_kit_hits(int track, int engine);         /* a KIT's note-ons whose pad had that engine (PAD_BD, PAD_SN, PAD_HH) */

@@ -1,0 +1,51 @@
+# TONNETZ on the grid (defaults R L R L): a tap the next op; held + black 1-4 P L R -; held + K1; past LEN nothing
+wait 600
+tap SEQ
+turn K4 6
+tap REC
+expect badge 1
+tapkey w0
+expect top_1 0
+tapkey w0
+expect top_1 1
+# held + black 2 (key 3): L
+key 4 down
+expect lcell 3
+key 3 down
+key 3 up
+key 4 up
+expect top_3 2
+# held + K1: one up
+key 4 down
+turn K1 1
+key 4 up
+expect top_3 3
+# held + a white key: nothing, and no tap on release
+key 4 down
+key 2 down
+key 2 up
+key 4 up
+expect top_3 3
+# key 6, past LEN 4: nothing
+tapkey w5
+expect lcell 0
+expect top_6 0
+# held while the pattern changes: the release writes nothing
+key 2 down
+press SEQ
+key 4 down
+key 4 up
+release SEQ
+expect pattern 3
+key 2 up
+expect lcell 0
+press SEQ
+key 0 down
+key 0 up
+release SEQ
+expect pattern 1
+expect top_2 2
+wait 100
+shot tonnetz_entry.png
+tap REC
+expect badge 0
