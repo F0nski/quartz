@@ -478,6 +478,24 @@ static void lanes_clamped_on_load(void)
     assert(lanes_get(l, L_NOTE, 1) == 15 && lanes_get(l, L_OCT, 1) == 2);   /* in range: kept, the neighbour untouched */
 }
 
+/* CHORDS' settings out of range in flash: brought back (len 0 would divide by zero, a degree 7 past the scale) */
+static void chords_clamped_on_load(void)
+{
+    static q_project a, b;
+    project_defaults(&a);
+    store_save(&a);
+    b = a;
+    q_chords *w = &b.pat[2][1].chords;
+    w->note = 0; w->len = 0; w->rate = 9; w->strum = 9; w->voice = 4; w->ch[0] = CH_MAKE(7, CS_TRIAD);
+    b.pat[2][2].chords.len = 12;
+    write_raw(&b);
+    memset(&a, 0xAA, sizeof a);
+    assert(store_load(&a) == 0);
+    const q_chords *c = &a.pat[2][1].chords;
+    assert(c->note == 1 && c->len == 1 && c->rate == 4 && c->strum == 7 && c->voice == 1 && CH_DEG(c->ch[0]) == 6);
+    assert(a.pat[2][2].chords.len == 8);
+}
+
 int main(void)
 {
     forget();
@@ -493,6 +511,7 @@ int main(void)
     store_clamps_v3();
     store_clamps_life();
     lanes_clamped_on_load();
+    chords_clamped_on_load();
     store_v2_gives_defaults();
     store_roundtrip_v4();
     store_clamps_v4();

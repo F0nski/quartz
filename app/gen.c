@@ -31,7 +31,7 @@ void gen_reset(q_gen *g, uint32_t *rng)
 
 int gen_loop(const q_pattern *pt)
 {
-    return pt->src == SRC_MARBLES ? pt->marbles.len : pt->src == SRC_LIFE || pt->src == SRC_LANES ? LIFE_W : GRIDS_STEPS;
+    return pt->src == SRC_MARBLES ? pt->marbles.len : pt->src == SRC_LIFE || pt->src == SRC_LANES || pt->src == SRC_CHORDS ? LIFE_W : GRIDS_STEPS;
 }
 
 /* settings 0..127 as Grids' 0..255 */
@@ -515,11 +515,72 @@ static int lanes_step(q_gen *g, const q_project *p, int track, const q_pattern *
     return v[L_VEL] == 3;
 }
 
+/* CHORDS */
+
+int gen_chord_notes(const q_project *p, const q_chords *c, int slot, int poly, const uint8_t *prev, int nprev, uint8_t out[4])
+{
+    static const uint8_t STACK[CS_N][4] = {{0, 2, 4, 0}, {0, 2, 4, 6}, {0, 1, 4, 0}, {0, 3, 4, 0}};
+    static const uint8_t KEEP[4] = {0, 1, 3, 2};             /* under POLY: root, third (or sus), seventh, fifth */
+    int ch = c->ch[slot], d = CH_DEG(ch), sz = CH_SIZE(ch), m = sz == CS_SEVENTH ? 4 : 3, n = 0, t[4], i, j;
+    uint16_t sc = gen_scale(p);
+    for (i = 0; i < 4 && n < poly; i++)
+        if (KEEP[i] < m) t[n++] = gen_life_note(c->note, sc, p->tonic, d + STACK[sz][KEEP[i]]);
+    for (i = 1; i < n; i++)
+        for (j = i; j > 0 && t[j - 1] > t[j]; j--) { int x = t[j]; t[j] = t[j - 1]; t[j - 1] = x; }
+    if (c->voice && nprev) {             /* SMOOTH: the inversion and octave nearest the last strike; a tie: the lower */
+        int best[4], cost = 1 << 30, sum = 0;
+        for (int inv = 0; inv < n; inv++)
+            for (int o = -2; o <= 1; o++) {
+                int v[4], ok = 1, cs = 0, s = 0;
+                for (i = 0; i < n; i++) {
+                    v[i] = t[i] + (i < inv ? 12 : 0) + 12 * o;
+                    ok &= v[i] >= 1 && v[i] <= 127;
+                }
+                if (!ok) continue;
+                for (i = 0; i < n; i++) {
+                    int e = 1000;
+                    for (j = 0; j < nprev; j++) { int x = v[i] > prev[j] ? v[i] - prev[j] : prev[j] - v[i]; if (x < e) e = x; }
+                    cs += e, s += v[i];
+                }
+                if (cs < cost || (cs == cost && s < sum)) {
+                    cost = cs, sum = s;
+                    for (i = 0; i < n; i++) best[i] = v[i];
+                }
+            }
+        if (cost < 1 << 30)
+            for (i = 0; i < n; i++) t[i] = best[i];
+        for (i = 1; i < n; i++)
+            for (j = i; j > 0 && t[j - 1] > t[j]; j--) { int x = t[j]; t[j] = t[j - 1]; t[j - 1] = x; }
+    }
+    for (i = 0; i < n; i++) out[i] = (uint8_t)t[i];
+    return n;
+}
+
+/* the step chords.n: a strike on every 16 / strikes step of the bar, the chord (n / 16) mod LEN */
+static int chords_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, q_step *st)
+{
+    static const uint8_t STRIKES[5] = {1, 2, 4, 8, 16};
+    const q_chords *c = &pt->chords;
+    uint32_t n = g->chords.n++;
+    int step = (int)(n % 16), every = 16 / STRIKES[c->rate], poly = p->sound[track].poly ? p->sound[track].poly : 1;
+    if (p->sound[track].model == M_KIT || step % every)
+        return 0;
+    uint8_t out[4];
+    int k = gen_chord_notes(p, c, (int)(n / 16 % c->len), poly, g->chords.last, g->chords.nlast, out);
+    for (int i = 0; i < k; i++) st->note[i] = g->chords.last[i] = out[i];
+    g->chords.nlast = (uint8_t)k;
+    g->chords.strikes++;
+    st->flags = (uint8_t)(SF_ON | c->strum << 5);
+    st->len = (uint8_t)(128 / STRIKES[c->rate]); st->vel = 100; st->prob = 20;
+    return step == 0;
+}
+
 int gen_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, int k, uint32_t *rng, q_step *st)
 {
     __builtin_memset(st, 0, sizeof *st);
     if (pt->src == SRC_GRIDS) return grids_step(g, p, track, pt, k, rng, st);
     if (pt->src == SRC_LIFE) return life_step(g, p, track, pt, k, st);
     if (pt->src == SRC_LANES) return lanes_step(g, p, track, pt, st);
+    if (pt->src == SRC_CHORDS) return chords_step(g, p, track, pt, st);
     return marbles_step(g, p, track, pt, rng, st);
 }

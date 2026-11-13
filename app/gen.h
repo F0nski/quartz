@@ -14,6 +14,8 @@ typedef struct {
     uint8_t tours, stuck;             /* tours since the last generation; stuck: dead or frozen, AUTO off */
     uint8_t gens, reseeds;            /* counters (wrap): the scene starts its animations on a change */
 } q_life_run;
+/* CHORDS' run: steps since the reset; the last strike's notes (ascending); strikes played (wrap) */
+typedef struct { uint32_t n; uint8_t last[4], nlast, strikes; } q_chords_run;
 /* Per track, the render's: what a generator pattern remembers from step to step. */
 typedef struct {
     uint8_t perturb[3];                       /* GRIDS */
@@ -22,6 +24,7 @@ typedef struct {
     int markov_ptr, streak[2], drum_step, drum_index, div_left, div_n;
     q_life_run life;                          /* LIFE */
     uint32_t lanes_n;                         /* LANES: the steps played since the reset; lane l's head is lanes_n mod len[l] */
+    q_chords_run chords;                      /* CHORDS */
 } q_gen;
 
 extern const uint16_t SCALE_MASK[11];   /* bit n: n semitones above the tonic; CHROM..MIN PENTA, the order of ui.c MODE_NAME */
@@ -35,7 +38,7 @@ void gen_reset(q_gen *g, uint32_t *rng);   /* rng fills the deja vu loops */
 /* The rank k of the pattern (0..loop - 1): fills *st (SF_ON when something plays, note[], vel, len 4, micro, ratchet)
    and returns the accented note slots (bit i: note[i]). rng: the sequencer's xorshift state. */
 int gen_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, int k, uint32_t *rng, q_step *st);
-int gen_loop(const q_pattern *pt);       /* GRIDS 32, MARBLES marbles.len, LIFE and LANES 16; STEP: not called */
+int gen_loop(const q_pattern *pt);       /* GRIDS 32, MARBLES marbles.len, LIFE, LANES and CHORDS 16; STEP: not called */
 /* the rows the column col plays, lowest first, at most POLY (3 on a KIT); BANDS: one row per band, its lowest living
    cell. Returns their number. */
 /* the note row r plays on a synth: NOTE in the scale, r degrees of the scale up (at most 127) */
@@ -44,6 +47,8 @@ int gen_life_note(int note, uint16_t scale, int tonic, int r);
 void gen_life_seed(q_life_run *l, int seed, int dens);
 /* LANES: the degree 0..15 above note (in the scale) nearest to pitch; ties: the lower */
 int gen_lanes_degree(int note, uint16_t scale, int tonic, int pitch);
+/* CHORDS: chord slot's notes, ascending, at most poly: ROOT, or SMOOTH from prev (nprev 0: root position). Their number. */
+int gen_chord_notes(const q_project *p, const q_chords *c, int slot, int poly, const uint8_t *prev, int nprev, uint8_t out[4]);
 int gen_life_rows(const q_life *l, int kit, const uint16_t grid[LIFE_H], int col, uint8_t rows[4]);
 
 #endif

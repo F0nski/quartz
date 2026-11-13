@@ -132,6 +132,8 @@ static void loop_lengths(void)
     assert(gen_loop(pt) == 16);
     pt->src = SRC_LANES;
     assert(gen_loop(pt) == 16);
+    pt->src = SRC_CHORDS;
+    assert(gen_loop(pt) == 16);
 }
 
 /* MARBLES */
@@ -790,6 +792,188 @@ static void lanes_pattern_switch(void)
     assert(st.flags & SF_ON && st.note[0] == want.note[0] && st.note[0] == gen_life_note(48, gen_scale(&P), 0, 9));
 }
 
+/* CHORDS */
+
+static q_pattern *chords_setup(int model)
+{
+    project_defaults(&P);
+    P.sound[0].model = model;
+    P.sound[0].poly = 4;
+    q_pattern *pt = &P.pat[0][0];
+    pt->src = SRC_CHORDS;
+    memset(&G, 0, sizeof G);
+    return pt;
+}
+static int chords_strike(const q_pattern *pt, int n, q_step *st) { return gen_step(&G, &P, 0, pt, n % 16, &R, st); }
+static int nnotes(const q_step *st) { int n = 0; for (int i = 0; i < 4; i++) n += st->note[i] != 0; return n; }
+/* the chord of bar b's first strike, rate 0, from a reset: its notes in st */
+static void chords_bar(const q_pattern *pt, int bars, q_step *st)
+{
+    memset(&G, 0, sizeof G);
+    q_step s;
+    for (int n = 0; n < 16 * bars; n++) chords_strike(pt, n, &s);
+    chords_strike(pt, 16 * bars, st);
+}
+static int same(const q_step *st, int a, int b, int c, int d)
+{
+    return st->note[0] == a && st->note[1] == b && st->note[2] == c && st->note[3] == d;
+}
+
+static void chords_defaults(void)
+{
+    const q_pattern *pt = chords_setup(8);
+    const q_chords *c = &pt->chords;
+    assert(sizeof(q_chords) == 13);
+    assert(c->note == 48 && c->len == 4 && c->rate == 2 && c->strum == 0 && c->voice == 1);
+    assert(c->ch[0] == CH_MAKE(0, CS_TRIAD) && c->ch[1] == CH_MAKE(5, CS_TRIAD) && c->ch[2] == CH_MAKE(3, CS_TRIAD) && c->ch[3] == CH_MAKE(4, CS_TRIAD));
+}
+
+static void chords_one_per_bar(void)
+{
+    q_pattern *pt = chords_setup(8);
+    pt->chords.rate = 0; pt->chords.voice = 0;
+    static const int root[8] = { 48, 57, 53, 55, 48, 57, 53, 55 };
+    memset(&G, 0, sizeof G);
+    for (int n = 0; n < 16 * 8; n++) {
+        q_step st;
+        chords_strike(pt, n, &st);
+        assert(!!(st.flags & SF_ON) == (n % 16 == 0));
+        if (n % 16 == 0) assert(st.note[0] == root[n / 16]);
+    }
+    gen_reset(&G, &R);
+    q_step st;
+    chords_strike(pt, 0, &st);
+    assert(st.note[0] == 48);
+}
+
+static void chords_sizes(void)
+{
+    q_pattern *pt = chords_setup(8);
+    q_chords *c = &pt->chords;
+    q_step st;
+    c->rate = 0; c->voice = 0; c->len = 1;
+    c->ch[0] = CH_MAKE(0, CS_TRIAD); chords_bar(pt, 0, &st); assert(same(&st, 48, 52, 55, 0));
+    c->ch[0] = CH_MAKE(5, CS_TRIAD); chords_bar(pt, 0, &st); assert(same(&st, 57, 60, 64, 0));
+    c->ch[0] = CH_MAKE(4, CS_SEVENTH); chords_bar(pt, 0, &st); assert(same(&st, 55, 59, 62, 65));
+    c->ch[0] = CH_MAKE(0, CS_SUS2); chords_bar(pt, 0, &st); assert(same(&st, 48, 50, 55, 0));
+    c->ch[0] = CH_MAKE(0, CS_SUS4); chords_bar(pt, 0, &st); assert(same(&st, 48, 53, 55, 0));
+}
+
+static void chords_poly_cut(void)
+{
+    q_pattern *pt = chords_setup(8);
+    q_chords *c = &pt->chords;
+    q_step st;
+    c->rate = 0; c->voice = 0; c->len = 1;
+    P.sound[0].poly = 2; c->ch[0] = CH_MAKE(0, CS_TRIAD); chords_bar(pt, 0, &st); assert(same(&st, 48, 52, 0, 0));
+    P.sound[0].poly = 3; c->ch[0] = CH_MAKE(4, CS_SEVENTH); chords_bar(pt, 0, &st); assert(same(&st, 55, 59, 65, 0));
+}
+
+static void chords_smooth(void)
+{
+    q_pattern *pt = chords_setup(8);
+    q_chords *c = &pt->chords;
+    q_step st;
+    P.sound[0].poly = 3; c->rate = 0; c->voice = 1; c->len = 2;
+    c->ch[0] = CH_MAKE(0, CS_TRIAD); c->ch[1] = CH_MAKE(3, CS_TRIAD);
+    chords_bar(pt, 0, &st); assert(same(&st, 48, 52, 55, 0));       /* the first after the reset: root position */
+    chords_bar(pt, 1, &st); assert(same(&st, 48, 53, 57, 0));       /* IV near I: C F A */
+}
+
+static void chords_smooth_counts(void)
+{
+    q_pattern *pt = chords_setup(8);
+    q_chords *c = &pt->chords;
+    c->rate = 0; c->voice = 1; c->len = 3;
+    c->ch[0] = CH_MAKE(0, CS_TRIAD); c->ch[1] = CH_MAKE(4, CS_SEVENTH); c->ch[2] = CH_MAKE(5, CS_TRIAD);
+    memset(&G, 0, sizeof G);
+    for (int n = 0; n < 16 * 6; n++) {
+        q_step st;
+        if (n == 16 * 2) P.sound[0].poly = 1;
+        chords_strike(pt, n, &st);
+        if (!(st.flags & SF_ON)) continue;
+        assert(nnotes(&st) >= 1 && nnotes(&st) <= P.sound[0].poly);
+        for (int i = 0; i < nnotes(&st); i++) assert(st.note[i] >= 1 && st.note[i] <= 127);
+    }
+}
+
+static void chords_smooth_stable(void)
+{
+    q_pattern *pt = chords_setup(8);
+    pt->chords.rate = 0;
+    static q_step a[12];
+    memset(&G, 0, sizeof G);
+    for (int n = 0; n < 16 * 12; n++) { q_step st; chords_strike(pt, n, &st); if (n % 16 == 0) a[n / 16] = st; }
+    for (int b = 4; b < 8; b++) assert(!memcmp(a[b].note, a[b + 4].note, 4));
+}
+
+static void chords_note_clamp(void)
+{
+    q_pattern *pt = chords_setup(8);
+    q_chords *c = &pt->chords;
+    c->rate = 0; c->note = 127;
+    for (int i = 0; i < 4; i++) c->ch[i] = CH_MAKE(i * 2, CS_SEVENTH);
+    for (int v = 0; v < 2; v++) {
+        c->voice = (uint8_t)v;
+        memset(&G, 0, sizeof G);
+        for (int n = 0; n < 16 * 8; n++) {
+            q_step st;
+            chords_strike(pt, n, &st);
+            for (int i = 0; i < nnotes(&st); i++) assert(st.note[i] >= 1 && st.note[i] <= 127);
+        }
+    }
+}
+
+static void chords_rate_len(void)
+{
+    q_pattern *pt = chords_setup(8);
+    static const int strikes[5] = { 1, 2, 4, 8, 16 }, len[5] = { 128, 64, 32, 16, 8 };
+    for (int r = 0; r < 5; r++) {
+        pt->chords.rate = (uint8_t)r;
+        memset(&G, 0, sizeof G);
+        int n = 0;
+        for (int k = 0; k < 16; k++) {
+            q_step st;
+            int acc = chords_strike(pt, k, &st);
+            if (!(st.flags & SF_ON)) continue;
+            n++;
+            assert(st.len == len[r] && st.vel == 100);
+            assert(acc == (k == 0));
+        }
+        assert(n == strikes[r]);
+    }
+}
+
+static void chords_strum_bits(void)
+{
+    q_pattern *pt = chords_setup(8);
+    pt->chords.strum = 5;
+    q_step st;
+    memset(&G, 0, sizeof G);
+    chords_strike(pt, 0, &st);
+    assert(SF_STRUM(&st) == 5 && (st.flags & 31) == SF_ON);
+}
+
+static void chords_kit(void)
+{
+    q_pattern *pt = chords_setup(M_KIT);
+    for (int n = 0; n < 16; n++) { q_step st; chords_strike(pt, n, &st); assert(!(st.flags & SF_ON)); }
+}
+
+static void chords_len_shrink(void)
+{
+    q_pattern *pt = chords_setup(8);
+    q_chords *c = &pt->chords;
+    c->rate = 0; c->voice = 0; c->len = 8;
+    for (int i = 0; i < 8; i++) c->ch[i] = CH_MAKE(i % 7, CS_TRIAD);
+    memset(&G, 0, sizeof G);
+    q_step st;
+    for (int n = 0; n < 16 * 6; n++) chords_strike(pt, n, &st);
+    c->len = 3;
+    chords_strike(pt, 16 * 6, &st);
+    assert(st.note[0] == 48);                         /* 6 mod 3 = chord 0, I */
+}
+
 int main(void)
 {
     grids_level_matches_step();
@@ -837,6 +1021,18 @@ int main(void)
     lanes_dur_vel();
     lanes_degree();
     lanes_pattern_switch();
+    chords_defaults();
+    chords_one_per_bar();
+    chords_sizes();
+    chords_poly_cut();
+    chords_smooth();
+    chords_smooth_counts();
+    chords_smooth_stable();
+    chords_note_clamp();
+    chords_rate_len();
+    chords_strum_bits();
+    chords_kit();
+    chords_len_shrink();
     puts("gen ok");
     return 0;
 }

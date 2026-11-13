@@ -115,6 +115,11 @@ static void clamp_project(q_project *p)
             l->map = (uint8_t)clampi(l->map, 0, 1); l->seed = (uint8_t)clampi(l->seed, 0, 127);
             l->dens = (uint8_t)clampi(l->dens, 0, 127); l->autos = (uint8_t)clampi(l->autos, 0, 1);
             l->gen = (uint8_t)clampi(l->gen, 0, 3); l->mut = (uint8_t)clampi(l->mut, 0, 127);
+            q_chords *ch = &q->chords;
+            ch->note = (uint8_t)clampi(ch->note, 1, 127); ch->len = (uint8_t)clampi(ch->len, 1, 8);
+            ch->rate = (uint8_t)clampi(ch->rate, 0, 4); ch->strum = (uint8_t)clampi(ch->strum, 0, 7);
+            ch->voice = (uint8_t)clampi(ch->voice, 0, 1);
+            for (int c = 0; c < 8; c++) ch->ch[c] = CH_MAKE(clampi(CH_DEG(ch->ch[c]), 0, 6), CH_SIZE(ch->ch[c]));
             q_lanes *ln = &q->lanes;
             static const uint8_t LMAX[L_N] = { 1, 15, 4, 4, 3 };
             ln->note = (uint8_t)clampi(ln->note, 1, 127);
