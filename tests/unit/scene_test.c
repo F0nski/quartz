@@ -23,6 +23,7 @@ static void lcd_blit(uint32_t x, uint32_t y, uint32_t w, uint32_t h, const uint1
 #include "scene_life.c"
 #include "scene_lanes.c"
 #include "scene_chords.c"
+#include "scene_tonnetz.c"
 
 static uint16_t px(int x, int y) { return swap16(cv_px[y * 240 + x]); }
 static int is_orange(uint16_t c) { return c == ORANGE[0] || c == ORANGE[1] || c == ORANGE[2]; }
@@ -2109,8 +2110,158 @@ static void chords_knobs_visible(void)
     (void)cch_strum;
 }
 
+/* ---- TONNETZ: the map ---- */
+static q_tzview TV;
+static void tvreset(void)
+{
+    memset(&TV, 0, sizeof TV);
+    TV.tz = (q_tonnetz){ 48, 4, 2, 0, 1, 0, 1, 1, (uint16_t)(TZ_R | TZ_L << 2 | TZ_R << 4 | TZ_L << 6) };
+    TV.cur = (q_tz){ 0, 0, 0 };
+    for (int i = 0; i < 3; i++) TV.trail[i].m = 255;
+    TV.base = 0, TV.applied = -1, TV.held = -1, TV.playing = 1;
+    TV.n = 3, TV.notes[0] = 48, TV.notes[1] = 52, TV.notes[2] = 55;
+    TV.scale = 0xAB5;                                /* C major */
+    strcpy(TV.name, "C");
+    TV.step_ms = 125;
+    tonnetz_enter();
+}
+static void tvfull(void)
+{
+    for (int b = 0; b < 2; b++) {
+        cv_begin(240, 83, 0);
+        tonnetz_band(&TV, -83 * b);
+        memcpy(FULL + 240 * 83 * b, cv_px, sizeof(uint16_t) * 240 * 83);
+    }
+}
+/* node (i, j) on screen with the C major chord (0, 0) centred at (120, 92) */
+static void tvnode(int i, int j, int *x, int *y)
+{
+    float cx = (0.0f + 46.0f + 23.0f) / 3.0f, cy = -40.0f / 3.0f;
+    *x = (int)(120.0f + 46.0f * (float)i + 23.0f * (float)j - cx), *y = (int)(92.0f - 40.0f * (float)j - cy);
+}
+static int tlight(int x0, int x1, int y0, int y1) { int n = 0; for (int y = y0; y < y1; y++) for (int x = x0; x < x1; x++) n += fpx(x, y) != 0; return n; }
+
+static void tonnetz_budget(void)
+{
+    tvreset();
+    TV.trail[0] = (q_tz){ -1, 0, 1 }, TV.trail[1] = (q_tz){ 0, 0, 1 }, TV.trail[2] = (q_tz){ 0, -1, 1 };
+    tonnetz_frame(&TV, 1000);
+    assert(p3d_count() <= 300);
+}
+static void tonnetz_triangle_pink(void)
+{
+    tvreset();
+    tonnetz_frame(&TV, 1000); tvfull();
+    assert(gpink(110, 130, 82, 102) > 0);
+}
+static void tonnetz_octaves(void)
+{
+    int x, y;
+    tvreset();
+    tonnetz_frame(&TV, 1000); tvfull();
+    tvnode(0, 0, &x, &y);                            /* C: the bass, its octave above, its marker below */
+    assert(tlight(x - 8, x + 8, y - 14, y - 5) > 0);
+    assert(cwhite(x - 5, x + 5, y + 7, y + 14) > 0);
+    tvnode(0, 1, &x, &y);                            /* E: no marker below */
+    assert(cwhite(x - 5, x + 5, y + 7, y + 14) == 0);
+}
+static void tonnetz_strum_nodes(void)
+{
+    int xc, yc, xg, yg;
+    tvreset();
+    TV.tz.strum = 7;
+    tonnetz_frame(&TV, 0);
+    TV.strikes = 1;
+    tonnetz_frame(&TV, 1000);
+    tvnode(0, 0, &xc, &yc), tvnode(1, 0, &xg, &yg);
+    tonnetz_frame(&TV, 1005); tvfull();
+    assert(gcount(MB_WHITE[0], xc - 6, xc + 7, yc - 6, yc + 7) > gcount(MB_WHITE[0], xg - 6, xg + 7, yg - 6, yg + 7));
+    tonnetz_frame(&TV, 1080); tvfull();
+    assert(gcount(MB_WHITE[0], xg - 6, xg + 7, yg - 6, yg + 7) > 0);
+}
+static void tonnetz_scale_dims(void)
+{
+    static uint16_t a[240 * 166];
+    tvreset();
+    tonnetz_frame(&TV, 1000); tvfull(); memcpy(a, FULL, sizeof a);
+    TV.tz.scale = 0;
+    tonnetz_frame(&TV, 1000); tvfull();
+    int x, y; tvnode(-1, 1, &x, &y);                 /* 7 x -1 + 4 = -3: A, in the scale; (1, 1): 11 B; (2, 0): 2 D; (-1, 0): F; (0, -1): G#: out */
+    tvnode(0, -1, &x, &y);
+    int diff = 0;
+    for (int yy = y - 4; yy <= y + 4; yy++) for (int xx = x - 4; xx <= x + 4; xx++) diff += a[yy * 240 + xx] != FULL[yy * 240 + xx];
+    assert(diff > 0);
+}
+static void tonnetz_chaos_tile(void)
+{
+    tvreset();
+    TV.applied = 1, TV.chaos_hit = 1;
+    tonnetz_frame(&TV, 1000); tvfull();
+    assert(gcount(ORANGE[1], 21, 34, 4, 16) > 0);
+}
+static void tonnetz_held_banner(void)
+{
+    tvreset();
+    TV.held = 2;
+    strcpy(TV.banner, "STEP 3 - R > DM");
+    tonnetz_frame(&TV, 1000); tvfull();
+    int light = 0;
+    for (int yy = 4; yy < 15; yy++) for (int xx = 126; xx < 232; xx++) light += fpx(xx, yy) == RGB(0xe4, 0xe0, 0xf5);
+    assert(light > 200);
+}
+static void tonnetz_idle(void)
+{
+    tvreset();
+    TV.playing = 0;
+    tonnetz_frame(&TV, 1000); tvfull();
+    assert(gpink(0, 240, 20, 166) == 0);
+}
+static void tonnetz_far_walk(void)
+{
+    tvreset();
+    TV.cur = (q_tz){ 900, -700, 1 };
+    tonnetz_frame(&TV, 1000);
+    tonnetz_frame(&TV, 2000);
+    assert(p3d_count() <= 300);
+    tvfull();
+    assert(gpink(110, 130, 82, 102) > 0);
+}
+static int tvdiffers(void (*change)(void))
+{
+    static uint16_t ref[240 * 166];
+    tvreset();
+    tonnetz_frame(&TV, 5000); tvfull();
+    memcpy(ref, FULL, sizeof ref);
+    change();
+    tonnetz_frame(&TV, 5000); tvfull();
+    return memcmp(ref, FULL, sizeof ref) != 0;
+}
+static void tch_step(void) { TV.step = 12; }
+static void tch_note(void) { TV.base = 2; }
+static void tch_rate(void) { TV.tz.rate = 4; }
+static void tch_len(void) { TV.tz.len = 6; }
+static void tch_chaos(void) { TV.applied = 0, TV.chaos_hit = 1; }
+static void tch_scale(void) { TV.tz.scale = 0; }
+static void tch_ret(void) { TV.tz.ret = 0; }
+static void tch_voice(void) { TV.notes[0] = 52, TV.notes[1] = 55, TV.notes[2] = 60; }
+static void tonnetz_knobs_visible(void)
+{
+    assert(tvdiffers(tch_step) && tvdiffers(tch_note) && tvdiffers(tch_rate) && tvdiffers(tch_len) && tvdiffers(tch_chaos) &&
+           tvdiffers(tch_scale) && tvdiffers(tch_ret) && tvdiffers(tch_voice));
+}
+
 int main(void)
 {
+    tonnetz_budget();
+    tonnetz_triangle_pink();
+    tonnetz_octaves();
+    tonnetz_strum_nodes();
+    tonnetz_scale_dims();
+    tonnetz_chaos_tile();
+    tonnetz_held_banner();
+    tonnetz_idle();
+    tonnetz_far_walk();
+    tonnetz_knobs_visible();
     chords_budget();
     chords_poly_pink();
     chords_idle();

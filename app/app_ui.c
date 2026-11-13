@@ -17,6 +17,7 @@
 #include "scene_life.c"
 #include "scene_lanes.c"
 #include "scene_chords.c"
+#include "scene_tonnetz.c"
 #include "plateau.c"
 #include "ui.c"
 

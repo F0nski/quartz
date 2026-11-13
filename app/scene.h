@@ -129,4 +129,19 @@ void chords_enter(void);                             /* arrival: no strike light
 void chords_frame(const q_chview *v, uint32_t ms);   /* builds the primitives: the edges, the ghost, the chord */
 void chords_band(const q_chview *v, int32_t oy);     /* p3d_draw, then the corners, squares, notches and keyboard */
 
+/* TONNETZ's map (scene_tonnetz.c); ui.c fills the view */
+typedef struct {
+    q_tonnetz tz;              /* the pattern's */
+    q_tz cur, trail[3];        /* the chord shown and the three before (trail[k].m 255: none) */
+    int8_t base, applied, held;   /* the pitch-class base; the step of the last bar (-1 none); the step held (-1 none) */
+    uint8_t chaos_hit, playing, kit, step;   /* the last step swapped by CHAOS; the pattern shown plays; a KIT; the step in the bar */
+    uint8_t notes[4], n, strikes;            /* the last strike's notes (ascending); a change lights the strike */
+    uint16_t scale;            /* the project's scale, absolute pitch classes */
+    char name[8], banner[24];  /* the chord's name; "STEP 3 - R > DM" when held */
+    uint32_t step_ms;          /* a step in ms (STRUM's delay: step_ms x strum / 24) */
+} q_tzview;
+void tonnetz_enter(void);                            /* arrival: no slide, no strike lights */
+void tonnetz_frame(const q_tzview *v, uint32_t ms);  /* builds the primitives: edges, traces, the chord */
+void tonnetz_band(const q_tzview *v, int32_t oy);    /* p3d_draw, then the nodes, names, steps and notches */
+
 #endif
