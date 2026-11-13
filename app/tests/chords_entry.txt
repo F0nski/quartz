@@ -1,0 +1,45 @@
+# CHORDS on the grid (C major, the defaults I vi IV V): REC toggles GRID; keys 1-8 the chords; held + a scale note its degree
+wait 600
+tap SEQ
+turn K4 5
+tap REC
+expect badge 1
+# a tap: the next size
+tapkey w2
+expect csize_3 1
+# held + A (key 16: 53 + 16 = 69): vi; the size stays
+key 4 down
+expect lcell 3
+key 16 down
+key 16 up
+key 4 up
+expect cdeg_3 5
+expect csize_3 1
+expect lcell 0
+# held + F# (key 1: 54), out of the scale: nothing
+key 4 down
+key 1 down
+key 1 up
+key 4 up
+expect cdeg_3 5
+# held + K1 the degree, + K2 the size
+key 4 down
+turn K1 -2
+turn K2 1
+key 4 up
+expect cdeg_3 3
+expect csize_3 2
+# key 7, past LEN 4: nothing
+tapkey w6
+expect lcell 0
+expect cdeg_7 0
+# a long hold: no help layer, nothing on release
+key 0 down
+wait 600
+expect layer 0
+key 0 up
+expect csize_1 0
+wait 100
+shot chords_entry.png
+tap REC
+expect badge 0
