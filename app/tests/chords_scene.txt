@@ -1,0 +1,33 @@
+# The CHORDS heptagon on the CHORDS and PROG pages: playing, a chord held, STRUM, a KIT
+wait 600
+tap SEQ
+turn K4 5
+expect src 5
+wait 100
+expect anim 10
+tap PLAY
+wait 2500
+shot chords_play.png
+tap REC
+key 4 down
+wait 200
+expect anim 10
+shot chords_held.png
+key 4 up
+tap REC
+turn SELECT 1
+expect anim 10
+turn K2 5
+expect cstrum 5
+wait 1500
+shot chords_strum.png
+tap PLAY
+tap EDIT
+turn PRESET 20
+expect model 24
+tap SEQ
+tap PLAY
+wait 1000
+expect anim 10
+shot chords_kit.png
+tap PLAY

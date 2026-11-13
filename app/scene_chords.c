@@ -104,7 +104,8 @@ void chords_band(const q_chview *v, int32_t oy)
         float cx = 0.0f, cy = 0.0f, x, y;
         for (i = 0; i < n; i++)
             chv_at(d[i], CHV_R, &x, &y), cx += x, cy += y;
-        glo_text((int32_t)(cx / (float)n), oy + (int32_t)(cy / (float)n), &FONT_S, v->name, C_WHITE, 0);
+        int white = v->held >= 0 || chv.ms - chv.hit_ms < CHV_HIT_MS;   /* on white facets, the name in black */
+        glo_text((int32_t)(cx / (float)n), oy + (int32_t)(cy / (float)n), &FONT_S, v->name, white ? RGB(0, 0, 0) : C_WHITE, 0);
     }
     for (i = 0; i < 8; i++) {                       /* the progression */
         uint16_t c = i >= v->chords.len ? RGB(0x14, 0x0e, 0x30) : i == v->held ? MB_WHITE[0] : i == v->slot && v->held < 0 ? PINK3[1] : KBLUE[2];

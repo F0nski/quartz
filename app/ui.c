@@ -143,7 +143,7 @@ typedef struct {
                                                    knobs), 2 the SEQ plateau, 3 MARBLES (v: SPREAD, X BIAS, DEJA VU), 4 GRIDS,
                                                    5 HOME's tracks (scene_home.c), 6 a sound page ADSR .. MIX (scene_sound.c),
                                                    7 TEMPO, SCALE, KEYS, FX, SONG (scene_glo.c), 8 LIFE (scene_life.c),
-                                                   9 LANES (scene_lanes.c) */
+                                                   9 LANES (scene_lanes.c), 10 CHORDS (scene_chords.c) */
         q_trow tr[Q_TRACKS];                    /* TRACKS */
         int8_t layer, lmode;                    /* a layer's map instead of the scene: its button + 1; REC in LIVE, SEL in NOTES */
         uint32_t lkeys, hot;                    /* its keys, and the keys pressed */
@@ -2091,6 +2091,8 @@ static void view_now(q_view *v)
             v->scene.anim = 8;                  /* scene_life.c; ui_frame fills its view */
         if (pid == P_LANES || pid == P_LENS)
             v->scene.anim = 9;                  /* scene_lanes.c; ui_frame fills its view */
+        if (pid == P_CHORDS || pid == P_PROG)
+            v->scene.anim = 10;                 /* scene_chords.c; ui_frame fills its view */
         if (pid == P_MARBLES || pid == P_T || pid == P_X) {
             v->scene.anim = 3;
             v->scene.v[0] = t->marbles.spread;
@@ -2565,6 +2567,7 @@ void ui_frame(void)
     static q_glview glv;                   /* the global pages' view: the bands drawn after the frame read it */
     static q_lview lfv;                    /* LIFE's view, the same way */
     static q_laneview lnv;                 /* LANES' */
+    static q_chview chv;                   /* CHORDS' */
     int b;
     ui_input();
     lights();
@@ -2732,6 +2735,64 @@ void ui_frame(void)
                 lnv.n = n;
                 lnv.step_ms = 2500u * DIV96[t->div] / ui.p->tempo;
                 lanes_frame(&lnv, now);
+            } else if (v.scene.anim == 10) {
+                const q_pattern *t = pat();
+                const q_chords *c = &t->chords;
+                q_chords_run r;
+                uint16_t sc = gen_scale(ui.p);
+                audio_chords(ui.track, &r);
+                if (fresh)
+                    chords_enter();
+                chv.chords = *c;
+                chv.kit = (uint8_t)kit();
+                chv.slot = (int8_t)(v.scene.pos >= 0 && r.n ? (int)((r.n - 1) / 16 % c->len) : -1);
+                chv.step = (uint8_t)(r.n ? (r.n - 1) % 16 : 0);
+                chv.strikes = r.strikes;
+                chv.held = (int8_t)(chords_on() && ui.rec == R_GRID && ui.cell ? ui.cell - 1 : -1);
+                for (int d = 0; d < 7; d++)
+                    chv.scale_pc[d] = (uint8_t)(gen_life_note(c->note, sc, ui.p->tonic, d) % 12);
+                if (chv.held >= 0) {            /* the held chord: SMOOTH from the chord before it, that one in root position */
+                    uint8_t prev[4];
+                    int poly = ui.p->sound[ui.track].poly ? ui.p->sound[ui.track].poly : 1, h = chv.held;
+                    q_chords root = *c;
+                    root.voice = 0;
+                    int np = c->voice && c->len > 1 ? gen_chord_notes(ui.p, &root, (h + c->len - 1) % c->len, poly, 0, 0, prev) : 0;
+                    chv.n = (uint8_t)gen_chord_notes(ui.p, c, h, poly, prev, np, chv.notes);
+                } else {
+                    chv.n = chv.slot >= 0 ? r.nlast : 0;
+                    __builtin_memcpy(chv.notes, r.last, 4);
+                }
+                int s = chv.held >= 0 ? chv.held : chv.slot;
+                chv.name[0] = 0, chv.banner[0] = 0;
+                if (s >= 0) {                   /* the chord's name: its root, m or dim from the scale, its size */
+                    static const char *const N[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+                    static const char *const SZ[CS_N] = {"", "7", "sus2", "sus4"}, *const SZB[CS_N] = {"", " 7", " SUS2", " SUS4"};
+                    static const char *const RN[7] = {"I", "II", "III", "IV", "V", "VI", "VII"};
+                    int ch = c->ch[s], d = CH_DEG(ch), root = gen_life_note(c->note, sc, ui.p->tonic, d);
+                    int third = (gen_life_note(c->note, sc, ui.p->tonic, d + 2) - root) % 12;
+                    int fifth = (gen_life_note(c->note, sc, ui.p->tonic, d + 4) - root) % 12;
+                    int seventh = (gen_life_note(c->note, sc, ui.p->tonic, d + 6) - root) % 12;
+                    const char *q = CH_SIZE(ch) >= CS_SUS2 ? SZ[CH_SIZE(ch)]          /* the quality, from the scale */
+                                  : CH_SIZE(ch) == CS_SEVENTH ? (fifth == 6 ? "m7b5" : third == 3 ? "m7" : seventh == 11 ? "maj7" : "7")
+                                  : fifth == 6 ? "dim" : third == 3 ? "m" : "";
+                    char *o = chv.name;
+                    for (const char *p = N[root % 12]; *p; p++) *o++ = *p;
+                    for (const char *p = q; *p && o < chv.name + 7; p++) *o++ = *p;
+                    *o = 0;
+                    if (chv.held >= 0) {        /* "EDIT 3 - IV F 7" */
+                        o = chv.banner;
+                        for (const char *p = "EDIT "; *p; p++) *o++ = *p;
+                        *o++ = (char)('1' + s);
+                        for (const char *p = " - "; *p; p++) *o++ = *p;
+                        for (const char *p = RN[d]; *p; p++) *o++ = *p;
+                        *o++ = ' ';
+                        for (const char *p = N[root % 12]; *p; p++) *o++ = *p;
+                        for (const char *p = SZB[CH_SIZE(ch)]; *p; p++) *o++ = *p;
+                        *o = 0;
+                    }
+                }
+                chv.step_ms = 2500u * DIV96[t->div] / ui.p->tempo;
+                chords_frame(&chv, now);
             } else if (v.scene.anim == 7) {
                 static char title[14];
                 int pid = v.scene.pid, k, w;
@@ -2811,6 +2872,8 @@ void ui_frame(void)
                     life_band(&lfv, -BAND_H * b);
                 else if (v.scene.anim == 9)
                     lanes_band(&lnv, -BAND_H * b);
+                else if (v.scene.anim == 10)
+                    chords_band(&chv, -BAND_H * b);
                 else
                     plateau_band(-BAND_H * b);
                 cv_blit(0, HEAD_H + BAND_H * b);

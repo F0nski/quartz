@@ -162,6 +162,8 @@ dans une croche ou une noire.
   Détail : `2026-11-13-quartz-life-design.md`.
 - **LANES** : cinq lignes (TRIG, NOTE, OCT, DUR, VEL), chacune une boucle de 1 à 16 cases avec sa longueur ; les
   boucles se décalent (polymétrie à la Kria). Détail : `2026-11-13-quartz-lanes-design.md`.
+- **CHORDS** : une progression de 1 à 8 accords en degrés de la gamme, un par mesure, frappée RATE fois, égrenée par
+  STRUM, conduite par VOICE. Détail : `2026-11-13-quartz-chords-design.md`.
 - Étape ultérieure (demandée, non planifiée) : un LEN de 1 à 32 pour GRIDS, sur le 4e encodeur libre de MAP ou de DENS ;
   la boucle repart au pas 1 après LEN, les pas au-delà s'affichent sombres.
 
