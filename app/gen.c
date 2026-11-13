@@ -391,7 +391,7 @@ static void life_seed(q_life_run *l, int seed, int dens)
 }
 
 /* NOTE in the scale, then r degrees of the scale up; above 127, the scale's last note below */
-static int life_note(int note, uint16_t scale, int tonic, int r)
+int gen_life_note(int note, uint16_t scale, int tonic, int r)
 {
     int n = gen_quantize(note, scale, tonic, 0);
     while (r > 0) {
@@ -473,7 +473,7 @@ static int life_step(q_gen *g, const q_project *p, int track, const q_pattern *p
     if (!n) return 0;
     for (int i = 0; i < n; i++) {
         int r = rows[i];
-        st->note[i] = (uint8_t)(!kit ? life_note(s->note, gen_scale(p), p->tonic, r)
+        st->note[i] = (uint8_t)(!kit ? gen_life_note(s->note, gen_scale(p), p->tonic, r)
                                      : KIT_NOTE + (s->map ? (r < 3 ? 0 : r < 6 ? 1 : 2) : r));
         if (l->born[r] >> k & 1) acc |= 1 << i;
     }

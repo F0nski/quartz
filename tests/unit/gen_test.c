@@ -555,8 +555,8 @@ static void life_notes_synth(void)
 {
     q_pattern *pt = life_setup(8);
     uint16_t sc = gen_scale(&P);                      /* C major */
-    assert(life_note(48, sc, 0, 0) == 48 && life_note(48, sc, 0, 1) == 50 && life_note(48, sc, 0, 2) == 52);
-    assert(life_note(49, sc, 0, 0) == 48);
+    assert(gen_life_note(48, sc, 0, 0) == 48 && gen_life_note(48, sc, 0, 1) == 50 && gen_life_note(48, sc, 0, 2) == 52);
+    assert(gen_life_note(49, sc, 0, 0) == 48);
     /* through gen_step: column 0 with rows 0 and 2 living */
     pt->life.gen = 3; pt->life.poly = 4; pt->life.note = 48;
     q_step st;
@@ -572,7 +572,7 @@ static void life_degrees_clamp(void)
 {
     life_setup(8);
     uint16_t sc = gen_scale(&P);
-    for (int r = 0; r < LIFE_H; r++) { int n = life_note(127, sc, 0, r); assert(n >= 1 && n <= 127); }
+    for (int r = 0; r < LIFE_H; r++) { int n = gen_life_note(127, sc, 0, r); assert(n >= 1 && n <= 127); }
 }
 
 static void life_notes_kit(void)

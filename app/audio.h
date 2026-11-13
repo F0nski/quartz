@@ -2,6 +2,7 @@
 #define QUARTZ_AUDIO_H
 #include <stdint.h>
 #include "project.h"
+#include "gen.h"
 
 /* The render (audio.c): sequencer -> voice pool -> Plaits voices, 0..2 on core 1, 3..5 on core 2.
  * Everything but app_render is called from the main loop; commands reach the render at its next block. */
@@ -33,6 +34,8 @@ void audio_mute(void);
 void audio_unmute(void);
 void audio_punch(uint16_t mask);                        /* the punch-ins held, bit k = white key k + 1: from the next block on */
 int audio_playing(void);
+/* a LIFE pattern's run as the render left it (a copy read while it may write: one frame off at worst) */
+void audio_life(int track, q_life_run *out);
 int audio_pos(int track);                               /* step in progress, -1 when stopped */
 uint32_t audio_hits(int track);                         /* note-ons the track sounded since boot (compare by difference) */
 uint32_t audio_kit_hits(int track, int engine);         /* a KIT's note-ons whose pad had that engine (PAD_BD, PAD_SN, PAD_HH) */

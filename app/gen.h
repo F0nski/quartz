@@ -37,6 +37,8 @@ int gen_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, int k
 int gen_loop(const q_pattern *pt);       /* GRIDS 32, MARBLES marbles.len, LIFE 16; STEP: not called */
 /* the rows the column col plays, lowest first, at most POLY (3 on a KIT); BANDS: one row per band, its lowest living
    cell. Returns their number. */
+/* the note row r plays on a synth: NOTE in the scale, r degrees of the scale up (at most 127) */
+int gen_life_note(int note, uint16_t scale, int tonic, int r);
 int gen_life_rows(const q_life *l, int kit, const uint16_t grid[LIFE_H], int col, uint8_t rows[4]);
 
 #endif

@@ -1,0 +1,31 @@
+# The LIFE molecules on the LIFE, SEED and EVOL pages, on a synth track then a KIT
+wait 600
+tap SEQ
+turn K4 3
+expect src 3
+wait 100
+expect anim 8
+tap PLAY
+wait 1500
+shot life_play.png
+turn SELECT 1
+expect anim 8
+turn K1 5
+wait 2500
+shot life_reseed.png
+turn SELECT 1
+expect anim 8
+turn K1 -3
+expect lgen 0
+wait 2500
+shot life_gen.png
+tap PLAY
+tap EDIT
+turn PRESET 20
+expect model 24
+tap SEQ
+tap PLAY
+wait 1500
+expect anim 8
+shot life_kit_play.png
+tap PLAY

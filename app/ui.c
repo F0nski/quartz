@@ -1892,6 +1892,8 @@ static void view_now(q_view *v)
             v->scene.notes = gen_allowed(ui.p, t);
         if (pid == P_GRIDS || pid == P_MAP || pid == P_DENS)
             v->scene.anim = 4;
+        if (pid == P_LIFE || pid == P_LIFEK || pid == P_SEED || pid == P_EVOL)
+            v->scene.anim = 8;                  /* scene_life.c; ui_frame fills its view */
         if (pid == P_MARBLES || pid == P_T || pid == P_X) {
             v->scene.anim = 3;
             v->scene.v[0] = t->marbles.spread;
@@ -2355,6 +2357,7 @@ void ui_frame(void)
 {
     q_view v;
     static q_glview glv;                   /* the global pages' view: the bands drawn after the frame read it */
+    static q_lview lfv;                    /* LIFE's view, the same way */
     int b;
     ui_input();
     lights();
@@ -2367,8 +2370,8 @@ void ui_frame(void)
             /* shown anew (another scene, track, pattern or page of steps): the notes before do not hit */
             /* compared with the last frame drawn, not the last one shown: a change between two draws counts */
             /* (another model, or another pad or its engine on a KIT, is another scene too; so is another sound page) */
-            int key = v.scene.anim | v.head.track << 3 | v.head.pat << 6 | v.scene.spage << 10 | v.scene.pad << 14 | v.scene.model << 18
-                      | (v.scene.anim >= 6 ? v.scene.pid : 0) << 23;
+            int key = v.scene.anim | v.head.track << 4 | v.head.pat << 7 | v.scene.spage << 11 | v.scene.pad << 15 | v.scene.model << 19
+                      | (v.scene.anim == 6 || v.scene.anim == 7 ? v.scene.pid : 0) << 24;
             int fresh = ui.full || key != ui.scene_key;
             ui.scene_key = key;
             ui.scene_ms = now;
@@ -2469,6 +2472,32 @@ void ui_frame(void)
                     if (SCALE_MASK[ui.p->mode] >> k & 1 && (++n == 3 || n == 5))
                         pv.chord[n / 2] = (uint8_t)(pv.chord[0] + k);
                 sound_frame(&pv, now);
+            } else if (v.scene.anim == 8) {
+                const q_pattern *t = pat();
+                uint8_t rows[4];
+                int n, k, r;
+                if (fresh)
+                    life_enter();
+                audio_life(ui.track, &lfv.run);
+                lfv.col = (int8_t)(v.scene.pos >= 0 ? v.scene.pos % LIFE_W : -1);
+                lfv.played = 0;
+                n = lfv.col >= 0 ? gen_life_rows(&t->life, kit(), lfv.run.grid, lfv.col, rows) : 0;
+                for (k = 0; k < n; k++)
+                    lfv.played |= (uint8_t)(1u << rows[k]);
+                lfv.poly = (uint8_t)(kit() && t->life.poly > 3 ? 3 : t->life.poly);
+                lfv.autos = t->life.autos, lfv.gen = t->life.gen, lfv.mut = t->life.mut, lfv.seed = t->life.seed;
+                lfv.kit = (uint8_t)kit(), lfv.map = t->life.map;
+                for (r = 0; r < LIFE_H; r++) {          /* the rows' names: their notes, a KIT's pads or bands */
+                    static const char *const PADN[LIFE_H] = {"BD", "SN", "HH", "4", "5", "6", "7", "8"};
+                    const char *s = !kit() ? 0 : !t->life.map ? PADN[r] : r == 1 ? "BD" : r == 4 ? "SN" : r == 6 ? "HH" : "";
+                    if (s) {
+                        char *o = lfv.label[r];
+                        while ((*o++ = *s++) != 0) {}
+                    } else
+                        note_name(gen_life_note(t->life.note, gen_scale(ui.p), ui.p->tonic, r), lfv.label[r]);
+                }
+                lfv.step_ms = 2500u * DIV96[t->div] / ui.p->tempo;
+                life_frame(&lfv, now);
             } else if (v.scene.anim == 7) {
                 static char title[14];
                 int pid = v.scene.pid, k, w;
@@ -2544,6 +2573,8 @@ void ui_frame(void)
                     sound_band(-BAND_H * b);
                 else if (v.scene.anim == 7)
                     glo_band(&glv, -BAND_H * b);
+                else if (v.scene.anim == 8)
+                    life_band(&lfv, -BAND_H * b);
                 else
                     plateau_band(-BAND_H * b);
                 cv_blit(0, HEAD_H + BAND_H * b);

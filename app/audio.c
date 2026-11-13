@@ -165,6 +165,7 @@ void audio_mute(void) { muted = 1; }
 void audio_unmute(void) { muted = 0; }
 int audio_playing(void) { return playing; }
 int audio_pos(int track) { return seq_pos(&seq, track); }
+void audio_life(int track, q_life_run *out) { __builtin_memcpy(out, (const void *)&seq.g[track].life, sizeof *out); }
 uint32_t audio_hits(int track) { return hits[track]; }
 uint32_t audio_kit_hits(int track, int engine) { return kit_hits[track][engine]; }
 
