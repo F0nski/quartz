@@ -22,6 +22,7 @@ static void lcd_blit(uint32_t x, uint32_t y, uint32_t w, uint32_t h, const uint1
 #include "scene_glo.c"
 #include "scene_life.c"
 #include "scene_lanes.c"
+#include "scene_chords.c"
 
 static uint16_t px(int x, int y) { return swap16(cv_px[y * 240 + x]); }
 static int is_orange(uint16_t c) { return c == ORANGE[0] || c == ORANGE[1] || c == ORANGE[2]; }
@@ -1948,8 +1949,165 @@ static void lanes_knobs_visible(void)
     assert(ndiffers(nch_len0) && ndiffers(nch_len4) && ndiffers(nch_sel) && ndiffers(nch_name) && ndiffers(nch_head));
 }
 
+/* ---- CHORDS: the heptagon ---- */
+static q_chview CV;
+static void cvreset(void)
+{
+    static const uint8_t PC[7] = {0, 2, 4, 5, 7, 9, 11};
+    memset(&CV, 0, sizeof CV);
+    CV.chords = (q_chords){ 48, 4, 2, 0, 1, { CH_MAKE(0, CS_TRIAD), CH_MAKE(5, CS_TRIAD), CH_MAKE(3, CS_TRIAD), CH_MAKE(4, CS_TRIAD) } };
+    CV.slot = 0, CV.held = -1, CV.n = 3, CV.notes[0] = 48, CV.notes[1] = 52, CV.notes[2] = 55;
+    memcpy(CV.scale_pc, PC, 7);
+    strcpy(CV.name, "C");
+    CV.step_ms = 125;
+    chords_enter();
+}
+static void cvfull(void)
+{
+    for (int b = 0; b < 2; b++) {
+        cv_begin(240, 83, 0);
+        chords_band(&CV, -83 * b);
+        memcpy(FULL + 240 * 83 * b, cv_px, sizeof(uint16_t) * 240 * 83);
+    }
+}
+static void hept(int d, float r, int *x, int *y)
+{
+    float a = -1.5707963f + (float)d * 6.2831853f / 7.0f;
+    *x = (int)(120.0f + r * cosf(a)), *y = (int)(78.0f + r * sinf(a));
+}
+static int cwhite(int x0, int x1, int y0, int y1) { return gcount(MB_WHITE[0], x0, x1, y0, y1) + gcount(MB_WHITE[1], x0, x1, y0, y1) + gcount(MB_WHITE[2], x0, x1, y0, y1); }
+/* a white key's lower part (under the black keys), note n from NOTE - 12 = 36 */
+static void wkey(int n, int *x0)
+{
+    static const int W[12] = {0, -1, 1, -1, 2, 3, -1, 4, -1, 5, -1, 6};
+    *x0 = 6 + 12 * (7 * ((n - 36) / 12) + W[(n - 36) % 12]);
+}
+
+static void chords_budget(void)
+{
+    cvreset();
+    CV.chords.ch[0] = CH_MAKE(4, CS_SEVENTH); CV.chords.rate = 4; CV.n = 4; CV.notes[3] = 65;
+    chords_frame(&CV, 1000);
+    assert(p3d_count() <= 300);
+}
+
+static void chords_poly_pink(void)
+{
+    int x[3], y[3], cx = 0, cy = 0, x4, y4;
+    cvreset();
+    chords_frame(&CV, 1000);
+    cvfull();
+    static const int D[3] = {0, 2, 4};
+    for (int i = 0; i < 3; i++) hept(D[i], 46.0f, &x[i], &y[i]), cx += x[i], cy += y[i];
+    cx /= 3, cy /= 3;
+    assert(gpink(cx - 12, cx + 12, cy - 12, cy + 12) > 0);
+    hept(3, 46.0f, &x4, &y4);
+    assert(gpink(x4 - 4, x4 + 4, y4 - 4, y4 + 4) == 0);
+}
+
+static void chords_idle(void)
+{
+    cvreset();
+    CV.slot = -1, CV.n = 0;
+    chords_frame(&CV, 1000);
+    cvfull();
+    assert(gpink(0, 240, 0, 166) == 0);
+}
+
+static void chords_held_white(void)
+{
+    int x[3], y[3], cx = 0, cy = 0, x5, y5;
+    cvreset();
+    CV.held = 2;
+    strcpy(CV.banner, "EDIT 3 \xb7 IV F");
+    chords_frame(&CV, 1000);
+    cvfull();
+    static const int D[3] = {3, 5, 0};
+    for (int i = 0; i < 3; i++) hept(D[i], 46.0f, &x[i], &y[i]), cx += x[i], cy += y[i];
+    cx /= 3, cy /= 3;
+    assert(cwhite(cx - 10, cx + 10, cy - 10, cy + 10) > 0);
+    hept(4, 46.0f, &x5, &y5);
+    assert(gpink(x5 - 4, x5 + 4, y5 - 4, y5 + 4) == 0);
+    int light = 0;
+    for (int yy = 4; yy < 15; yy++) for (int xx = 126; xx < 232; xx++) light += fpx(xx, yy) == RGB(0xe4, 0xe0, 0xf5);
+    assert(light > 200);
+}
+
+static void chords_keyboard(void)
+{
+    int x48, x50;
+    cvreset();
+    chords_frame(&CV, 1000);
+    cvfull();
+    wkey(48, &x48), wkey(50, &x50);
+    assert(gpink(x48 + 1, x48 + 10, 155, 162) > 0);
+    assert(gpink(x50 + 1, x50 + 10, 155, 162) == 0);
+}
+
+static void chords_strum_order(void)
+{
+    int x48, x55;
+    cvreset();
+    CV.chords.strum = 7;
+    chords_frame(&CV, 0);
+    CV.strikes = 1;
+    chords_frame(&CV, 1000);                          /* the strike seen at 1000 */
+    wkey(48, &x48), wkey(55, &x55);
+    chords_frame(&CV, 1005); cvfull();
+    assert(cwhite(x48 + 1, x48 + 10, 155, 162) > 0 && cwhite(x55 + 1, x55 + 10, 155, 162) == 0);
+    chords_frame(&CV, 1080); cvfull();
+    assert(cwhite(x55 + 1, x55 + 10, 155, 162) > 0);
+}
+
+static void chords_kit_text(void)
+{
+    cvreset();
+    CV.kit = 1;
+    chords_frame(&CV, 1000);
+    cvfull();
+    int lit = 0;
+    for (int yy = 70; yy < 90; yy++) for (int xx = 40; xx < 200; xx++) lit += fpx(xx, yy) != 0;
+    assert(lit > 0 && gpink(0, 240, 0, 166) == 0);
+}
+
+static int cvdiffers(void (*change)(void))
+{
+    static uint16_t ref[240 * 166];
+    cvreset();
+    chords_frame(&CV, 5000);
+    cvfull();
+    memcpy(ref, FULL, sizeof ref);
+    change();
+    chords_frame(&CV, 5000);
+    cvfull();
+    return memcmp(ref, FULL, sizeof ref) != 0;
+}
+static void cch_notes(void) { CV.notes[0] = 60; }            /* NOTE or VOICE: other notes */
+static void cch_rate(void) { CV.chords.rate = 4; }
+static void cch_len(void) { CV.chords.len = 6; }
+static void cch_step(void) { CV.step = 12; }                 /* DIV: the strikes go by */
+static void cch_strum(void) { CV.chords.strum = 7; CV.strikes = 1; }
+static void chords_knobs_visible(void)
+{
+    assert(cvdiffers(cch_notes) && cvdiffers(cch_rate) && cvdiffers(cch_len) && cvdiffers(cch_step));
+    /* STRUM: right after a strike, the top note is not lit yet with STRUM 7, it is with 0 */
+    static uint16_t a[240 * 166];
+    cvreset(); chords_frame(&CV, 0); CV.strikes = 1; chords_frame(&CV, 1000); chords_frame(&CV, 1010); cvfull(); memcpy(a, FULL, sizeof a);
+    cvreset(); CV.chords.strum = 7; chords_frame(&CV, 0); CV.strikes = 1; chords_frame(&CV, 1000); chords_frame(&CV, 1010); cvfull();
+    assert(memcmp(a, FULL, sizeof a) != 0);
+    (void)cch_strum;
+}
+
 int main(void)
 {
+    chords_budget();
+    chords_poly_pink();
+    chords_idle();
+    chords_held_white();
+    chords_keyboard();
+    chords_strum_order();
+    chords_kit_text();
+    chords_knobs_visible();
     lanes_budget();
     lanes_budget_floor_last();
     lanes_heads_pink();

@@ -113,4 +113,20 @@ void lanes_enter(void);                              /* arrival: the floor stand
 void lanes_frame(const q_laneview *v, uint32_t ms);  /* builds the primitives: the edited lane's blocks, the floor */
 void lanes_band(const q_laneview *v, int32_t oy);    /* p3d_draw, then the overview and the texts */
 
+/* CHORDS' heptagon (scene_chords.c); ui.c fills the view */
+typedef struct {
+    q_chords chords;           /* the pattern's */
+    int8_t slot, held;         /* the chord playing (-1 none: stopped or another pattern plays), the chord held (-1 none) */
+    uint8_t notes[4], n;       /* the notes shown on the keyboard: the last strike's, or the held chord's */
+    uint8_t strikes;           /* q_chords_run.strikes: a change lights the strike */
+    uint8_t step, kit;         /* the step in the bar 0..15; a KIT */
+    uint8_t scale_pc[7];       /* the degrees' pitch classes from NOTE (I..VII) */
+    char name[8];              /* the chord's name: "C", "Am", "G7", "Fsus4" (the held one's when held) */
+    char banner[24];           /* "EDIT 3 - IV F" when held */
+    uint32_t step_ms;          /* a step in ms (STRUM's delay: step_ms x strum / 24) */
+} q_chview;
+void chords_enter(void);                             /* arrival: no strike lights */
+void chords_frame(const q_chview *v, uint32_t ms);   /* builds the primitives: the edges, the ghost, the chord */
+void chords_band(const q_chview *v, int32_t oy);     /* p3d_draw, then the corners, squares, notches and keyboard */
+
 #endif
