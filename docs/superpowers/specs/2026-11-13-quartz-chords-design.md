@@ -45,7 +45,9 @@ notes, un arpège propre à CHORDS, les autres nouveaux séquenceurs (TONNETZ, O
   - ROOT : les notes gardées, en position fondamentale ;
   - SMOOTH (par défaut) : parmi les renversements de ces notes (les k plus graves montées d'une octave, k de 0 au
     nombre de notes − 1) et leurs transpositions de −2 à +1 octave, celui dont la somme, pour chaque note, de l'écart
-    à la note la plus proche de l'accord joué juste avant est la plus petite ; à égalité, le plus grave. Le premier
+    à la note la plus proche de l'accord joué juste avant est la plus petite ; à égalité, le plus grave. Seuls
+    comptent les candidats dont la note la plus grave reste à une quinte (7 demi-tons) au plus de la fondamentale en
+    position fondamentale : sans cette ancre, une progression descendante glisse d'un tour à l'autre jusqu'au grave. Le premier
     accord après un `gen_reset` est en position fondamentale. Les notes restent dans 1..127 (un candidat qui en sort
     est écarté ; s'il n'en reste aucun, ROOT).
 - **RATE** (0..4) : l'accord est frappé 1, 2, 4, 8 ou 16 fois par mesure, au pas `i × 16 / rate`. Chaque frappe dure
@@ -53,7 +55,7 @@ notes, un arpège propre à CHORDS, les autres nouveaux séquenceurs (TONNETZ, O
 - **STRUM** (0..7) : les notes d'une frappe partent de la plus grave à la plus aiguë, chacune décalée de STRUM / 24
   de pas sur la précédente. 0 : plaqué. Le séquenceur ne sait aujourd'hui jouer les notes d'un pas qu'ensemble : le
   décalage passe par les bits 5 à 7 de `q_step.flags` (libres), lus par `seq.c` pour les seuls patterns générateurs.
-- **Accent** : la première frappe de chaque mesure est accentuée ; vélocité 100, `prob` 20, `micro` 0.
+- **Accent** : la première frappe de chaque mesure est accentuée, toutes ses notes ; vélocité 100, `prob` 20, `micro` 0.
 - **Arpège** : ARP actif sur la piste arpège l'accord tenu, sans rien de propre à CHORDS.
 - **KIT** : un pattern CHORDS sur un KIT ne joue rien.
 

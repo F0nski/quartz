@@ -532,10 +532,13 @@ int gen_chord_notes(const q_project *p, const q_chords *c, int slot, int poly, c
         for (int inv = 0; inv < n; inv++)
             for (int o = -2; o <= 1; o++) {
                 int v[4], ok = 1, cs = 0, s = 0;
+                int low = 127;
                 for (i = 0; i < n; i++) {
                     v[i] = t[i] + (i < inv ? 12 : 0) + 12 * o;
                     ok &= v[i] >= 1 && v[i] <= 127;
+                    if (v[i] < low) low = v[i];
                 }
+                ok &= low >= t[0] - 7 && low <= t[0] + 7;   /* the bass within a fifth of the root: no drift loop after loop */
                 if (!ok) continue;
                 for (i = 0; i < n; i++) {
                     int e = 1000;
@@ -572,7 +575,7 @@ static int chords_step(q_gen *g, const q_project *p, int track, const q_pattern 
     g->chords.strikes++;
     st->flags = (uint8_t)(SF_ON | c->strum << 5);
     st->len = (uint8_t)(128 / STRIKES[c->rate]); st->vel = 100; st->prob = 20;
-    return step == 0;
+    return step == 0 ? (1 << k) - 1 : 0;   /* the bar's first strike: every note accented */
 }
 
 int gen_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, int k, uint32_t *rng, q_step *st)

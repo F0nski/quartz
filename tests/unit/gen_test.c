@@ -924,6 +924,25 @@ static void chords_note_clamp(void)
     }
 }
 
+/* SMOOTH stays near NOTE: a descending progression over many loops keeps its bass within a fifth of the root position's */
+static void chords_smooth_no_drift(void)
+{
+    q_pattern *pt = chords_setup(8);
+    q_chords *c = &pt->chords;
+    static const uint8_t D[7] = { 0, 6, 5, 4, 3, 2, 1 };
+    c->rate = 0; c->voice = 1; c->len = 7;
+    for (int i = 0; i < 7; i++) c->ch[i] = CH_MAKE(D[i], CS_TRIAD);
+    P.sound[0].poly = 3;
+    static q_step a[7 * 6];
+    memset(&G, 0, sizeof G);
+    for (int n = 0; n < 16 * 7 * 6; n++) { q_step st; chords_strike(pt, n, &st); if (n % 16 == 0) a[n / 16] = st; }
+    for (int b = 0; b < 7 * 6; b++) {
+        int root = gen_life_note(48, gen_scale(&P), 0, D[b % 7]);
+        assert(a[b].note[0] >= root - 7 && a[b].note[0] <= root + 7);
+    }
+    for (int b = 7; b < 14; b++) assert(!memcmp(a[b].note, a[b + 28].note, 4));
+}
+
 static void chords_rate_len(void)
 {
     q_pattern *pt = chords_setup(8);
@@ -938,7 +957,7 @@ static void chords_rate_len(void)
             if (!(st.flags & SF_ON)) continue;
             n++;
             assert(st.len == len[r] && st.vel == 100);
-            assert(acc == (k == 0));
+            assert(acc == (k == 0 ? 7 : 0));                 /* the bar's first strike: every note accented */
         }
         assert(n == strikes[r]);
     }
@@ -1028,6 +1047,7 @@ int main(void)
     chords_smooth();
     chords_smooth_counts();
     chords_smooth_stable();
+    chords_smooth_no_drift();
     chords_note_clamp();
     chords_rate_len();
     chords_strum_bits();
