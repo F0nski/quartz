@@ -1,0 +1,599 @@
+<title>Life Scenes</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+/* Three directions for the LIFE source's scene at the device's 240x240, all driven by one Game of Life run and the knobs below. */
+:root {
+  --bg: #efedf5; --fg: #1c1830; --muted: #5d5873; --line: #d9d5e6; --device: #151320; --hot: #d4247a; --panel: #e4e1ee;
+  --display: "Chakra Petch", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --line: #2a2440; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --line: #2a2440; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.5; margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 48px }
+main { max-width: 1040px; margin: 0 auto; display: grid; gap: 22px }
+h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; line-height: 1.1; margin: 0; text-transform: uppercase; letter-spacing: .02em }
+h1 em { font-style: normal; color: var(--hot) }
+.lead { color: var(--muted); max-width: 70ch; margin: 8px 0 0 }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px }
+figure { margin: 0; display: grid; gap: 8px; align-content: start; min-width: 0 }
+canvas { width: 100%; max-width: 100%; aspect-ratio: 1; background: #000; border: 12px solid var(--device); border-radius: 16px; box-sizing: border-box; image-rendering: pixelated }
+h2 { font-family: var(--display); font-size: 1.1rem; margin: 0; text-transform: uppercase; letter-spacing: .04em }
+.tag { font-family: var(--display); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--hot) }
+figcaption p { margin: 2px 0 0; font-size: .88rem; color: var(--muted) }
+.knobs { background: var(--panel); border-radius: 12px; padding: 14px 16px; display: grid; gap: 12px }
+.knobs header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between }
+.knobs header b { font-family: var(--display); text-transform: uppercase; letter-spacing: .04em }
+.knobs header div { display: flex; flex-wrap: wrap; gap: 8px }
+.pages { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 20px }
+.page h3 { font-family: var(--display); font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 0 4px }
+label { display: grid; grid-template-columns: 6.5em 1fr 4.6em; gap: 8px; align-items: center; font-size: .85rem }
+label span:last-child { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted) }
+input[type=range] { width: 100%; accent-color: var(--hot) }
+button { font: inherit; font-family: var(--display); text-transform: uppercase; letter-spacing: .04em; border: 1px solid var(--line); background: var(--bg); color: var(--fg); border-radius: 8px; padding: 4px 12px; cursor: pointer }
+button[aria-pressed=true] { background: var(--hot); color: #fff; border-color: var(--hot) }
+.map { font-size: .85rem; color: var(--muted); margin: 0; padding-left: 1.1em }
+.map li { margin: 2px 0 }
+.map b { color: var(--fg) }
+</style>
+
+<main>
+<header>
+  <h1>Source <em>LIFE</em></h1>
+  <p class="lead">Une grille torique de 16 colonnes × 8 lignes. La tête lit une colonne par pas ; les POLY cellules vivantes
+  les plus basses jouent ; une génération passe tous les GEN tours. Les trois écrans montrent la même partie. L'écran
+  affiche la page du dernier encodeur bougé.</p>
+</header>
+
+<section class="knobs" aria-label="Encodeurs">
+  <header><b>Encodeurs LIFE</b><div>
+    <button id="synth" aria-pressed="true">Synthé</button><button id="kit" aria-pressed="false">KIT</button>
+    <button id="auto" aria-pressed="true">Démo</button></div></header>
+  <div class="pages" id="pages"></div>
+  <ul class="map">
+    <li><b>DIV</b> : vitesse de la tête. <b>POLY</b> : nombre de cellules qui jouent par colonne, et de crans sur le viseur.</li>
+    <li><b>NOTE</b> (synthé) : les notes inscrites devant les lignes. <b>MAP</b> (KIT) : lignes colorées par pad (PADS) ou en 3 bandes BD / SN / HH (BANDS).</li>
+    <li><b>SEED</b>, <b>DENS</b> : resèment au tour suivant (pluie de cellules), le numéro s'affiche. <b>AUTO</b> : emblème qui tourne ; à OFF, une grille morte ou figée vire au gris.</li>
+    <li><b>GEN</b> : autant de losanges au fond, un s'allume par tour. <b>MUT</b> : étincelles roses qui tombent sur les cellules mutées, et dans le ciel.</li>
+  </ul>
+</section>
+
+<h2>Molécules, de face</h2>
+<div class="grid">
+  <figure><canvas id="mBall" width="240" height="240"></canvas><figcaption><span class="tag">M1</span><h2>Boules et bâtonnets</h2><p>La grille de face, sur tout l'écran : atomes à facettes, liaisons en bâtonnets à deux tons (doubles en ligne droite, simples en diagonale). Un atome qui joue s'excite et émet des photons, ses liaisons rosissent.</p></figcaption></figure>
+  <figure><canvas id="m3d" width="240" height="240"></canvas><figcaption><span class="tag">M2</span><h2>Molécules en 3D</h2><p>Chaque amas est une molécule rigide qui pivote doucement sur elle-même ; les atomes de devant sont plus gros. Une cellule isolée est un atome seul qui tourne.</p></figcaption></figure>
+  <figure><canvas id="mValence" width="240" height="240"></canvas><figcaption><span class="tag">M3</span><h2>Valence</h2><p>M1, plus la génération qui vient : un atome qui va mourir (moins de 2 ou plus de 3 voisins) tremble et s'assombrit, une naissance à venir (3 voisins) apparaît en fantôme filaire.</p></figcaption></figure>
+</div>
+
+<h2>Premières pistes</h2>
+<div class="grid">
+  <figure><canvas id="slabs" width="240" height="240"></canvas><figcaption><span class="tag">L1</span><h2>Dalles</h2><p>Les cellules en blocs sur une plaque oblique ; les naissances montent du sol en rose, les morts s'effondrent en éclats. Un viseur rose longe la colonne lue.</p></figcaption></figure>
+  <figure><canvas id="crystals" width="240" height="240"></canvas><figcaption><span class="tag">L2</span><h2>Cristaux</h2><p>Des octaèdres flottent au-dessus d'un sol filaire ; un vaisseau glisse le long du bord avant et tire sur les cellules qui jouent, qui éclatent puis se reforment.</p></figcaption></figure>
+  <figure><canvas id="strata" width="240" height="240"></canvas><figcaption><span class="tag">L3</span><h2>Strates</h2><p>La génération en cours en blocs, les trois précédentes en couches plus sombres dessous ; à chaque génération, la pile descend d'un cran. La tête tranche toutes les couches.</p></figcaption></figure>
+</div>
+
+<h2>Biologique</h2>
+<div class="grid">
+  <figure><canvas id="bacteria" width="240" height="240"></canvas><figcaption><span class="tag">B1</span><h2>Bactéries</h2><p>Des bacilles à facettes qui frétillent du flagelle ; une naissance se détache par division, une mort éclate (lyse). Un bacille qui joue vire au rose et s'agite.</p></figcaption></figure>
+  <figure><canvas id="molecules" width="240" height="240"></canvas><figcaption><span class="tag">B2</span><h2>Molécules</h2><p>Chaque cellule est un atome, lié à ses voisins vivants : les amas du jeu de la vie deviennent des molécules en boules et bâtonnets. Un atome qui joue s'excite et émet des photons ; un atome qui naît arrive avec ses électrons.</p></figcaption></figure>
+  <figure><canvas id="radiolaria" width="240" height="240"></canvas><figcaption><span class="tag">B3</span><h2>Microscope</h2><p>Le champ d'un microscope, réticule et échelle : chaque cellule est un radiolaire, un squelette géométrique à épines qui tourne lentement. Ses épines s'allongent en rose quand il joue.</p></figcaption></figure>
+</div>
+</main>
+
+<script>
+const TAU = Math.PI * 2;
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const K = [["#8fb4ff", "#3a6dff", "#1c3590"], ["#8ff5c8", "#22d58e", "#0f6d48"], ["#ffffff", "#c9c3e4", "#6f6890"], ["#ffc196", "#ff7a2e", "#a3410c"]];
+const HOT = ["#ffb8dc", "#ff2f8e", "#8a1050"], GREY = ["#6a6680", "#4a4660", "#2e2b40"];
+const BG = "#07041a", UI = "#8b84a8", BAR = "#06041a", WIRE = "#2a1d55";
+const font = (px, w = 700) => `${w} ${px}px "Chakra Petch", sans-serif`;
+const poly = (c, pts, fill) => { c.fillStyle = fill; c.beginPath(); pts.forEach(([x, y]) => c.lineTo(x, y)); c.closePath(); c.fill(); };
+const stroke = (c, pts, col, w = 1, close = true) => { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); pts.forEach(([x, y]) => c.lineTo(x, y)); if (close) c.closePath(); c.stroke(); };
+const text = (c, s, x, y, px, col, align = "left", w = 700) => { c.fillStyle = col; c.font = font(px, w); c.textAlign = align; c.textBaseline = "middle"; c.fillText(s, x, y); };
+const lerp = (a, b, k) => a + (b - a) * k, clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const hash = n => { n = Math.imul(n ^ 0x9e3779b9, 0x85ebca6b); n ^= n >>> 13; n = Math.imul(n, 0xc2b2ae35); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
+
+/* ---- flat-shaded 3D (as in backdrops.html) ---- */
+const LIGHT = (() => { const l = [-0.5, -0.65, 0.6], n = Math.hypot(...l); return l.map(x => x / n); })();
+function rot([x, y, z], ay, ax = 0) {
+  const cy = Math.cos(ay), sy = Math.sin(ay); [x, z] = [x * cy + z * sy, -x * sy + z * cy];
+  const cx = Math.cos(ax), sx = Math.sin(ax); [y, z] = [y * cx - z * sx, y * sx + z * cx];
+  return [x, y, z];
+}
+function draw3d(c, mesh, o) {
+  const P3 = mesh.v.map(p => rot(p, o.ay, o.ax || 0));
+  mesh.f.map(f => {
+    const q = f.map(i => P3[i]), a = q[1].map((x, k) => x - q[0][k]), b = q[2].map((x, k) => x - q[0][k]);
+    let n = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+    const ln = Math.hypot(...n) || 1; n = n.map(x => x / ln);
+    return { q, n, z: q.reduce((s, p) => s + p[2], 0) / q.length };
+  }).filter(f => f.n[2] > 0).sort((p, q) => p.z - q.z).forEach(f => {
+    const d = f.n[0] * LIGHT[0] + f.n[1] * LIGHT[1] + f.n[2] * LIGHT[2];
+    poly(c, f.q.map(([x, y]) => [o.cx + x * o.s, o.cy + y * o.s]), d > 0.55 ? o.tones[0] : d > 0.15 ? o.tones[1] : o.tones[2]);
+  });
+}
+const out = m => ({ v: m.v, f: m.f.map(f => { const P3 = f.map(i => m.v[i]), a = P3[1].map((x, k) => x - P3[0][k]), b = P3[2].map((x, k) => x - P3[0][k]);
+  const n = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]], cc = [0, 1, 2].map(k => P3.reduce((s, p) => s + p[k], 0));
+  return n[0] * cc[0] + n[1] * cc[1] + n[2] * cc[2] > 0 ? f : f.slice().reverse(); }) });
+const TETRA = out({ v: [[1, 1, 1], [-1, -1, 1], [-1, 1, -1], [1, -1, -1]], f: [[0, 1, 2], [0, 3, 1], [0, 2, 3], [1, 3, 2]] });
+const ICO = (() => { const p = (1 + Math.sqrt(5)) / 2, v = [[-1, p, 0], [1, p, 0], [-1, -p, 0], [1, -p, 0], [0, -1, p], [0, 1, p], [0, -1, -p], [0, 1, -p], [p, 0, -1], [p, 0, 1], [-p, 0, -1], [-p, 0, 1]].map(q => { const n = Math.hypot(...q); return q.map(x => x / n); });
+  return out({ v, f: [[0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11], [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8], [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9], [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]] }); })();
+const OCTA = out({ v: [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]], f: [[0, 4, 2], [4, 1, 2], [1, 5, 2], [5, 0, 2], [4, 0, 3], [1, 4, 3], [5, 1, 3], [0, 5, 3]] });
+
+/* ---- the knobs: three SEQ pages ---- */
+const DIVN = ["1/16", "1/8", "1/4"], GENN = [1, 2, 4, 8], OFFON = ["OFF", "ON"], MAPN = ["PADS", "BANDS"];
+const PAGES = [["LIFE", [["div", "DIV", 0, 2, 0, DIVN], ["poly", "POLY", 1, 4, 2], ["note", "NOTE", 36, 84, 48], ["map", "MAP", 0, 1, 0, MAPN]]],
+  ["SEED", [["seed", "SEED", 0, 127, 17], ["dens", "DENS", 0, 127, 70], ["auto", "AUTO", 0, 1, 1, OFFON]]],
+  ["EVOL", [["gen", "GEN", 0, 3, 1, GENN], ["mut", "MUT", 0, 127, 20]]]];
+const P = {}, INPUTS = {}, PAGE_OF = {};
+let shownPage = 0, isKit = false;
+const pagesEl = document.getElementById("pages");
+PAGES.forEach(([name, ks], pi) => {
+  const d = document.createElement("div"); d.className = "page"; d.innerHTML = `<h3>${name}</h3>`;
+  ks.forEach(([id, label, lo, hi, def, names]) => {
+    P[id] = def; PAGE_OF[id] = pi;
+    const l = document.createElement("label"), r = document.createElement("input"), v = document.createElement("span");
+    r.type = "range"; r.min = lo; r.max = hi; r.value = def; r.setAttribute("aria-label", label);
+    const show = () => { v.textContent = names ? names[P[id]] : P[id]; };
+    r.oninput = () => { set(id, +r.value); demoBtn.setAttribute("aria-pressed", "false"); };
+    l.append(Object.assign(document.createElement("span"), { textContent: label }), r, v); show();
+    INPUTS[id] = { r, show, lo, hi, l }; d.append(l);
+  });
+  pagesEl.append(d);
+});
+function set(id, v) { P[id] = v; INPUTS[id].r.value = v; INPUTS[id].show(); shownPage = PAGE_OF[id];
+  if (id === "seed" || id === "dens") S.pending = true; }
+const demoBtn = document.getElementById("auto"), synthBtn = document.getElementById("synth"), kitBtn = document.getElementById("kit");
+demoBtn.onclick = () => demoBtn.setAttribute("aria-pressed", demoBtn.getAttribute("aria-pressed") === "true" ? "false" : "true");
+function engine(kit) { isKit = kit; synthBtn.setAttribute("aria-pressed", String(!kit)); kitBtn.setAttribute("aria-pressed", String(kit));
+  INPUTS.note.l.style.display = kit ? "none" : ""; INPUTS.map.l.style.display = kit ? "" : "none"; }
+synthBtn.onclick = () => engine(false); kitBtn.onclick = () => engine(true); engine(false);
+/* the demo turns one knob every 3 s, so each page shows up in turn */
+const DEMO = ["poly", "mut", "gen", "note", "seed", "div", "dens", "map", "auto", "poly", "gen", "mut"];
+let demoN = -1;
+function demo(t) {
+  if (demoBtn.getAttribute("aria-pressed") !== "true") return;
+  const n = Math.floor(t / 3); if (n === demoN) return; demoN = n;
+  let id = DEMO[n % DEMO.length]; if (id === "note" && isKit) id = "map"; if (id === "map" && !isKit) id = "note";
+  const k = INPUTS[id];
+  set(id, id === "auto" ? 1 - P.auto : id === "seed" ? (P.seed + 1 + Math.floor(hash(n) * 40)) % 128 : Math.round(lerp(k.lo, k.hi, hash(n * 17 + 3))));
+  if (id === "auto" && !P.auto) setTimeout(() => { if (!P.auto) set("auto", 1); }, 9000);
+}
+
+/* ---- the run: 16 x 8 torus, row 0 the lowest note ---- */
+const W = 16, H = 8, idx = (c, r) => ((r + H) % H) * W + (c + W) % W;
+const S = { g: new Uint8Array(W * H), hist: [], born: new Uint8Array(W * H), died: new Uint8Array(W * H), mut: new Uint8Array(W * H),
+  genT: -9, seedT: -9, col: 15, colT: -9, tours: 0, reseeds: 0, phase: 0, last: null, played: [], dead: false, pending: false };
+function reseed(t) {
+  const d = P.dens / 127 * 0.55;
+  S.hist = []; S.g = S.g.map((_, i) => hash(P.seed * 4099 + S.reseeds * 131 + i) < d ? 1 : 0);
+  S.born = S.g.slice(); S.died.fill(0); S.mut.fill(0); S.seedT = t; S.genT = t; S.dead = false;
+}
+function generation(t) {
+  const n = new Uint8Array(W * H);
+  for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) {
+    let a = 0; for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) if (dr || dc) a += S.g[idx(c + dc, r + dr)];
+    n[idx(c, r)] = a === 3 || (a === 2 && S.g[idx(c, r)]) ? 1 : 0;
+  }
+  const same = (x, y) => x && x.every((v, i) => v === y[i]);
+  const stuck = n.every(v => !v) || same(S.g, n) || same(S.hist[0], n);
+  S.mut.fill(0);
+  const m = Math.round(P.mut / 127 * 6);
+  for (let k = 0; k < m; k++) { const i = Math.floor(hash(t * 1000 + k * 77) * W * H); n[i] = 1; S.mut[i] = 1; }
+  if (stuck && !m) {
+    if (P.auto) { S.reseeds++; reseed(t); return; }
+    S.dead = true;
+  } else S.dead = false;
+  S.born = n.map((v, i) => v && !S.g[i] ? 1 : 0); S.died = S.g.map((v, i) => v && !n[i] ? 1 : 0);
+  S.hist.unshift(S.g); S.hist.length = Math.min(S.hist.length, 3); S.g = n; S.genT = t;
+}
+const stepDur = () => [0.125, 0.25, 0.5][P.div];
+function advance(t) {
+  if (S.last === null) { S.last = t; reseed(t); }
+  S.phase += clamp(t - S.last, 0, 0.1) / stepDur(); S.last = t;
+  while (S.phase >= 1) { S.phase -= 1;
+    S.col = (S.col + 1) % W; S.colT = t;
+    if (S.col === 0) { S.tours++;
+      if (S.pending) { S.pending = false; reseed(t); }
+      else if (S.tours % GENN[P.gen] === 0) generation(t); }
+    S.played = playing(S.col);
+  }
+}
+/* the column's notes: the POLY lowest living cells; on a KIT, at most 3; BANDS: a band plays if any of its cells lives */
+const BAND = r => r < 3 ? 0 : r < 6 ? 1 : 2;
+function playing(c) {
+  const cap = isKit ? Math.min(P.poly, 3) : P.poly, rows = [];
+  for (let r = 0; r < H && rows.length < cap; r++) if (S.g[idx(c, r)]) {
+    if (isKit && P.map === 1 && rows.some(q => BAND(q) === BAND(r))) continue;
+    rows.push(r);
+  }
+  return rows;
+}
+const age = (t, t0) => t - t0;
+
+/* ---- what each row says and its colours ---- */
+const MAJ = [0, 2, 4, 5, 7, 9, 11], NN = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+function rowNote(r) { let n = P.note; while (!MAJ.includes(n % 12)) n--; let d = MAJ.indexOf(n % 12) + r, o = Math.floor(n / 12) + Math.floor(d / 7);
+  return NN[MAJ[d % 7]] + (o - 1); }
+const PADN = ["BD", "SN", "HH", "4", "5", "6", "7", "8"];
+function rowLabel(r) { return !isKit ? rowNote(r) : P.map === 1 ? (r % 3 === 1 || r === 6 ? ["BD", "SN", "HH"][BAND(r)] : "") : PADN[r]; }
+function rowTones(r) {
+  if (S.dead) return GREY;
+  if (!isKit) return K[0];
+  const v = P.map === 1 ? BAND(r) : r; return [K[3], K[1], K[2], K[0], K[0], K[0], K[0], K[0]][v];
+}
+
+/* ---- shared drawing ---- */
+function header(c) {
+  c.fillStyle = BAR; c.fillRect(0, 0, 240, 30); c.fillRect(0, 196, 240, 44);
+  poly(c, [[8, 7], [30, 7], [34, 11], [34, 23], [12, 23], [8, 19]], K[1][1]);
+  text(c, "1", 21, 15.5, 13, BAR, "center"); text(c, "SEQ", 42, 15.5, 15, "#f4f1ff"); text(c, PAGES[shownPage][0], 76, 15.5, 15, K[3][1]);
+  text(c, `S${String(P.seed).padStart(3, "0")}`, 232, 15.5, 11, age(performance.now() / 1000, S.seedT) < 0.6 ? HOT[0] : UI, "right", 500);
+  const ks = shownPage === 0 ? [["DIV", DIVN[P.div], P.div / 2], ["POLY", P.poly, (P.poly - 1) / 3],
+      isKit ? ["MAP", MAPN[P.map], P.map] : ["NOTE", rowNote(0), (P.note - 36) / 48], ["SOURCE", "LIFE", 1]]
+    : shownPage === 1 ? [["SEED", P.seed, P.seed / 127], ["DENS", P.dens, P.dens / 127], ["AUTO", OFFON[P.auto], P.auto]]
+    : [["GEN", GENN[P.gen], P.gen / 3], ["MUT", P.mut, P.mut / 127]];
+  ks.forEach(([l, v, k], i) => { const x = 6 + 60 * i, col = [K[0][1], K[1][1], "#f4f1ff", K[3][1]][i];
+    text(c, l, x, 205, 9, col, "left", 500); text(c, String(v), x, 220, 15, col);
+    c.fillStyle = "#221a3a"; c.fillRect(x, 235, 48, 2); c.fillStyle = col; c.fillRect(x, 235, 48 * k, 2); });
+}
+const SHARDV = [[-1.2, -2.2], [1.4, -2.6], [-0.4, -3], [2.2, -1.4], [-2.4, -1.2], [0.8, -1.8]];
+function burst(c, x, y, k, tones, n = 1) { if (k >= 1 || k < 0) return;
+  SHARDV.forEach(([vx, vy], i) => { const px = x + vx * 7 * n * k, py = y + vy * 7 * n * k + 30 * k * k, s = 2.5 * (1 - k) + 0.8;
+    poly(c, [[px, py - s], [px + s, py + s * 0.4], [px - s * 0.6, py + s]], i % 3 === 0 ? tones[0] : i % 3 === 1 ? tones[1] : HOT[0]); }); }
+function bolt(c, x0, y0, x1, y1, u, w = 2) { [[0.3, HOT[2]], [0.16, HOT[1]], [0.07, HOT[0]]].forEach(([len, cc], i) => { const k0 = Math.max(0, u - len);
+  stroke(c, [[lerp(x0, x1, k0), lerp(y0, y1, k0)], [lerp(x0, x1, u), lerp(y0, y1, u)]], cc, i === 2 ? w : w - 0.5, false); }); }
+/* MUT: sparks in the sky, more with MUT; at a generation, sparks fall onto the mutated cells */
+function sky(c, t) {
+  for (let i = 0; i < 30; i++) { const x = (hash(i * 7 + 11) * 240 + t * 2) % 240, y = 34 + hash(i * 13 + 5) * 40;
+    c.fillStyle = hash(i * 3) < 0.2 ? "#a99ce0" : "#3a3068"; c.fillRect(x, y, 1, 1); }
+  const n = Math.round(P.mut / 127 * 10);
+  for (let i = 0; i < n; i++) { const k = (t * 0.6 + hash(i * 31)) % 1, x = hash(i * 17 + Math.floor(t * 0.6 + hash(i * 31))) * 240, y = 34 + k * 30;
+    poly(c, [[x, y - 2], [x + 1.5, y], [x, y + 2], [x - 1.5, y]], k < 0.7 ? HOT[1] : HOT[2]); }
+}
+function mutRain(c, t, pos) { const k = age(t, S.genT) / 0.35; if (k >= 1) return;
+  S.mut.forEach((m, i) => { if (!m) return; const [x, y] = pos(i % W, Math.floor(i / W)), yy = lerp(36, y, k);
+    stroke(c, [[x, yy - 8], [x, yy]], HOT[1], 1.5, false); poly(c, [[x, yy - 3], [x + 2, yy], [x, yy + 3], [x - 2, yy]], HOT[0]); }); }
+/* GEN: as many diamonds as tours per generation, one lit per tour gone */
+function genTicks(c, x, y) { const n = GENN[P.gen], done = S.tours % n;
+  for (let i = 0; i < n; i++) { const xx = x + i * 9, on = i < done || (n === 1);
+    poly(c, [[xx, y - 3.5], [xx + 3.5, y], [xx, y + 3.5], [xx - 3.5, y]], on ? K[3][1] : "#2a2148"); } }
+/* AUTO: two arrows turning when ON; OFF a still dim square; a dead or stuck grid reads ÉTEINT / FIGÉ */
+function autoMark(c, t, x, y) {
+  if (P.auto) { const a = t * 2; [0, Math.PI].forEach(o => { const ax = x + Math.cos(a + o) * 6, ay = y + Math.sin(a + o) * 6, tx = -Math.sin(a + o), ty = Math.cos(a + o);
+      poly(c, [[ax + tx * 4, ay + ty * 4], [ax - ty * 3, ay + tx * 3], [ax + ty * 3, ay - tx * 3]], K[1][1]); }); }
+  else stroke(c, [[x - 5, y - 5], [x + 5, y - 5], [x + 5, y + 5], [x - 5, y + 5]], "#4a4466");
+  if (S.dead) text(c, S.g.some(v => v) ? "FIGÉ" : "ÉTEINT", 120, 112, 14, "#c9c3e4", "center");
+}
+/* the reseed: cells drop from above */
+const dropOf = (t, i) => { const k = (age(t, S.seedT) - hash(i) * 0.25) / 0.35; return k >= 1 ? 0 : k <= 0 ? 60 : (1 - k) * (1 - k) * 60; };
+const flash = (t, r) => S.played.includes(r) ? age(t, S.colT) : 9;
+
+/* ---- L1: slabs on an oblique plate ---- */
+const GX = 11.5, GY = 1.5, RX = 2, RY = 8.5;
+const at = (ox, oy) => (u, w, h = 0) => [ox + u * GX - w * RX, oy + u * GY + w * RY - h];
+function block(c, A, u, w, h0, h, T) {
+  const a = A(u, w, h), b = A(u + 1, w, h), cc = A(u + 1, w + 1, h), d = A(u, w + 1, h), b0 = A(u + 1, w, h0), c0 = A(u + 1, w + 1, h0), d0 = A(u, w + 1, h0);
+  poly(c, [d, cc, c0, d0], T[1]); poly(c, [b, cc, c0, b0], T[2]); poly(c, [a, b, cc, d], T[0]);
+}
+function plate(c, A, col, t) {
+  poly(c, [A(0, 0), A(W, 0), A(W, H), A(0, H)], "#0e0a26");
+  poly(c, [A(0, H), A(W, H), A(W, H, -4), A(0, H, -4)], "#160f36"); poly(c, [A(W, 0), A(W, H), A(W, H, -4), A(W, 0, -4)], "#0b0820");
+  for (let u = 0; u <= W; u++) stroke(c, [A(u, 0), A(u, H)], u % 4 ? "#1c1340" : WIRE, 1, false);
+  for (let w = 0; w <= H; w++) stroke(c, [A(0, w), A(W, w)], "#1c1340", 1, false);
+  /* the head: the column lit on the plate, a sight with POLY notches at the front */
+  const k = clamp(age(t, S.colT) / stepDur(), 0, 1), u = col;
+  poly(c, [A(u, 0), A(u + 1, 0), A(u + 1, H), A(u, H)], "#241850");
+  stroke(c, [A(u, -0.6), A(u, H + 0.6)], HOT[1], 1.5, false); stroke(c, [A(u + 1, -0.6), A(u + 1, H + 0.6)], HOT[2], 1, false);
+  const [fx, fy] = A(u + 0.5, H + 1.1);
+  for (let i = 0; i < 4; i++) poly(c, [[fx - 7 + i * 4.5, fy], [fx - 5 + i * 4.5, fy - 3], [fx - 3 + i * 4.5, fy]], i < (isKit ? Math.min(3, P.poly) : P.poly) ? HOT[0] : "#2a2148");
+}
+function labels(c, A, t) {
+  for (let r = 0; r < H; r++) { const [x, y] = A(0, H - 1 - r + 0.5), f = flash(t, r);
+    text(c, rowLabel(r), x - 4, y, 8, f < 0.15 ? HOT[0] : isKit ? rowTones(r)[1] : UI, "right", 500); }
+}
+function slabs(c, t) {
+  c.fillStyle = BG; c.fillRect(0, 30, 240, 166); sky(c, t);
+  const A = at(46, 70);
+  plate(c, A, S.col, t);
+  genTicks(c, 150, 64); autoMark(c, t, 224, 44);
+  for (let w = 0; w < H; w++) for (let u = 0; u < W; u++) {
+    const r = H - 1 - w, i = idx(u, r), f = u === S.col ? flash(t, r) : 9, ga = age(t, S.genT);
+    if (S.g[i]) {
+      const grow = S.born[i] ? clamp(ga / 0.3, 0, 1) : 1, hot = f < 0.15 || (S.born[i] && ga < 0.3);
+      block(c, A, u, w, 0, 2 + 6 * grow + (f < 0.15 ? 3 : 0), hot ? HOT : rowTones(r));
+      if (dropOf(t, i) > 0) { const [x, y] = A(u + 0.5, w + 0.5, 6 + dropOf(t, i)); poly(c, [[x, y - 3], [x + 3, y], [x, y + 3], [x - 3, y]], HOT[0]); }
+    } else if (S.died[i] && ga < 0.45) { const [x, y] = A(u + 0.5, w + 0.5, 4); burst(c, x, y, ga / 0.45, rowTones(r)); }
+  }
+  mutRain(c, t, (u, r) => A(u + 0.5, H - 1 - r + 0.5, 8));
+  labels(c, A, t);
+  header(c);
+}
+
+/* ---- L2: crystals over a wire floor, a ship along the front edge firing on the cells that play ---- */
+function crystals(c, t) {
+  c.fillStyle = BG; c.fillRect(0, 30, 240, 166); sky(c, t);
+  const A = at(46, 68);
+  for (let u = -2; u <= W + 2; u++) stroke(c, [A(u, -2), A(u, H + 2)], "#120c2a", 1, false);
+  for (let w = -2; w <= H + 2; w++) stroke(c, [A(-2, w), A(W + 2, w)], "#120c2a", 1, false);
+  for (let w = 0; w < H; w++) for (let u = 0; u < W; u++) { const [x, y] = A(u + 0.5, w + 0.5); poly(c, [[x - 2, y], [x, y - 1], [x + 2, y], [x, y + 1]], u === S.col ? HOT[2] : WIRE); }
+  genTicks(c, 150, 62); autoMark(c, t, 224, 44);
+  const k = clamp(S.phase, 0, 1), sx = A(S.col + 0.5 + k, H + 1.4);
+  for (let w = 0; w < H; w++) for (let u = 0; u < W; u++) {
+    const r = H - 1 - w, i = idx(u, r), f = u === S.col ? flash(t, r) : 9, ga = age(t, S.genT), [x, y] = A(u + 0.5, w + 0.5);
+    if (S.g[i]) {
+      const grow = S.born[i] ? clamp(ga / 0.3, 0, 1) : 1, hov = 7 + Math.sin(t * 2 + u * 0.7 + r) * 1.5 + dropOf(t, i);
+      stroke(c, [[x, y], [x, y - hov + 3]], "#1c1340", 1, false);
+      if (f < 0.08) bolt(c, sx[0], sx[1] - 4, x, y - hov, f / 0.08);
+      if (f >= 0.08 && f < 0.4) burst(c, x, y - hov, (f - 0.08) / 0.32, rowTones(r), 0.9);
+      const back = f < 0.08 ? 1 : f < 0.4 ? 0 : clamp((f - 0.4) / 0.3, 0, 1);
+      if (back > 0) draw3d(c, OCTA, { cx: x, cy: y - hov, s: 4.2 * grow * back, ay: t * 1.2 + u, ax: 0.5, tones: f < 0.08 || (S.born[i] && ga < 0.3) ? HOT : rowTones(r) });
+    } else if (S.died[i] && ga < 0.5) { const k2 = ga / 0.5; draw3d(c, OCTA, { cx: x, cy: y - 7 + k2 * 7, s: 4 * (1 - k2), ay: t, ax: 0.5, tones: GREY }); }
+  }
+  /* the ship: POLY guns under it */
+  draw3d(c, TETRA, { cx: sx[0], cy: sx[1], s: 6, ay: 0.8, ax: 1.0, tones: K[2] });
+  for (let g = 0; g < (isKit ? Math.min(3, P.poly) : P.poly); g++) poly(c, [[sx[0] - 7 + g * 4.5, sx[1] + 8], [sx[0] - 5 + g * 4.5, sx[1] + 5], [sx[0] - 3 + g * 4.5, sx[1] + 8]], HOT[0]);
+  mutRain(c, t, (u, r) => A(u + 0.5, H - 1 - r + 0.5, 8));
+  labels(c, A, t);
+  header(c);
+}
+
+/* ---- L3: strata, the three past generations as dimmer layers under the current one ---- */
+const PAST = [["#2c2460", "#211a4a", "#171236"], ["#221c4a", "#19143a", "#110d2a"], ["#18143a", "#120f2c", "#0c0920"]];
+function strata(c, t) {
+  c.fillStyle = BG; c.fillRect(0, 30, 240, 166); sky(c, t);
+  const slide = clamp(age(t, S.genT) / 0.35, 0, 1), ga = age(t, S.genT);
+  genTicks(c, 150, 56); autoMark(c, t, 224, 44);
+  for (let L = Math.min(3, S.hist.length) - 1; L >= 0; L--) {
+    const A = at(46, 62 + (L + slide) * 9), g = S.hist[L];
+    poly(c, [A(0, 0), A(W, 0), A(W, H), A(0, H)], "#0a0720");
+    for (let w = 0; w < H; w++) for (let u = 0; u < W; u++) if (g[idx(u, H - 1 - w)]) block(c, A, u, w, 0, 2.5, PAST[L]);
+    stroke(c, [A(S.col, 0), A(S.col, H)], HOT[2], 1, false);
+  }
+  const A = at(46, 62);
+  poly(c, [A(0, 0), A(W, 0), A(W, H), A(0, H)], "#120d30");
+  for (let u = 0; u <= W; u++) stroke(c, [A(u, 0), A(u, H)], u % 4 ? "#1c1340" : WIRE, 1, false);
+  poly(c, [A(S.col, 0), A(S.col + 1, 0), A(S.col + 1, H), A(S.col, H)], "#241850");
+  /* the slice: the head's plane through every layer */
+  const depth = Math.min(3, S.hist.length) * 9 + 6;
+  stroke(c, [A(S.col, -0.4), A(S.col, H + 0.4), A(S.col, H + 0.4, -depth)], HOT[1], 1.5, false);
+  for (let w = 0; w < H; w++) for (let u = 0; u < W; u++) {
+    const r = H - 1 - w, i = idx(u, r), f = u === S.col ? flash(t, r) : 9;
+    if (S.g[i]) { const grow = S.born[i] ? clamp(ga / 0.3, 0, 1) : 1, hot = f < 0.15 || (S.born[i] && ga < 0.3);
+      block(c, A, u, w, 0, 2 + 5 * grow + (f < 0.15 ? 3 : 0), hot ? HOT : rowTones(r));
+      if (dropOf(t, i) > 0) { const [x, y] = A(u + 0.5, w + 0.5, 6 + dropOf(t, i)); poly(c, [[x, y - 3], [x + 3, y], [x, y + 3], [x - 3, y]], HOT[0]); } }
+    else if (S.died[i] && ga < 0.45) { const [x, y] = A(u + 0.5, w + 0.5, 4); burst(c, x, y, ga / 0.45, rowTones(r)); }
+  }
+  const [fx, fy] = A(S.col + 0.5, H + 1.1);
+  for (let k = 0; k < 4; k++) poly(c, [[fx - 7 + k * 4.5, fy], [fx - 5 + k * 4.5, fy - 3], [fx - 3 + k * 4.5, fy]], k < (isKit ? Math.min(3, P.poly) : P.poly) ? HOT[0] : "#2a2148");
+  mutRain(c, t, (u, r) => A(u + 0.5, H - 1 - r + 0.5, 8));
+  labels(c, A, t);
+  header(c);
+}
+
+/* ---- organic directions: a dark dish instead of the plate, the head a lighter strip with the POLY notches ---- */
+const facetTone = (dx, dy, T) => { const d = (-0.6 * dx - 0.8 * dy) / (Math.hypot(dx, dy) || 1); return d > 0.3 ? T[0] : d > -0.3 ? T[1] : T[2]; };
+const DISH = [...Array(18).keys()].map(k => { const a = k / 18 * TAU; return [Math.cos(a) * (1.08 + hash(k * 5) * 0.06), Math.sin(a) * (1.25 + hash(k * 9) * 0.1)]; });
+function dish(c, A, t) {
+  const [cx, cy] = A(W / 2, H / 2), [ex] = A(W, H / 2), ry = (A(0, H)[1] - A(0, 0)[1]) / 2;
+  poly(c, DISH.map(([x, y]) => [cx + x * (ex - cx), cy + y * ry]), "#0c0822");
+  poly(c, [A(S.col, 0), A(S.col + 1, 0), A(S.col + 1, H), A(S.col, H)], "#1a1240");
+  const [bx, by] = A(S.col + 0.5, -0.5); poly(c, [[bx - 3, by - 4], [bx + 3, by - 4], [bx, by]], HOT[1]);
+  const [fx, fy] = A(S.col + 0.5, H + 1.1);
+  for (let k = 0; k < 4; k++) poly(c, [[fx - 7 + k * 4.5, fy], [fx - 5 + k * 4.5, fy - 3], [fx - 3 + k * 4.5, fy]], k < (isKit ? Math.min(3, P.poly) : P.poly) ? HOT[0] : "#2a2148");
+}
+/* a cell's life: 0..1 grown (birth, reseed), its tones, and how much it swells now */
+function cellState(t, u, r) {
+  const i = idx(u, r), ga = age(t, S.genT), f = u === S.col ? flash(t, r) : 9;
+  if (S.g[i]) { const grow = (S.born[i] ? clamp(ga / 0.35, 0, 1) : 1) * (dropOf(t, i) > 0 ? 1 - dropOf(t, i) / 60 : 1);
+    return { alive: 1, grow, f, T: f < 0.15 || (S.born[i] && ga < 0.35) ? HOT : rowTones(r), swell: f < 0.2 ? 1 - f / 0.2 : 0 }; }
+  if (S.died[i] && ga < 0.45) return { alive: 0, grow: 1 - ga / 0.45, f: 9, T: GREY, swell: 0 };
+  return null;
+}
+function organicFrame(c, t, A, body) {
+  c.fillStyle = BG; c.fillRect(0, 30, 240, 166); sky(c, t);
+  dish(c, A, t); genTicks(c, 150, 60); autoMark(c, t, 224, 44);
+  body();
+  mutRain(c, t, (u, r) => A(u + 0.5, H - 1 - r + 0.5, 6));
+  labels(c, A, t); header(c);
+}
+
+/* a culture medium: slow drifting specks instead of the stars */
+function medium(c, t) {
+  for (let i = 0; i < 40; i++) { const x = (hash(i * 7 + 3) * 260 + Math.sin(t * 0.3 + i) * 6 + t * (1 + hash(i) * 2)) % 260 - 10, y = 34 + (hash(i * 13 + 1) * 160 + Math.cos(t * 0.25 + i * 2) * 5) % 160;
+    poly(c, [[x, y - 1], [x + 1, y], [x, y + 1], [x - 1, y]], hash(i * 5) < 0.25 ? "#2c2558" : "#1a1538"); }
+}
+function bioFrame(c, t, A, body, scope = false) {
+  c.fillStyle = BG; c.fillRect(0, 30, 240, 166); medium(c, t);
+  if (scope) {
+    const oct = [...Array(8).keys()].map(k => { const a = (k + 0.5) / 8 * TAU; return [128 + Math.cos(a) * 104, 110 + Math.sin(a) * 76]; });
+    poly(c, oct, "#100c2c"); stroke(c, oct, "#2a2250", 1.5);
+    stroke(c, [[24, 110], [232, 110]], "#1d1840", 1, false); stroke(c, [[128, 36], [128, 186]], "#1d1840", 1, false);
+    for (let k = -5; k <= 5; k++) stroke(c, [[128 + k * 16, 107], [128 + k * 16, 113]], "#1d1840", 1, false);
+    poly(c, [[190, 178], [214, 178], [214, 180], [190, 180]], UI); text(c, "10 µm", 202, 172, 7, UI, "center", 500);
+    poly(c, [A(S.col, 0), A(S.col + 1, 0), A(S.col + 1, H), A(S.col, H)], "#191338");
+    const [bx, by] = A(S.col + 0.5, -0.5); poly(c, [[bx - 3, by - 4], [bx + 3, by - 4], [bx, by]], HOT[1]);
+    const [fx, fy] = A(S.col + 0.5, H + 1.1);
+    for (let k = 0; k < 4; k++) poly(c, [[fx - 7 + k * 4.5, fy], [fx - 5 + k * 4.5, fy - 3], [fx - 3 + k * 4.5, fy]], k < (isKit ? Math.min(3, P.poly) : P.poly) ? HOT[0] : "#2a2148");
+  } else dish(c, A, t);
+  genTicks(c, 150, 60); autoMark(c, t, 224, 44);
+  body();
+  mutRain(c, t, (u, r) => A(u + 0.5, H - 1 - r + 0.5, 6));
+  labels(c, A, t); header(c);
+}
+const facets = (c, cx, cy, v, T) => v.forEach((p, k) => { const q = v[(k + 1) % v.length]; poly(c, [[cx, cy], p, q], facetTone((p[0] + q[0]) / 2 - cx, (p[1] + q[1]) / 2 - cy, T)); });
+
+/* B1: bacilli wagging their flagella; birth by fission, death by lysis */
+function bacteria(c, t) {
+  const A = at(46, 72);
+  bioFrame(c, t, A, () => {
+    for (let w = 0; w < H; w++) for (let u = 0; u < W; u++) {
+      const r = H - 1 - w, i = idx(u, r), st = cellState(t, u, r); if (!st) continue;
+      const [x0, y0] = A(u + 0.5, w + 0.5, 2), x = x0 + Math.sin(t * 0.7 + i) * 1.2, y = y0 + Math.cos(t * 0.9 + i * 2) * 0.8;
+      if (!st.alive) { burst(c, x, y, 1 - st.grow, GREY, 0.8); continue; }
+      const jig = st.swell * Math.sin(t * 40) * 0.25, a = hash(i) * Math.PI + Math.sin(t * 0.5 + i) * 0.2 + jig, ca = Math.cos(a), sa = Math.sin(a);
+      const L = 6.5 * st.grow * (1 + 0.2 * st.swell), R = 2.6 * st.grow * (1 + 0.25 * st.swell);
+      const local = [[L + R * 0.7, 0], [L, -R], [0, -R * 1.1], [-L, -R], [-L - R * 0.7, 0], [-L, R], [0, R * 1.1], [L, R]];
+      const v = local.map(([px, py]) => [x + px * ca - py * sa * 0.7, y + px * sa * 0.6 + py * ca * 0.7]);
+      /* the flagellum, from the back end */
+      const bx = v[4][0], by = v[4][1], fl = [[bx, by]];
+      for (let k = 1; k <= 4; k++) { const d = k * 2.6 * st.grow, wv = Math.sin(t * (st.swell ? 22 : 9) + k * 1.4 + i) * 1.6;
+        fl.push([bx - d * ca - wv * sa * 0.7, by - d * sa * 0.6 + wv * ca * 0.7]); }
+      stroke(c, fl, st.T[2] === GREY[2] ? GREY[1] : st.T === HOT ? HOT[1] : K[0][2], 1, false);
+      facets(c, x, y, v, st.T);
+      /* fission: the septum across the newborn while it splits off */
+      if (S.born[i] && age(t, S.genT) < 0.35) stroke(c, [v[2], v[6]], HOT[0], 1.5, false);
+    }
+  });
+}
+
+/* B2: ball-and-stick molecules; an excited atom sends photons, a newborn comes with its electrons */
+function molecules(c, t) {
+  const A = at(46, 72);
+  bioFrame(c, t, A, () => {
+    const pos = (u, w) => { const i = idx(u, H - 1 - w), [x, y] = A(u + 0.5, w + 0.5, 4); return [x + Math.sin(t * 1.3 + i) * 0.8, y + Math.cos(t * 1.1 + i * 3) * 0.8]; };
+    for (let w = 0; w < H; w++) for (let u = 0; u < W; u++) { if (!S.g[idx(u, H - 1 - w)]) continue;
+      [[1, 0], [0, 1], [1, 1], [-1, 1]].forEach(([du, dw]) => { const u2 = u + du, w2 = w + dw; if (u2 < 0 || u2 >= W || w2 >= H || !S.g[idx(u2, H - 1 - w2)]) return;
+        const p0 = pos(u, w), p1 = pos(u2, w2), lit = (u === S.col && flash(t, H - 1 - w) < 0.2) || (u2 === S.col && flash(t, H - 1 - w2) < 0.2);
+        const col = lit ? HOT[1] : "#5a5488";
+        if (du && dw) stroke(c, [p0, p1], col, 1.5, false);
+        else { const nx = -(p1[1] - p0[1]), ny = p1[0] - p0[0], l = Math.hypot(nx, ny), ox = nx / l * 1.3, oy = ny / l * 1.3;
+          stroke(c, [[p0[0] + ox, p0[1] + oy], [p1[0] + ox, p1[1] + oy]], col, 1, false); stroke(c, [[p0[0] - ox, p0[1] - oy], [p1[0] - ox, p1[1] - oy]], col, 1, false); } }); }
+    for (let w = 0; w < H; w++) for (let u = 0; u < W; u++) {
+      const r = H - 1 - w, i = idx(u, r), st = cellState(t, u, r); if (!st) continue;
+      const [x, y] = pos(u, w);
+      if (!st.alive) { draw3d(c, ICO, { cx: x, cy: y + (1 - st.grow) * 6, s: 4 * st.grow, ay: t, ax: 0.4, tones: GREY }); continue; }
+      draw3d(c, ICO, { cx: x, cy: y, s: (4 + 1.5 * st.swell) * st.grow, ay: t * 0.6 + i, ax: 0.4, tones: st.T });
+      if (st.f < 0.3) { const k = st.f / 0.3; for (let j = 0; j < 4; j++) { const a = j * TAU / 4 + 0.8, d = 5 + k * 10, px = x + Math.cos(a) * d, py = y + Math.sin(a) * d * 0.7;
+        poly(c, [[px, py - 1.5], [px + 1.5, py], [px, py + 1.5], [px - 1.5, py]], k < 0.6 ? HOT[0] : HOT[2]); } }
+      if (S.born[i] && age(t, S.genT) < 0.6) for (let j = 0; j < 3; j++) { const a = t * 6 + j * TAU / 3, px = x + Math.cos(a) * 7, py = y + Math.sin(a) * 3 - Math.cos(a) * 2;
+        poly(c, [[px, py - 1.2], [px + 1.2, py], [px, py + 1.2], [px - 1.2, py]], K[1][0]); }
+    }
+  });
+}
+
+/* B3: radiolaria under the microscope; their spines grow pink when they play */
+function radiolaria(c, t) {
+  const A = at(46, 70);
+  bioFrame(c, t, A, () => {
+    for (let w = 0; w < H; w++) for (let u = 0; u < W; u++) {
+      const r = H - 1 - w, i = idx(u, r), st = cellState(t, u, r); if (!st) continue;
+      const [x, y] = A(u + 0.5, w + 0.5, 3), n = 5 + Math.floor(hash(i * 3) * 3), a0 = t * (0.3 + hash(i) * 0.4) * (hash(i * 5) < 0.5 ? 1 : -1);
+      const R = 3.4 * st.grow * (1 + 0.15 * st.swell), sp = (2.5 + 5 * st.swell) * st.grow * (st.alive ? 1 : 0.4);
+      for (let k = 0; k < n; k++) { const a = a0 + k * TAU / n, ca = Math.cos(a), sa = Math.sin(a) * 0.75, px = -sa * 1, py = ca * 1;
+        poly(c, [[x + ca * R * 0.8 + px, y + sa * R * 0.8 + py], [x + ca * (R + sp), y + sa * (R + sp)], [x + ca * R * 0.8 - px, y + sa * R * 0.8 - py]], st.alive ? (st.f < 0.2 ? HOT[1] : st.T[1]) : GREY[2]); }
+      const v = [...Array(n).keys()].map(k => { const a = a0 + (k + 0.5) * TAU / n; return [x + Math.cos(a) * R, y + Math.sin(a) * R * 0.75]; });
+      facets(c, x, y, v, st.T);
+      const m = R * 0.4; poly(c, [[x, y - m], [x + m, y], [x, y + m], [x - m, y]], st.f < 0.2 ? HOT[0] : st.T[2]);
+    }
+  }, true);
+}
+
+/* ---- M: molecules seen from the front, the grid filling the screen ---- */
+const MX = u => 22 + u * 13.6 + 6.8, MY = r => 38 + (H - 1 - r) * 18.5 + 9.25;
+function frontFrame(c, t, body) {
+  c.fillStyle = BG; c.fillRect(0, 30, 240, 166); medium(c, t);
+  c.fillStyle = "#130e2e"; c.fillRect(MX(S.col) - 6.8, 36, 13.6, 152);
+  body();
+  mutRain(c, t, (u, r) => [MX(u), MY(r)]);
+  for (let r = 0; r < H; r++) { const f = flash(t, r); text(c, rowLabel(r), 19, MY(r), 8, f < 0.15 ? HOT[0] : isKit ? rowTones(r)[1] : UI, "right", 500); }
+  if (S.dead) text(c, S.g.some(v => v) ? "FIGÉ" : "ÉTEINT", 128, 112, 14, "#c9c3e4", "center");
+  header(c);
+  /* in the bar: the head's POLY notches over its column, GEN's diamonds, AUTO's arrows */
+  const x = MX(S.col), np = isKit ? Math.min(3, P.poly) : P.poly;
+  for (let k = 0; k < 4; k++) poly(c, [[x - 7 + k * 4.5, 34], [x - 5 + k * 4.5, 30], [x - 3 + k * 4.5, 34]], k < np ? HOT[0] : "#2a2148");
+  const n = GENN[P.gen], done = S.tours % n;
+  for (let i = 0; i < n; i++) { const xx = 118 + i * 8; poly(c, [[xx, 12], [xx + 3, 15], [xx, 18], [xx - 3, 15]], i < done || n === 1 ? K[3][1] : "#2a2148"); }
+  if (P.auto) { const a = t * 2; [0, Math.PI].forEach(o => { const ax = 192 + Math.cos(a + o) * 5, ay = 15 + Math.sin(a + o) * 5, tx = -Math.sin(a + o), ty = Math.cos(a + o);
+      poly(c, [[ax + tx * 3.5, ay + ty * 3.5], [ax - ty * 2.5, ay + tx * 2.5], [ax + ty * 2.5, ay - tx * 2.5]], K[1][1]); }); }
+  else stroke(c, [[188, 11], [196, 11], [196, 19], [188, 19]], "#4a4466");
+}
+const near = (u, r) => { let n = 0; for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) if (dr || dc) n += S.g[idx(u + dc, r + dr)]; return n; };
+const BONDS = [[1, 0], [0, 1], [1, 1], [-1, 1]];   /* to the right and up, not across the torus' seam */
+const bondLit = (t, u, r, u2, r2) => (u === S.col && flash(t, r) < 0.2) || (u2 === S.col && flash(t, r2) < 0.2);
+/* a stick: two tones split along its length */
+function stick(c, p0, p1, wd, T) {
+  const nx = -(p1[1] - p0[1]), ny = p1[0] - p0[0], l = Math.hypot(nx, ny) || 1, ox = nx / l * wd / 2, oy = ny / l * wd / 2;
+  poly(c, [[p0[0] + ox, p0[1] + oy], [p1[0] + ox, p1[1] + oy], p1, p0], T[0]); poly(c, [[p0[0] - ox, p0[1] - oy], [p1[0] - ox, p1[1] - oy], p1, p0], T[2]);
+}
+function bond(c, p0, p1, diag, T, s = 1) {
+  if (diag) { stick(c, p0, p1, 2.2 * s, T); return; }
+  const nx = -(p1[1] - p0[1]), ny = p1[0] - p0[0], l = Math.hypot(nx, ny), ox = nx / l * 1.6 * s, oy = ny / l * 1.6 * s;
+  stick(c, [p0[0] + ox, p0[1] + oy], [p1[0] + ox, p1[1] + oy], 1.6 * s, T); stick(c, [p0[0] - ox, p0[1] - oy], [p1[0] - ox, p1[1] - oy], 1.6 * s, T);
+}
+const BOND_T = ["#6f68a8", "#4a4480", "#2c2858"];
+function atomFx(c, t, x, y, st, i) {
+  if (st.f < 0.3) { const k = st.f / 0.3; for (let j = 0; j < 6; j++) { const a = j * TAU / 6 + 0.3, d = 6 + k * 12, px = x + Math.cos(a) * d, py = y + Math.sin(a) * d;
+    poly(c, [[px, py - 1.5], [px + 1.5, py], [px, py + 1.5], [px - 1.5, py]], k < 0.6 ? HOT[0] : HOT[2]); } }
+  if (S.born[i] && age(t, S.genT) < 0.7) for (let j = 0; j < 3; j++) { const a = t * 6 + j * TAU / 3, px = x + Math.cos(a) * 9, py = y + Math.sin(a) * 3.5 - Math.cos(a) * 2;
+    poly(c, [[px, py - 1.4], [px + 1.4, py], [px, py + 1.4], [px - 1.4, py]], K[1][0]); }
+}
+function flatMolecules(c, t, valence) {
+  const wob = (u, r, k) => { const i = idx(u, r), n = valence && S.g[i] && (near(u, r) < 2 || near(u, r) > 3) ? 1.6 : 0.6;
+    return [MX(u) + Math.sin(t * (valence && n > 1 ? 31 : 1.3) + i) * n, MY(r) + Math.cos(t * (valence && n > 1 ? 27 : 1.1) + i * 3) * n]; };
+  for (let r = 0; r < H; r++) for (let u = 0; u < W; u++) { if (!S.g[idx(u, r)]) continue;
+    BONDS.forEach(([du, dr]) => { const u2 = u + du, r2 = r + dr; if (u2 < 0 || u2 >= W || r2 >= H || !S.g[idx(u2, r2)]) return;
+      bond(c, wob(u, r), wob(u2, r2), du && dr, bondLit(t, u, r, u2, r2) ? HOT : BOND_T); }); }
+  if (valence) for (let r = 0; r < H; r++) for (let u = 0; u < W; u++) if (!S.g[idx(u, r)] && near(u, r) === 3) {
+    const x = MX(u), y = MY(r), s = 4.5 + Math.sin(t * 4 + u + r) * 0.6, v = [...Array(6).keys()].map(k => [x + Math.cos(k * TAU / 6 + t) * s, y + Math.sin(k * TAU / 6 + t) * s]);
+    stroke(c, v, "#3a6dff", 1); stroke(c, [v[0], v[3]], "#1c3590", 1, false); stroke(c, [v[1], v[4]], "#1c3590", 1, false); }
+  for (let r = 0; r < H; r++) for (let u = 0; u < W; u++) {
+    const i = idx(u, r), st = cellState(t, u, r); if (!st) continue;
+    const [x, y] = wob(u, r);
+    if (!st.alive) { draw3d(c, ICO, { cx: x, cy: y + (1 - st.grow) * 8, s: 5.5 * st.grow, ay: t, ax: 0.4, tones: GREY }); continue; }
+    const doomed = valence && (near(u, r) < 2 || near(u, r) > 3) && st.T !== HOT;
+    draw3d(c, ICO, { cx: x, cy: y, s: (5.5 + 2 * st.swell) * st.grow, ay: t * 0.6 + i, ax: 0.4, tones: doomed ? [K[0][2], "#142560", "#0c1640"] : st.T });
+    atomFx(c, t, x, y, st, i);
+  }
+}
+const mBall = (c, t) => frontFrame(c, t, () => flatMolecules(c, t, false));
+const mValence = (c, t) => frontFrame(c, t, () => flatMolecules(c, t, true));
+
+/* M2: each cluster a rigid molecule turning a little about its centre; nearer atoms drawn bigger */
+function m3d(c, t) {
+  frontFrame(c, t, () => {
+    const id = new Int16Array(W * H).fill(-1), groups = [];
+    for (let r = 0; r < H; r++) for (let u = 0; u < W; u++) { const i = idx(u, r); if (!S.g[i] && !cellState(t, u, r) || id[i] >= 0) continue;
+      const g = [], q = [[u, r]]; id[i] = groups.length;
+      while (q.length) { const [a, b] = q.pop(); g.push([a, b]);
+        for (let db = -1; db <= 1; db++) for (let da = -1; da <= 1; da++) { const a2 = a + da, b2 = b + db; if (a2 < 0 || a2 >= W || b2 < 0 || b2 >= H) continue;
+          const j = idx(a2, b2); if (id[j] < 0 && S.g[j] && S.g[idx(a, b)]) { id[j] = groups.length; q.push([a2, b2]); } } }
+      groups.push(g); }
+    const items = [];
+    groups.forEach((g, gi) => {
+      const cx = g.reduce((s2, [a]) => s2 + MX(a), 0) / g.length, cy = g.reduce((s2, [, b]) => s2 + MY(b), 0) / g.length, seed = idx(g[0][0], g[0][1]);
+      const ay = Math.sin(t * 0.7 + seed) * 0.55, ax = Math.cos(t * 0.55 + seed * 2) * 0.35;
+      const P2 = new Map(g.map(([a, b]) => { const [x, y, z] = rot([MX(a) - cx, MY(b) - cy, 0], ay, ax); return [idx(a, b), [cx + x, cy + y, z]]; }));
+      g.forEach(([u, r]) => { const i = idx(u, r), st = cellState(t, u, r); if (!st) return; const [x, y, z] = P2.get(i);
+        items.push({ z, draw: () => { const s = 1 + z / 60;
+          if (!st.alive) { draw3d(c, ICO, { cx: x, cy: y + (1 - st.grow) * 8, s: 5.5 * st.grow * s, ay: t, ax: 0.4, tones: GREY }); return; }
+          draw3d(c, ICO, { cx: x, cy: y, s: (5.5 + 2 * st.swell) * st.grow * s, ay: t * 0.6 + i, ax: 0.4, tones: st.T }); atomFx(c, t, x, y, st, i); } });
+        if (!S.g[i]) return;
+        BONDS.forEach(([du, dr]) => { const u2 = u + du, r2 = r + dr; if (u2 < 0 || u2 >= W || r2 >= H || !S.g[idx(u2, r2)]) return;
+          const p1 = P2.get(idx(u2, r2)), p0 = P2.get(i), z = (p0[2] + p1[2]) / 2 - 3;
+          items.push({ z, draw: () => bond(c, p0, p1, du && dr, bondLit(t, u, r, u2, r2) ? HOT : z > 0 ? ["#8a82c4", "#5a5498", "#38336a"] : BOND_T, 1 + z / 60) }); });
+      });
+    });
+    items.sort((a, b) => a.z - b.z).forEach(it => it.draw());
+  });
+}
+
+const views = [["mBall", mBall], ["m3d", m3d], ["mValence", mValence], ["slabs", slabs], ["crystals", crystals], ["strata", strata], ["bacteria", bacteria], ["molecules", molecules], ["radiolaria", radiolaria]].map(([id, f]) => [document.getElementById(id).getContext("2d"), f]);
+function frame(t) { demo(t); advance(t); views.forEach(([c, f]) => f(c, t)); }
+function loop(ms) { frame(ms / 1000); requestAnimationFrame(loop); }
+document.fonts.ready.then(() => { frame(performance.now() / 1000); if (!reduce) requestAnimationFrame(loop); });
+frame(performance.now() / 1000);
+</script>
+<script>
+/* #solo=<canvas id>: show only that screen, its encoders moving by themselves (used by gallery.html) */
+(() => {
+  const m = location.hash.match(/^#solo=(\w+)/); if (!m) return;
+  const cv = document.getElementById(m[1]);
+  document.body.prepend(cv);
+  [...document.body.children].forEach(e => { if (e !== cv && e.tagName !== "SCRIPT") e.style.display = "none"; });
+  document.body.style.cssText = "margin:0;padding:0;background:#000;overflow:hidden";
+  cv.style.cssText = "width:100vw;height:100vh;border:0;border-radius:0;display:block;max-width:none";
+})();
+</script>

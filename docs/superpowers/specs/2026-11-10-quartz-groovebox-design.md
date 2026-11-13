@@ -158,6 +158,8 @@ dans une croche ou une noire.
   quantifiées dans des notes permises, la gamme par défaut : SPREAD, BIAS, STEPS, RANGE), DÉJÀ VU et longueur de boucle 1–16. Sur un KIT,
   t1–t3 jouent les pads 1, 2 et 3 ; sur une piste synthé, une sortie T au choix joue la note de X.
 - Les deux suivent l'horloge et la division du pattern. Détail : `2026-11-10-quartz-step4-generators-design.md`.
+- **LIFE** : une grille du jeu de la vie de 16 × 8 lue colonne par colonne, une génération tous les GEN tours.
+  Détail : `2026-11-13-quartz-life-design.md`.
 - Étape ultérieure (demandée, non planifiée) : un LEN de 1 à 32 pour GRIDS, sur le 4e encodeur libre de MAP ou de DENS ;
   la boucle repart au pas 1 après LEN, les pas au-delà s'affichent sombres.
 
