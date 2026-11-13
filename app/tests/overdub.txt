@@ -1,4 +1,5 @@
 # Overdub: a live note lands on its step, a turned knob locks the step playing, PLAY disarms, COUNT delays the start
+# (NOTES out of SEQ goes LIVE at PLAY; REC held + PLAY too)
 wait 600
 tap GLO
 turn K1 -100
@@ -43,8 +44,9 @@ tap GLO
 turn SELECT 1
 turn K4 2
 expect click 2
-tap REC
+press REC
 tap PLAY
+release REC
 wait 500
 expect pos -1
 wait 4100

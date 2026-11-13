@@ -34,14 +34,17 @@ key 0 up
 release SEQ
 expect pattern 1
 expect src 1
-# stopped, REC armed: no step entry
+# stopped, a short REC: nothing armed, no step entry
 tap REC
+expect rec 0
 key 7 down
 key 7 up
 expect stepon_1 0
 expect cursor 1
-# playing: the keys play, the overdub writes nothing (the note lands near rank 2: on steps 1-4 if it were written)
+# LIVE (REC held + PLAY): the keys play, the overdub writes nothing (the note lands near rank 2: on steps 1-4 if it were written)
+press REC
 tap PLAY
+release REC
 wait 30
 key 0 down
 wait 60

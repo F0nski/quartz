@@ -13,11 +13,15 @@
 #define BAND_H 83                    /* the scene, 240 x 166, in two bands */
 #define FOOT_Y 196
 #define PINK RGB(255, 47, 142)       /* notes playing only */
+#define HOLD_MS 400u                 /* held longer: a long press, its release does nothing */
 
 enum { D_EDIT, D_SEQ, D_GLO, D_HOME, D_ENV, D_LFO, D_ARP, D_FX, ND };
 enum { P_ENGINE, P_SOUND, P_STEPS, P_TEMPO, P_SCALE, P_CPU, P_XY, P_TRACKS, P_SONG, P_GRIDS, P_MAP, P_DENS, P_MARBLES, P_T,
        P_X, P_NOTES, P_PAD, P_KIT, P_ADSR, P_FILTER, P_LFO, P_ARP, P_INSERT, P_MIX, P_GFX, P_KEYS };
 /* what PRESET sets on a held step; the black keys 0..7 pick RATCHET .. MICRO, 8 is CLEAR */
+/* REC: GRID the white keys are SEQ's steps, NOTES they write at a cursor, LIVE they record while playing, ARM the first
+   note starts LIVE */
+enum { R_OFF, R_GRID, R_NOTES, R_LIVE, R_ARM };
 enum { A_VEL, A_RATCHET, A_PROB, A_COND, A_SLIDE, A_ACCENT, A_NOTE, A_LEN, A_MICRO, A_N };
 #define COND_N 40                    /* NONE, FIRST, !FIRST, PRE, !PRE, then A:B for B = 2..8, A = 1..B */
 
@@ -127,12 +131,14 @@ static struct {
     int held, held_key, edited, attr, lpage, nwrote, seqdown, arpdown;   /* held: the step held 1..64, 0 none; lpage: the held step's p-lock page (LPAGE);
                                                                    nwrote: notes of the chord written since the hold began */
     int pad, padheld;                          /* a KIT: its last pad played 0..15; the held pad's key + 1, 0 none */
-    int homedown, savedown, seldown, saveused, msg_scene;      /* saveused: a white key came while SAVE was held; msg_scene: 1..8 asked */
+    int homedown, savedown, seldown, msg_scene;   /* msg_scene: 1..8 asked */
     int fxdown, msg_punch;                     /* msg_punch: the punch-in last pressed 1..16, shown until punch_until */
     uint16_t punch;                            /* the punch-ins held under FX, bit k = white key k + 1 */
     uint8_t last_note[Q_TRACKS];               /* a step switched on by hand takes it */
     int8_t key_note[NKEYS], key_track[NKEYS];  /* what each held key sounds, for its note-off; -1 none */
     uint32_t btn, keys, msg_until, locks_until, path_until, punch_until;
+    uint32_t down_ms[NB], used;                /* when each button went down; used: bit b, a key or button came while b was held */
+    int arm_key;                               /* ARM: the key that started the playing, played once step 1 is under way (key + 1) */
     q_view shown;
     int full;                                  /* the next frame draws everything */
     uint32_t scene_ms, fps_ms;                 /* the last scene drawn (every other 16-ms frame: 30 a second); the second being counted */
@@ -399,6 +405,8 @@ static void knob_turn(int pid, int k, int d)
 }
 
 /* ------------------------------------------------------------------ input --- */
+static void rec_set(int r);
+
 static void button(int b)
 {
     int d;
@@ -410,20 +418,25 @@ static void button(int b)
         }
     switch (b) {
     case B_PLAY:
-        d = !audio_playing();
-        if (!d)                         /* stopping disarms REC */
-            ui.rec = 0;
-        audio_rec(ui.rec);              /* armed before the start: the count-in */
-        audio_play(d);
+        if (ui.btn >> B_REC & 1u) {     /* REC held: LIVE, at once while playing, else after the count-in or at the first note */
+            if (audio_playing()) {
+                rec_set(R_LIVE);
+            } else if (ui.p->click & 2) {
+                rec_set(R_LIVE);
+                audio_play(1);
+            } else {
+                rec_set(R_ARM);
+            }
+        } else if (audio_playing()) {   /* the stop ends LIVE; GRID and NOTES stay */
+            if (ui.rec >= R_LIVE)
+                rec_set(R_OFF);
+            audio_play(0);
+        } else {                        /* NOTES out of SEQ starts LIVE; armed before the start: the count-in */
+            if (ui.rec == R_ARM || (ui.rec == R_NOTES && ui.domain != D_SEQ))
+                rec_set(R_LIVE);
+            audio_play(1);
+        }
         ui.msg_scene = 0;
-        break;
-    case B_REC:
-        ui.rec = !ui.rec;
-        audio_rec(ui.rec);
-        ui.cursor = 1;
-        break;
-    case B_SAVE:                        /* saves at the release, unless a white key came meanwhile */
-        ui.saveused = 0;
         break;
     case B_SEL:                         /* the SONG page: clears the entry (SEL with HOME held is for the scenes) */
         if (ui.domain == D_HOME && page_id() == P_SONG && !ui.homedown && ui.entry) {
@@ -639,9 +652,37 @@ static void black_key(int b, q_step *s, q_pattern *t)
     }
 }
 
+/* the only writer of ui.rec: the recorder armed in LIVE alone */
+static void rec_set(int r)
+{
+    if (r == R_NOTES && ui.rec != R_NOTES)
+        ui.cursor = 1;
+    ui.rec = r;
+    audio_rec(r == R_LIVE);
+}
+
+/* a button down for longer than HOLD_MS */
+static int long_held(int b) { return ui.btn >> b & 1u && plat_ms() - ui.down_ms[b] > HOLD_MS; }
+
+/* released after a short press with nothing else meanwhile: the button's own action */
+static int short_press(int b) { return plat_ms() - ui.down_ms[b] <= HOLD_MS && !(ui.used >> b & 1u); }
+
+/* REC let go after a short press: SEQ cycles GRID, NOTES, OFF (a generator: nothing), elsewhere NOTES (LIVE playing), OFF */
+static void rec_release(void)
+{
+    if (!short_press(B_REC))
+        return;
+    if (ui.rec == R_LIVE || ui.rec == R_ARM)
+        rec_set(R_OFF);
+    else if (ui.domain == D_SEQ && pat()->src == SRC_STEP)
+        rec_set(ui.rec == R_OFF ? R_GRID : ui.rec == R_GRID ? R_NOTES : R_OFF);
+    else if (ui.domain != D_SEQ)
+        rec_set(ui.rec != R_OFF ? R_OFF : audio_playing() ? R_LIVE : R_NOTES);
+}
+
 static void save_release(void)
 {
-    if (ui.saveused)
+    if (!short_press(B_SAVE))
         return;
     if (audio_playing())                /* a flash write stalls the render */
         ui.msg_until = plat_ms() + MSG_MS;
@@ -705,7 +746,7 @@ static void punch_rec(void)
 {
     q_pattern *t = pat();
     int pos = audio_pos(ui.track), h, i, v;
-    if (!ui.punch || !ui.rec || !audio_playing() || pos < 0 || t->src != SRC_STEP ||
+    if (!ui.punch || ui.rec != R_LIVE || !audio_playing() || pos < 0 || t->src != SRC_STEP ||
         audio_pattern(ui.track) != ui.p->pattern[ui.track])
         return;
     for (h = 0; h < 2; h++) {
@@ -766,7 +807,6 @@ static void key_down(int k)
         return;
     }
     if (w < 16 && ui.savedown) {        /* SAVE held: the white keys 1..8 add the scene to the song */
-        ui.saveused = 1;
         if (w < Q_SCENES && ui.p->nsong < Q_SONG) {
             ui.p->song[ui.p->nsong++] = (q_entry){(uint8_t)w, 1};
             ui.entry = ui.p->nsong;
@@ -817,6 +857,12 @@ static void key_down(int k)
         if (!s)
             ui.padheld = k + 1;
     }
+    if (ui.rec == R_ARM && !s) {        /* the first note starts LIVE; played when step 1 is under way to take it */
+        rec_set(R_LIVE);
+        audio_play(1);
+        ui.arm_key = k + 1;
+        return;
+    }
     /* written to the held step: not overdubbed too; ARP held: the arp keeps the note after its key is released */
     audio_live_note(ui.track, note, s ? 2 : ui.arpdown && !kit() ? 3 : 1);
     ui.key_note[k] = (int8_t)note;
@@ -830,7 +876,7 @@ static void key_down(int k)
         if (ui.nwrote < ui.p->sound[ui.track].poly)
             s->note[ui.nwrote++] = (uint8_t)note;
         step_on(s);
-    } else if (ui.rec && !audio_playing() && t->src == SRC_STEP) {    /* step entry: the note at the cursor, then the next step; playing, the render records */
+    } else if (ui.rec == R_NOTES && !audio_playing() && t->src == SRC_STEP) {    /* step entry: the note at the cursor, then the next step; playing, the render records */
         s = &t->steps[ui.cursor - 1];
         s->note[0] = (uint8_t)note;
         s->vel = 100;
@@ -895,11 +941,23 @@ void ui_input(void)
         ui.punch = 0;
         audio_punch(0);
     }
+    if ((btn & ~ui.btn) || (keys & ~ui.keys))  /* a press: the buttons already held have served */
+        ui.used |= ui.btn & btn;
+    ui.used &= ~(btn & ~ui.btn);
     for (i = 0; i < NB; i++)
-        if ((btn & ~ui.btn) >> i & 1u)
+        if ((btn & ~ui.btn) >> i & 1u) {
+            ui.down_ms[i] = plat_ms();
             button(i);
+        }
     if ((ui.btn & ~btn) >> B_SAVE & 1u)
         save_release();
+    if ((ui.btn & ~btn) >> B_REC & 1u)
+        rec_release();
+    if (ui.domain != D_SEQ && (ui.rec == R_GRID || (ui.rec == R_NOTES && audio_playing())))   /* out of SEQ: GRID is NOTES,
+                                                                                              NOTES playing is LIVE */
+        rec_set(audio_playing() ? R_LIVE : R_NOTES);
+    if (ui.arm_key && audio_pos(ui.track) >= 0 && (i = ui.arm_key - 1, ui.arm_key = 0, keys >> i & 1u))
+        key_down(i);
     for (i = 0; i < NKEYS; i++) {
         if ((keys & ~ui.keys) >> i & 1u)
             key_down(i);
@@ -952,7 +1010,7 @@ void ui_input(void)
             lock_turn(i, e);
         } else {
             knob_turn(kpid, i, e);
-            if (e && ui.rec && audio_playing())
+            if (e && ui.rec == R_LIVE && audio_playing())
                 rec_lock(kpid, i);
         }
     }
@@ -1263,7 +1321,7 @@ static void view_now(q_view *v)
         for (k = 0; k < t->nlocks; k++)
             if (t->locks[k].step / 16 == ui.spage)
                 v->scene.locks |= (uint16_t)(1u << (t->locks[k].step % 16));
-        v->scene.cursor = (int8_t)(ui.rec && !audio_playing() ? ui.cursor : 0);
+        v->scene.cursor = (int8_t)(ui.rec == R_NOTES && !audio_playing() ? ui.cursor : 0);
         v->scene.pos = (int8_t)audio_pos(ui.track);
         v->scene.len = (int8_t)t->len;
         __builtin_memcpy(v->scene.st, &t->steps[ui.spage * 16], sizeof v->scene.st);
@@ -1893,7 +1951,7 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "keys")) *got = ui.p->keys;
     else if (!strcmp(what, "keynote")) *got = ui.last_note[ui.track];
     else if (!strcmp(what, "keyleds")) *got = (int)scale_keys();
-    else if (!strcmp(what, "overdub")) *got = ui.rec && audio_playing();
+    else if (!strcmp(what, "overdub")) *got = ui.rec == R_LIVE && audio_playing();
     else if (!strcmp(what, "len")) *got = t->len;
     else if (!strcmp(what, "div")) *got = t->div;
     else if (!strcmp(what, "pos")) *got = audio_pos(ui.track);

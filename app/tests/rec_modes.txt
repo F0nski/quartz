@@ -1,0 +1,135 @@
+# REC: GRID, NOTES and LIVE by short presses and REC held + PLAY, the armed start, long presses that do nothing
+wait 600
+# in SEQ (a STEP pattern): OFF -> GRID -> NOTES -> OFF
+tap SEQ
+tap REC
+expect rec 1
+tap REC
+expect rec 2
+tap REC
+expect rec 0
+# elsewhere: OFF -> NOTES -> OFF
+tap EDIT
+tap REC
+expect rec 2
+tap REC
+expect rec 0
+# an armed REC out of SEQ disarms, whatever its state
+tap SEQ
+tap REC
+expect rec 1
+tap EDIT
+tap REC
+expect rec 0
+# a long press does nothing
+press REC
+wait 500
+release REC
+expect rec 0
+# a GRIDS pattern is never written: a short REC does nothing
+tap SEQ
+turn K4 1
+expect src 1
+tap REC
+expect rec 0
+turn K4 -1
+expect src 0
+# PLAY on the grid: no count-in (CLICK = BOTH), REC kept, kept at the stop too
+tap GLO
+turn SELECT 1
+turn K4 3
+expect click 3
+tap SEQ
+tap REC
+expect rec 1
+tap PLAY
+expect playing 1
+expect rec 1
+wait 100
+expect pos >-1
+tap PLAY
+expect playing 0
+expect rec 1
+tap REC
+tap REC
+expect rec 0
+# LIVE while playing: REC held + PLAY does not stop; a short REC disarms, playing on
+tap PLAY
+press REC
+tap PLAY
+release REC
+expect rec 3
+expect playing 1
+tap REC
+expect rec 0
+expect playing 1
+press REC
+tap PLAY
+release REC
+expect rec 3
+tap PLAY
+expect playing 0
+expect rec 0
+# ARM (CLICK = OFF): REC held + PLAY stopped waits for the first note, which starts on step 1
+tap GLO
+turn K4 -3
+expect click 0
+tap EDIT
+press REC
+tap PLAY
+release REC
+expect rec 4
+expect playing 0
+key w0 down
+expect playing 1
+expect rec 3
+wait 100
+key w0 up
+wait 300
+tap PLAY
+expect stepon_1 1
+expect rec 0
+# count-in (CLICK = COUNT): REC held + PLAY stopped starts after a bar
+tap GLO
+turn K4 2
+expect click 2
+tap EDIT
+press REC
+tap PLAY
+release REC
+expect rec 3
+expect playing 1
+wait 100
+expect pos -1
+tap PLAY
+expect rec 0
+# NOTES out of SEQ: PLAY goes LIVE, with the count-in
+tap REC
+expect rec 2
+tap PLAY
+expect rec 3
+wait 100
+expect pos -1
+tap PLAY
+expect rec 0
+# a long REC while in LIVE: neither disarms nor stops
+tap PLAY
+press REC
+tap PLAY
+release REC
+expect rec 3
+press REC
+wait 500
+release REC
+expect rec 3
+expect playing 1
+tap PLAY
+expect rec 0
+# SAVE: a long press does not save, a short one does
+expect store_writes 0
+press SAVE
+wait 500
+release SAVE
+expect store_writes 0
+tap SAVE
+expect store_writes >0
