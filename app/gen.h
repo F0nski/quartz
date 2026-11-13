@@ -31,6 +31,7 @@ typedef struct {
     uint32_t lanes_n;                         /* LANES: the steps played since the reset; lane l's head is lanes_n mod len[l] */
     q_chords_run chords;                      /* CHORDS */
     q_tonnetz_run tonnetz;                    /* TONNETZ */
+    uint32_t orbits_n;                        /* ORBITS: the steps played since the reset */
 } q_gen;
 
 extern const uint16_t SCALE_MASK[11];   /* bit n: n semitones above the tonic; CHROM..MIN PENTA, the order of ui.c MODE_NAME */
@@ -61,6 +62,8 @@ q_tz gen_tz_move(q_tz s, int op);
 void gen_tz_pcs(q_tz s, int base, uint8_t pcs[3]);
 q_tz gen_tz_step(q_tz s, int op, int in_scale, uint16_t scale, int base);
 void gen_tz_start(const q_project *p, const q_tonnetz *t, q_tz *s, int *base);
+/* ORBITS: bit m, moon m passes at step n (n mod its period = its phase mod its period) */
+int gen_orbits_hits(const q_orbits *o, uint32_t n);
 int gen_life_rows(const q_life *l, int kit, const uint16_t grid[LIFE_H], int col, uint8_t rows[4]);
 
 #endif

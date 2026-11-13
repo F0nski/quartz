@@ -41,6 +41,7 @@ void project_defaults(q_project *p)
             pt->grids = (q_grids){ 64, 64, 0, { 64, 64, 64 }, 1, 60 };
             pt->marbles = (q_marbles){ 1, 8, 0, 64, 0, 0, 64, 64, 0, 48, 2, { 0, 0 } };
             pt->life = (q_life){ 2, 48, 0, 0, 70, 1, 1, 0 };
+            pt->orbits = (q_orbits){ 48, 3, { 8, 6, 5, 3 }, { 0, 0, 0, 0 }, { 0, 2, 4, 7 } };
             pt->tonnetz = (q_tonnetz){ 48, 4, 2, 0, 1, 0, 1, 1, (uint16_t)(TZ_R | TZ_L << 2 | TZ_R << 4 | TZ_L << 6) };
             pt->chords = (q_chords){ 48, 4, 2, 0, 1, { CH_MAKE(0, CS_TRIAD), CH_MAKE(5, CS_TRIAD), CH_MAKE(3, CS_TRIAD), CH_MAKE(4, CS_TRIAD) } };
             pt->lanes.note = 48;

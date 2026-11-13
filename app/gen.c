@@ -31,7 +31,7 @@ void gen_reset(q_gen *g, uint32_t *rng)
 
 int gen_loop(const q_pattern *pt)
 {
-    return pt->src == SRC_MARBLES ? pt->marbles.len : pt->src == SRC_LIFE || pt->src == SRC_LANES || pt->src == SRC_CHORDS || pt->src == SRC_TONNETZ ? LIFE_W : GRIDS_STEPS;
+    return pt->src == SRC_MARBLES ? pt->marbles.len : pt->src == SRC_LIFE || pt->src == SRC_LANES || pt->src == SRC_CHORDS || pt->src == SRC_TONNETZ || pt->src == SRC_ORBITS ? LIFE_W : GRIDS_STEPS;
 }
 
 /* settings 0..127 as Grids' 0..255 */
@@ -699,6 +699,31 @@ static int tonnetz_step(q_gen *g, const q_project *p, int track, const q_pattern
     return strike_fill(st, out, nn, t->rate, t->strum, step, r->last, &r->nlast);
 }
 
+/* ORBITS */
+
+int gen_orbits_hits(const q_orbits *o, uint32_t n)
+{
+    int hits = 0;
+    for (int m = 0; m < o->moons; m++)
+        if (n % o->per[m] == (uint32_t)(o->pha[m] % o->per[m])) hits |= 1 << m;
+    return hits;
+}
+
+/* the step orbits_n: each moon passing plays its note; two or more together, all accented */
+static int orbits_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, q_step *st)
+{
+    const q_orbits *o = &pt->orbits;
+    int hits = gen_orbits_hits(o, g->orbits_n++), nb = 0, kit = p->sound[track].model == M_KIT;
+    uint16_t sc = gen_scale(p);
+    for (int m = 0; m < o->moons; m++)
+        if (hits >> m & 1)
+            st->note[nb++] = (uint8_t)(kit ? KIT_NOTE + o->val[m] : gen_life_note(o->note, sc, p->tonic, o->val[m]));
+    if (!nb)
+        return 0;
+    st->flags = SF_ON; st->len = 4; st->vel = 100; st->prob = 20;
+    return nb > 1 ? (1 << nb) - 1 : 0;
+}
+
 int gen_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, int k, uint32_t *rng, q_step *st)
 {
     __builtin_memset(st, 0, sizeof *st);
@@ -707,5 +732,6 @@ int gen_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, int k
     if (pt->src == SRC_LANES) return lanes_step(g, p, track, pt, st);
     if (pt->src == SRC_CHORDS) return chords_step(g, p, track, pt, k, st);
     if (pt->src == SRC_TONNETZ) return tonnetz_step(g, p, track, pt, k, rng, st);
+    if (pt->src == SRC_ORBITS) return orbits_step(g, p, track, pt, st);
     return marbles_step(g, p, track, pt, rng, st);
 }

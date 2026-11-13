@@ -136,6 +136,8 @@ static void loop_lengths(void)
     assert(gen_loop(pt) == 16);
     pt->src = SRC_TONNETZ;
     assert(gen_loop(pt) == 16);
+    pt->src = SRC_ORBITS;
+    assert(gen_loop(pt) == 16);
 }
 
 /* MARBLES */
@@ -1213,6 +1215,86 @@ static void tonnetz_play_like_chords(void)
     for (int k = 0; k < 16; k++) { q_step st; gen_step(&G, &P, 0, pt, k, &R, &st); assert(!(st.flags & SF_ON)); }
 }
 
+/* ORBITS */
+
+static q_pattern *orbits_setup(int model)
+{
+    project_defaults(&P);
+    P.sound[0].model = model;
+    q_pattern *pt = &P.pat[0][0];
+    pt->src = SRC_ORBITS;
+    memset(&G, 0, sizeof G);
+    return pt;
+}
+
+static void orbits_defaults(void)
+{
+    const q_orbits *o = &orbits_setup(8)->orbits;
+    assert(sizeof(q_orbits) == 14);
+    assert(o->note == 48 && o->moons == 3);
+    static const uint8_t per[4] = { 8, 6, 5, 3 }, val[4] = { 0, 2, 4, 7 };
+    for (int m = 0; m < 4; m++) assert(o->per[m] == per[m] && o->pha[m] == 0 && o->val[m] == val[m]);
+}
+
+static void orbits_passes(void)
+{
+    const q_orbits *o = &orbits_setup(8)->orbits;
+    assert(gen_orbits_hits(o, 0) == 7 && gen_orbits_hits(o, 1) == 0 && gen_orbits_hits(o, 5) == 4);
+    assert(gen_orbits_hits(o, 6) == 2 && gen_orbits_hits(o, 8) == 1 && gen_orbits_hits(o, 24) == 3 && gen_orbits_hits(o, 120) == 7);
+    for (uint32_t n = 1; n < 120; n++) assert(gen_orbits_hits(o, n) != 7);
+}
+
+static void orbits_notes(void)
+{
+    q_pattern *pt = orbits_setup(8);
+    q_step st;
+    int acc = gen_step(&G, &P, 0, pt, 0, &R, &st);
+    assert(st.flags & SF_ON && st.note[0] == 48 && st.note[1] == 52 && st.note[2] == 55 && st.note[3] == 0 && acc == 7);
+    for (int k = 1; k < 5; k++) { gen_step(&G, &P, 0, pt, k, &R, &st); assert(!(st.flags & SF_ON)); }
+    acc = gen_step(&G, &P, 0, pt, 5, &R, &st);
+    assert(st.note[0] == 55 && st.note[1] == 0 && acc == 0 && st.len == 4 && st.vel == 100);
+    pt = orbits_setup(M_KIT);
+    gen_step(&G, &P, 0, pt, 0, &R, &st);
+    assert(st.note[0] == KIT_NOTE && st.note[1] == KIT_NOTE + 2 && st.note[2] == KIT_NOTE + 4);
+}
+
+static void orbits_phase_mod(void)
+{
+    q_orbits *o = &orbits_setup(8)->orbits;
+    o->pha[0] = 11;
+    assert(gen_orbits_hits(o, 3) & 1);
+    assert(!(gen_orbits_hits(o, 0) & 1));
+}
+
+static void orbits_period_change(void)
+{
+    q_pattern *pt = orbits_setup(8);
+    q_step st;
+    for (int k = 0; k < 5; k++) gen_step(&G, &P, 0, pt, k, &R, &st);
+    pt->orbits.per[0] = 1;
+    for (int k = 5; k < 8; k++) { gen_step(&G, &P, 0, pt, k, &R, &st); assert(st.flags & SF_ON && st.note[0] == 48); }
+}
+
+static void orbits_four(void)
+{
+    q_pattern *pt = orbits_setup(8);
+    pt->orbits.moons = 4;
+    for (int m = 0; m < 4; m++) pt->orbits.per[m] = 4;
+    q_step st;
+    int acc = gen_step(&G, &P, 0, pt, 0, &R, &st);
+    assert(st.note[0] && st.note[1] && st.note[2] && st.note[3] && acc == 15);
+}
+
+static void orbits_moons(void)
+{
+    q_pattern *pt = orbits_setup(8);
+    pt->orbits.moons = 1;
+    assert(gen_orbits_hits(&pt->orbits, 0) == 1);
+    q_step st;
+    for (int n = 0; n < 17; n++) gen_step(&G, &P, 0, pt, n % 16, &R, &st);
+    assert(G.orbits_n == 17);
+}
+
 int main(void)
 {
     grids_level_matches_step();
@@ -1286,6 +1368,13 @@ int main(void)
     tonnetz_long_walk();
     tonnetz_wrap();
     tonnetz_play_like_chords();
+    orbits_defaults();
+    orbits_passes();
+    orbits_notes();
+    orbits_phase_mod();
+    orbits_period_change();
+    orbits_four();
+    orbits_moons();
     puts("gen ok");
     return 0;
 }

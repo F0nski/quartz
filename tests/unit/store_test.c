@@ -513,6 +513,21 @@ static void tonnetz_clamped_on_load(void)
     assert(a.pat[3][2].tonnetz.len == 8);
 }
 
+/* ORBITS' settings out of range in flash: brought back (a period 0 would divide by zero) */
+static void orbits_clamped_on_load(void)
+{
+    static q_project a, b;
+    project_defaults(&a);
+    store_save(&a);
+    b = a;
+    b.pat[1][3].orbits = (q_orbits){ 0, 9, { 0, 40, 8, 8 }, { 50, 0, 0, 0 }, { 20, 0, 0, 0 } };
+    write_raw(&b);
+    memset(&a, 0xAA, sizeof a);
+    assert(store_load(&a) == 0);
+    const q_orbits *o = &a.pat[1][3].orbits;
+    assert(o->note == 1 && o->moons == 4 && o->per[0] == 1 && o->per[1] == 32 && o->pha[0] == 31 && o->val[0] == 15);
+}
+
 int main(void)
 {
     forget();
@@ -530,6 +545,7 @@ int main(void)
     lanes_clamped_on_load();
     chords_clamped_on_load();
     tonnetz_clamped_on_load();
+    orbits_clamped_on_load();
     store_v2_gives_defaults();
     store_roundtrip_v4();
     store_clamps_v4();
