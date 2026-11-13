@@ -1,0 +1,52 @@
+# The manual's recipes (docs/manual/sequencer-entry.html), as they read
+wait 600
+# a kick on the 4 beats: the pad played disarmed, then GRID and short presses on steps 1, 5, 9, 13 (track 1 as a KIT)
+tap EDIT
+turn SELECT 1
+spin K1 24
+expect model 24
+tapkey w0
+tap SEQ
+tap REC
+tapkey w0
+tapkey w4
+tapkey w8
+tapkey w12
+expect nsteps_on 4
+expect stepnote_9 36
+# a note 3 steps long: hold the step, OCT+ three times
+key w0 down
+tap OCT+
+tap OCT+
+tap OCT+
+key w0 up
+expect steplen_1 24
+# a note moved 1/24: hold the step, black 5 twice (MICRO), PRESET
+key w4 down
+tapkey b4
+tapkey b4
+turn PRESET 1
+key w4 up
+expect stepmicro_5 1
+# 4 steps at 50 %: SEL held, the 4 steps, black 3 (PROB), PRESET
+press SEL
+tapkey w0
+tapkey w4
+tapkey w8
+tapkey w12
+tapkey b2
+turn PRESET -10
+release SEL
+expect stepprob_1 10
+expect stepprob_13 10
+# move a step: cut it, paste it on its new place
+tapkey w12
+tapkey w14
+expect stepon_13 0
+expect stepon_15 1
+expect stepprob_15 10
+# empty the pattern: REC held + black 1
+press REC
+tapkey b0
+release REC
+expect nsteps_on 0
