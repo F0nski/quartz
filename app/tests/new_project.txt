@@ -1,0 +1,39 @@
+# SAVE held and black key 1 twice: a new project, in RAM only (the save keeps the old one until a SAVE)
+wait 600
+tap GLO
+turn K1 5
+expect tempo 125
+tap SEQ
+tap REC
+key 0 down
+key 0 up
+expect stepon_1 1
+tap SAVE
+expect dirty 0
+press SAVE
+wait 500
+shot layer_save.png
+key 1 down
+key 1 up
+expect msg_wipe 1
+expect tempo 125
+wait 100
+shot wipe_ask.png
+wait 3100
+expect msg_wipe 0
+key 1 down
+key 1 up
+expect msg_wipe 1
+expect tempo 125
+key 1 down
+key 1 up
+release SAVE
+expect msg_wipe 0
+expect tempo 120
+expect stepon_1 0
+expect song_n 0
+expect dirty 1
+reboot
+wait 600
+expect tempo 125
+expect stepon_1 1

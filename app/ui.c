@@ -156,6 +156,7 @@ static struct {
     uint8_t last_note[Q_TRACKS];               /* a step switched on by hand takes it */
     int8_t key_note[NKEYS], key_track[NKEYS];  /* what each held key sounds, for its note-off; -1 none */
     uint32_t btn, keys, msg_until, locks_until, path_until, punch_until;
+    uint32_t wipe_until;                       /* SAVE held, black key 1 pressed once: a second press before it erases the project */
     uint32_t down_ms[NB], used;                /* when each button went down; used: bit b, a key or button came while b was held */
     q_clip clip;                               /* the grid's clipboard, common to the tracks: the last step cut or chord played */
     uint8_t preview[4];
@@ -1159,6 +1160,17 @@ static void key_down(int k)
         }
         return;
     }
+    if (k == BLACK[0] && ui.savedown) { /* SAVE held: black key 1 twice, a new project (in RAM: a SAVE writes it) */
+        if (plat_ms() >= ui.wipe_until) {
+            ui.wipe_until = plat_ms() + 2 * MSG_MS;
+            return;
+        }
+        audio_play(0);
+        project_defaults(ui.p);
+        ui_init(ui.p);
+        ui.dirty = 1;
+        return;
+    }
     if (w < 16 && ui.savedown) {        /* SAVE held: the white keys 1..8 add the scene to the song */
         if (w < Q_SCENES && ui.p->nsong < Q_SONG) {
             ui.p->song[ui.p->nsong++] = (q_entry){(uint8_t)w, 1};
@@ -1510,7 +1522,7 @@ static uint32_t layer_keys(int b)
     case B_SEQ:
         for (i = 0; i < (b == B_FX ? 16 : 8); i++)
             keys |= 1u << WHITE[i];
-        return keys;
+        return b == B_SAVE ? keys | 1u << BLACK[0] : keys;   /* SAVE: and the new project */
     case B_SEL:
         if (!notes_on())
             break;
@@ -1823,7 +1835,7 @@ static void view_now(q_view *v)
     v->head.domain = (int8_t)ui.domain;
     v->head.page = (int8_t)ui.page[ui.domain];
     v->head.n = (int8_t)domain_n(ui.domain);
-    v->head.msg = plat_ms() < ui.msg_until ? 1 : plat_ms() < ui.locks_until ? 2 : 0;
+    v->head.msg = plat_ms() < ui.msg_until ? 1 : plat_ms() < ui.locks_until ? 2 : plat_ms() < ui.wipe_until ? 3 : 0;
     v->head.pat = (int8_t)(ui.p->pattern[ui.track] + 1);
     v->head.scene = (int8_t)ui.msg_scene;
     v->head.punch = (int8_t)(plat_ms() < ui.punch_until ? ui.msg_punch : 0);
@@ -2033,7 +2045,7 @@ static void draw_head(const q_view *v)
     cv_text(6 + (20 - text_w(&FONT_B, t)) / 2, 7, &FONT_B, t, C_BLACK);
     x = cv_text(34, 7, &FONT_B, DOMAIN_NAME[v->head.domain], C_WHITE);
     if (v->head.msg)
-        cv_text(x + 10, 7, &FONT_B, v->head.msg == 1 ? "STOP TO SAVE" : "LOCKS FULL", KCOL[3]);
+        cv_text(x + 10, 7, &FONT_B, v->head.msg == 1 ? "STOP TO SAVE" : v->head.msg == 2 ? "LOCKS FULL" : "AGAIN: ERASE", KCOL[3]);
     else if (v->head.punch)
         cv_text(x + 10, 7, &FONT_B, PUNCH_NAME[v->head.punch - 1], C_AMB);
     else if (v->head.domain == D_HOME && v->head.scene) {       /* the scene asked, until it starts */
@@ -2166,8 +2178,10 @@ static void draw_layer(const q_view *v, int32_t oy)
             int_text(i + 1, nb[i] + 8);
             tags[n] = tb[i], names[n++] = nb[i];
         }
-        if (b == B_SAVE)
+        if (b == B_SAVE) {
+            tags[n] = "#1", names[n++] = "NEW PROJECT";
             combo[0][0] = "TAP", combo[0][1] = "SAVE, STOPPED";
+        }
         break;
     case B_ARP:
         tags[n] = "KEY", names[n++] = "LATCH ITS NOTE";
@@ -2759,6 +2773,7 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "msg_locks_full")) *got = plat_ms() < ui.locks_until;
     else if (!strcmp(what, "dirty")) *got = ui.dirty;
     else if (!strcmp(what, "msg_stop_to_save")) *got = plat_ms() < ui.msg_until;
+    else if (!strcmp(what, "msg_wipe")) *got = plat_ms() < ui.wipe_until;
     else if (!strcmp(what, "active")) *got = (int)audio_load().active;
     else if (!strcmp(what, "src")) *got = t->src;
     else if (!strcmp(what, "gx")) *got = t->grids.x;
