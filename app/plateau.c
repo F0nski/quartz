@@ -139,7 +139,7 @@ static void block(int i, int32_t oy, int held, int hot, float k)
     const q_pcell *c = &pl.v.c[i];
     float gx = (float)(i % 4), gy = (float)(i / 4), m = 0.18f;
     int is_held = i == pl.v.held;
-    const uint16_t *T = is_held ? PL_ORANGE : held ? PL_DIM : hot ? PL_PINK : PL_WHITE;
+    const uint16_t *T = is_held || c->sel ? PL_ORANGE : held ? PL_DIM : hot ? PL_PINK : PL_WHITE;   /* selected: orange, not lifted */
     float lift = is_held ? 10.0f : hot ? 6.0f * (1.0f - k) : 0.0f;
     float h = 5.0f + (float)c->vel * (held ? 16.0f : 22.0f) / 127.0f;
     pl_pt p0 = at(gx + m, gy + m), p1 = at(gx + 1 - m, gy + m), p2 = at(gx + 1 - m, gy + 1 - m), p3 = at(gx + m, gy + 1 - m);
@@ -147,11 +147,6 @@ static void block(int i, int32_t oy, int held, int hot, float k)
     if (!c->on) {
         quad(p0, p1, p2, p3, oy, i == pl.v.pos ? PL_OFF_CUR : PL_OFF);
         return;
-    }
-    if (c->len > 4) {                   /* a long note: a green strip on the floor towards the next cells */
-        float L = fm_minf((float)c->len / 8.0f, 4.0f - gx - m);
-        quad(at(gx + 0.5f, gy + 0.62f), at(gx + 0.5f + L, gy + 0.62f), at(gx + 0.5f + L, gy + 0.72f), at(gx + 0.5f, gy + 0.72f), oy,
-             held && !is_held ? PL_STRIP_DIM : PL_GREEN[2]);
     }
     quad(up(p3, lift), up(p2, lift), up(p2, h + lift), up(p3, h + lift), oy, T[1]);
     quad(up(p1, lift), up(p2, lift), up(p2, h + lift), up(p1, h + lift), oy, T[2]);
@@ -169,6 +164,33 @@ static void block(int i, int32_t oy, int held, int hot, float k)
             float sx = top.x + (float)(s - 1) * 9.0f, sy = top.y - 6.0f - k * 26.0f - (float)s * 3.0f + (float)oy;
             p3d_fill(sx, sy - 3, sx + 3, sy + 1, sx - 2, sy + 2, s % 2 ? PL_PINK[0] : PL_PINK[1]);
         }
+}
+
+/* a note longer than a step: a strip on the floor from its block's centre through the next cells in step order, row
+   after row (a chevron where it leaves a row and enters the next), a light mark at its end; pink up to the cell playing
+   while it sounds; "+n >" at the plate's front edge for the steps past the page */
+static void strip(int i, int held, int32_t oy)
+{
+    int n = (pl.v.c[i].len + 7) / 8, last = i + n - 1, j;
+    int sounding = pl.v.pos >= i && pl.v.pos <= last;
+    for (j = i; j <= last && j < 16; j++) {
+        float gx = (float)(j % 4), gy = (float)(j / 4), x0 = j == i ? 0.5f : 0.0f, x1 = j == last ? 0.6f : 1.0f;
+        uint16_t col = sounding && j <= pl.v.pos ? PL_PINK[1] : held ? PL_STRIP_DIM : PL_GREEN[2];
+        quad(at(gx + x0, gy + 0.42f), at(gx + x1, gy + 0.42f), at(gx + x1, gy + 0.58f), at(gx + x0, gy + 0.58f), oy, col);
+        if (j == last) {
+            quad(at(gx + 0.6f, gy + 0.36f), at(gx + 0.68f, gy + 0.36f), at(gx + 0.68f, gy + 0.64f), at(gx + 0.6f, gy + 0.64f), oy, PL_GREEN[0]);
+        } else if (j % 4 == 3 && j < 15) {      /* off this row, onto the next */
+            pl_pt a = at(4.02f, gy + 0.38f), b = at(4.14f, gy + 0.5f), c = at(4.02f, gy + 0.62f);
+            pl_pt d = at(-0.14f, gy + 1.38f), e = at(-0.02f, gy + 1.5f), f = at(-0.14f, gy + 1.62f);
+            p3d_fill(a.x, a.y + (float)oy, b.x, b.y + (float)oy, c.x, c.y + (float)oy, PL_GREEN[1]);
+            p3d_fill(d.x, d.y + (float)oy, e.x, e.y + (float)oy, f.x, f.y + (float)oy, PL_GREEN[1]);
+        }
+    }
+    if (last > 15) {
+        char t[6] = {'+', (char)('0' + (last - 15)), ' ', '>', 0};
+        pl_pt p = at(4.1f, 3.6f);
+        cv_text((int32_t)p.x + 4, (int32_t)p.y + oy, &FONT_T, t, PL_GREEN[1]);
+    }
 }
 
 static void sight(int cell, int cols, uint16_t col, float g, int32_t oy)   /* cols: the plate's width in cells */
@@ -250,9 +272,15 @@ void plateau_band(int32_t oy)
         float cx = (float)(pl.hit_cell % 4) + 0.5f, cy = (float)(pl.hit_cell / 4) + 0.5f, g = 0.5f + 1.6f * k;
         outline(at(cx - g, cy - g), at(cx + g, cy - g), at(cx + g, cy + g), at(cx - g, cy + g), oy, k < 0.4f ? PL_PINK[1] : PL_PINK[2]);
     }
+    for (i = 0; i < 16; i++)            /* the empty steps' squares, flat */
+        if (!pl.v.c[i].on && pl.v.live >> i & 1u)
+            block(i, oy, held, 0, k);
+    for (i = 0; i < 16; i++)            /* the long notes' strips, over the squares, under every block */
+        if (pl.v.c[i].on && pl.v.c[i].len > 8 && pl.v.live >> i & 1u)
+            strip(i, held && i != pl.v.held, oy);
     for (s = 0; s <= 6; s++)            /* far to near */
         for (i = 0; i < 16; i++)
-            if (i % 4 + i / 4 == s && pl.v.live >> i & 1u)
+            if (i % 4 + i / 4 == s && pl.v.c[i].on && pl.v.live >> i & 1u)
                 block(i, oy, held, hit && i == pl.hit_cell, k);
     if (held) {
         held_panel(oy);
@@ -262,7 +290,7 @@ void plateau_band(int32_t oy)
         path(oy);
     if (pl.v.pos >= 0)
         sight(pl.v.pos, 4, hit ? PL_PINK[1] : PL_GREEN[0], hit ? 0.02f : 0.12f, oy);
-    else if (pl.v.cursor >= 0)
+    if (pl.v.cursor >= 0)               /* NOTES' cursor, playing too */
         sight(pl.v.cursor, 4, PL_TEXT, 0.12f, oy);
     cv_text(8, 4 + oy, &FONT_S, pl.v.top_l, pl.v.pos < 0 ? PL_LABEL : hit ? PL_PINK[1] : PL_GREEN[0]);
     cv_text(232 - text_w(&FONT_S, pl.v.top_r), 4 + oy, &FONT_S, pl.v.top_r, hit ? PL_PINK[1] : PL_LABEL);

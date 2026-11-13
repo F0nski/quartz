@@ -222,6 +222,96 @@ static void grids_sight_on_its_step(void)
     assert(in > 0 && out == 0);
 }
 
+/* a cell's floor centre on screen (the plain layout), and the pixels of colour c within r of it, both bands */
+static int near(int cell, uint16_t c, float x0, float y0, int r)
+{
+    int n = 0;
+    for (int b = 0; b < 2; b++) {
+        band(b);
+        for (int y = 0; y < 83; y++)
+            for (int x = 0; x < 240; x++) {
+                float dx = (float)x - x0, dy = (float)(y + 83 * b) - y0;
+                n += px(x, y) == c && dx * dx + dy * dy <= (float)(r * r);
+            }
+    }
+    (void)cell;
+    return n;
+}
+#define PCX(gx, gy) (120.0f + ((gx) - (gy)) * 25.0f)
+#define PCY(gx, gy) (34.0f + ((gx) + (gy)) * 12.5f)
+
+/* only step 3 lit, 4 steps long: the strip on cell 4, then 5 and 6 on the next row, a chevron where it leaves row 1,
+   the end mark on cell 6 */
+static void band_two_rows(void)
+{
+    base();
+    for (int i = 0; i < 16; i++) V.c[i].on = 0;
+    V.c[2].on = 1;
+    V.c[2].len = 32;
+    plateau_frame(&V, 0, 1000);
+    assert(near(3, PL_GREEN[2], PCX(3.5f, 0.5f), PCY(3.5f, 0.5f), 6) > 0);
+    assert(near(4, PL_GREEN[2], PCX(0.4f, 1.5f), PCY(0.4f, 1.5f), 6) > 0);
+    assert(near(5, PL_GREEN[2], PCX(1.3f, 1.5f), PCY(1.3f, 1.5f), 4) > 0);
+    assert(near(6, PL_GREEN[2], PCX(2.5f, 1.5f), PCY(2.5f, 1.5f), 6) == 0);       /* it ends in cell 6 */
+    assert(near(3, PL_GREEN[1], PCX(4.08f, 0.5f), PCY(4.08f, 0.5f), 5) > 0);     /* the chevron off row 1 */
+    assert(near(4, PL_GREEN[1], PCX(-0.08f, 1.5f), PCY(-0.08f, 1.5f), 5) > 0);   /* and onto row 2 */
+    assert(near(5, PL_GREEN[0], PCX(1.64f, 1.5f), PCY(1.64f, 1.5f), 4) > 0);     /* the end */
+    V.c[2].len = 8;                                                             /* one step: no strip */
+    plateau_frame(&V, 0, 1000);
+    assert(near(3, PL_GREEN[2], PCX(3.5f, 0.5f), PCY(3.5f, 0.5f), 6) == 0);
+}
+
+/* step 15, 5 steps long: 3 past the page, "+3 >" at the plate's front edge */
+static void band_overflow(void)
+{
+    base();
+    for (int i = 0; i < 16; i++) V.c[i].on = 0;
+    V.c[14].on = 1;
+    V.c[14].len = 40;
+    plateau_frame(&V, 0, 1000);
+    int a = count(1, PL_GREEN[1], 120, 240);
+    V.c[14].len = 16;
+    plateau_frame(&V, 0, 1000);
+    assert(a > count(1, PL_GREEN[1], 120, 240) + 5);
+}
+
+/* step 3 sounding, the playhead on step 5: cells 3 to 5 pink, 6 green */
+static void band_pink_fill(void)
+{
+    base();
+    for (int i = 0; i < 16; i++) V.c[i].on = 0;
+    V.c[2].on = 1;
+    V.c[2].len = 32;
+    V.pos = 4;
+    plateau_frame(&V, 0, 1000);
+    assert(near(3, PL_PINK[1], PCX(3.5f, 0.5f), PCY(3.5f, 0.5f), 6) > 0);
+    assert(near(4, PL_PINK[1], PCX(0.4f, 1.5f), PCY(0.4f, 1.5f), 6) > 0);
+    assert(near(5, PL_GREEN[2], PCX(1.3f, 1.5f), PCY(1.3f, 1.5f), 4) > 0);
+    assert(near(5, PL_PINK[1], PCX(1.3f, 1.5f), PCY(1.3f, 1.5f), 4) == 0);
+}
+
+/* a selected step: orange, not lifted (its top as high as a plain block's) */
+static void sel_orange(void)
+{
+    base();
+    for (int i = 0; i < 16; i++) V.c[i].on = i == 2 || i == 1;
+    plateau_frame(&V, 0, 1000);
+    int top = 99, y0 = 0;
+    band(0);
+    for (int y = 82; y >= 0; y--)
+        for (int x = (int)PCX(1.5f, 0.5f) - 3; x <= (int)PCX(1.5f, 0.5f) + 3; x++)
+            if (px(x, y) == PL_WHITE[0]) top = y;
+    assert(top < 99);
+    V.c[1].sel = 1;
+    plateau_frame(&V, 0, 1000);
+    band(0);
+    for (int y = 82; y >= 0; y--)
+        for (int x = (int)PCX(1.5f, 0.5f) - 3; x <= (int)PCX(1.5f, 0.5f) + 3; x++)
+            if (px(x, y) == PL_ORANGE[0]) y0 = y;
+    assert(y0 == top);
+    assert(count(0, PL_ORANGE[0], 0, 240) > 20);
+}
+
 int main(void)
 {
     block_height_follows_vel();
@@ -232,6 +322,10 @@ int main(void)
     no_hit_on_arrival();
     path_drawn();
     city_above_horizon();
+    band_two_rows();
+    band_overflow();
+    band_pink_fill();
+    sel_orange();
     grids_stack_order();
     grids_threshold();
     grids_hit_pink();

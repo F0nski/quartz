@@ -57,3 +57,51 @@ expect anim 2
 shot plateau_page3.png
 tap EDIT
 expect anim 1
+# the step entry: GRID's badge, a note four steps long across two rows, a selection; NOTES' cursor, stopped and playing
+expect playing 0
+tap SEQ
+expect rec 1
+expect badge 1
+tap OCT+
+tap OCT+
+tap OCT+
+expect spage 4
+tapkey w2
+key w2 down
+tap OCT+
+tap OCT+
+tap OCT+
+tap OCT+
+key w2 up
+expect steplen_51 32
+expect leds_mid 16
+wait 100
+shot plateau_strip.png
+tapkey w8
+tapkey w10
+press SEL
+tapkey w8
+tapkey w10
+expect leds_lit 278528
+wait 100
+shot plateau_sel.png
+release SEL
+tap REC
+expect rec 2
+expect badge 2
+expect cursor 1
+expect spage 1
+wait 100
+shot plateau_notes.png
+tap PLAY
+wait 300
+shot plateau_notes_play.png
+tap PLAY
+tap REC
+expect badge 0
+press REC
+tap PLAY
+release REC
+expect badge 4
+tap REC
+expect badge 0

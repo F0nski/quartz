@@ -108,7 +108,8 @@ typedef struct { q_step st; uint8_t nlocks; q_lock lk[16]; } q_clip;   /* a step
 
 /* what is on the screen, part by part: a part is drawn again when its view changes */
 typedef struct {
-    struct { int8_t track, domain, page, n, msg, pat, playing, scene, pad, ltrig, itype, punch; } head;   /* pat: P1..P8 asked; playing: the one playing when it differs, else 0;
+    struct { int8_t track, domain, page, n, msg, pat, playing, scene, pad, ltrig, itype, punch, badge, bnum; } head;   /* badge: REC's
+                                                                                   state, 1 GRID .. 4 ARM (0 none or ARM's blink off); bnum: NOTES' step */   /* pat: P1..P8 asked; playing: the one playing when it differs, else 0;
                                                                                    pad: a KIT's in EDIT 1..16, else 0;
                                                                                    ltrig: LFO's FREE 1 / TRIG 2, else 0; itype: the insert's, in the page name */
     struct { int8_t pid; uint8_t col, hide, itype; int16_t v[4]; } foot;           /* col: the knobs shown in colour, the rest in grey (a lock page);
@@ -116,6 +117,7 @@ typedef struct {
     struct {
         int8_t pid, spage, cursor, pos, len, path, held, attr, showpath, xlen, ylen, src;   /* a generator: pos its rank, len its loop */
         uint16_t locks;                         /* the page's steps that have p-locks */
+        uint16_t sel;                           /* the page's steps selected */
         uint16_t notes;                         /* NOTES: the allowed pitch classes */
         q_step hst;                             /* the held step */
         int16_t v[4];
@@ -772,8 +774,11 @@ static void family_key(int b, q_step *s)
 /* the only writer of ui.rec: the recorder armed in LIVE alone */
 static void rec_set(int r)
 {
-    if (r == R_NOTES && ui.rec != R_NOTES)
+    if (r == R_NOTES && ui.rec != R_NOTES) {    /* from step 1, its page shown */
         ui.cursor = 1;
+        if (ui.domain == D_SEQ)
+            ui.spage = 0;
+    }
     if (r != R_GRID) {                  /* a step held on the grid is let go: its release toggles nothing */
         ui.held = 0;
         sel_clear();
@@ -1431,12 +1436,13 @@ static uint32_t step_keys(const q_step *s)
     return keys;
 }
 
-/* the keys lit */
-static uint32_t key_lights(void)
+/* the keys lit; *mid: the ones at the mid level */
+static uint32_t key_lights(uint32_t *mid)
 {
     const q_pattern *t = &ui.p->pat[ui.track][ui.p->pattern[ui.track]];
     uint32_t keys = 0;
     int i, pos = audio_pos(ui.track);
+    *mid = 0;
     if (ui.layer)                               /* a layer's map: its keys */
         return layer_keys(ui.layer - 1);
     if (ui.domain == D_SEQ && ui.seqdown)       /* SEQ held: the pattern asked */
@@ -1448,10 +1454,13 @@ static uint32_t key_lights(void)
             keys |= (uint32_t)ui.p->scene[i].used << WHITE[8 + i];
     } else if (notes_on()) {                    /* the cursor's step's notes */
         keys = step_keys(&t->steps[ui.cursor - 1]);
-    } else if (ui.domain == D_SEQ && t->src == SRC_STEP) {   /* a generator's keys play: no steps to show */
-        for (i = 0; i < 16; i++)
-            if (t->steps[ui.spage * 16 + i].flags & SF_ON || ui.spage * 16 + i == pos)
+    } else if (ui.domain == D_SEQ && t->src == SRC_STEP) {   /* the steps lit at mid level, the one playing and the selection lit */
+        for (i = 0; i < 16; i++) {
+            if (t->steps[ui.spage * 16 + i].flags & SF_ON)
+                *mid |= 1u << WHITE[i];
+            if (ui.spage * 16 + i == pos || ui.sel >> i & 1u)
                 keys |= 1u << WHITE[i];
+        }
     } else {
         keys = scale_keys();
     }
@@ -1460,14 +1469,15 @@ static uint32_t key_lights(void)
 
 static void lights(void)
 {
-    uint32_t btn = 1u << DOMAIN_BTN[ui.domain];
+    uint32_t btn = 1u << DOMAIN_BTN[ui.domain], mid, keys = key_lights(&mid);
     if (audio_playing())
         btn |= 1u << B_PLAY;
     if (ui.rec)
         btn |= 1u << B_REC;
     if (!grid_on() && ui.octave)                /* the octave shifted: its direction lit (on the grid they page the steps) */
         btn |= 1u << (ui.octave > 0 ? B_OCTUP : B_OCTDN);
-    plat_leds(btn, key_lights());
+    plat_leds(btn, keys);
+    plat_lights_mid(0, mid);
 }
 
 /* ----------------------------------------------------------------- screen --- */
@@ -1656,10 +1666,25 @@ static void attr_text(const q_step *s, int a, char *b)
     }
 }
 
+/* the step shown as held, its functions and p-locks on screen: a held step, a selection's reference, NOTES' cursor while
+   SEL is held; 1..64, 0 none */
+static int shown_step(void)
+{
+    return ui.held ? ui.held : ui.sel_ref >= 0 ? ui.spage * 16 + ui.sel_ref + 1 : notes_on() && ui.seldown ? ui.cursor : 0;
+}
+
+/* REC's badge: 1 GRID (in SEQ), 2 NOTES (GRID out of SEQ too), 3 LIVE, 4 ARM (blinking: 0 half the time) */
+static int badge(void)
+{
+    if (ui.rec == R_ARM)
+        return plat_ms() / 500u & 1u ? 0 : 4;
+    return ui.rec == R_GRID ? (ui.domain == D_SEQ ? 1 : 2) : ui.rec;
+}
+
 static void view_now(q_view *v)
 {
     const q_pattern *t = &ui.p->pat[ui.track][ui.p->pattern[ui.track]];
-    int pid = page_id(), k, fpid = ui.held ? lock_pid() : knob_page(), locked;
+    int hs = shown_step(), pid = page_id(), k, fpid = hs ? lock_pid() : knob_page(), locked;
     __builtin_memset(v, 0, sizeof *v);  /* the padding too: views are compared whole */
     v->head.track = (int8_t)ui.track;
     v->head.domain = (int8_t)ui.domain;
@@ -1669,6 +1694,8 @@ static void view_now(q_view *v)
     v->head.pat = (int8_t)(ui.p->pattern[ui.track] + 1);
     v->head.scene = (int8_t)ui.msg_scene;
     v->head.punch = (int8_t)(plat_ms() < ui.punch_until ? ui.msg_punch : 0);
+    v->head.badge = (int8_t)badge();
+    v->head.bnum = (int8_t)(v->head.badge == 2 ? ui.cursor : 0);
     if (audio_playing() && audio_pattern(ui.track) != ui.p->pattern[ui.track])
         v->head.playing = (int8_t)(audio_pattern(ui.track) + 1);
     if (ui.domain == D_EDIT && kit())
@@ -1686,13 +1713,13 @@ static void view_now(q_view *v)
         if (knob_hidden(fpid, k))
             v->foot.hide |= (uint8_t)(1u << k);
     }
-    if (ui.held)                   /* the lock page: the locked values in colour, the track's in grey */
+    if (hs)                        /* the lock page: the locked values in colour, the track's in grey */
         for (v->foot.col = 0, k = 0; k < 4; k++) {
             if (lock_param(k) < 0 || knob_hidden(fpid, k)) {
                 v->foot.hide |= (uint8_t)(1u << k);
                 continue;
             }
-            v->foot.v[k] = (int16_t)lock_value(t, ui.held - 1, k, &locked);
+            v->foot.v[k] = (int16_t)lock_value(t, hs - 1, k, &locked);
             v->foot.col |= (uint8_t)(locked << k);
         }
     if (pid == P_ENGINE || pid == P_SOUND || pid == P_SCALE || pid == P_PAD || pid >= P_ADSR) {
@@ -1720,11 +1747,12 @@ static void view_now(q_view *v)
         v->scene.showpath = pid == P_STEPS && plat_ms() < ui.path_until;
         v->scene.xlen = (int8_t)(pid == P_XY ? t->xlen : 4);
         v->scene.ylen = (int8_t)(pid == P_XY ? t->ylen : 4);
-        v->scene.held = (int8_t)ui.held;
+        v->scene.held = (int8_t)hs;
+        v->scene.sel = ui.sel;
         v->scene.model = ui.p->sound[ui.track].model;
         v->scene.attr = (int8_t)ui.attr;
-        if (ui.held)
-            v->scene.hst = t->steps[ui.held - 1];
+        if (hs)
+            v->scene.hst = t->steps[hs - 1];
         for (k = 0; k < t->nlocks; k++)
             if (t->locks[k].step / 16 == ui.spage)
                 v->scene.locks |= (uint16_t)(1u << (t->locks[k].step % 16));
@@ -1803,6 +1831,7 @@ static void plateau_view(const q_view *v, q_plateau *p)
         c->on = st->flags & SF_ON;
         c->vel = st->vel;
         c->len = st->len;
+        c->sel = v->scene.sel >> i & 1u;
         c->extra = STEP_RATCHET(st) > 1 || st->prob < 20 || st->cond || st->flags & (SF_SLIDE | SF_ACCENT) || st->micro ||
                    (v->scene.locks >> i & 1u);
         if (v->scene.model == M_KIT)        /* its first pad */
@@ -1910,7 +1939,27 @@ static void draw_head(const q_view *v)
     t[1] = '/';
     t[2] = (char)('0' + v->head.n);
     t[3] = 0;
-    cv_text(234 - text_w(&FONT_S, t), 7, &FONT_S, t, C_GRAY);
+    x = 234 - text_w(&FONT_S, t);
+    cv_text(x, 7, &FONT_S, t, C_GRAY);
+    if (v->head.badge) {                /* REC's state, boxed in its colour */
+        static const char *const BADGE[4] = {"GRID", "NOTES", "LIVE", "ARM"};
+        static const uint16_t BCOL[4] = {RGB(34, 213, 142), RGB(58, 109, 255), RGB(255, 47, 142), RGB(255, 122, 46)};
+        char b[10];
+        int i = 0;
+        const char *n = BADGE[v->head.badge - 1];
+        int32_t w;
+        while (*n)
+            b[i++] = *n++;
+        if (v->head.bnum) {
+            b[i++] = ' ';
+            int_text(v->head.bnum, b + i);
+        } else {
+            b[i] = 0;
+        }
+        w = text_w(&FONT_T, b) + 8;
+        cv_rect(x - 6 - w, 8, w, 14, BCOL[v->head.badge - 1]);
+        cv_text(x - 2 - w, 9, &FONT_T, b, C_BLACK);
+    }
     cv_rect(0, HEAD_H - 1, 240, 1, C_LINE);
     cv_blit(0, 0);
 }
@@ -2440,7 +2489,10 @@ int ui_expect(const char *what, int *got)
         for (*got = 0, i = 0; i < Q_STEPS; i++)
             *got += t->steps[i].flags & SF_ON ? 1 : 0;
     }
-    else if (!strcmp(what, "leds_lit")) *got = (int)key_lights();
+    else if (!strcmp(what, "leds_lit") || !strcmp(what, "leds_mid")) {
+        uint32_t mid, lit = key_lights(&mid);
+        *got = (int)(what[5] == 'l' ? lit : mid);
+    } else if (!strcmp(what, "badge")) *got = ui.rec == R_ARM ? 4 : badge();
     else if (!strcmp(what, "selref")) *got = ui.sel_ref + 1;
     else if (!strcmp(what, "clip_n")) for (*got = 1; *got < 4 && ui.clip.st.note[*got]; ++*got) {}
     else if (!strcmp(what, "clip_note")) *got = ui.clip.st.note[0];
