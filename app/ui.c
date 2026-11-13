@@ -103,7 +103,8 @@ static const uint8_t WHITE[16] = PLAT_WHITE_KEYS;
 static const uint8_t BLACK[11] = PLAT_BLACK_KEYS;
 static const uint16_t KCOL[4] = {RGB(58, 109, 255), RGB(34, 213, 142), RGB(240, 240, 250), RGB(255, 122, 46)};
 
-typedef struct { uint8_t model, pat, playing, mute; int8_t pos, len; } q_trow;   /* pat, playing as in head */
+typedef struct { uint8_t model, pat, playing, mute; int8_t pos, len; } q_trow;
+typedef struct { q_step st; uint8_t nlocks; q_lock lk[16]; } q_clip;   /* a step and its p-locks (lk[].step unused) */   /* pat, playing as in head */
 
 /* what is on the screen, part by part: a part is drawn again when its view changes */
 typedef struct {
@@ -144,6 +145,8 @@ static struct {
     int8_t key_note[NKEYS], key_track[NKEYS];  /* what each held key sounds, for its note-off; -1 none */
     uint32_t btn, keys, msg_until, locks_until, path_until, punch_until;
     uint32_t down_ms[NB], used;                /* when each button went down; used: bit b, a key or button came while b was held */
+    q_clip clip;                               /* the grid's clipboard, common to the tracks: the last step cut or chord played */
+    uint8_t preview[4];                        /* the held step's notes sounding at the stop, 0 none */
     int arm_key;                               /* ARM: the key that started the playing, played once step 1 is under way (key + 1) */
     q_view shown;
     int full;                                  /* the next frame draws everything */
@@ -416,6 +419,12 @@ static void rec_set(int r);
 /* SEQ's white keys are its steps: REC on the grid, a STEP pattern */
 static int grid_on(void) { return ui.domain == D_SEQ && ui.rec == R_GRID && pat()->src == SRC_STEP; }
 
+/* a length by OCT: the next whole step up (d > 0) or down, 1 to 8 steps */
+static int len_step(int len, int d)
+{
+    return d > 0 ? (len / 8 + 1) * 8 > 64 ? 64 : (len / 8 + 1) * 8 : len <= 8 ? len : ((len - 1) / 8) * 8;
+}
+
 static void button(int b)
 {
     int d;
@@ -461,7 +470,11 @@ static void button(int b)
     case B_OCTDN:
     case B_OCTUP:
         d = b == B_OCTUP ? 1 : -1;
-        if (grid_on())
+        if (grid_on() && ui.held) {     /* the held step's length */
+            q_step *s = &pat()->steps[ui.held - 1];
+            s->len = (uint8_t)len_step(s->len, d);
+            ui.edited = ui.dirty = 1;
+        } else if (grid_on())
             ui.spage = clamp(ui.spage + d, 0, Q_STEPS / 16 - 1);
         else
             ui.octave = clamp(ui.octave + d, -2, 2);
@@ -493,16 +506,21 @@ static void step_on(q_step *s)
     s->flags |= SF_ON;
 }
 
-static void step_clear(q_pattern *t, int n)
+static void step_default(q_step *s)
 {
-    q_step *s = &t->steps[n];
-    s->flags &= (uint8_t)~SF_ON;
-    __asm__ volatile("" ::: "memory");
     __builtin_memset(s, 0, sizeof *s);
     s->note[0] = 60;
     s->vel = 100;
     s->len = 4;
     s->prob = 20;
+}
+
+static void step_clear(q_pattern *t, int n)
+{
+    q_step *s = &t->steps[n];
+    s->flags &= (uint8_t)~SF_ON;
+    __asm__ volatile("" ::: "memory");
+    step_default(s);
     lock_clear_step(t, n);
 }
 
@@ -644,6 +662,49 @@ static void pad_toggle(q_step *s, int note)
             s->note[i] = s->note[i + 1];
         s->note[3] = 0;
     }
+}
+
+/* the clipboard: a chord played, at the defaults of a step made by hand */
+static void clip_notes(const uint8_t *notes, int n)
+{
+    step_default(&ui.clip.st);
+    __builtin_memcpy(ui.clip.st.note, notes, (size_t)n);
+    ui.clip.nlocks = 0;
+}
+
+/* the step and its p-locks into the clipboard, the step emptied */
+static void clip_cut(int step)
+{
+    q_pattern *t = pat();
+    int i;
+    ui.clip.st = t->steps[step];
+    ui.clip.nlocks = 0;
+    for (i = 0; i < t->nlocks; i++)
+        if (t->locks[i].step == step && ui.clip.nlocks < 16)
+            ui.clip.lk[ui.clip.nlocks++] = t->locks[i];
+    step_clear(t, step);
+    ui.dirty = 1;
+}
+
+/* the clipboard onto an empty step: its notes up to POLY (a KIT: pad 1 when it has none), its p-locks while they fit */
+static void clip_paste(int step)
+{
+    q_pattern *t = pat();
+    q_step *s = &t->steps[step];
+    int i, poly = kit() ? 4 : ui.p->sound[ui.track].poly;
+    *s = ui.clip.st;
+    s->flags &= (uint8_t)~SF_ON;
+    for (i = poly; i < 4; i++)
+        s->note[i] = 0;
+    if (kit() && (s->note[0] < KIT_NOTE || s->note[0] >= KIT_NOTE + Q_PADS)) {
+        __builtin_memset(s->note, 0, sizeof s->note);
+        s->note[0] = KIT_NOTE;
+    }
+    for (i = 0; i < ui.clip.nlocks; i++)
+        if (lock_set(t, step, ui.clip.lk[i].param, ui.clip.lk[i].value))
+            ui.locks_until = plat_ms() + MSG_MS;
+    step_on(s);
+    ui.dirty = 1;
 }
 
 /* a black key on a step: SLIDE and ACCENT toggle, the others pick the function PRESET sets */
@@ -853,6 +914,10 @@ static void key_down(int k)
             ui.held_key = k;
             ui.edited = ui.lpage = ui.nwrote = 0;
             ui.attr = A_VEL;
+            s = &t->steps[ui.held - 1];
+            if (s->flags & SF_ON && !audio_playing())   /* stopped: a lit step sounds until its release */
+                for (i = 0; i < 4 && (i == 0 || s->note[i]); i++)
+                    audio_live_note(ui.track, ui.preview[i] = s->note[i], 2);
             return;
         }
         if (!ui.held)
@@ -880,6 +945,17 @@ static void key_down(int k)
     }
     /* written to the held step: not overdubbed too; ARP held: the arp keeps the note after its key is released */
     audio_live_note(ui.track, note, s ? 2 : ui.arpdown && !kit() ? 3 : 1);
+    if (!s && ui.rec == R_OFF) {        /* disarmed: the note, or the chord with the keys still held, is the clipboard */
+        for (i = 0; i < NKEYS && ui.key_note[i] < 0; i++) {}
+        if (i == NKEYS) {
+            uint8_t n = (uint8_t)note;
+            clip_notes(&n, 1);
+        } else {
+            for (i = 0; i < 4 && ui.clip.st.note[i] && ui.clip.st.note[i] != note; i++) {}
+            if (i < 4)
+                ui.clip.st.note[i] = (uint8_t)note;
+        }
+    }
     ui.key_note[k] = (int8_t)note;
     ui.key_track[k] = (int8_t)ui.track;
     ui.last_note[ui.track] = (uint8_t)note;
@@ -909,23 +985,19 @@ static void key_up(int k)
         ui.punch &= (uint16_t)~(1u << w);
         audio_punch(ui.punch);
     }
-    if (ui.held && k == ui.held_key) {  /* nothing edited: the step toggles */
-        q_step *s = &pat()->steps[ui.held - 1];
+    if (ui.held && k == ui.held_key) {  /* nothing edited: a lit step is cut, an empty one takes the clipboard */
         if (!ui.edited) {
-            if (!(s->flags & SF_ON)) {
-                int n = ui.last_note[ui.track];
-                if (kit()) {            /* one pad: the last one played, pad 1 when none */
-                    __builtin_memset(s->note, 0, sizeof s->note);
-                    n = n >= KIT_NOTE && n < KIT_NOTE + Q_PADS ? n : KIT_NOTE;
-                }
-                s->note[0] = (uint8_t)n;
-                s->vel = 100;
-            }
-            __asm__ volatile("" ::: "memory");   /* note and vel before on */
-            s->flags ^= SF_ON;
-            ui.dirty = 1;
+            if (pat()->steps[ui.held - 1].flags & SF_ON)
+                clip_cut(ui.held - 1);
+            else
+                clip_paste(ui.held - 1);
         }
         ui.held = 0;
+    }
+    if (ui.preview[0] && !ui.held) {
+        for (w = 0; w < 4 && ui.preview[w]; w++)
+            audio_live_note(ui.track, ui.preview[w], 0);
+        __builtin_memset(ui.preview, 0, sizeof ui.preview);
     }
     if (ui.padheld == k + 1)
         ui.padheld = 0;
@@ -1686,6 +1758,7 @@ void ui_init(q_project *p)
     __builtin_memset(&ui, 0, sizeof ui);
     __builtin_memset(ui.key_note, -1, sizeof ui.key_note);
     __builtin_memset(ui.last_note, 60, sizeof ui.last_note);
+    step_default(&ui.clip.st);
     ui.p = p;
     ui.cursor = 1;
     ui.full = 1;
@@ -1909,6 +1982,9 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "rec")) *got = ui.rec;
     else if (!strcmp(what, "cursor")) *got = ui.cursor;
     else if (!strcmp(what, "octave")) *got = ui.octave;
+    else if (!strcmp(what, "clip_n")) for (*got = 1; *got < 4 && ui.clip.st.note[*got]; ++*got) {}
+    else if (!strcmp(what, "clip_note")) *got = ui.clip.st.note[0];
+    else if (!strcmp(what, "clip_locks")) *got = ui.clip.nlocks;
     else if (!strcmp(what, "spage")) *got = ui.spage + 1;
     else if (!strcmp(what, "model")) *got = s->model;
     else if (!strcmp(what, "poly")) *got = s->poly;

@@ -1,0 +1,300 @@
+# The grid: a short press pastes on an empty step, cuts a lit one; the clipboard takes the last note or chord played
+# disarmed; a held step previews at the stop, OCT sets its length
+wait 600
+# POLY 3, C4 E4 G4 played together, disarmed: the clipboard is the chord
+tap EDIT
+turn SELECT 1
+turn K4 2
+expect poly 3
+key 7 down
+key 11 down
+key 14 down
+key 14 up
+key 11 up
+key 7 up
+expect clip_n 3
+expect clip_note 60
+# GRID: pasted on step 3
+tap SEQ
+tap REC
+tapkey w2
+expect stepon_3 1
+expect stepnotes_3 3
+expect stepnote_3 60
+# step 3 with a HARM lock: cut, pasted on step 6 with its lock
+key w2 down
+spin K1 5
+key w2 up
+expect stepon_3 1
+expect lockharm_3 69
+tapkey w2
+expect stepon_3 0
+expect lockharm_3 -1
+expect clip_locks 1
+tapkey w5
+expect stepon_6 1
+expect stepnotes_6 3
+expect lockharm_6 69
+# pasted back on its place then elsewhere: duplicated
+tapkey w2
+tapkey w9
+expect stepon_3 1
+expect stepon_10 1
+expect lockharm_10 69
+# stopped, a lit step held sounds its notes (the cut above sounded too: 9 so far); OCT sets its length by whole steps, the page stays
+expect hits 9
+key w5 down
+wait 50
+expect hits 12
+tap OCT+
+expect steplen_6 8
+tap OCT+
+expect steplen_6 16
+tap OCT+
+expect steplen_6 24
+tap OCT-
+tap OCT-
+tap OCT-
+expect steplen_6 8
+key w5 up
+expect stepon_6 1
+expect spage 1
+# alone, OCT turns the page
+tap OCT+
+expect spage 2
+tap OCT-
+# POLY 1: the chord pasted keeps its first note
+tap EDIT
+turn K4 -2
+expect poly 1
+tap SEQ
+tapkey w12
+expect stepon_13 1
+expect stepnotes_13 1
+expect stepnote_13 60
+# a KIT (track 2): a clipboard with no pad gives pad 1
+turn ALGO 1
+expect track 2
+tap EDIT
+spin K1 24
+expect model 24
+tap SEQ
+tapkey w0
+expect stepon_1 1
+expect stepnote_1 36
+expect stepnotes_1 1
+# a cut step's p-locks that no longer fit (128) are lost, with the message
+turn ALGO 1
+expect track 3
+key w0 down
+spin K1 5
+spin K2 5
+key w0 up
+tapkey w0
+expect clip_locks 2
+press SEQ
+tapkey w1
+release SEQ
+expect pattern 2
+
+key w0 down
+spin K1 1
+spin K2 1
+spin K3 1
+spin K4 1
+key w0 up
+key w1 down
+spin K1 1
+spin K2 1
+spin K3 1
+spin K4 1
+key w1 up
+key w2 down
+spin K1 1
+spin K2 1
+spin K3 1
+spin K4 1
+key w2 up
+key w3 down
+spin K1 1
+spin K2 1
+spin K3 1
+spin K4 1
+key w3 up
+key w4 down
+spin K1 1
+spin K2 1
+spin K3 1
+spin K4 1
+key w4 up
+key w5 down
+spin K1 1
+spin K2 1
+spin K3 1
+spin K4 1
+key w5 up
+key w6 down
+spin K1 1
+spin K2 1
+spin K3 1
+spin K4 1
+key w6 up
+key w7 down
+spin K1 1
+spin K2 1
+spin K3 1
+spin K4 1
+key w7 up
+key w8 down
+spin K1 1
+spin K2 1
+spin K3 1
+spin K4 1
+key w8 up
+key w9 down
+spin K1 1
+spin K2 1
+spin K3 1
+spin K4 1
+key w9 up
+key w10 down
+spin K1 1
+spin K2 1
+spin K3 1
+spin K4 1
+key w10 up
+key w11 down
+spin K1 1
+spin K2 1
+spin K3 1
+spin K4 1
+key w11 up
+key w12 down
+spin K1 1
+spin K2 1
+spin K3 1
+spin K4 1
+key w12 up
+key w13 down
+spin K1 1
+spin K2 1
+spin K3 1
+spin K4 1
+key w13 up
+key w14 down
+spin K1 1
+spin K2 1
+spin K3 1
+spin K4 1
+key w14 up
+key w15 down
+spin K1 1
+spin K2 1
+spin K3 1
+spin K4 1
+key w15 up
+tap OCT+
+key w0 down
+spin K1 1
+spin K2 1
+spin K3 1
+spin K4 1
+key w0 up
+key w1 down
+spin K1 1
+spin K2 1
+spin K3 1
+spin K4 1
+key w1 up
+key w2 down
+spin K1 1
+spin K2 1
+spin K3 1
+spin K4 1
+key w2 up
+key w3 down
+spin K1 1
+spin K2 1
+spin K3 1
+spin K4 1
+key w3 up
+key w4 down
+spin K1 1
+spin K2 1
+spin K3 1
+spin K4 1
+key w4 up
+key w5 down
+spin K1 1
+spin K2 1
+spin K3 1
+spin K4 1
+key w5 up
+key w6 down
+spin K1 1
+spin K2 1
+spin K3 1
+spin K4 1
+key w6 up
+key w7 down
+spin K1 1
+spin K2 1
+spin K3 1
+spin K4 1
+key w7 up
+key w8 down
+spin K1 1
+spin K2 1
+spin K3 1
+spin K4 1
+key w8 up
+key w9 down
+spin K1 1
+spin K2 1
+spin K3 1
+spin K4 1
+key w9 up
+key w10 down
+spin K1 1
+spin K2 1
+spin K3 1
+spin K4 1
+key w10 up
+key w11 down
+spin K1 1
+spin K2 1
+spin K3 1
+spin K4 1
+key w11 up
+key w12 down
+spin K1 1
+spin K2 1
+spin K3 1
+spin K4 1
+key w12 up
+key w13 down
+spin K1 1
+spin K2 1
+spin K3 1
+spin K4 1
+key w13 up
+key w14 down
+spin K1 1
+spin K2 1
+spin K3 1
+spin K4 1
+key w14 up
+key w15 down
+spin K1 1
+spin K2 1
+spin K3 1
+key w15 up
+tap OCT-
+expect locks 127
+expect msg_locks_full 0
+tap OCT+
+tap OCT+
+tapkey w0
+expect stepon_33 1
+expect locks 128
+expect msg_locks_full 1

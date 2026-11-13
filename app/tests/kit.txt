@@ -57,11 +57,11 @@ wait 100
 shot kit_step_held.png
 key 6 up
 expect stepon_4 1
-# an empty step tapped takes the last pad played: 1
+# an empty step tapped takes the clipboard: the last pad played, 4
 key 2 down
 key 2 up
 expect stepon_2 1
-expect stepnote_2 36
+expect stepnote_2 39
 expect stepnotes_2 1
 # PRESET NOTE leaves a KIT step's pads
 key 2 down
@@ -69,7 +69,7 @@ key 8 down
 key 8 up
 expect attr 6
 turn PRESET 3
-expect stepnote_2 36
+expect stepnote_2 39
 key 2 up
 expect stepon_2 1
 # step 5 held, its only pad out: the step goes off
@@ -122,9 +122,9 @@ wait 50
 expect stepnotes_2 2
 expect stepnote2_2 38
 wait 3850
-key 0 down
+key 6 down
 wait 100
-key 0 up
+key 6 up
 wait 50
 expect stepnotes_2 2
 tap PLAY
