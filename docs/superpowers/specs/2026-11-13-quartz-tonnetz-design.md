@@ -2,7 +2,7 @@
 
 Une septième source de pattern, après STEP, GRIDS, MARBLES, LIFE, LANES et CHORDS (spec globale
 `2026-11-10-quartz-groovebox-design.md`, sections 3 et 6). Elle part de la branche `chords`, dont elle reprend la façon
-de jouer un accord (RATE, STRUM, VOICE, accent, POLY), la case tenue et le clavier de la scène. Maquettes : idées
+de jouer un accord (RATE, STRUM, VOICE, accent, POLY) et la case tenue. Maquettes : idées
 `docs/screens/sequencers.html`, scène `docs/screens/tonnetz.html`, direction T1 « Carte qui suit ».
 
 ## 1. But
@@ -104,13 +104,14 @@ Direction T1 de la maquette. Coordonnées de la zone de scène 240 × 166 ; l'en
   `L`, `R`) en blanc ; bleues dans LEN, sombres au-delà ; le pas appliqué à la dernière mesure en rose, en orange s'il a
   été remplacé par CHAOS ; RETURN : un losange orange après la tuile LEN. À droite (x 170 à 232), les crans de RATE
   comme CHORDS.
-- **Carte** (y 20 à 136) : la grille du Tonnetz, maille de 46 px (nœud `(i, j)` à `(46 i + 23 j, −40 j)` du centre de la
-  carte), arêtes `#1c1340` ; un losange de 4 px par nœud et le nom de sa note au-dessus ; en IN SCALE, les nœuds hors
-  gamme plus sombres. L'accord en cours : son triangle en trois facettes roses depuis son centre (blanches 140 ms à
-  chaque frappe), son nom au centre (noir sur blanc) ; ses nœuds en blanc. Les trois accords précédents : leurs
-  triangles pleins en bleus de plus en plus sombres. La carte glisse pour garder l'accord au centre (x 120, y 78), en
-  250 ms.
-- **Clavier** (y 140 à 162) : celui de CHORDS (notes de la dernière frappe en rose, blanches à leur départ avec STRUM).
+- **Carte** (y 20 à 166, sans clavier : la carte montre les notes jouées) : la grille du Tonnetz, maille de 46 px (nœud
+  `(i, j)` à `(46 i + 23 j, −40 j)` du centre de la carte), arêtes `#1c1340` ; un losange de 4 px par nœud et le nom de
+  sa note au-dessus ; en IN SCALE, les nœuds hors gamme plus sombres. L'accord en cours : son triangle en trois
+  facettes roses depuis son centre (blanches 140 ms à chaque frappe), son nom au centre (noir sur blanc) ; ses trois
+  nœuds en blanc, chacun avec la note jouée et son octave (`E3`), qui grossit et blanchit 140 ms à son départ (STRUM :
+  l'un après l'autre, du grave à l'aigu) ; un petit triangle blanc sous le nœud de la note la plus grave (VOICE). Les
+  trois accords précédents : leurs triangles pleins en bleus de plus en plus sombres. La carte glisse pour garder
+  l'accord au centre (x 120, y 92), en 250 ms.
 - **Pas tenu** : un bandeau clair à la place des crans, `STEP 3 - R > DM` (le pas, sa transformation, l'accord qu'elle
   donnerait depuis l'accord en cours, dans le mode SCALE) ; sa tuile en blanc.
 - À l'arrêt : l'accord de départ, sans rose ; **KIT** : `NO CHORDS ON A KIT`.
@@ -124,12 +125,11 @@ Direction T1 de la maquette. Coordonnées de la zone de scène 240 × 166 ; l'en
 | CHAOS | une tuile orange quand un pas a été remplacé |
 | SCALE | les nœuds hors gamme sombres ou non |
 | RETURN | le losange orange |
-| STRUM | les touches du clavier qui s'allument l'une après l'autre |
-| VOICE | les touches allumées |
+| STRUM | les nœuds de l'accord qui s'allument l'un après l'autre |
+| VOICE | les octaves écrites sur les nœuds de l'accord, le repère de la basse |
 
 Le code va dans `app/scene_tonnetz.c` (`tonnetz_enter`, `tonnetz_frame`, `tonnetz_band`), sa vue dans `scene.h` ;
-`ui.c` la choisit (anim 11) sur les pages TONNETZ, WALK et PLAY. Le clavier de CHORDS devient une fonction partagée de
-la scène (`chv_keyboard`, deux usages). Budget : une trentaine d'arêtes et de nœuds visibles, 3 facettes, 3 traces :
+`ui.c` la choisit (anim 11) sur les pages TONNETZ, WALK et PLAY. Budget : une trentaine d'arêtes et de nœuds visibles, 3 facettes, 3 traces :
 moins de 120 primitives.
 
 ## 7. Tests
@@ -141,7 +141,8 @@ moins de 120 primitives.
   différent de la séquence ; RATE, STRUM, accent, POLY, KIT comme CHORDS ; marche FREE sur 1000 mesures sans
   débordement ; bornes au chargement (`store_test.c`).
 - **`scene_test.c`** : budget ; triangle rose sur les nœuds de l'accord ; nœuds hors gamme plus sombres en IN SCALE ;
-  tuile orange après un remplacement CHAOS ; bandeau du pas tenu ; chaque réglage du tableau change au moins un pixel.
+  tuile orange après un remplacement CHAOS ; bandeau du pas tenu ; octaves des notes jouées sur les nœuds et
+  repère de la basse ; nœuds allumés dans l'ordre avec STRUM ; chaque réglage du tableau change au moins un pixel.
 - **Simulateur** : `tonnetz.txt` (pages, bornes, POLY monté à 3), `tonnetz_entry.txt` (appui court, tenu + noires,
   tenu + K1, au-delà de LEN), `tonnetz_scene.txt` (lecture, pas tenu, KIT).
 - **Appareil** : avec les autres mesures CPU en fin de chantier.

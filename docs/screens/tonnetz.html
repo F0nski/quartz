@@ -41,8 +41,7 @@ button:focus-visible { outline: 2px solid var(--hot); outline-offset: 2px }
 <header>
   <h1>Source <em>TONNETZ</em> : la scène</h1>
   <p class="lead">L'accord marche sur le Tonnetz : à chaque mesure, le pas suivant de la séquence (P, L, R ou —) le fait basculer
-  sur un triangle voisin, avec deux notes communes. Ici en C majeur, départ sur C. Quatre variantes de la même scène ; toutes gardent
-  en haut la séquence en tuiles 1–8 et en bas le clavier des notes jouées (celui de CHORDS).</p>
+  sur un triangle voisin, avec deux notes communes. Ici en C majeur, départ sur C. La direction retenue, T1, sans le clavier : la carte montre les notes jouées.</p>
 </header>
 
 <section class="knobs" aria-label="Encodeurs et saisie">
@@ -54,10 +53,7 @@ button:focus-visible { outline: 2px solid var(--hot); outline-offset: 2px }
 </section>
 
 <div class="grid">
-  <figure><canvas id="c1" width="240" height="240"></canvas><figcaption><span class="tag">T1</span><h2>Carte qui suit</h2><p>La grille du Tonnetz, notes aux nœuds ; l'accord en cours est le triangle rose à facettes, les trois précédents en traces bleues qui s'éteignent. La carte glisse pour garder l'accord au centre.</p></figcaption></figure>
-  <figure><canvas id="c2" width="240" height="240"></canvas><figcaption><span class="tag">T2</span><h2>Carte fixe</h2><p>Le Tonnetz est un tore : 12 notes suffisent. La carte ne bouge pas, l'accord saute d'un triangle à l'autre et le chemin du tour reste tracé ; l'accord de départ marqué d'un losange (RETURN).</p></figcaption></figure>
-  <figure><canvas id="c3" width="240" height="240"></canvas><figcaption><span class="tag">T3</span><h2>Relief</h2><p>T1 vue en plongée : la carte est une dalle à facettes, l'accord en cours se soulève en pyramide à chaque mesure et retombe quand il cède la place.</p></figcaption></figure>
-  <figure><canvas id="c4" width="240" height="240"></canvas><figcaption><span class="tag">T4</span><h2>Réseau d'accords</h2><p>Le graphe des accords : chaque accord est un nœud, chaque transformation une arête nommée P, L ou R. L'accord en cours au centre, ses trois voisins autour ; l'arête du prochain pas s'allume avant le changement.</p></figcaption></figure>
+  <figure><canvas id="c1" width="240" height="240"></canvas><figcaption><span class="tag">T1</span><h2>Carte qui suit, sans piano</h2><p>La grille du Tonnetz jusqu'au bas de l'écran. L'accord en cours : triangle rose à facettes, ses trois notes avec leur octave (« E4 »), qui s'allument en blanc l'une après l'autre avec STRUM ; un petit triangle blanc sous la note la plus grave (VOICE). Les trois accords précédents en traces bleues ; la carte glisse pour garder l'accord au centre.</p></figcaption></figure>
 </div>
 </main>
 
@@ -217,10 +213,17 @@ function lattice(g, P, ci, cj, spanI, spanJ, nodeLbl = true) {
   if (!nodeLbl) return;
   const tc = triad(cur);
   for (let i = ci - spanI; i <= ci + spanI; i++) for (let j = cj - spanJ; j <= cj + spanJ; j++) {
-    const [x, y] = P(i, j); if (x < -8 || x > 248 || y < 50 || y > 168) continue;
+    const [x, y] = P(i, j); if (x < -8 || x > 248 || y < 50 || y > 196) continue;
     const p = pc(i, j), inT = nodes(cur).some(([a, b]) => a === i && b === j), ins = SCALE.includes(p);
-    poly(g, [[x, y - 4], [x + 4, y], [x, y + 4], [x - 4, y]], inT ? GEM.white[1] : !S.inScale || ins ? GEM.blue[2] : '#1c1340');
-    txt(g, NAMES[(p + S.note) % 12], x, y - 6, inT ? C.white : !S.inScale || ins ? C.mute : '#241850', 7, 'center');
+    if (inT) {                                  /* a chord note: its octave, white as it sounds (STRUM's order), the bass marked (VOICE) */
+      const idx = notes.findIndex(n => n % 12 === (p + S.note) % 12), n = notes[idx], on = idx >= 0 && lit(idx), r = on ? 6 : 4;
+      poly(g, [[x, y - r], [x + r, y], [x, y + r], [x - r, y]], on ? GEM.white[0] : GEM.white[1]);
+      txt(g, NAMES[n % 12] + (Math.floor(n / 12) - 1), x, y - 8, C.white, 8, 'center');
+      if (idx === 0) poly(g, [[x - 4, y + 8], [x + 4, y + 8], [x, y + 13]], C.white);
+      continue;
+    }
+    poly(g, [[x, y - 4], [x + 4, y], [x, y + 4], [x - 4, y]], !S.inScale || ins ? GEM.blue[2] : '#1c1340');
+    txt(g, NAMES[(p + S.note) % 12], x, y - 6, !S.inScale || ins ? C.mute : '#241850', 7, 'center');
   }
 }
 function triFacets(g, pts, tones, lift = 0) {
@@ -236,15 +239,15 @@ function drawT1(g, relief) {
   const DX = 46, DY = relief ? 22 : 40, ctr = nodes(cur).reduce((a, [i, j]) => [a[0] + (i * DX + j * DX / 2) / 3, a[1] + (-j * DY) / 3], [0, 0]);
   const cam = cams[relief] || (cams[relief] = ctr.slice());
   cam[0] += (ctr[0] - cam[0]) * 0.08; cam[1] += (ctr[1] - cam[1]) * 0.08;
-  const P = (i, j) => [120 + i * DX + j * DX / 2 - cam[0], 108 - j * DY - cam[1]];
+  const P = (i, j) => [120 + i * DX + j * DX / 2 - cam[0], 122 - j * DY - cam[1]];
   const ci = Math.round(cam[0] / DX + (cam[1] / DY) / 2), cj = Math.round(-cam[1] / DY);
   lattice(g, P, ci, cj, 6, relief ? 5 : 3);
   trail.slice().reverse().forEach((s, n) => { const k2 = trail.length - 1 - n; poly(g, nodes(s).map(([i, j]) => P(i, j)), ['#2a52c8', '#1c3590', '#16255e'][k2]); });
   const lift = relief ? 22 * Math.max(0, 1 - Math.max(0, performance.now() - barT - 600) / 400) * Math.min(1, (performance.now() - barT) / 150) : 0;
   const c = triFacets(g, nodes(cur).map(([i, j]) => P(i, j)), hot() ? GEM.white.slice(0, 3) : GEM.pink.slice(0, 3), lift);
   txt(g, name(cur), c[0], c[1] + 4, hot() ? C.bg : C.white, 11, 'center');
-  g.fillStyle = C.bg; g.fillRect(0, 30, 240, 20); g.fillRect(0, 166, 240, 4);
-  topStrip(g); keyboard(g); chrome(g);
+  g.fillStyle = C.bg; g.fillRect(0, 30, 240, 20);
+  topStrip(g); chrome(g);
 }
 /* T2: the fixed torus, the loop's path */
 const wrapT = s => { let { i, j, m } = s; while (j < 0) { j += 3; } while (j > 2) { j -= 3; } while (i < -1) { i += 4; j -= 1; if (j < 0) j += 3; } while (i > 2) { i -= 4; j += 1; if (j > 2) j -= 3; } return { i, j, m }; };
@@ -288,14 +291,14 @@ function drawT4(g) {
   topStrip(g); keyboard(g); chrome(g);
 }
 
-const G = ['c1', 'c2', 'c3', 'c4'].map(id => document.getElementById(id).getContext('2d'));
+const G = ['c1'].map(id => document.getElementById(id).getContext('2d'));
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 function frame() {
   const t = performance.now(), ms = DIVS[S.div][1];
   acc += Math.min(200, t - last); last = t;
   while (acc >= ms) { acc -= ms; tick(); }
   frac = reduce ? 0 : acc / ms;
-  drawT1(G[0], false); drawT2(G[1]); drawT1(G[2], true); drawT4(G[3]);
+  drawT1(G[0], false);
   requestAnimationFrame(frame);
 }
 document.fonts.ready.then(() => { tick(); requestAnimationFrame(frame); });
