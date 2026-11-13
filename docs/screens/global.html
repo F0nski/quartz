@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Global Pages</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+:root { --bg: #efedf5; --fg: #1c1830; --muted: #5d5873; --device: #151320; --hot: #d4247a; --panel: #e4e1ee;
+  --display: "Chakra Petch", "Arial Narrow", sans-serif; --body: "IBM Plex Sans", system-ui, sans-serif }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.5; margin: 0; padding: 20px 16px 48px }
+main { max-width: 1000px; margin: 0 auto; display: grid; gap: 18px }
+h1 { font-family: var(--display); font-size: 1.7rem; margin: 0; text-transform: uppercase }
+h1 em { font-style: normal; color: var(--hot) }
+.lead { color: var(--muted); margin: 6px 0 0; max-width: 80ch }
+.knobs { position: sticky; top: 0; z-index: 1; background: var(--panel); border-radius: 10px; padding: 10px 14px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 6px 18px; align-items: center;
+  font-family: var(--display); font-size: .78rem; letter-spacing: .06em; text-transform: uppercase }
+.knobs label { display: grid }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px }
+figure { margin: 0; display: grid; gap: 6px; align-content: start; min-width: 0 }
+canvas { width: 100%; aspect-ratio: 1; background: #000; border: 12px solid var(--device); border-radius: 16px; box-sizing: border-box; image-rendering: pixelated }
+h3 { font-family: var(--display); font-size: 1rem; margin: 0; text-transform: uppercase }
+figcaption p { margin: 2px 0 0; font-size: .85rem; color: var(--muted) }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Pages globales <em>très clair</em></h1>
+    <p class="lead">Lot 2 en direction A : un grand titre, un dessin simple par réglage, chaque élément légendé dans la couleur de son encodeur, le rose pour ce qui joue. Les curseurs K1–K4 pilotent toutes les pages.</p>
+  </header>
+  <div class="knobs">
+    <label>K1 <input type="range" id="k0" value="40"></label>
+    <label>K2 <input type="range" id="k1" value="30"></label>
+    <label>K3 <input type="range" id="k2" value="50"></label>
+    <label>K4 <input type="range" id="k3" value="60"></label>
+    <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="auto" checked> encodeurs auto</label>
+  </div>
+  <div class="grid">
+    <figure><canvas id="tempoA" width="240" height="240"></canvas><figcaption><h3>GLO · TEMPO</h3><p>Le tempo en grand ; la mesure en 16 cases, le pas joué en rose, les contretemps décalés par le swing ; COMP et DUCK en jauges qui pompent au temps.</p></figcaption></figure>
+    <figure><canvas id="scaleA" width="240" height="240"></canvas><figcaption><h3>GLO · SCALE</h3><p>La gamme en grand ; une octave de piano, la tonique en bleu, les notes du mode en vert, la note jouée en rose ; QUANT et CLICK en rangées d'options, la valeur choisie allumée.</p></figcaption></figure>
+    <figure><canvas id="keysA" width="240" height="240"></canvas><figcaption><h3>GLO · KEYS</h3><p>Les options en haut et une phrase qui dit ce qui se passe ; les 16 touches blanches avec la note que chacune joue ; en gamme, les noires sont barrées. La touche jouée en rose.</p></figcaption></figure>
+    <figure><canvas id="fxA" width="240" height="240"></canvas><figcaption><h3>GLO · FX</h3><p>DELAY : la note et ses échos sur une ligne de temps. REVERB : sa queue, longue selon SIZE, plus claire selon TONE. Chaque bloc légendé avec ses valeurs.</p></figcaption></figure>
+    <figure><canvas id="songA" width="240" height="240"></canvas><figcaption><h3>HOME · SONG</h3><p>En haut, toute la chanson en bande (chaque entrée aussi longue que ses répétitions). Dessous, les entrées autour du curseur : numéro, scène, une case par répétition ; en lecture, le segment et le pavé de l’entrée jouée passent en rose.</p></figcaption></figure>
+  </div>
+</main>
+
+<script>
+const K = [["#8fb4ff", "#3a6dff", "#1c3590"], ["#8ff5c8", "#22d58e", "#0f6d48"], ["#ffffff", "#c9c3e4", "#6f6890"], ["#ffc196", "#ff7a2e", "#a3410c"]];
+const HOT = ["#ffb8dc", "#ff2f8e", "#8a1050"], GRAYT = ["#6f6890", "#4a4466", "#2c2844"];
+const UI = "#8b84a8", BAR = "#06041a", AMB = "#ffb02e", GRID = "#1d1838", WIRE = "#2e2850";
+const NOTE = 1.6, DX = 12, DY = -9, X0 = 16, X1 = 216, YT = 62, YB = 172;
+const font = (px, w = 700) => `${w} ${px}px "Chakra Petch", sans-serif`;
+const poly = (c, pts, fill) => { c.fillStyle = fill; c.beginPath(); pts.forEach(([x, y]) => c.lineTo(x, y)); c.closePath(); c.fill(); };
+const line = (c, pts, col, w = 1) => { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); pts.forEach(([x, y]) => c.lineTo(x, y)); c.stroke(); };
+const diamond = (c, x, y, r, col) => poly(c, [[x, y - r], [x + r, y], [x, y + r], [x - r, y]], col);
+const dim = (h, k) => "#" + [1, 3, 5].map(i => Math.round(parseInt(h.substr(i, 2), 16) * k).toString(16).padStart(2, "0")).join("");
+const tones = (T, k) => T.map(h => dim(h, k));
+const pick = (v, n) => Math.min(n - 1, Math.floor(v * n));
+const text = (c, s, x, y, col, px = 11, al = "left") => { c.fillStyle = col; c.font = font(px); c.textAlign = al; c.textBaseline = "middle"; c.fillText(s, x, y); c.textAlign = "left"; };
+const model = c => text(c, "VA VCF", 10, 42, "#f4f1ff", 12);
+
+function knobs(t) {
+  if (document.getElementById("auto").checked) return [0, 1, 2, 3].map(i => 0.5 + 0.45 * Math.sin(t * (0.3 + i * 0.11) + i * 1.9));
+  return [0, 1, 2, 3].map(i => document.getElementById("k" + i).value / 100);
+}
+function chrome(c, dom, page, n, labels, vals, v, hit) {
+  c.fillStyle = BAR; c.fillRect(0, 0, 240, 30); c.fillRect(0, 196, 240, 44);
+  poly(c, [[6, 5], [26, 5], [26, 25], [6, 25]], hit ? HOT[1] : "#e8e4ff");
+  text(c, "1", 16, 15.5, BAR, 13, "center");
+  c.font = font(14); const w = c.measureText(dom).width;
+  text(c, dom, 34, 15.5, "#f4f1ff", 14); text(c, page, 44 + w, 15.5, AMB, 14);
+  text(c, n, 234, 15.5, UI, 10, "right");
+  c.fillStyle = GRID; c.fillRect(0, 196, 240, 1);
+  labels.forEach((l, i) => {
+    const x = 60 * i + 6;
+    text(c, l, x, 205, K[i][1], 8); text(c, vals[i], x, 222, K[i][1], 13);
+    c.fillStyle = GRID; c.fillRect(x, 235, 48, 2); c.fillStyle = K[i][1]; c.fillRect(x, 235, 48 * v[i], 2);
+  });
+}
+/* a ribbon over polyline p (screen points on row 0) pushed back by row k; cols(i) gives segment i's tones */
+function ribbon(c, p, cols, base, k = 0, d = 1) {
+  const ox = DX * k, oy = DY * k, dx = DX * d, dy = DY * d;
+  p = p.map(([x, y]) => [x + ox, y + oy]); base += oy;
+  for (let i = 0; i < p.length - 1; i++) {
+    const a = p[i], b = p[i + 1], col = cols(i);
+    poly(c, [a, b, [b[0], base], [a[0], base]], col[2]);
+    const up = b[1] < a[1] - 0.5, down = b[1] > a[1] + 0.5;
+    poly(c, [a, b, [b[0] + dx, b[1] + dy], [a[0] + dx, a[1] + dy]], up ? col[0] : down ? dim(col[1], 0.75) : col[1]);
+    line(c, [[a[0] + dx, a[1] + dy], [b[0] + dx, b[1] + dy]], col[0]);
+  }
+}
+function box(c, x, w, yt, yb, T, k = 0, d = 1) {
+  const ox = DX * k, oy = DY * k, dx = DX * d, dy = DY * d; x += ox; yt += oy; yb += oy;
+  poly(c, [[x, yt], [x + w, yt], [x + w, yb], [x, yb]], T[1]);
+  poly(c, [[x, yt], [x + w, yt], [x + w + dx, yt + dy], [x + dx, yt + dy]], T[0]);
+  poly(c, [[x + w, yt], [x + w + dx, yt + dy], [x + w + dx, yb + dy], [x + w, yb]], T[2]);
+}
+const wbox = (c, x, w, yt, yb, col, k = 0) => {
+  const ox = DX * k, oy = DY * k; x += ox; yt += oy; yb += oy;
+  line(c, [[x, yb], [x, yt], [x + w, yt], [x + w, yb]], col); line(c, [[x, yt], [x + DX, yt + DY], [x + w + DX, yt + DY], [x + w, yt]], col);
+};
+
+function floor(c) {
+  for (let i = 0; i <= 8; i++) { const x = X0 + i * 25; line(c, [[x, YB], [x + DX * 2, YB + DY * 2]], GRID); }
+  for (let j = 0; j <= 2; j++) line(c, [[X0 + DX * j, YB + DY * j], [X1 + DX * j, YB + DY * j]], GRID);
+}
+const DIVS = ["1/32", "1/16T", "1/16", "1/8T", "1/8", "1/4T", "1/4", "1/2", "1/1"];
+const cap = (c, s, x, y, col, px = 9, al = "left") => text(c, s, x, y, col, px, al);
+const tempoOf = v => Math.round(40 + 200 * v[0]);
+
+function tempoA(c, v, t) {
+  const bpm = tempoOf(v), sw = 0.5 + 0.25 * v[1], sd = 15 / bpm, pos = Math.floor(t / sd) % 16;
+  text(c, String(bpm), 120, 62, "#f4f1ff", 34, "center");
+  cap(c, "BPM", 120, 84, UI, 9, "center");
+  /* the bar: 16 cells, the off-beats pushed by SWING */
+  for (let i = 0; i < 16; i++) {
+    const x = 14 + Math.floor(i / 2) * 27 + (i % 2 ? 13.5 * (sw - 0.5) / 0.25 + 13.5 : 0) * 0.5 + (i % 2 ? 6 : 0);
+    const y = 100, h = i % 4 === 0 ? 22 : 14;
+    c.fillStyle = i === pos ? HOT[1] : i % 2 ? K[1][1] : K[0][1];
+    c.fillRect(x, y + 22 - h, 9, h);
+  }
+  cap(c, "SWING " + Math.round(sw * 100) + " %", 226, 134, K[1][1], 8, "right");
+  /* COMP and DUCK: two meters that move with the beat */
+  const beat = (t / (sd * 4)) % 1, pump = Math.exp(-beat * 5);
+  [["COMP", v[2], K[2][1]], ["DUCK", v[3], K[3][1]]].forEach(([l, a, col], j) => {
+    const y = 152 + j * 18, g = a * (j ? pump : 0.6 + 0.4 * pump);
+    cap(c, l, 14, y + 3, col, 8);
+    c.fillStyle = WIRE; c.fillRect(56, y, 170, 6);
+    c.fillStyle = col; c.fillRect(226 - 170 * g, y, 170 * g, 6);
+  });
+  chrome(c, "GLO", "TEMPO", "1/5", ["TEMPO", "SWING", "COMP", "DUCK"],
+    [bpm, Math.round(sw * 100), Math.round(v[2] * 127), Math.round(v[3] * 127)], v, pos % 4 === 0);
+}
+function fxA(c, v, t, tn) {
+  const di = pick(v[0], 9), fb = v[1], size = v[2], tone = v[3];
+  /* DELAY: the note and its echoes on a time line */
+  cap(c, "DELAY", 14, 44, K[0][1], 10);
+  cap(c, DIVS[di] + "  ·  FB " + Math.round(fb * 127), 226, 44, UI, 9, "right");
+  const sp = [8, 10, 13, 17, 22, 30, 40, 60, 90][di], fall = 0.15 + 0.8 * fb;
+  c.fillStyle = WIRE; c.fillRect(14, 108, 212, 1);
+  for (let k = 0, x = 16, h = 46; x < 224 && h > 2; k++, x += sp, h *= fall) {
+    const lit = tn < 1 && Math.floor(tn / 0.12) === k;
+    c.fillStyle = lit ? HOT[1] : k ? K[0][1] : "#f4f1ff";
+    c.fillRect(x, 108 - h, 5, h);
+  }
+  /* REVERB: its tail, SIZE long, TONE from dark to bright */
+  cap(c, "REVERB", 14, 128, K[2][1], 10);
+  cap(c, "SIZE " + Math.round(size * 127) + "  ·  TONE " + Math.round(tone * 127), 226, 128, UI, 9, "right");
+  const len = 30 + 180 * size, col = dim(K[3][0], 0.35 + 0.65 * tone), sweep = 16 + len * Math.min(1, tn / 1.2);
+  poly(c, [[16, 186], [16, 140], [16 + len, 186]], col);
+  if (tn < 1.2) poly(c, [[16, 186], [16, 140], [sweep, 140 + 46 * (sweep - 16) / len], [sweep, 186]], HOT[2]);
+  chrome(c, "GLO", "FX", "4/5", ["DLY TIME", "DLY FB", "REV SIZE", "REV TONE"],
+    [DIVS[di], Math.round(fb * 127), Math.round(size * 127), Math.round(tone * 127)], v, tn < 0.12);
+}
+
+const MASK = [0xFFF, 0xAB5, 0x5AD, 0x6AD, 0x5AB, 0xAD5, 0x6B5, 0x56B, 0x9AD, 0x295, 0x4A9];
+const MODES = ["CHROM", "MAJOR", "MINOR", "DORIAN", "PHRYG", "LYDIAN", "MIXO", "LOCRIAN", "HARM MIN", "PENTA", "MIN PENTA"];
+const TON = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+const WH = [0, 2, 4, 5, 7, 9, 11], BK = [[1, 0], [3, 1], [6, 3], [8, 4], [10, 5]];   /* sharp, after white index */
+/* a row of options, the current one lit in its encoder's colour */
+function opts(c, label, names, cur, y, col) {
+  cap(c, label, 14, y + 4, col, 8);
+  let x = 62;
+  names.forEach((n, i) => {
+    c.font = font(8); const w = c.measureText(n).width + 8;
+    if (i === cur) { c.fillStyle = col; c.fillRect(x, y - 3, w, 14); }
+    text(c, n, x + 4, y + 4, i === cur ? BAR : UI, 8);
+    x += w + 3;
+  });
+}
+/* one octave, flat: in-scale keys filled (the tonic blue, the others green), the played one pink */
+function octave(c, ton, mask, hit, x0, y0, w, h) {
+  const inS = n => (mask >> ((n - ton + 12) % 12)) & 1, col = n => n === hit ? HOT[1] : n === ton ? K[0][1] : inS(n) ? K[1][1] : null;
+  WH.forEach((n, i) => {
+    const x = x0 + i * w, f = col(n);
+    c.fillStyle = f || "#d8d3ec"; c.fillRect(x + 1, y0, w - 2, h);
+    text(c, TON[n], x + w / 2, y0 + h - 9, f ? BAR : "#6f6890", 9, "center");
+  });
+  BK.forEach(([n, i]) => {
+    const x = x0 + (i + 1) * w - w * 0.32, f = col(n);
+    c.fillStyle = f || "#1d1838"; c.fillRect(x, y0, w * 0.64, h * 0.58);
+    if (f) text(c, "#", x + w * 0.32, y0 + h * 0.58 - 8, BAR, 8, "center");
+  });
+}
+function scaleA(c, v, t, tn) {
+  const ton = pick(v[0], 12), mode = pick(v[1], 11), q = pick(v[2], 3), ck = pick(v[3], 4);
+  text(c, TON[ton] + " " + MODES[mode], 120, 52, "#f4f1ff", 24, "center");
+  const deg = [...Array(12).keys()].filter(n => (MASK[mode] >> n) & 1), k = Math.floor(t / NOTE) % deg.length;
+  octave(c, ton, MASK[mode], tn < 0.4 ? (ton + deg[k]) % 12 : -1, 22, 72, 28, 70);
+  opts(c, "QUANT", ["OFF", "50 %", "100 %"], q, 156, K[2][1]);
+  opts(c, "CLICK", ["OFF", "METRO", "COUNT", "BOTH"], ck, 176, K[3][1]);
+  chrome(c, "GLO", "SCALE", "2/5", ["TONIC", "MODE", "QUANT", "CLICK"],
+    [TON[ton], MODES[mode], ["OFF", "50 %", "100 %"][q], ["OFF", "METRO", "COUNT", "BOTH"][ck]], v, tn < 0.12);
+}
+/* KEYS: the 16 white keys, each with the note it plays; in scale the black keys are crossed out */
+function keysA(c, v, t, tn) {
+  const st = pick(v[0], 3), on = st > 0, ton = 2, mode = 3, m = MASK[mode];
+  const deg = [...Array(12).keys()].filter(n => (m >> n) & 1), w = 13.5, x0 = 12, pk = Math.floor(t / NOTE * 3) % 16;
+  opts(c, "IN SCALE", ["OFF", "MARBLES", "ALL"], st, 44, K[0][1]);
+  cap(c, ["CHROMATIC KEYBOARD", "SCALE ON MARBLES TRACKS", "SCALE ON EVERY TRACK"][st], 120, 72, "#f4f1ff", 10, "center");
+  if (on) cap(c, TON[ton] + " " + MODES[mode], 120, 86, UI, 9, "center");
+  for (let i = 0; i < 16; i++) {
+    const x = x0 + i * w, hit = i === pk && tn < 0.5;
+    const note = on ? (ton + deg[i % deg.length]) % 12 : WH[i % 7], tonic = on && i % deg.length === 0;
+    c.fillStyle = hit ? HOT[1] : on ? (tonic ? K[0][1] : K[0][2]) : "#d8d3ec"; c.fillRect(x + 1, 100, w - 2, 76);
+    text(c, TON[note][0], x + w / 2, 166, hit || !on ? BAR : "#f4f1ff", 9, "center");
+    if (TON[note].length > 1) text(c, "#", x + w / 2, 156, hit || !on ? BAR : "#f4f1ff", 8, "center");
+  }
+  for (let i = 0; i < 15; i++) {               /* the black keys, where a piano has them */
+    const n = WH[i % 7]; if (n === 4 || n === 11) continue;
+    const x = x0 + (i + 1) * w - 4.5;
+    c.fillStyle = on ? "#000" : "#1d1838"; c.fillRect(x, 100, 9, 44);
+    if (on) { line(c, [[x + 1, 102], [x + 8, 142]], WIRE); line(c, [[x + 8, 102], [x + 1, 142]], WIRE); }
+  }
+  chrome(c, "GLO", "KEYS", "3/5", ["IN SCALE", "", "", ""], [["OFF", "MARBLES", "ALL"][st], "", "", ""], [v[0], 0, 0, 0], tn < 0.12);
+}
+/* SONG: the whole song as a strip on top, then the entries around the cursor as rows */
+const SONGL = [[0, 4], [0, 4], [1, 8], [2, 2], [1, 8], [3, 1], [2, 4], [0, 2], [4, 16]];
+function songA(c, v, t) {
+  const cur = pick(v[0], SONGL.length), on = v[3] > 0.5, tot = SONGL.reduce((a, e) => a + e[1], 0);
+  let r = Math.floor(t / 0.5) % tot, play = 0;
+  while (r >= SONGL[play][1]) r -= SONGL[play][1], play++;
+  cap(c, SONGL.length + " ENTRIES", 14, 42, "#f4f1ff", 10);
+  cap(c, on ? "SONG ON" : "SONG OFF", 226, 42, on ? K[3][1] : UI, 9, "right");
+  /* the strip: one segment per entry, as long as its repeats */
+  let x = 14;
+  SONGL.forEach((e, i) => {
+    const w = 212 * e[1] / tot;
+    c.fillStyle = on && i === play ? HOT[1] : i === cur ? K[0][1] : i % 2 ? K[1][2] : K[1][1]; c.fillRect(x, 54, w - 1, 10);
+    x += w;
+  });
+  /* the rows: number, scene, repeats as ticks */
+  const first = Math.max(0, Math.min(cur - 2, SONGL.length - 5));
+  for (let k = 0; k < 5; k++) {
+    const i = first + k, e = SONGL[i], y = 76 + k * 22, isP = on && i === play;
+    if (i === cur) { c.fillStyle = "#1a1636"; c.fillRect(8, y - 2, 224, 20); c.fillStyle = K[0][1]; c.fillRect(8, y - 2, 3, 20); }
+    cap(c, String(i + 1), 26, y + 8, i === cur ? K[0][1] : UI, 10, "right");
+    c.fillStyle = isP ? HOT[1] : K[1][1]; c.fillRect(36, y + 1, 24, 14);
+    text(c, "S" + (e[0] + 1), 48, y + 8, BAR, 9, "center");
+    for (let q = 0; q < e[1]; q++) {
+      c.fillStyle = K[2][2];
+      c.fillRect(70 + q * 8.5, y + 4, 6, 8);
+    }
+    cap(c, "x" + e[1], 226, y + 8, i === cur ? "#f4f1ff" : UI, 9, "right");
+  }
+  chrome(c, "HOME", "SONG", "2/2", ["ENTRY", "SCENE", "REPEAT", "MODE"],
+    [cur + 1, "S" + (SONGL[cur][0] + 1), SONGL[cur][1], on ? "ON" : "OFF"], v, 0);
+}
+
+const PAGES = { tempoA, scaleA, keysA, fxA, songA };
+const cv = {}; for (const k in PAGES) cv[k] = document.getElementById(k).getContext("2d");
+function frame(ms) {
+  const t = ms / 1000, tn = t % NOTE, v = knobs(t);
+  for (const k in PAGES) { const c = cv[k]; c.fillStyle = "#000"; c.fillRect(0, 0, 240, 240); PAGES[k](c, v, t, tn); }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
