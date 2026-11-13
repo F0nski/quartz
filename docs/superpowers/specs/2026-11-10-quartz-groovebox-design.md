@@ -172,7 +172,7 @@ dans une croche ou une noire.
 | SEL (bouton) | valider (charger le preset choisi, confirmer une action) ; maintenu + K1–K4 : réglage fin |
 | MASTER | volume |
 | PLAY | lecture / stop |
-| REC | seul : grille dans SEQ, pas à pas ailleurs ; tenu + PLAY : live (spec `2026-11-12-quartz-step-entry-design.md`) |
+| REC | appuis courts : GRILLE puis NOTES dans SEQ, NOTES ailleurs ; tenu + PLAY : live ; tenu : couche (CLEAR…) (spec `2026-11-12-quartz-step-entry-design.md`) |
 | OCT− / OCT+ | octave du clavier ; dans la grille (SEQ, REC armé), page de pas (1–16, 17–32…) ; pas tenu : durée |
 
 | Bouton de domaine | Pages (SELECT les parcourt) | Maintenu + touches |
@@ -182,24 +182,23 @@ dans une croche ou une noire.
 | LFO | LFO | — |
 | ARP | arpégiateur | touches = notes tenues (latch) |
 | FX | insert · envois / pan / niveau | punch-ins sur les 16 blanches |
-| SEQ | pas + longueur / division / source (STEP) ; division / source · réglages du générateur (GRIDS, MARBLES) | blanches 1–8 : pattern de la piste ; noire 1 : CLEAR (vide le pattern affiché) |
+| SEQ | pas + longueur / division / source (STEP) ; division / source · réglages du générateur (GRIDS, MARBLES) | blanches 1–8 : pattern de la piste |
 | GLO | tempo / swing / compresseur · delay / reverb · gamme et réglages REC | — |
 | HOME | vue des 4 pistes | blanches 1–4 : mutes ; 9–16 : scènes |
 | SAVE | appui : sauvegarder le projet | blanches 1–8 : ajouter une scène à la chanson |
 
 Clavier :
 - Hors SEQ, les touches jouent la piste courante (et l'enregistrent quand REC est armé).
-- Dans SEQ, REC armé, les 16 blanches sont les pas : un appui active ou coupe le pas ; pas maintenu + K = p-lock.
-  Sans REC, elles jouent la piste.
-- Pas maintenu + touche noire : ratchet, probabilité, condition, slide, accent, note, durée,
-  micro-timing, effacer (9 des 11 noires ; les 2 dernières restent libres).
+- Dans SEQ en GRILLE, les 16 blanches sont les pas : un appui colle ou coupe le pas ; pas maintenu + K = p-lock.
+  Désarmé, elles jouent la piste ; en NOTES, elles écrivent au curseur.
+- Pas maintenu + touche noire : les fonctions du pas, une famille par noire (spec `2026-11-12-quartz-step-entry-design.md`, section 5).
 
 ## 8. Navigation
 
 - Un bouton = un domaine, quatre pages au plus, aucun sous-menu.
 - Une page qu'un moteur n'utilise pas est masquée.
 - ALGORITHM choisit toujours la piste, PRESET parcourt toujours ce qui est affiché.
-- Maintenir un bouton de domaine pose sa couche sur les touches ; le relâcher la retire.
+- Maintenir un bouton de domaine pose sa couche sur les touches ; le relâcher la retire. Tenu plus de 0,4 s, il affiche la carte de sa couche.
 
 ## 9. Écran
 
