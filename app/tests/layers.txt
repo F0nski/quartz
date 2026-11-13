@@ -1,0 +1,75 @@
+# A layer button held over 0.4 s with nothing else pressed shows its map, which stays while it is held; REC held clears
+# the pattern shown (black 1) or its p-locks (black 2), out of LIVE only
+wait 600
+press FX
+wait 500
+expect layer 1
+tapkey w3
+expect layer 1
+shot layer_fx.png
+release FX
+expect layer 0
+# a key pressed at once: the button served, no map
+press HOME
+tapkey w0
+wait 500
+expect layer 0
+release HOME
+press REC
+wait 500
+expect layer 12
+shot layer_rec.png
+release REC
+expect layer 0
+expect rec 0
+# SEL on the grid
+tap SEQ
+tap REC
+expect rec 1
+press SEL
+wait 500
+expect layer 2
+release SEL
+# a pattern with steps and a p-lock
+tapkey w0
+tapkey w2
+tapkey w4
+key w0 down
+spin K1 5
+key w0 up
+expect nsteps_on 3
+expect locks 1
+# REC held + black 2: the p-locks gone, the steps kept
+press REC
+tapkey b1
+release REC
+expect rec 1
+expect locks 0
+expect nsteps_on 3
+# REC held + black 1: the pattern emptied
+key w0 down
+spin K1 5
+key w0 up
+press REC
+tapkey b0
+release REC
+expect rec 1
+expect nsteps_on 0
+expect locks 0
+# SEQ held + black 1 (the old CLEAR) does nothing
+tapkey w0
+press SEQ
+tapkey b0
+release SEQ
+expect nsteps_on 1
+# in LIVE, REC held + black 1 erases its note as the playhead passes, not the pattern
+tap PLAY
+press REC
+tap PLAY
+release REC
+expect rec 3
+press REC
+tapkey b0
+release REC
+expect nsteps_on 1
+tap PLAY

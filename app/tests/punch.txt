@@ -39,3 +39,9 @@ expect locks 1
 expect stepon_5 0
 tap PLAY
 expect overdub 0
+# REC held + the second black key (CLEAR LOCKS) removes the punch lock
+press REC
+tapkey b1
+release REC
+expect lock_31_5 -1
+expect locks 0

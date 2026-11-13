@@ -1,4 +1,4 @@
-# SEQ held and the first black key: CLEAR empties the pattern shown, steps and locks; the other patterns keep theirs
+# REC held and the first black key: CLEAR empties the pattern shown, steps and locks; the other patterns keep theirs
 wait 600
 tap SEQ
 tap REC
@@ -21,10 +21,11 @@ key 4 up
 expect stepon_1 1
 expect stepon_3 1
 expect locks 1
-press SEQ
+press REC
 key 1 down
 key 1 up
-release SEQ
+release REC
+expect rec 1
 expect stepon_1 0
 expect stepon_3 0
 expect stepnote_1 60

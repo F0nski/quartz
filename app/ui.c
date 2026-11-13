@@ -129,6 +129,8 @@ typedef struct {
                                                    5 HOME's tracks (scene_home.c), 6 a sound page ADSR .. MIX (scene_sound.c) */
         q_trow tr[Q_TRACKS];                    /* TRACKS */
         struct { int8_t n, cursor, first, playing; q_entry e[6]; } song;               /* SONG: the 6 entries shown from first */
+        int8_t layer, lmode;                    /* a layer's map instead of the scene: its button + 1; REC in LIVE, SEL in NOTES */
+        uint32_t lkeys, hot;                    /* its keys, and the keys pressed */
     } scene;
 } q_view;
 
@@ -152,7 +154,8 @@ static struct {
     int arm_key;
     int nchord;                                /* NOTES: notes written since all the keys were up */
     int erase_pos;                             /* LIVE, REC held: the last step erased, -1 none */
-    uint8_t erase_notes[8];                    /* the notes of the keys held then, 0 none */                               /* ARM: the key that started the playing, played once step 1 is under way (key + 1) */
+    uint8_t erase_notes[8];                    /* the notes of the keys held then, 0 none */
+    int layer;                                 /* the layer whose map is shown: its button + 1, 0 none */                               /* ARM: the key that started the playing, played once step 1 is under way (key + 1) */
     q_view shown;
     int full;                                  /* the next frame draws everything */
     uint32_t scene_ms, fps_ms;                 /* the last scene drawn (every other 16-ms frame: 30 a second); the second being counted */
@@ -422,6 +425,7 @@ static void knob_turn(int pid, int k, int d)
 static void rec_set(int r);
 static void sel_clear(void);
 static uint16_t sel_others(void);
+static int layer_shown(void);
 
 /* SEQ's white keys are its steps: REC on the grid, a STEP pattern */
 static int grid_on(void) { return ui.domain == D_SEQ && ui.rec == R_GRID && pat()->src == SRC_STEP; }
@@ -1071,14 +1075,18 @@ static void key_down(int k)
                 }
         return;
     }
-    if (ui.domain == D_SEQ && ui.seqdown) {    /* SEQ held: the white keys 1..8 are the patterns, the first black one CLEAR */
-        if (w < Q_PATTERNS) {
-            pattern_set(w);
-        } else if (k == BLACK[0]) {
+    if (ui.btn >> B_REC & 1u) {         /* REC held: the first black key empties the pattern shown, the second its p-locks */
+        if (k == BLACK[0])
             for (i = 0; i < Q_STEPS; i++)
                 step_clear(t, i);
-            ui.dirty = 1;
-        }
+        else if (k == BLACK[1])
+            t->nlocks = 0;
+        ui.dirty = 1;
+        return;
+    }
+    if (ui.domain == D_SEQ && ui.seqdown) {    /* SEQ held: the white keys 1..8 are the patterns */
+        if (w < Q_PATTERNS)
+            pattern_set(w);
         return;
     }
     if (ui.domain == D_SEQ && t->src != SRC_STEP) {    /* a generator: the keys play the track */
@@ -1281,6 +1289,7 @@ void ui_input(void)
     if (!(btn >> B_REC & 1u))
         __builtin_memset(ui.erase_notes, 0, sizeof ui.erase_notes);
     live_erase();
+    ui.layer = layer_shown() + 1;
     if (ui.domain == D_SEQ && (ui.rec == R_OFF || ui.rec == R_LIVE) && audio_pos(ui.track) >= 0)   /* the page playing shown */
         ui.spage = audio_pos(ui.track) / 16;
     punch_rec();
@@ -1371,6 +1380,45 @@ static uint32_t scale_keys(void)
     return keys;
 }
 
+/* the buttons that lay a layer on the keys, and the one whose map is shown: held over HOLD_MS with nothing pressed
+   before the map came, then kept while it is held (SEL only on the grid and in NOTES); -1 none */
+static const uint8_t LAYER_BTN[7] = {B_HOME, B_FX, B_SAVE, B_SEQ, B_ARP, B_SEL, B_REC};
+static int layer_shown(void)
+{
+    int i, b;
+    if (ui.layer && ui.btn >> (ui.layer - 1) & 1u)
+        return ui.layer - 1;
+    for (i = 0; i < 7; i++) {
+        b = LAYER_BTN[i];
+        if (long_held(b) && !(ui.used >> b & 1u) && (b != B_SEL || grid_on() || notes_on()))
+            return b;
+    }
+    return -1;
+}
+
+/* the keys a layer gives a role */
+static uint32_t layer_keys(int b)
+{
+    uint32_t keys = 0;
+    int i;
+    switch (b) {
+    case B_HOME:                        /* the mutes, the scenes */
+        for (i = 0; i < 16; i++)
+            keys |= (uint32_t)(i < Q_TRACKS || i >= 8) << WHITE[i];
+        return keys;
+    case B_FX:
+    case B_SAVE:
+    case B_SEQ:
+        for (i = 0; i < (b == B_FX ? 16 : 8); i++)
+            keys |= 1u << WHITE[i];
+        return keys;
+    case B_REC:
+        if (ui.rec != R_LIVE)
+            return 1u << BLACK[0] | 1u << BLACK[1];
+    }
+    return (1u << NKEYS) - 1u;          /* every key: ARP's latch, SEL, REC's erasing in LIVE */
+}
+
 /* the keys whose note is one of the step's (it lit) */
 static uint32_t step_keys(const q_step *s)
 {
@@ -1389,6 +1437,8 @@ static uint32_t key_lights(void)
     const q_pattern *t = &ui.p->pat[ui.track][ui.p->pattern[ui.track]];
     uint32_t keys = 0;
     int i, pos = audio_pos(ui.track);
+    if (ui.layer)                               /* a layer's map: its keys */
+        return layer_keys(ui.layer - 1);
     if (ui.domain == D_SEQ && ui.seqdown)       /* SEQ held: the pattern asked */
         keys = 1u << WHITE[ui.p->pattern[ui.track]];
     else if (ui.domain == D_HOME) {             /* the tracks playing, the scenes memorised */
@@ -1733,6 +1783,13 @@ static void view_now(q_view *v)
         v->scene.cpu[6] = (int32_t)l.fx_pct;
         v->scene.cpu[7] = ui.fps;
     }
+    if (ui.layer) {                     /* a layer's map instead of the scene */
+        __builtin_memset(&v->scene, 0, sizeof v->scene);
+        v->scene.layer = (int8_t)ui.layer;
+        v->scene.lmode = (int8_t)(ui.layer - 1 == B_REC ? ui.rec == R_LIVE : notes_on());
+        v->scene.lkeys = layer_keys(ui.layer - 1);
+        v->scene.hot = ui.keys;
+    }
 }
 
 /* the plateau's view of the SEQ page: its cells, texts and marks, from what the page shows */
@@ -1858,11 +1915,136 @@ static void draw_head(const q_view *v)
     cv_blit(0, 0);
 }
 
+#define L_ON RGB(255, 176, 46)           /* a layer's keys */
+#define L_TEXT RGB(244, 241, 255)
+
+/* a layer's key named: its tag on the key's colour (pink while pressed), then what it does */
+static void layer_name(int32_t x, int32_t y, const char *tag, const char *s, uint16_t col, int hot)
+{
+    int32_t w = text_w(&FONT_T, tag) + 6 > 22 ? text_w(&FONT_T, tag) + 6 : 22;
+    cv_rect(x, y, w, 11, hot ? PINK : col);
+    cv_text(x + (w - text_w(&FONT_T, tag)) / 2, y, &FONT_T, tag, C_BLACK);
+    cv_text(x + w + 4, y, &FONT_T, s, hot ? PINK : L_TEXT);
+}
+
+/* a combination: the button(s) boxed, what it does after */
+static void layer_combo(int32_t y, const char *btn, const char *s)
+{
+    int32_t w = text_w(&FONT_T, btn) + 8;
+    cv_rect(8, y, w, 1, C_GRAY);
+    cv_rect(8, y + 12, w, 1, C_GRAY);
+    cv_rect(8, y, 1, 13, C_GRAY);
+    cv_rect(8 + w, y, 1, 13, C_GRAY);
+    cv_text(12, y + 1, &FONT_T, btn, C_GRAY);
+    cv_text(16 + w, y + 1, &FONT_T, s, L_TEXT);
+}
+
+/* a held layer button's map in the scene's place: the 27 keys, its keys lit (pressed: pink), their names in two
+   columns, then the combinations (docs/screens/layers.html) */
+static void draw_layer(const q_view *v, int32_t oy)
+{
+    static const uint8_t AFTER[11] = {0, 1, 2, 4, 5, 7, 8, 9, 11, 12, 14};   /* the white key each black one follows */
+    static const char *const SEL_NAME[2][5] = {{"SELECT THE STEP", "ITS FUNCTIONS", "SET ON ALL", "LOCK ALL", "THEIR LENGTHS"},
+                                               {"CURSOR THERE", "A FUNCTION", "SET IT", "LOCK IT", ""}};
+    const char *names[16], *tags[16], *combo[3][2] = {{0}};
+    char nb[16][12], tb[16][4];
+    int b = v->scene.layer - 1, n = 0, i, k;
+    int32_t y;
+    uint16_t col = b == B_REC ? (v->scene.lmode ? RGB(138, 16, 80) : KCOL[3]) : L_ON;
+    for (i = 0; i < 16; i++) {          /* the white keys, numbered when they have a role */
+        k = WHITE[i];
+        cv_rect(15 * i + 1, oy + 2, 13, 40, v->scene.hot >> k & 1u && v->scene.lkeys >> k & 1u ? PINK
+                                           : v->scene.lkeys >> k & 1u ? col : RGB(44, 40, 68));
+        if (v->scene.lkeys >> k & 1u) {
+            int_text(i + 1, tb[0]);
+            cv_text(15 * i + 1 + (13 - text_w(&FONT_T, tb[0])) / 2, oy + 29, &FONT_T, tb[0], C_BLACK);
+        }
+    }
+    for (i = 0; i < 11; i++) {
+        int32_t x = (AFTER[i] + 1) * 15 - 5;
+        k = BLACK[i];
+        cv_rect(x - 1, oy + 2, 12, 25, C_BLACK);
+        cv_rect(x, oy + 2, 10, 24, v->scene.hot >> k & 1u && v->scene.lkeys >> k & 1u ? PINK
+                                   : v->scene.lkeys >> k & 1u ? col : RGB(18, 15, 34));
+    }
+    switch (b) {
+    case B_HOME:
+        for (i = 0; i < 12; i++) {
+            k = i < Q_TRACKS ? i : i + 4;
+            int_text(k + 1, tb[i]);
+            __builtin_memcpy(nb[i], i < Q_TRACKS ? "MUTE T" : "SCENE ", 6);
+            int_text(i < Q_TRACKS ? i + 1 : i - 3, nb[i] + 6);
+            tags[n] = tb[i], names[n++] = nb[i];
+        }
+        combo[0][0] = "+ SEL", combo[0][1] = "STORE THE SCENE";
+        break;
+    case B_FX:
+        for (i = 0; i < 16; i++) {
+            int_text(i + 1, tb[i]);
+            tags[n] = tb[i], names[n++] = PUNCH_NAME[i];
+        }
+        combo[0][0] = "LET GO", combo[0][1] = "EVERY PUNCH-IN STOPS";
+        break;
+    case B_SAVE:
+    case B_SEQ:
+        for (i = 0; i < 8; i++) {
+            int_text(i + 1, tb[i]);
+            __builtin_memcpy(nb[i], b == B_SAVE ? "SONG + S" : "PATTERN ", 8);
+            int_text(i + 1, nb[i] + 8);
+            tags[n] = tb[i], names[n++] = nb[i];
+        }
+        if (b == B_SAVE)
+            combo[0][0] = "TAP", combo[0][1] = "SAVE, STOPPED";
+        break;
+    case B_ARP:
+        tags[n] = "KEY", names[n++] = "LATCH ITS NOTE";
+        break;
+    case B_SEL:
+        tags[n] = "W", names[n++] = SEL_NAME[v->scene.lmode][0];
+        tags[n] = "#", names[n++] = SEL_NAME[v->scene.lmode][1];
+        combo[0][0] = "+ PRESET", combo[0][1] = SEL_NAME[v->scene.lmode][2];
+        combo[1][0] = "+ K1-K4", combo[1][1] = SEL_NAME[v->scene.lmode][3];
+        if (!v->scene.lmode)
+            combo[2][0] = "+ OCT", combo[2][1] = SEL_NAME[0][4];
+        break;
+    case B_REC:
+        if (v->scene.lmode) {
+            tags[n] = "KEY", names[n++] = "ERASES ITS NOTE";
+            tags[n] = "OCT-", names[n++] = "EVERY STEP";
+            combo[0][0] = "TAP", combo[0][1] = "DISARM, PLAYING ON";
+            combo[1][0] = "PLAY", combo[1][1] = "STOP, DISARMED";
+        } else {
+            tags[n] = "#1", names[n++] = "CLEAR";
+            tags[n] = "#2", names[n++] = "CLEAR LOCKS";
+            combo[0][0] = "+ PLAY", combo[0][1] = "LIVE: COUNT-IN OR ARMED";
+            combo[1][0] = "TAP", combo[1][1] = "GRID > NOTES > OFF";
+            combo[2][0] = "HOLD", combo[2][1] = "NOTHING ON RELEASE";
+        }
+        break;
+    }
+    for (i = 0; i < n; i++) {           /* two columns, the first half on the left */
+        k = (n + 1) / 2;
+        layer_name(8 + 116 * (i >= k), oy + 48 + 11 * (i % k), tags[i], names[i], col,
+                   b == B_FX && v->scene.hot >> WHITE[i] & 1u);
+    }
+    y = oy + 48 + 11 * ((n + 1) / 2) + 4;
+    if (b == B_REC)
+        cv_text(8, y - 4, &FONT_T, v->scene.lmode ? "AS THE PLAYHEAD PASSES" : "ON THE PATTERN SHOWN", C_GRAY), y += 12;
+    if (combo[0][0])
+        cv_rect(8, y, 224, 1, C_LINE);
+    for (i = 0; i < 3 && combo[i][0]; i++)
+        layer_combo(y + 6 + 16 * i, combo[i][0], combo[i][1]);
+}
+
 /* the whole 166-pixel scene drawn at y offset oy: each band clips its own rows */
 static void draw_scene(const q_view *v, int32_t oy)
 {
     char t[16];
     int k, i;
+    if (v->scene.layer) {
+        draw_layer(v, oy);
+        return;
+    }
     switch (v->scene.pid) {
     case P_ENGINE:
     case P_SOUND:
@@ -2252,6 +2434,7 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "cursor")) *got = ui.cursor;
     else if (!strcmp(what, "octave")) *got = ui.octave;
     else if (!strcmp(what, "sel")) *got = ui.sel;
+    else if (!strcmp(what, "layer")) *got = ui.layer;
     else if (!strcmp(what, "nsteps_on")) {
         int i;
         for (*got = 0, i = 0; i < Q_STEPS; i++)
