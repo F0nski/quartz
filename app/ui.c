@@ -505,7 +505,7 @@ static void knob_set(int pid, int k, int v)
     case P_TONNETZ * 4 + 3:
     case P_ORBITS * 4 + 3:
         t->src = (uint8_t)v;
-        if ((v == SRC_CHORDS || v == SRC_TONNETZ) && !kit() && s->poly < 3)   /* chords need voices: POLY 3 at least */
+        if ((v == SRC_CHORDS || v == SRC_TONNETZ || v == SRC_ORBITS) && !kit() && s->poly < 3)   /* chords, conjunctions: POLY 3 at least */
             s->poly = 3;
         break;
     case P_GRIDS * 4 + 1: t->grids.voice = (uint8_t)v; break;

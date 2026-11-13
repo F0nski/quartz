@@ -2299,7 +2299,7 @@ static void orbits_pass_pink(void)
     OV.n = 1;
     orbits_frame(&OV, 1000);
     orbits_frame(&OV, 1010); ovfull();               /* (10 ms: the moons still at their gates) */
-    for (int m = 0; m < 3; m++) { int y = 90 - (24 + 17 * m); assert(gpink(94, 116, y - 9, y + 9) > 40); }
+    for (int m = 0; m < 3; m++) { int y = 94 - (22 + 15 * m); assert(gpink(94, 116, y - 9, y + 9) > 40); }
 }
 static void orbits_sync_flash(void)
 {
@@ -2308,13 +2308,13 @@ static void orbits_sync_flash(void)
     OV.n = 1;                                        /* step 0: the three pass together */
     orbits_frame(&OV, 1000);
     orbits_frame(&OV, 1030); ovfull();
-    assert(owhite(92, 117, 78, 103) > 20);
+    assert(owhite(92, 117, 82, 107) > 20);
     orbits_frame(&OV, 1400); ovfull();
-    assert(owhite(92, 117, 78, 103) == 0);
+    assert(owhite(92, 117, 82, 107) == 0);
     OV.n = 25;                                       /* step 24: two of the three */
     orbits_frame(&OV, 2000);
     orbits_frame(&OV, 2030); ovfull();
-    assert(owhite(92, 117, 78, 103) == 0);
+    assert(owhite(92, 117, 82, 107) == 0);
 }
 static void orbits_ticks(void)
 {
@@ -2322,9 +2322,9 @@ static void orbits_ticks(void)
     OV.playing = 0, OV.o.per[0] = 7;
     orbits_frame(&OV, 1000); ovfull();
     int n = 0;
-    for (int y = 60; y < 120; y++) for (int x = 74; x < 134; x++) {
-        int dx = x - 104, dy = y - 90, d2 = dx * dx + dy * dy;
-        if (d2 >= 21 * 21 && d2 <= 27 * 27) n += fpx(x, y) == RGB(0x4a, 0x44, 0x66);
+    for (int y = 64; y < 124; y++) for (int x = 74; x < 134; x++) {
+        int dx = x - 104, dy = y - 94, d2 = dx * dx + dy * dy;
+        if (d2 >= 19 * 19 && d2 <= 25 * 25) n += fpx(x, y) == RGB(0x4a, 0x44, 0x66);
     }
     assert(n == 6 * 5);                              /* 7 ticks, the gate's pink: 6 grey crosses of 5 pixels */
 }
@@ -2335,6 +2335,29 @@ static void orbits_idle(void)
     orbits_frame(&OV, 1000); ovfull();
     assert(gpink(0, 99, 20, 166) == 0 && gpink(110, 240, 20, 166) == 0);
 }
+/* the 4th orbit's gate below the top strip: its moon pink and its name readable as it passes */
+static void orbits_fourth_visible(void)
+{
+    ovreset();
+    OV.o.moons = 4;
+    orbits_frame(&OV, 0);
+    OV.n = 1;                                        /* step 0: all four pass */
+    orbits_frame(&OV, 1000);
+    orbits_frame(&OV, 1010); ovfull();
+    int y = 94 - (22 + 15 * 3);
+    assert(y >= 22 && gpink(94, 116, y - 9, y + 9) > 40 && gcount(C_WHITE, 196, 236, y - 5, y + 5) > 0);
+}
+/* a long session: a moon's place depends on the step modulo its period, exactly */
+static void orbits_long_session(void)
+{
+    static uint16_t a[240 * 166];
+    ovreset(); OV.n = 4; orbits_frame(&OV, 0); orbits_frame(&OV, 5000); ovfull(); memcpy(a, FULL, sizeof a);
+    ovreset(); OV.n = 4 + 120u * 20000u; orbits_frame(&OV, 0); orbits_frame(&OV, 5000); ovfull();
+    int diff = 0;
+    for (int y = 22; y < 166; y++) for (int x = 0; x < 200; x++) diff += a[y * 240 + x] != FULL[y * 240 + x];
+    assert(diff == 0);                               /* (the SYNC text aside, top right) */
+}
+
 static int ovdiffers(void (*change)(void))
 {
     static uint16_t ref[240 * 166];
@@ -2364,6 +2387,8 @@ int main(void)
     orbits_sync_flash();
     orbits_ticks();
     orbits_idle();
+    orbits_fourth_visible();
+    orbits_long_session();
     orbits_knobs_visible();
     tonnetz_budget();
     tonnetz_triangle_pink();

@@ -5,7 +5,7 @@
  * MB_WHITE, PINK3, glo_text. */
 
 #define ORV_CX 104.0f               /* the radar's centre in the scene area */
-#define ORV_CY 90.0f
+#define ORV_CY 94.0f               /* (the 4th orbit's gate stays under the top strip) */
 #define ORV_PASS_MS 160u
 #define ORV_FLASH_MS 300u
 #define ORV_ORBIT RGB(0x2a, 0x21, 0x48)
@@ -25,22 +25,24 @@ static struct {
     int seen;
     uint32_t n, step_t, ms, all_t;
     int hits;                       /* the moons that passed at the step n - 1 */
+    int sync;                       /* SYNC: steps to the next step every moon passes at, -1 none within 999 */
+    q_orbits o;                     /* the settings SYNC was found for */
 } orv;
 
 void orbits_enter(void) { orv.seen = 0; }
 
 static const uint16_t *orv_tones(int m) { return m == 0 ? ORANGE : m == 1 ? KBLUE : m == 2 ? KGREEN : MB_WHITE; }
-static float orv_r(int m) { return 24.0f + 17.0f * (float)m; }
+static float orv_r(int m) { return 22.0f + 15.0f * (float)m; }
 
 /* moon m's place on its orbit: steps since its gate, 0..per (the step's fraction included) */
 static float orv_u(const q_orview *v, int m)
 {
     float f = v->playing && v->step_ms ? (float)(orv.ms - orv.step_t) / (float)v->step_ms : 0.0f;
     if (f > 1.0f) f = 1.0f;
-    float t = v->n ? (float)(v->n - 1) + f : 0.0f, p = (float)v->o.per[m];
-    float u = t - (float)(v->o.pha[m] % v->o.per[m]);
-    u -= p * fm_floorf(u / p);
-    return u;
+    int per = v->o.per[m];                      /* in integers first: exact however long the session */
+    int k = v->n ? (int)((v->n - 1) % (uint32_t)per) : 0, ph = v->o.pha[m] % per;
+    float u = (float)((k - ph + per) % per) + (v->n ? f : 0.0f);
+    return u >= (float)per ? u - (float)per : u;
 }
 static void orv_at(int m, float u, int per, float *x, float *y)
 {
@@ -104,6 +106,13 @@ void orbits_frame(const q_orview *v, uint32_t ms)
         if (!orv.seen)
             orv.all_t = ms - 100000u;
         orv.n = v->n;
+        orv.sync = -2;
+    }
+    if (orv.sync == -2 || __builtin_memcmp(&orv.o, &v->o, sizeof v->o)) {   /* SYNC, once a step or a change */
+        int all = (1 << v->o.moons) - 1, d = v->n ? 1 : 0;   /* stopped: from the first step, which counts */
+        uint32_t from = v->n ? v->n - 1 : 0;
+        while (d <= 999 && gen_orbits_hits(&v->o, from + (uint32_t)d) != all) d++;
+        orv.sync = d > 999 ? -1 : d, orv.o = v->o;
     }
     orv.seen = 1, orv.ms = ms;
     p3d_begin();
@@ -167,12 +176,8 @@ void orbits_band(const q_orview *v, int32_t oy)
         orv_num(v->o.per[m], b);
         glo_text(x + 21, oy + 10, &FONT_XS, b, m == v->sel ? RGB(0, 0, 0) : RGB(0xc9, 0xc3, 0xe4), 0);
     }
-    /* SYNC: the steps to the next step every moon passes at, searched up to 999 (never: "-") */
-    int all = (1 << v->o.moons) - 1, d = 0;
-    uint32_t from = v->n ? v->n - 1 : 0;
-    for (d = 1; d <= 999 && gen_orbits_hits(&v->o, from + (uint32_t)d) != all; d++) {}
-    char s[10] = {'S', 'Y', 'N', 'C', ' ', 0};
-    if (d > 999) s[5] = '-', s[6] = 0;
-    else orv_num(d, s + 5);
+    char s[10] = {'S', 'Y', 'N', 'C', ' ', 0};  /* SYNC (orbits_frame), "-" if never within 999 steps */
+    if (orv.sync < 0) s[5] = '-', s[6] = 0;
+    else orv_num(orv.sync, s + 5);
     glo_text(234, oy + 10, &FONT_XS, s, v->playing && orv.ms - orv.all_t < ORV_FLASH_MS ? PINK3[1] : RGB(0x4a, 0x44, 0x66), 1);
 }

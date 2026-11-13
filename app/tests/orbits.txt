@@ -1,8 +1,10 @@
 # ORBITS: its 2 pages and their bounds; PRESET picks the moon on MOON, kept within MOONS; no GRID; PAD on a KIT
 wait 600
 tap SEQ
+expect poly 1
 turn K4 7
 expect src 7
+expect poly 3
 expect page 1
 spin K2 -127
 expect onote 1

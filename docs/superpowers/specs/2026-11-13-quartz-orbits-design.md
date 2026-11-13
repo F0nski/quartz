@@ -30,7 +30,8 @@ plus de 4 lunes, une saisie au clavier de la note d'une lune, MIMIC.
 - **Note** : sur une piste synthé, NOTE de la page ORBITS ramenée dans la gamme et montée de NOTE de la lune degrés
   de la gamme (`gen_life_note`) ; sur un KIT, le pad NOTE + 1.
 - **Conjonction** : 2 lunes ou plus au même pas : toutes leurs notes accentuées.
-- Durée un demi-pas (`len` 4), vélocité 100, `prob` 20, comme les autres générateurs.
+- Durée un demi-pas (`len` 4), vélocité 100, `prob` 20, comme les autres générateurs. Régler SOURCE sur ORBITS (piste
+  synthé) monte POLY à 3 s'il est plus bas, pour les conjonctions.
 
 ## 3. Données
 
@@ -67,8 +68,10 @@ Direction V2 de la maquette. Coordonnées de la zone de scène 240 × 166 ; l'en
   qui tourne d'un tour en 56 s.
 - **Bande du haut** (y 4 à 16) : par lune, une étiquette de 30 × 12 px à partir de x 8 (pas de 34 px) : une gemme à
   sa couleur et sa période ; en page MOON, l'étiquette de la lune réglée en clair. À droite, `SYNC <pas>` : les pas
-  avant que toutes les lunes repassent ensemble, en rose au moment du réalignement.
-- **Radar** (centre (104, 90)) : une orbite ronde par lune, rayon 24 + 17 m (m = 0..3), `#2a2148`, plus claire pour
+  avant que toutes les lunes repassent ensemble (cherchés une fois par pas, jusqu'à 999 ; `-` au-delà ; 0 à l'arrêt quand
+  elles partent ensemble), en rose au moment du réalignement.
+- **Radar** (centre (104, 94)) : une orbite ronde par lune, rayon 22 + 15 m (m = 0..3 : la porte de la 4e reste sous la
+  bande du haut), `#2a2148`, plus claire pour
   la lune réglée en page MOON ; un cran (losange de 2 px) par pas de sa période, le cran de la porte (en haut) en rose ;
   le chemin parcouru depuis la porte en points de 2 px tous les 5 px, à la couleur sombre de la lune, effacé au
   passage. La lune : une gemme de 6 px à sa couleur, au point `(n − PHASE) mod PERIOD` (fraction du pas comprise) de son
