@@ -21,6 +21,13 @@ typedef struct { int16_t i, j; uint8_t m; } q_tz;
 /* TONNETZ's run: steps since the reset (lined up on the tour); the chord; base: the pitch class added to the lattice's;
    applied: the step of the last bar (-1 the start or a return); chaos_hit: that step swapped; the last strike */
 typedef struct { uint32_t n; q_tz cur; int8_t base, applied; uint8_t chaos_hit, last[4], nlast; } q_tonnetz_run;
+/* MIMIC's run: places are indices in the phrase, -1 none */
+typedef struct {
+    uint32_t n, rng, at;            /* steps since the reset; MIMIC's xorshift; at: the n of the last step that played */
+    int8_t cur, prev, from;         /* the place played, the one before; from: the place left before last[0] */
+    uint8_t wait, seed, seeded, listen;   /* wait: the steps left of cur's gap; seed: the SEED rng was drawn from */
+    uint8_t last[4], nlast, jumps;  /* the last step's places; bit i: last[i] came from DRIFT */
+} q_mimic_run;
 /* Per track, the render's: what a generator pattern remembers from step to step. */
 typedef struct {
     uint8_t perturb[3];                       /* GRIDS */
@@ -32,6 +39,7 @@ typedef struct {
     q_chords_run chords;                      /* CHORDS */
     q_tonnetz_run tonnetz;                    /* TONNETZ */
     uint32_t orbits_n;                        /* ORBITS: the steps played since the reset */
+    q_mimic_run mimic;                        /* MIMIC */
 } q_gen;
 
 extern const uint16_t SCALE_MASK[11];   /* bit n: n semitones above the tonic; CHROM..MIN PENTA, the order of ui.c MODE_NAME */
@@ -63,6 +71,8 @@ q_tz gen_tz_move(q_tz s, int op);
 void gen_tz_pcs(q_tz s, int base, uint8_t pcs[3]);
 q_tz gen_tz_step(q_tz s, int op, int in_scale, uint16_t scale, int base);
 void gen_tz_start(const q_project *p, const q_tonnetz *t, q_tz *s, int *base);
+int gen_mimic_gap(uint32_t ms, uint32_t step_ms, int lo);   /* MIMIC: ms in steps, rounded, lo..7 */
+void gen_mimic_learn(q_mimic *m, int note, int gap);        /* the last event's gap := gap; note appended (gap 1); the oldest out past MIMIC_EV */
 int gen_life_rows(const q_life *l, int kit, const uint16_t grid[LIFE_H], int col, uint8_t rows[4]);
 
 #endif

@@ -121,6 +121,13 @@ static void clamp_project(q_project *p)
                 ob->per[m] = (uint8_t)clampi(ob->per[m], 1, 32); ob->pha[m] = (uint8_t)clampi(ob->pha[m], 0, 31);
                 ob->val[m] = (uint8_t)clampi(ob->val[m], 0, 15);
             }
+            q_mimic *mi = &q->mimic;
+            mi->n = (uint8_t)clampi(mi->n, 0, MIMIC_EV); mi->order = (uint8_t)clampi(mi->order, 1, 2);
+            mi->drift = (uint8_t)clampi(mi->drift, 0, 127); mi->loop = (uint8_t)clampi(mi->loop, 0, 16);
+            for (int e = 0; e < mi->n; e++) {   /* (the slots past n: never read) */
+                if (!mi->ev[e][0] || mi->ev[e][0] > 127) mi->ev[e][0] = 60;
+                mi->ev[e][1] = (uint8_t)clampi(mi->ev[e][1], 0, 7);
+            }
             q_tonnetz *tz = &q->tonnetz;
             tz->note = (uint8_t)clampi(tz->note, 1, 127); tz->len = (uint8_t)clampi(tz->len, 1, 8);
             tz->rate = (uint8_t)clampi(tz->rate, 0, 4); tz->strum = (uint8_t)clampi(tz->strum, 0, 7);

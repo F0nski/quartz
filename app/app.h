@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include "plat.h"
 
-#define Q_CHUNKS 10                      /* store objects holding the project (store.c) */
+#define Q_CHUNKS 11                      /* store objects holding the project (store.c) */
 
 #define APP_NAME "QUARTZ"
 #define APP_SPLASH_RGB RGB(80, 160, 255)
@@ -21,7 +21,7 @@ void app_redraw(void);
  * OBJ_SETTINGS is reserved and unused by QUARTZ. */
 enum { OBJ_SETTINGS, OBJ_PANEL, OBJ_PROJECT, OBJ_CHUNK0, OBJ_NOBJ = OBJ_CHUNK0 + Q_CHUNKS };
 /* OBJ_PROJECT is the v1 project's object, reserved and no longer read. The project's chunks are pooled (device/storage.c):
- * 20 sectors from 0x99000 for 10 objects, so a save always finds a sector that holds no current copy. The map's other
+ * 20 sectors from 0x99000 for 11 objects, so a save always finds a sector that holds no current copy. The map's other
  * entries are the pool's, unused. */
 #define APP_STORE_MAP {0xFC000u, 0xDC000u, 0x97000u}
 #define APP_STORE_POOL

@@ -528,6 +528,24 @@ static void orbits_clamped_on_load(void)
     assert(o->note == 1 && o->moons == 4 && o->per[0] == 1 && o->per[1] == 32 && o->pha[0] == 31 && o->val[0] == 15);
 }
 
+/* MIMIC's settings out of range in flash: brought back (a count past the phrase would read past it) */
+static void mimic_clamped_on_load(void)
+{
+    static q_project a, b;
+    project_defaults(&a);
+    store_save(&a);
+    b = a;
+    q_mimic *m = &b.pat[2][1].mimic;
+    m->n = 40; m->order = 0; m->drift = 200; m->loop = 20; m->ev[0][0] = 0; m->ev[0][1] = 9;
+    b.pat[2][2].mimic.order = 3;
+    write_raw(&b);
+    memset(&a, 0xAA, sizeof a);
+    assert(store_load(&a) == 0);
+    m = &a.pat[2][1].mimic;
+    assert(m->n == 32 && m->order == 1 && m->drift == 127 && m->loop == 16 && m->ev[0][0] == 60 && m->ev[0][1] == 7);
+    assert(a.pat[2][2].mimic.order == 2);
+}
+
 int main(void)
 {
     forget();
@@ -546,6 +564,7 @@ int main(void)
     chords_clamped_on_load();
     tonnetz_clamped_on_load();
     orbits_clamped_on_load();
+    mimic_clamped_on_load();
     store_v2_gives_defaults();
     store_roundtrip_v4();
     store_clamps_v4();
