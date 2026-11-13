@@ -239,7 +239,7 @@ function insert(c, v, t, tn) {
   const wave = tn < 1 ? Math.floor(tn / 1 * N) : -1;
   ribbon(c, out.map((y, i) => [X(i / N), ym - A * y]), i => Math.abs(i - wave) < 4 ? HOT : ty == 7 ? GRAYT : K[0], ym);
   const L = LAB[ty];
-  chrome(c, "FX", INS[ty], "1/2", [L[0], L[1], L[2], ty == 7 ? "" : "MIX"], [0, 1, 2, 3].map(k => String(Math.round(v[k] * 127))), v, tn < 0.12);
+  chrome(c, "FX", INS[ty], "2/2", [L[0], L[1], L[2], ty == 7 ? "" : "MIX"], [0, 1, 2, 3].map(k => String(Math.round(v[k] * 127))), v, tn < 0.12);
 }
 
 const mvals = v => { const p = v[2] * 2 - 1; return [String(Math.round(v[0] * 127)), String(Math.round(v[1] * 127)), p > 0.04 ? "R" + Math.round(p * 63) : p < -0.04 ? "L" + Math.round(-p * 63) : "C", String(Math.round(v[3] * 127))]; };
@@ -288,7 +288,7 @@ function mix(c, v, t, tn) {
     }
     text(c, j ? "R" : "L", mx + 5, bot + 8, UI, 8, "center");
   });
-  chrome(c, "FX", "MIX", "2/2", MLAB, mvals(v), v, tn < 0.12);
+  chrome(c, "FX", "MIX", "1/2", MLAB, mvals(v), v, tn < 0.12);
 }
 
 const PAGES = { adsr, filter, lfo, arp, insert, mix };

@@ -183,7 +183,7 @@ dans une croche ou une noire.
 | ENV | ADSR · filtre | — |
 | LFO | LFO | — |
 | ARP | arpégiateur | touches = notes tenues (latch) |
-| FX | insert · envois / pan / niveau | punch-ins sur les 16 blanches |
+| FX | envois / pan / niveau · insert | punch-ins sur les 16 blanches |
 | SEQ | pas + longueur / division / source (STEP) ; division / source · réglages du générateur (GRIDS, MARBLES) | blanches 1–8 : pattern de la piste |
 | GLO | tempo / swing / compresseur · delay / reverb · gamme et réglages REC | — |
 | HOME | vue des 4 pistes | blanches 1–4 : mutes ; 9–16 : scènes |

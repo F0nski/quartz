@@ -33,6 +33,15 @@ wait 30
 shot sound_arp.png
 key 0 up
 tap FX
+expect page 1
+wait 100
+expect anim 6
+key 0 down
+wait 30
+shot sound_mix.png
+key 0 up
+turn SELECT 1
+expect page 2
 wait 100
 expect anim 6
 key 0 down
@@ -46,12 +55,4 @@ expect anim 6
 key 0 down
 wait 30
 shot sound_insert_od.png
-key 0 up
-turn SELECT 1
-expect page 2
-wait 100
-expect anim 6
-key 0 down
-wait 30
-shot sound_mix.png
 key 0 up

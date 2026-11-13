@@ -26,7 +26,7 @@ enum { A_VEL, A_RATCHET, A_PROB, A_COND, A_SLIDE, A_ACCENT, A_NOTE, A_LEN, A_MIC
 #define COND_N 40                    /* NONE, FIRST, !FIRST, PRE, !PRE, then A:B for B = 2..8, A = 1..B */
 
 static const uint8_t DOMAIN_PAGES[ND][5] = {{P_ENGINE, P_SOUND}, {P_STEPS, P_XY}, {P_TEMPO, P_SCALE, P_KEYS, P_GFX, P_CPU}, {P_TRACKS, P_SONG},
-                                                {P_ADSR, P_FILTER}, {P_LFO}, {P_ARP}, {P_INSERT, P_MIX}};
+                                                {P_ADSR, P_FILTER}, {P_LFO}, {P_ARP}, {P_MIX, P_INSERT}};
 static const uint8_t DOMAIN_N[ND] = {2, 1, 5, 2, 2, 1, 1, 2};      /* SEQ: 2 pages while PATH is XY (pages) */
 static const uint8_t GEN_PAGES[2][5] = {{P_GRIDS, P_MAP, P_DENS}, {P_MARBLES, P_T, P_X, P_NOTES}};
 static const uint8_t KIT_PAGES[5] = {P_PAD, P_KIT};
@@ -1359,7 +1359,7 @@ void ui_input(void)
             knob_turn(P_SOUND, 0, e);
         } else if (ui.domain == D_HOME && page_id() == P_SONG) {
             knob_turn(P_SONG, 0, e);
-        } else if (ui.domain == D_FX && ui.page[D_FX] == 0) {   /* the insert's type */
+        } else if (ui.domain == D_FX && page_id() == P_INSERT) {   /* the insert's type */
             ui.p->sound[ui.track].itype = (uint8_t)clamp(ui.p->sound[ui.track].itype + e, 0, IT_N - 1);
             ui.dirty = 1;
         } else if (ui.domain == D_LFO) {        /* FREE / TRIG */

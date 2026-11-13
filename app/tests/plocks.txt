@@ -340,6 +340,8 @@ turn ALGO 1
 tap FX
 tap REC
 expect rec 0
+turn SELECT 1
+expect page 2
 turn PRESET 1
 tap SEQ
 tap REC
