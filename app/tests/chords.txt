@@ -1,0 +1,34 @@
+# CHORDS: the SOURCE knob, its 2 pages and their bounds
+wait 600
+tap SEQ
+turn K4 5
+expect src 5
+expect page 1
+spin K2 -127
+expect cnote 1
+spin K2 127
+expect cnote 127
+spin K3 -9
+expect crate 0
+spin K3 9
+expect crate 4
+wait 100
+shot chords_page1.png
+turn SELECT 1
+expect page 2
+spin K1 -9
+expect clen 1
+spin K1 9
+expect clen 8
+spin K2 -9
+expect cstrum 0
+spin K2 9
+expect cstrum 7
+spin K3 -3
+expect cvoice 0
+spin K3 3
+expect cvoice 1
+wait 100
+shot chords_page2.png
+turn SELECT 1
+expect page 1
