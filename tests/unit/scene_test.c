@@ -20,6 +20,7 @@ static void lcd_blit(uint32_t x, uint32_t y, uint32_t w, uint32_t h, const uint1
 #include "scene_home.c"
 #include "scene_sound.c"
 #include "scene_glo.c"
+#include "scene_life.c"
 
 static uint16_t px(int x, int y) { return swap16(cv_px[y * 240 + x]); }
 static int is_orange(uint16_t c) { return c == ORANGE[0] || c == ORANGE[1] || c == ORANGE[2]; }
@@ -1646,8 +1647,155 @@ static void glo_tests(void)
     glo_song_playing();
 }
 
+/* ---- LIFE: molecules ---- */
+static q_lview LV;
+static void lreset(void)
+{
+    static const char *const N[LIFE_H] = {"C3", "D3", "E3", "F3", "G3", "A3", "B3", "C4"};
+    memset(&LV, 0, sizeof LV);
+    LV.col = -1, LV.poly = 2, LV.autos = 1, LV.gen = 1, LV.seed = 17, LV.step_ms = 125;
+    LV.run.seeded = 1, LV.run.seed = 17, LV.run.dens = 70;
+    for (int r = 0; r < LIFE_H; r++) strcpy(LV.label[r], N[r]);
+    life_enter();
+}
+static void lfull(void)
+{
+    for (int b = 0; b < 2; b++) {
+        cv_begin(240, 83, 0);
+        life_band(&LV, -83 * b);
+        memcpy(FULL + 240 * 83 * b, cv_px, sizeof(uint16_t) * 240 * 83);
+    }
+}
+static void lset(int c, int r) { LV.run.grid[r] |= (uint16_t)(1u << c); }
+/* a cell's box in the scene area, shrunk by m */
+static int lpink(int c, int r, int m)
+{
+    int x = (int)(22.0f + 13.5f * (float)c), y = 18 + 18 * (LIFE_H - 1 - r);
+    return gpink(x + m, x + 13 - m, y + m, y + 18 - m);
+}
+static int lcount(uint16_t col, int c, int r)
+{
+    int x = (int)(22.0f + 13.5f * (float)c), y = 18 + 18 * (LIFE_H - 1 - r);
+    return gcount(col, x, x + 13, y, y + 18);
+}
+
+static void life_budget_full(void)
+{
+    lreset();
+    for (int r = 0; r < LIFE_H; r++) LV.run.grid[r] = LV.run.born[r] = 0xFFFF;
+    life_frame(&LV, 1000);                       /* arrival: no birth animates */
+    LV.col = 5, LV.poly = 4, LV.played = 0xA5;   /* rows 0, 2, 5, 7 */
+    life_frame(&LV, 2010);
+    assert(p3d_count() <= 300);
+    lfull();
+    assert(gpink(89, 103, 0, 83) > 0 && gpink(89, 103, 83, 166) > 0);
+}
+
+static void life_column_first(void)
+{
+    lreset();
+    for (int r = 0; r < LIFE_H; r++) LV.run.grid[r] = 0xFFFF;
+    LV.col = 4;
+    life_frame(&LV, 1000);                       /* arrival */
+    LV.col = 5, LV.poly = 4, LV.played = 0xA5;
+    life_frame(&LV, 1030);
+    lfull();
+    for (int r = 0; r < LIFE_H; r++)
+        assert(!!lpink(5, r, 4) == (r == 0 || r == 2 || r == 5 || r == 7));
+}
+
+static void life_no_flash_on_arrival(void)
+{
+    lreset();
+    for (int r = 0; r < LIFE_H; r++) LV.run.grid[r] = LV.run.born[r] = 0x0F0F;
+    LV.run.gens = 5, LV.run.reseeds = 2;
+    life_frame(&LV, 1000);
+    lfull();
+    assert(gpink(0, 240, 14, 166) == 0);
+}
+
+static void life_birth_pink_then_blue(void)
+{
+    lreset();
+    life_frame(&LV, 1000);
+    lset(2, 3); LV.run.born[3] = 1u << 2; LV.run.gens = 1;
+    life_frame(&LV, 1100);                       /* the generation is seen: it grows from here */
+    life_frame(&LV, 1300);
+    lfull();
+    assert(lpink(2, 3, 3) > 0);
+    life_frame(&LV, 1700);
+    lfull();
+    assert(lpink(2, 3, 0) == 0);
+    assert(lcount(KBLUE[0], 2, 3) + lcount(KBLUE[1], 2, 3) + lcount(KBLUE[2], 2, 3) > 0 ||
+           lcount(RGB(0x14, 0x25, 0x60), 2, 3) > 0);    /* alone, it is doomed: the dark blues */
+}
+
+static void life_valence_ghost(void)
+{
+    lreset();
+    life_frame(&LV, 1000);
+    lfull();
+    assert(lcount(KBLUE[1], 8, 4) == 0);
+    lset(7, 4); lset(9, 4); lset(8, 5);          /* three neighbours: (8, 4) is born next */
+    life_frame(&LV, 1010);
+    lfull();
+    assert(lcount(KBLUE[1], 8, 4) > 0);
+}
+
+static void life_stuck_grey(void)
+{
+    lreset();
+    lset(3, 3); lset(4, 3); lset(3, 4); lset(4, 4);
+    LV.run.stuck = 1, LV.autos = 0;
+    life_frame(&LV, 1000);
+    lfull();
+    int blue = 0;
+    for (int c = 0; c < LIFE_W; c++)
+        for (int r = 0; r < LIFE_H; r++) blue += lcount(KBLUE[0], c, r) + lcount(KBLUE[1], c, r) + lcount(KBLUE[2], c, r);
+    assert(blue == 0 && gpink(22, 240, 18, 162) == 0);
+    int text = 0;
+    for (int x = 80; x < 160; x++)
+        for (int y = 76; y < 92; y++) text += fpx(x, y) == RGB(0xc9, 0xc3, 0xe4);
+    assert(text > 0);
+}
+
+/* the scene rule: every knob of LIFE's pages changes the picture */
+static int ldiffers(void (*change)(void))
+{
+    static uint16_t ref[240 * 166];
+    lreset();
+    lset(3, 3); lset(4, 3); lset(5, 3); lset(9, 6);
+    LV.col = 5;
+    life_frame(&LV, 5000);
+    lfull();
+    memcpy(ref, FULL, sizeof ref);
+    change();
+    life_frame(&LV, 5000);
+    lfull();
+    return memcmp(ref, FULL, sizeof ref) != 0;
+}
+static void ch_poly(void) { LV.poly = 4; }
+static void ch_gen(void) { LV.gen = 8; }
+static void ch_autos(void) { LV.autos = 0; }
+static void ch_seed(void) { LV.seed = 18; }
+static void ch_mut(void) { LV.mut = 127; }
+static void ch_map(void) { LV.kit = 1; LV.map = 1; }
+static void ch_label(void) { strcpy(LV.label[0], "D3"); }
+static void life_knobs_visible(void)
+{
+    assert(ldiffers(ch_poly) && ldiffers(ch_gen) && ldiffers(ch_autos) && ldiffers(ch_seed) && ldiffers(ch_mut) &&
+           ldiffers(ch_map) && ldiffers(ch_label));
+}
+
 int main(void)
 {
+    life_budget_full();
+    life_column_first();
+    life_no_flash_on_arrival();
+    life_birth_pink_then_blue();
+    life_valence_ghost();
+    life_stuck_grey();
+    life_knobs_visible();
     planet_orange_then_pink();
     harm_sets_ships();
     morph_tilts_ring();

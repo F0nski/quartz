@@ -3,6 +3,7 @@
 #define QUARTZ_SCENE_H
 #include <stdint.h>
 #include "project.h"
+#include "gen.h"
 
 /* what a scene shows: the track's model; k: its ENGINE knobs HARM, TIMB, MORPH, DECAY 0..127 (a KIT: the edited pad's
    TUNE -24..24, HARM, TIMB, DECAY); hits: hits[0] audio_hits of the track (a KIT: audio_kit_hits per pad engine);
@@ -84,5 +85,18 @@ void marbles_band(int32_t oy);
 int  marbles_flying(void);                                  /* shots in flight */
 int  marbles_hist(int bin);                                 /* a crystal's history 0..6 */
 int  marbles_ships(void);                                   /* ships drawn */
+
+/* LIFE's molecules (scene_life.c); ui.c fills the view */
+typedef struct {
+    q_life_run run;            /* audio_life's copy */
+    int8_t col;                /* the column read, -1 stopped */
+    uint8_t played;            /* bit r: row r plays in col (gen_life_rows) */
+    uint8_t poly, autos, gen, mut, kit, map, seed;   /* the pattern's q_life, poly already capped on a KIT */
+    char label[LIFE_H][5];     /* the rows' names, row 0 first */
+    uint32_t step_ms;          /* a step in ms */
+} q_lview;
+void life_enter(void);                           /* arrival: the counters seen as they are, no animation */
+void life_frame(const q_lview *v, uint32_t ms);  /* builds the primitives */
+void life_band(const q_lview *v, int32_t oy);    /* the backdrop, p3d_draw, then the texts */
 
 #endif
