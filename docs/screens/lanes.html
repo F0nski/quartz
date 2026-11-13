@@ -43,7 +43,7 @@ button:focus-visible { outline: 2px solid var(--hot); outline-offset: 2px }
 <header>
   <h1>Source <em>LANES</em> : la scène</h1>
   <p class="lead">Cinq lignes (TRIG, NOTE, OCT, DUR, VEL), chacune une boucle de 1 à 16 cases avec sa longueur ; toutes les têtes
-  avancent d'une case par pas. Trois versions de la direction C (blocs), animées par la même partie.</p>
+  avancent d'une case par pas. La direction C3 « Focus » dans le cadre réel de l'écran (en-tête, scène de 166 px, encodeurs), avec deux décors légers à comparer.</p>
 </header>
 
 <section class="knobs" aria-label="Encodeurs">
@@ -60,9 +60,9 @@ button:focus-visible { outline: 2px solid var(--hot); outline-offset: 2px }
 </section>
 
 <div class="grid">
-  <figure><canvas id="c1" width="240" height="240"></canvas><figcaption><span class="tag">C1</span><h2>Blocs et rouleau</h2><p>Les rangées de blocs, plus grandes et alignées, une tête par rangée (le bloc rose, une flèche blanche au-dessus). En bas, ce qui sort vraiment : les notes en rouleau de piano, la dernière nommée en grand.</p></figcaption></figure>
-  <figure><canvas id="c2" width="240" height="240"></canvas><figcaption><span class="tag">C2</span><h2>Plateau</h2><p>Les rangées posées en profondeur sur un sol filaire, TRIG devant, sous un horizon façon Rez. Chaque tête est un viseur rose ; quand une note part, un éclat s'envole de la tête de TRIG vers le ciel avec son nom.</p></figcaption></figure>
-  <figure><canvas id="c3" width="240" height="240"></canvas><figcaption><span class="tag">C3</span><h2>Focus</h2><p>Les cinq rangées en petit en haut pour voir la polymétrie ; la rangée éditée (PRESET) en grand en bas, chaque valeur écrite sur son bloc : nom de la note, octave, durée, nuance. Pensé pour la saisie.</p></figcaption></figure>
+  <figure><canvas id="c1" width="240" height="240"></canvas><figcaption><span class="tag">F1</span><h2>Resserré</h2><p>C3 dans le vrai cadre : en-tête en haut, encodeurs en bas, la scène sur 166 px. Rangées du haut plus serrées, la ligne éditée remonte et ses blocs grandissent ; pas de décor.</p></figcaption></figure>
+  <figure><canvas id="c2" width="240" height="240"></canvas><figcaption><span class="tag">F2</span><h2>Sol filaire</h2><p>F1, plus un sol filaire très sombre sous les grands blocs, qui fuit vers un horizon derrière eux ; les lignes du sol avancent d'un cran à chaque pas.</p></figcaption></figure>
+  <figure><canvas id="c3" width="240" height="240"></canvas><figcaption><span class="tag">F3</span><h2>Poussière</h2><p>F1, plus une poussière de petits losanges sombres qui dérive lentement derrière tout ; à chaque note jouée, les plus proches de la tête s'allument un instant.</p></figcaption></figure>
 </div>
 </main>
 
@@ -148,104 +148,75 @@ function block(g, x, y0, w, h, d, s, lit) {
   poly(g, [[x + w, y0 - h], [x + w + d, y0 - h - d], [x + w + d, y0 - d], [x + w, y0]], s[3]);
 }
 const SEL = ['#8fb0ff', '#3a6dff', '#2a52c8', '#1c3590'], OFF = ['#3a2f63', '#2a2148', '#241850', '#160f30'];
-const tone = (l, c, cur) => cur ? GEM.pink : tapped(l, c) ? GEM.white : l === S.sel ? SEL : OFF;
-const valTxt = (l, v) => l === 0 ? (v ? '●' : '') : l === 1 ? (S.kit ? 'P' + (v % 16 + 1) : NAMES[(S.note + SCALE[v % 7]) % 12]) : l === 2 ? ['-2', '-1', '0', '+1', '+2'][v] : l === 3 ? ['¼', '½', '1', '2', '4'][v] : ['pp', 'mf', 'f', 'ff'][v];
-function lastNote(g, x, y) { const l = notes[notes.length - 1]; if (l) txt(g, label(l.n), x, y, l.k === k ? C.pink : C.txt, 18, 'right'); }
+const KNOB = ['#3a6dff', '#3fd17a', '#f4f1ff', '#ff7a2e'];
+const valTxt = (l, v) => l === 0 ? '' : l === 1 ? (S.kit ? 'P' + (v % 16 + 1) : NAMES[(S.note + 12 * Math.floor(v / 7) + SCALE[v % 7]) % 12]) : l === 2 ? ['-2', '-1', '0', '+1', '+2'][v] : l === 3 ? ['1/4', '1/2', '1', '2', '4'][v] : ['pp', 'mf', 'f', 'ff'][v];
 
-/* a row of blocks: cells 0..LEN-1, a pink wall closing the loop, floor dashes beyond */
-function row(g, l, x0, y0, cw, w, hmax, d, opt = {}) {
-  const len = S.len[l];
-  for (let c = 0; c < 16; c++) {
-    const x = x0 + c * cw;
-    if (c >= len) { line(g, x + 1, y0 - 0.5, x + w - 1, y0 - 0.5, '#241850'); continue; }
-    const v = V[l][c], cur = c === k % len, s = tone(l, c, cur);
-    const h = l === 0 ? (v ? hmax * 0.6 : 2) : 3 + valH(l, v) * (hmax - 3);
-    if (l === 0 && !v) poly(g, [[x, y0 - 2], [x + w, y0 - 2], [x + w, y0], [x, y0]], cur ? GEM.pink[2] : s[3]);
-    else block(g, x, y0, w, h, d, s, cur || l === S.sel);
-    if (opt.vals) txt(g, valTxt(l, v), x + w / 2, y0 + 12, cur ? C.pink : l === S.sel ? C.txt : C.mute, 9, 'center');
-    if (cur && opt.arrow) poly(g, [[x + w / 2 - 3, y0 - h - d - 7], [x + w / 2 + 3, y0 - h - d - 7], [x + w / 2, y0 - h - d - 3]], C.white);
-  }
-  const xe = x0 + len * cw - (cw - w) / 2;
-  poly(g, [[xe, y0], [xe + 2, y0], [xe + 2 + d, y0 - d - hmax], [xe + d, y0 - d - hmax]], '#9a1659');   // the loop's wall
+/* the device's frame: ui.c's header (0-30) and the knobs' footer (196-240) */
+function chrome(g) {
+  g.fillStyle = C.bg; g.fillRect(0, 0, 240, 30); g.fillRect(0, 196, 240, 44);
+  txt(g, 'T1', 8, 20, C.pink, 13); txt(g, 'SEQ · LANES', 30, 20, C.txt, 11);
+  poly(g, [[196, 9], [234, 9], [234, 23], [196, 23]], '#9a1659'); txt(g, 'GRID', 215, 20, C.white, 10, 'center');
+  line(g, 0, 29.5, 240, 29.5, C.wire); line(g, 0, 196.5, 240, 196.5, C.wire);
+  const ks = [['DIV', DIVS[S.div][0]], ['NOTE', S.kit ? '—' : label(S.note)], ['TRIG LEN', String(S.len[0])], ['SOURCE', 'LANES']];
+  ks.forEach(([n, v], i) => { const x = 30 + i * 60; poly(g, [[x - 26, 203], [x + 26, 203], [x + 26, 205], [x - 26, 205]], KNOB[i]);
+    txt(g, n, x, 218, C.mute, 8, 'center'); txt(g, v, x, 233, C.white, 11, 'center'); });
 }
 
-/* C1: blocks and the piano roll */
-function drawC1(g) {
-  g.fillStyle = C.bg; g.fillRect(0, 0, 240, 240);
-  const ls = lanesShown(), RH = ls.length === 5 ? 25 : 31;
-  ls.forEach((l, r) => {
-    const y0 = 46 + r * RH, sel = l === S.sel;
-    txt(g, LANE[l], 4, y0 - 4, sel ? C.pink : C.mute, 8); txt(g, String(S.len[l]), 4, y0 + 5, sel ? C.pink : '#3a2f63', 8);
-    row(g, l, 30, y0, 13, 10, 16, 3, { arrow: true });
-  });
-  const yb = 162; line(g, 0, yb - 0.5, 240, yb - 0.5, C.wire);
-  const CW = 9, X0 = 30, CUR = 14;
-  g.save(); g.beginPath(); g.rect(X0, yb, 240 - X0, 78); g.clip();
-  for (const nt of notes) {
-    const x = X0 + (nt.k - k + CUR - frac) * CW, y = 232 - (nt.n - S.note + 16) * 1.6, w = Math.max(3, nt.d * CW - 2);
-    const s = nt.k <= k && nt.k + nt.d > k ? GEM.pink : GEM.blue;
-    poly(g, [[x, y], [x + w, y], [x + w, y + 4], [x, y + 4]], s[1]); poly(g, [[x, y], [x + w, y], [x, y + 2]], s[0]);
+const dust = [...Array(46)].map((_, i) => ({ x: (i * 73.3) % 240, y: 32 + (i * 41.7) % 162, s: 1 + (i % 3), v: 3 + (i % 5) * 2 }));
+let lastHit = 0;
+function decor(g, kind) {
+  const now = performance.now();
+  if (kind === 1) {                                   // a dark wire floor under the big blocks, sliding a notch a step
+    const HZ = 108, VX = 120;
+    for (let i = -10; i <= 10; i++) line(g, VX + i * 10, HZ, VX + i * 44, 196, '#140e30');
+    for (let j = 0; j < 7; j++) { const f = ((j + frac) / 7) ** 2, y = HZ + 2 + f * 86; line(g, 0, y, 240, y, '#140e30'); }
   }
-  g.restore();
-  line(g, X0 + CUR * CW, yb, X0 + CUR * CW, 240, C.pink);
-  txt(g, 'OUT', 4, yb + 12, C.mute, 8); txt(g, S.kit ? 'KIT' : label(S.note), 4, 234, C.mute, 8);
-  lastNote(g, 236, yb + 20);
-  topbar(g);
-}
-
-/* C2: the plateau, rows in depth under a horizon */
-function drawC2(g) {
-  g.fillStyle = C.bg; g.fillRect(0, 0, 240, 240);
-  const HZ = 70, now = performance.now();
-  line(g, 0, HZ + 0.5, 240, HZ + 0.5, '#3a2f63');
-  for (let i = -8; i <= 8; i++) line(g, 120 + i * 9, HZ, 120 + i * 60, 240, '#120c2a');
-  for (let j = 0; j < 6; j++) { const y = HZ + 6 + j * j * 5.2; line(g, 0, y, 240, y, '#120c2a'); }
-  const ls = lanesShown();
-  ls.slice().reverse().forEach((l, ri) => {
-    const r = ls.length - 1 - ri, depth = r / 4, sc = 1 - depth * 0.38;          // TRIG in front, the biggest
-    const y0 = 214 - (r * 30 - r * r * 1.6), cw = 13 * sc, w = 10.5 * sc, x0 = 120 - 8 * cw + 6;
-    row(g, l, x0, y0, cw, w, 22 * sc, 4 * sc);
-    txt(g, LANE[l], x0 - 4, y0 - 2, l === S.sel ? C.pink : C.mute, Math.round(9 * sc), 'right');
-    const c = k % S.len[l], x = x0 + c * cw, a = 3 * sc, top = y0 - 30 * sc, bot = y0 + 3;
-    [[x - a, top, 1, 1], [x + w + a, top, -1, 1], [x - a, bot, 1, -1], [x + w + a, bot, -1, -1]].forEach(([px, py, dx, dy]) => {   // the lock-on sight
-      line(g, px, py, px + dx * 4, py, C.pink, 1.5); line(g, px, py, px, py + dy * 4, C.pink, 1.5); });
-  });
-  for (let j = shards.length - 1; j >= 0; j--) {
-    const sh = shards[j], a = (now - sh.t) / 700; if (a > 1) { shards.splice(j, 1); continue; }
-    const x0 = 120 - 8 * 13 + 6 + (sh.k % S.len[0]) * 13 + 5, x = x0 + (sh.n - S.note) * a * 1.2, y = 186 - a * 150;
-    poly(g, [[x, y - 7], [x + 4, y - 1], [x + 1, y + 7], [x - 4, y]], a < 0.3 ? C.white : a < 0.6 ? C.pink : '#9a1659');
-    if (a < 0.6 && y < HZ + 8) txt(g, label(sh.n), x, y - 10, C.white, 10, 'center');
-  }
-  txt(g, S.kit ? 'KIT' : 'BASE ' + label(S.note), 4, 30, C.mute, 8);
-  topbar(g);
-}
-
-/* C3: all rows small, the edited row big with its values */
-function drawC3(g) {
-  g.fillStyle = C.bg; g.fillRect(0, 0, 240, 240);
-  const ls = lanesShown();
-  ls.forEach((l, r) => {
-    const y0 = 36 + r * 16;
-    txt(g, LANE[l], 4, y0, l === S.sel ? C.pink : C.mute, 8);
-    row(g, l, 34, y0, 12.5, 10, 9, 2);
-  });
-  const l = S.sel, yb = 126; line(g, 0, yb - 0.5, 240, yb - 0.5, C.wire);
-  txt(g, 'EDIT ' + LANE[l], 4, yb + 13, C.pink, 10); txt(g, 'LEN ' + S.len[l], 236, yb + 13, C.txt, 10, 'right');
-  // two rows of eight big blocks: cells 1-8 then 9-16, as the white keys
-  for (let h = 0; h < 2; h++) {
-    const y0 = yb + 52 + h * 50;
-    for (let c = h * 8; c < h * 8 + 8; c++) {
-      const x = 8 + (c % 8) * 28.5, len = S.len[l], v = V[l][c];
-      if (c >= len) { line(g, x + 2, y0 - 0.5, x + 22, y0 - 0.5, '#241850'); txt(g, String(c + 1), x + 12, y0 + 11, '#241850', 8, 'center'); continue; }
-      const cur = c === k % len, s = cur ? GEM.pink : tapped(l, c) ? GEM.white : SEL;
-      const hh = l === 0 ? (v ? 18 : 2) : 4 + valH(l, v) * 20;
-      if (l === 0 && !v) poly(g, [[x, y0 - 2], [x + 22, y0 - 2], [x + 22, y0], [x, y0]], cur ? GEM.pink[2] : SEL[3]);
-      else block(g, x, y0, 22, hh, 4, s, true);
-      txt(g, valTxt(l, v), x + 11, y0 - hh - 8, cur ? C.white : C.txt, 10, 'center');
-      txt(g, String(c + 1), x + 11, y0 + 11, cur ? C.pink : C.mute, 8, 'center');
+  if (kind === 2) {                                   // dust drifting left; lit near the head when a note plays
+    const n = notes[notes.length - 1]; if (n && n.k === k) lastHit = now;
+    const hx = 34 + (k % S.len[S.sel]) * 12.5;
+    for (const d of dust) {
+      const x = ((d.x - now / 1000 * d.v) % 240 + 240) % 240, y = d.y, near = Math.abs(x - hx) < 30 && now - lastHit < 220;
+      poly(g, [[x, y - d.s], [x + d.s, y], [x, y + d.s], [x - d.s, y]], near ? '#9a1659' : d.s === 3 ? '#2a2148' : '#1c1340');
     }
   }
-  topbar(g);
+}
+
+function drawFocus(g, kind) {
+  g.fillStyle = C.bg; g.fillRect(0, 0, 240, 240);
+  decor(g, kind);
+  const ls = lanesShown(), RH = ls.length === 5 ? 13 : 16;
+  ls.forEach((l, r) => {                              // the overview: y 32..98
+    const y0 = 44 + r * RH, len = S.len[l], sel = l === S.sel;
+    txt(g, LANE[l], 4, y0, sel ? C.pink : C.mute, 8);
+    for (let c = 0; c < 16; c++) {
+      const x = 34 + c * 12.5, v = V[l][c];
+      if (c >= len) { line(g, x + 1, y0 - 0.5, x + 9, y0 - 0.5, '#241850'); continue; }
+      const cur = c === k % len, s = cur ? GEM.pink : tapped(l, c) ? GEM.white : sel ? SEL : OFF;
+      if (l === 0 && !v) { poly(g, [[x, y0 - 2], [x + 10, y0 - 2], [x + 10, y0], [x, y0]], cur ? GEM.pink[2] : s[3]); continue; }
+      const h = l === 0 ? 7 : 2 + valH(l, v) * 7;
+      poly(g, [[x, y0 - h], [x + 10, y0 - h], [x + 10, y0], [x, y0]], s[cur || sel ? 1 : 2]);
+      poly(g, [[x, y0 - h], [x + 10, y0 - h], [x + 12, y0 - h - 2], [x + 2, y0 - h - 2]], s[0]);
+    }
+    const xe = 34 + len * 12.5 - 1.5; poly(g, [[xe, y0], [xe + 2, y0], [xe + 4, y0 - 11], [xe + 2, y0 - 11]], '#9a1659');
+  });
+  const l = S.sel, len = S.len[l], yt = 108;          // the edited lane: y 100..196
+  line(g, 0, 101.5, 240, 101.5, C.wire);
+  txt(g, 'EDIT ' + LANE[l], 4, yt + 4, C.pink, 10); txt(g, 'LEN ' + len, 236, yt + 4, C.txt, 10, 'right');
+  for (let h = 0; h < 2; h++) {
+    const y0 = 150 + h * 42;
+    for (let c = h * 8; c < h * 8 + 8; c++) {
+      const x = 6 + (c % 8) * 29, v = V[l][c];
+      if (c >= len) { poly(g, [[x, y0 - 2], [x + 24, y0 - 2], [x + 24, y0], [x, y0]], '#160f30'); txt(g, String(c + 1), x + 12, y0 - 5, '#2a2148', 8, 'center'); continue; }
+      const cur = c === k % len, s = cur ? GEM.pink : tapped(l, c) ? GEM.white : SEL;
+      const hh = l === 0 ? (v ? 22 : 3) : 6 + valH(l, v) * 20;
+      if (l === 0 && !v) poly(g, [[x, y0 - 3], [x + 24, y0 - 3], [x + 24, y0], [x, y0]], cur ? GEM.pink[2] : SEL[3]);
+      else block(g, x, y0, 24, hh, 4, s, true);
+      if (l !== 0) txt(g, valTxt(l, v), x + 12, y0 - hh - 7, cur ? C.white : C.txt, 10, 'center');
+      txt(g, String(c + 1), x + 12, y0 - 3, cur ? C.white : '#8fb0ff', 8, 'center');   // the key's number, on the block's foot
+    }
+    if (len > h * 8 && len <= h * 8 + 8) { const xe = 6 + (len % 8 || 8) * 29 - 3; poly(g, [[xe, y0], [xe + 2, y0], [xe + 6, y0 - 30], [xe + 4, y0 - 30]], '#9a1659'); }
+  }
+  chrome(g);
 }
 
 const G = ['c1', 'c2', 'c3'].map(id => document.getElementById(id).getContext('2d'));
@@ -255,7 +226,7 @@ function frame() {
   acc += Math.min(200, t - last); last = t;
   while (acc >= ms) { acc -= ms; tick(); }
   frac = reduce ? 0 : acc / ms;
-  drawC1(G[0]); drawC2(G[1]); drawC3(G[2]);
+  drawFocus(G[0], 0); drawFocus(G[1], 1); drawFocus(G[2], 2);
   requestAnimationFrame(frame);
 }
 document.fonts.ready.then(() => { tick(); requestAnimationFrame(frame); });

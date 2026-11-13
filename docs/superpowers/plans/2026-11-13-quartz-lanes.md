@@ -139,11 +139,12 @@ typedef struct {
     int8_t flash;              /* the cell touched 0..15 on the edited lane, -1 none */
     uint32_t flash_ms;         /* when */
     char name[16][4];          /* NOTE cells' texts: note names, or "P1".."P16" on a KIT */
+    uint32_t n, step_ms;       /* audio_lanes' count (the floor slides a notch when it changes), a step in ms */
 } q_laneview;
 void lanes_frame(const q_laneview *v, uint32_t ms);  /* builds the primitives */
 void lanes_band(const q_laneview *v, int32_t oy);    /* p3d_draw, then the texts */
 ```
-Géométrie (spec section 6, maquette `drawC3`) : vue d'ensemble, rangée r à y 0 + 14 r (base du bloc à y 12 + 14 r), cases à x = 34 + 12,5 c, blocs 10 px, 2 facettes (avant, dessus en biais de 2 px), hauteur 2 + valeur normalisée × 7 (OCT : distance au centre) ; ligne éditée : titre à y 88, rangs de base y 128 et y 162, blocs 22 px à x = 8 + 28,5 (c mod 8), 3 facettes (biais 4 px), hauteur 4 + valeur × 20, valeur écrite au-dessus, numéro dessous ; mur rose `#9a1659` de 2 px après la case LEN, hauteur du bloc maximal ; case touchée blanche pendant 300 ms après `flash_ms`. Textes : `FONT_S`, `EDIT <LANE>` et `LEN <n>`, `-2 -1 0 +1 +2`, `1/4 1/2 1 2 4`, `pp mf f ff`.
+Géométrie : spec section 6 (coordonnées, hauteurs, sol filaire), maquette `drawFocus(g, 1)` et `decor(g, 1)` pour les tons et les facettes ; mur rose `#9a1659` ; case touchée blanche pendant 300 ms après `flash_ms` ; le sol glisse de la fraction `(ms - t_pas) / step_ms`, où `t_pas` est l'heure où `lanes_frame` a vu `n` changer, et ne bouge pas quand `n` ne change plus (arrêt). Ordre d'envoi : ligne éditée, vue d'ensemble, murs, sol. Textes : `FONT_S`, `EDIT <LANE>` et `LEN <n>`, `-2 -1 0 +1 +2`, `1/4 1/2 1 2 4`, `pp mf f ff`.
 
 - [ ] **Step 1: Tests** dans `scene_test.c` (`lnview()` : défauts de Task 1, `head` {3, 2, 1, 0, 5}, `sel` 1, `flash` −1 ; `lnband(b)` sur le modèle de `lband`) :
   - `lanes_budget` : cinq lignes de 16 cases toutes à leur max, LEN 16 : `p3d_count() <= 300`.
@@ -152,6 +153,8 @@ Géométrie (spec section 6, maquette `drawC3`) : vue d'ensemble, rangée r à y
   - `lanes_wall_follows_len` : LEN de NOTE 5 puis 9 : les pixels roses sombres du mur changent de colonne, en haut et en bas.
   - `lanes_kit_four_rows` : `kit` 1 : la cinquième rangée du haut est vide (rien sous y 70), la ligne OCT n'est jamais dessinée.
   - `lanes_flash_white` : `flash` 2 à `ms` 0 : du blanc dans la case 3 du bas à +100 ms, plus à +400 ms.
+  - `lanes_floor_slides` : `n` passe de 4 à 5 à `ms` 0, `step_ms` 125 : les pixels du sol diffèrent entre +20 ms et +80 ms ; `n` inchangé ensuite (arrêt) : deux images à +300 ms et +600 ms identiques.
+  - `lanes_budget_floor_last` : au pire cas du budget, toutes les cases sont dessinées (le sol peut manquer).
   - `lanes_knobs_visible` (règle des scènes) : une image de référence, puis chaque changement seul d'un `len[l]`, de `sel`, de `name[0]` (NOTE de base) et d'une tête (DIV : la tête avance) change au moins un pixel des bandes.
 - [ ] **Step 2:** `tests/run_tests.sh` : échec (`lanes_frame` inconnu).
 - [ ] **Step 3:** Écrire `app/scene_lanes.c`, déclarer dans `scene.h`, inclure dans `app_ui.c` et les deux tests.
@@ -164,7 +167,7 @@ Géométrie (spec section 6, maquette `drawC3`) : vue d'ensemble, rangée r à y
 
 **Consumes :** `q_laneview`, `lanes_frame`, `lanes_band` (Task 4) ; `audio_lanes`, `ui.lane`, `ui.cell_flash`, `ui.cell_ms` (Task 3) ; pages `P_LANES`, `P_LENS` (Task 2).
 
-`ui.c` : sur `P_LANES` et `P_LENS`, `v->scene.anim = 9` ; la vue remplie depuis `pat()->lanes`, `head[l] = (audio_lanes - 1) mod len[l]` quand `audio_pos >= 0`, que le pattern affiché est celui qui joue et que `audio_lanes > 0`, sinon −1 ; `name[c]` par `note_name(gen_life_note(note, gen_scale(ui.p), ui.p->tonic, c))` ou `"P<c+1>"` sur un KIT ; `sel`, `flash`, `flash_ms` depuis `ui` ; `lanes_band(&lnv, …)` dans la boucle des bandes ; la clé de scène inclut l'anim comme les autres.
+`ui.c` : sur `P_LANES` et `P_LENS`, `v->scene.anim = 9` ; la vue remplie depuis `pat()->lanes`, `head[l] = (audio_lanes - 1) mod len[l]` quand `audio_pos >= 0`, que le pattern affiché est celui qui joue et que `audio_lanes > 0`, sinon −1 ; `name[c]` par `note_name(gen_life_note(note, gen_scale(ui.p), ui.p->tonic, c))` ou `"P<c+1>"` sur un KIT ; `sel`, `flash`, `flash_ms` depuis `ui` ; `n = audio_lanes(track)`, `step_ms = 2500 * DIV96[div] / tempo` comme pour LIFE ; `lanes_band(&lnv, …)` dans la boucle des bandes ; la clé de scène inclut l'anim comme les autres.
 
 - [ ] **Step 1: Script** `app/tests/lanes_scene.txt` : `tap SEQ`, `turn K4 4`, `expect anim 9`, `tap PLAY`, `wait 1500`, `shot lanes_play.png` ; `turn PRESET 1`, `wait 300`, `shot lanes_note.png` ; `turn SELECT 1`, `expect anim 9`, `turn K1 -2` (NOTE LEN 3), `wait 600`, `shot lanes_len.png` ; KIT comme dans `life_scene.txt`, `shot lanes_kit_play.png` ; `tap PLAY`.
 - [ ] **Step 2:** `tests/run_tests.sh` : `lanes_scene.txt` échoue (`anim` 2 au lieu de 9).

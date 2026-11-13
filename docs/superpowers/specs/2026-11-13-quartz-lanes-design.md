@@ -95,28 +95,33 @@ passe en LIVE pour jouer sans rien écrire, comme pour les autres générateurs.
 
 ## 6. La scène
 
-Direction C3 « Focus » de la maquette. Coordonnées de la zone de scène 240 × 166 ; l'en-tête reste celui de `ui.c`.
-Les textes de l'écran sont en anglais.
+Direction C3 « Focus » de la maquette, variante F2 (sol filaire). Coordonnées de la zone de scène 240 × 166 ;
+l'en-tête et les encodeurs restent ceux de `ui.c`. Les textes de l'écran sont en anglais.
 
-- **Vue d'ensemble** (y 0 à 74) : une rangée de 14 px par ligne (quatre sur un KIT).
+- **Vue d'ensemble** (y 0 à 70) : une rangée de 13 px par ligne, base du bloc à y = 14 + 13 r (16 px sur un KIT, qui
+  n'a que quatre lignes).
   - À gauche, le nom de la ligne, en rose pour la ligne éditée.
-  - 16 cases de 12,5 px à partir de x = 34. Chaque bloc a deux facettes (face avant et dessus), et sa hauteur donne
-    la valeur. Une case TRIG éteinte est un trait.
+  - 16 cases de 12,5 px à partir de x = 34. Chaque bloc fait 10 px et a deux facettes (face avant et dessus, en biais
+    de 2 px). Sa hauteur, 2 + valeur × 7, donne la valeur. Une case TRIG éteinte est un trait.
   - La tête est un bloc rose. La ligne éditée est en bleu vif, les autres en tons sombres.
-  - Un mur rose ferme la boucle après la case LEN. Au-delà, les cases ne sont plus qu'un trait au sol.
-- **Ligne éditée** (y 80 à 166) : `EDIT <LIGNE>` à gauche et `LEN <n>` à droite, puis deux rangs de huit blocs de
-  22 px, qui correspondent aux blanches 1–8 et 9–16.
-  - Chaque bloc a trois facettes, et son numéro est écrit dessous.
-  - La valeur est écrite au-dessus : nom de note (`P1`…`P16` sur un KIT), `-2`…`+2`, `1/4` `1/2` `1` `2` `4`, `pp`
-    `mf` `f` `ff`. TRIG n'a pas de texte.
-  - Les cases au-delà de LEN sont un trait et un numéro sombres.
+  - Un mur rose de 2 × 11 px ferme la boucle après la case LEN. Au-delà, les cases ne sont plus qu'un trait au sol.
+- **Ligne éditée** (y 72 à 166), sous un filet à y 71 : `EDIT <LIGNE>` à gauche et `LEN <n>` à droite (y 82), puis
+  deux rangs de huit blocs, bases à y 120 et 162, qui correspondent aux blanches 1–8 et 9–16.
+  - Blocs de 24 px à x = 6 + 29 (c mod 8), trois facettes (biais 4 px), hauteur 6 + valeur × 20 (TRIG allumée 22).
+  - Le numéro de la touche est écrit au pied du bloc ; la valeur au-dessus : nom de note (`P1`…`P16` sur un KIT),
+    `-2`…`+2`, `1/4` `1/2` `1` `2` `4`, `pp` `mf` `f` `ff`. TRIG n'a pas de texte.
+  - Les cases au-delà de LEN sont un trait et un numéro sombres ; un mur rose de 30 px suit la case LEN.
+- **Sol filaire** (décor), derrière la ligne éditée, en `#140e30` : 21 lignes qui fuient d'un point à (120, 78) vers
+  le bas de la zone (écart 10 px à l'horizon, 44 px en bas) et 7 lignes horizontales à
+  y = 80 + ((j + f) / 7)² × 86, où f est la fraction du pas en cours. Les lignes avancent d'un cran par pas ; à
+  l'arrêt, le sol est immobile.
 - **Case tenue ou touchée** : elle clignote en blanc 300 ms, en haut comme en bas.
 
 Ce que règle chaque encodeur à l'écran :
 
 | Encodeur | Effet visible |
 |---|---|
-| DIV | la vitesse des têtes |
+| DIV | la vitesse des têtes et du sol |
 | NOTE | les noms de notes écrits sur les blocs NOTE |
 | TRIG LEN … VEL LEN | la longueur de la rangée et la place du mur rose, en haut comme en bas |
 | PRESET | la ligne affichée en bas et le nom en rose en haut |
@@ -128,8 +133,8 @@ Ce que règle chaque encodeur à l'écran :
 - le code va dans `app/scene_lanes.c` (`lanes_enter`, `lanes_frame`), sa vue dans `scene.h` ; `ui.c` la choisit sur
   les pages SEQ d'un pattern LANES.
 
-**Budget** : vue d'ensemble 80 blocs × 2 primitives ; ligne éditée 16 × 3 ; murs 5 ; textes environ 25. Environ 240
-primitives au pire.
+**Budget** : vue d'ensemble 80 blocs × 2 primitives ; ligne éditée 16 × 3 ; murs 7 ; sol 28 lignes ; textes environ
+25. Environ 270 primitives au pire. Le sol est envoyé en dernier : au-delà de 300, c'est lui qui est abandonné.
 
 ## 7. Tests
 
