@@ -1,0 +1,13 @@
+diff --git a/tools/build.py b/tools/build.py
+--- a/tools/build.py
++++ b/tools/build.py
+@@ -1256,7 +1256,8 @@
+ 
+     def one(job):
+         f, o = job
+-        r = subprocess.run([cc, *base_flags, *extra, f"-I{f.parent}", "-c", str(f), "-o", str(o)],
++        # quartz: -iquote, not -I: Plaits' physical_modelling/string.h would shadow <string.h> in libc++'s headers
++        r = subprocess.run([cc, *base_flags, *extra, f"-iquote{f.parent}", "-c", str(f), "-o", str(o)],
+                            capture_output=True, text=True)
+         return r.stderr if r.returncode else ""
+     with ThreadPoolExecutor(8) as ex:
