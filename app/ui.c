@@ -44,7 +44,7 @@ static const q_page PAGE[] = {
     {"SCALE", {"TONIC", "MODE", "QUANT", "CLICK"}, {0, 0, 0, 0}, {11, 10, 2, 3}},
     {"CPU", {0}, {0}, {0}},
     {"XY", {"X LEN", "X DIV", "Y LEN", "Y DIV"}, {1, 0, 1, 0}, {4, DIV_N - 1, 4, DIV_N - 1}},
-    {"TRACKS", {0}, {0}, {0}},
+    {"TRACKS", {"LVL 1", "LVL 2", "LVL 3", "LVL 4"}, {0, 0, 0, 0}, {127, 127, 127, 127}},   /* the mixer: MIX LEVEL */
     {"SONG", {"ENTRY", "SCENE", "REPEAT", "MODE"}, {1, 1, 1, 0}, {Q_SONG, Q_SCENES, 16, 1}},
     {"GRIDS", {"DIV", "VOICE", "NOTE", "SOURCE"}, {0, 1, 1, 0}, {DIV_N - 1, 3, 127, SRC_N - 1}},
     {"MAP", {"X", "Y", "CHAOS"}, {0, 0, 0}, {127, 127, 127}},
@@ -112,7 +112,7 @@ static const uint8_t WHITE[16] = PLAT_WHITE_KEYS;
 static const uint8_t BLACK[11] = PLAT_BLACK_KEYS;
 static const uint16_t KCOL[4] = {RGB(58, 109, 255), RGB(34, 213, 142), RGB(240, 240, 250), RGB(255, 122, 46)};
 
-typedef struct { uint8_t model, pat, playing, mute; int8_t pos, len; } q_trow;
+typedef struct { uint8_t model, pat, playing, mute, level; int8_t pos, len; } q_trow;
 typedef struct { q_step st; uint8_t nlocks; q_lock lk[16]; } q_clip;   /* a step and its p-locks (lk[].step unused) */   /* pat, playing as in head */
 
 /* what is on the screen, part by part: a part is drawn again when its view changes */
@@ -343,6 +343,10 @@ static int knob_get(int pid, int k)
     case P_XY * 4 + 1: return t->div;
     case P_XY * 4 + 2: return t->ylen;
     case P_XY * 4 + 3: return t->ydiv;
+    case P_TRACKS * 4:
+    case P_TRACKS * 4 + 1:
+    case P_TRACKS * 4 + 2:
+    case P_TRACKS * 4 + 3: return ui.p->sound[k].level;
     case P_SONG * 4: return ui.entry;
     case P_SONG * 4 + 1: return ui.entry ? ui.p->song[ui.entry - 1].scene + 1 : 1;
     case P_SONG * 4 + 2: return ui.entry ? ui.p->song[ui.entry - 1].reps : 1;
@@ -471,6 +475,10 @@ static void knob_set(int pid, int k, int v)
     case P_XY * 4 + 1: t->div = (uint8_t)v; break;
     case P_XY * 4 + 2: t->ylen = (uint8_t)v; break;
     case P_XY * 4 + 3: t->ydiv = (uint8_t)v; break;
+    case P_TRACKS * 4:
+    case P_TRACKS * 4 + 1:
+    case P_TRACKS * 4 + 2:
+    case P_TRACKS * 4 + 3: ui.p->sound[k].level = (uint8_t)v; break;
     case P_SONG * 4: ui.entry = v; return;
     case P_SONG * 4 + 1: ui.p->song[ui.entry - 1].scene = (uint8_t)(v - 1); break;
     case P_SONG * 4 + 2: ui.p->song[ui.entry - 1].reps = (uint8_t)v; break;
@@ -1933,6 +1941,7 @@ static void view_now(q_view *v)
             if (audio_playing() && audio_pattern(k) != ui.p->pattern[k])
                 v->scene.tr[k].playing = (uint8_t)(audio_pattern(k) + 1);
             v->scene.tr[k].mute = ui.p->mute >> k & 1u;
+            v->scene.tr[k].level = ui.p->sound[k].level;
             const q_pattern *pt = &ui.p->pat[k][ui.p->pattern[k]];
             v->scene.tr[k].pos = (int8_t)audio_pos(k);
             v->scene.tr[k].len = (int8_t)(pt->src == SRC_STEP ? pt->len : gen_loop(pt));
@@ -2477,7 +2486,7 @@ void ui_frame(void)
                     scene_enter();
                 for (int k = 0; k < Q_TRACKS; k++) {   /* the pattern playing, and the one asked for when it differs */
                     const q_trow *r = &v.scene.tr[k];
-                    hv.model[k] = r->model, hv.mute[k] = r->mute, hv.pos[k] = r->pos, hv.len[k] = r->len;
+                    hv.model[k] = r->model, hv.mute[k] = r->mute, hv.level[k] = r->level, hv.pos[k] = r->pos, hv.len[k] = r->len;
                     hv.pat[k] = r->playing ? r->playing : r->pat;
                     hv.next[k] = r->playing ? r->pat : 0;
                     hv.hits[k] = audio_hits(k);
@@ -2802,6 +2811,7 @@ int ui_expect(const char *what, int *got)
     }
     else if (!strcmp(what, "mnote")) *got = t->marbles.note;
     else if (!strncmp(what, "trlen_", 6) && m >= 1 && m <= Q_TRACKS) *got = ui.shown.scene.tr[m - 1].len;
+    else if (!strncmp(what, "trlevel_", 8) && m >= 1 && m <= Q_TRACKS) *got = ui.shown.scene.tr[m - 1].level;
     else if (!strcmp(what, "pad")) *got = ui.pad + 1;
     else if (!strncmp(what, "pad", 3) && u && m >= 1 && m <= Q_PADS) {
         const q_pad *pd = &ui.p->kit[ui.track][m - 1];

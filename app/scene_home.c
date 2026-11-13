@@ -5,7 +5,8 @@
 
 #define HM_FOG RGB(0x0b, 0x06, 0x28)
 #define HM_R 0.4f                   /* a pedestal's radius */
-#define HM_H 0.62f                  /* its height */
+#define HM_H 0.62f                  /* its height at LEVEL 127 */
+#define HM_HMIN 0.08f               /* at LEVEL 0: still a pedestal */
 #define HM_SEGS 352                 /* the grid, the selection, 4 loops of up to 64 steps, the rings */
 #define HM_INFO 138                 /* the info row's top in the scene area */
 static const uint16_t HM_METAL[3] = {RGB(0x2b, 0x30, 0x70), RGB(0x1f, 0x24, 0x58), RGB(0x15, 0x18, 0x40)};
@@ -231,23 +232,24 @@ void home_frame(const q_hview *v, uint32_t ms)
     for (int i = 0; i < 4; i++) {
         float x = -2.1f + 1.4f * (float)i, z = 0.16f * x * x;
         int mute = v->mute[i], sel = i == v->sel, fam = hm_family(v->model[i]);
+        float h = HM_HMIN + (HM_H - HM_HMIN) * (float)v->level[i] * (1.0f / 127.0f);   /* the track's LEVEL */
         hm.x[i] = x, hm.z[i] = z;
         /* the pedestal: a hexagonal prism, its faces turned out */
         const uint16_t pw = mute ? RGB(0x24, 0x1c, 0x50) : sel ? RGB(0x2c, 0x9f, 0xd8) : RGB(0x3a, 0x2c, 0x90);
         const uint16_t *pt = mute ? HM_DEAD : HM_METAL;
         for (int k = 0; k < 6; k++) {
             p3_vec b0 = hm_hex(x, 0, z, HM_R * 1.08f, (float)k / 6.0f), b1 = hm_hex(x, 0, z, HM_R * 1.08f, (float)(k + 1) / 6.0f);
-            p3_vec t0 = hm_hex(x, HM_H, z, HM_R, (float)k / 6.0f), t1 = hm_hex(x, HM_H, z, HM_R, (float)(k + 1) / 6.0f);
+            p3_vec t0 = hm_hex(x, h, z, HM_R, (float)k / 6.0f), t1 = hm_hex(x, h, z, HM_R, (float)(k + 1) / 6.0f);
             const p3_vec q[4] = {b0, b1, t1, t0}, r[4] = {t0, t1, b1, b0};
-            p3d_quad3(hm_out(q, (p3_vec){x, 0.5f * HM_H, z}) ? q : r, pt, &pw, 0.0f);
+            p3d_quad3(hm_out(q, (p3_vec){x, 0.5f * h, z}) ? q : r, pt, &pw, 0.0f);
         }
         {
-            p3_vec h[6];
+            p3_vec hx[6];
             for (int k = 0; k < 6; k++)
-                h[k] = hm_hex(x, HM_H, z, HM_R, (float)k / 6.0f);
-            const p3_vec q1[4] = {h[0], h[5], h[4], h[3]}, q2[4] = {h[0], h[3], h[2], h[1]};
+                hx[k] = hm_hex(x, h, z, HM_R, (float)k / 6.0f);
+            const p3_vec q1[4] = {hx[0], hx[5], hx[4], hx[3]}, q2[4] = {hx[0], hx[3], hx[2], hx[1]};
             uint16_t top[3] = {mute ? HM_DEAD[1] : RGB(0x2b, 0x30, 0x70), mute ? HM_DEAD[1] : RGB(0x2b, 0x30, 0x70), mute ? HM_DEAD[1] : RGB(0x2b, 0x30, 0x70)};
-            const p3_vec c = {x, 0.5f * HM_H, z};
+            const p3_vec c = {x, 0.5f * h, z};
             const p3_vec r1[4] = {q1[3], q1[2], q1[1], q1[0]}, r2[4] = {q2[3], q2[2], q2[1], q2[0]};
             int up = hm_out(q1, c);              /* the top, turned out (up) */
             p3d_quad3(up ? q1 : r1, top, 0, 0.0f);
@@ -262,7 +264,7 @@ void home_frame(const q_hview *v, uint32_t ms)
                     continue;
                 uint16_t c = j == cur ? PINK3[1] : j < cur ? RGB(0x3d, 0x7b, 0xff) : RGB(0x2a, 0x20, 0x60);
                 float u0 = ((float)j + 0.12f) / (float)v->len[i], u1 = ((float)j + 0.88f) / (float)v->len[i];
-                hm_line(hm_hex(x, HM_H + 0.01f, z, HM_R, u0), hm_hex(x, HM_H + 0.01f, z, HM_R, u1), c);
+                hm_line(hm_hex(x, h + 0.01f, z, HM_R, u0), hm_hex(x, h + 0.01f, z, HM_R, u1), c);
             }
         }
         /* a note: a pink ring runs over the top */
@@ -272,12 +274,12 @@ void home_frame(const q_hview *v, uint32_t ms)
             uint16_t c = p3d_mix(PINK3[1], RGB(0x2b, 0x30, 0x70), s / 0.3f);
             for (int k = 0; k < 12; k++) {
                 float a0 = (float)k * (FM_TWO_PI / 12.0f), a1 = a0 + FM_TWO_PI / 12.0f;
-                hm_line((p3_vec){x + r * fm_cosf(a0), HM_H + 0.02f, z + r * fm_sinf(a0)}, (p3_vec){x + r * fm_cosf(a1), HM_H + 0.02f, z + r * fm_sinf(a1)}, c);
+                hm_line((p3_vec){x + r * fm_cosf(a0), h + 0.02f, z + r * fm_sinf(a0)}, (p3_vec){x + r * fm_cosf(a1), h + 0.02f, z + r * fm_sinf(a1)}, c);
             }
         }
         /* the emblem: turning, hopping on a note; muted: dark and still, lower */
         float hop = !mute && s < 0.2f ? 0.14f * fm_sinf(FM_PI * s / 0.2f) : 0.0f, a = mute ? 0.5f : 0.8f * t + (float)i;
-        ef.o = (p3_vec){x, mute ? HM_H + 0.45f : HM_H + 0.7f + 0.04f * fm_sinf(1.5f * t + (float)i) + hop, z};
+        ef.o = (p3_vec){x, mute ? h + 0.45f : h + 0.7f + 0.04f * fm_sinf(1.5f * t + (float)i) + hop, z};
         ef.s = 0.42f, ef.c = fm_cosf(a), ef.n = fm_sinf(a), ef.a = a;
         const uint16_t dw = RGB(0x3a, 0x2c, 0x90), pk = PINK3[1];
         hm_emblem(fam, mute ? HM_DEAD : 0, mute ? &dw : !mute && s < 0.05f ? &pk : 0);

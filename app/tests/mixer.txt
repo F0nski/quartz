@@ -1,0 +1,15 @@
+# HOME's TRACKS page: K1-K4 set the tracks' LEVEL (MIX), the pedestals' height follows
+wait 600
+tap HOME
+expect trlevel_1 100
+expect trlevel_2 100
+turn K2 -40
+turn K4 -100
+turn K3 50
+wait 100
+expect trlevel_1 100
+expect trlevel_2 60
+expect trlevel_3 127
+expect trlevel_4 0
+expect dirty 1
+shot mixer.png

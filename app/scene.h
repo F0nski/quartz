@@ -31,7 +31,7 @@ void dance_band(int32_t oy);
 
 /* HOME's tracks page (spec 5e): per track its model, the pattern playing, the one queued (0 none), muted, the step
    (-1 stopped), the loop's length, its note counter (audio_hits); the selected track */
-typedef struct { uint8_t model[4], pat[4], next[4], mute[4]; int8_t pos[4], len[4]; uint32_t hits[4]; int8_t sel; } q_hview;
+typedef struct { uint8_t model[4], pat[4], next[4], mute[4], level[4]; int8_t pos[4], len[4]; uint32_t hits[4]; int8_t sel; } q_hview;
 void home_frame(const q_hview *v, uint32_t ms);
 void home_band(int32_t oy);
 
