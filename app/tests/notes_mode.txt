@@ -1,0 +1,125 @@
+# NOTES: a cursor PRESET moves, the keys write its step's notes (a chord up to POLY), then the cursor moves on by its length
+wait 600
+tap EDIT
+turn SELECT 1
+turn K4 2
+expect poly 3
+# track 2: LEN 4 (for the track change at the end)
+turn ALGO 1
+tap SEQ
+turn K1 -12
+expect len 4
+turn ALGO -1
+tap REC
+tap REC
+expect rec 2
+expect cursor 1
+tapkey 7
+expect stepon_1 1
+expect stepnote_1 60
+expect stepnotes_1 1
+expect steplen_1 4
+expect stepvel_1 100
+expect cursor 2
+# a chord: the keys pressed while another is held
+key 7 down
+key 11 down
+key 14 down
+key 7 up
+key 11 up
+expect cursor 2
+key 14 up
+expect stepnotes_2 3
+expect stepnote_2 60
+expect cursor 3
+# a black key is a note too
+tapkey 8
+expect stepnote_3 61
+expect cursor 4
+# a lit step: its notes replaced, its functions and p-locks kept
+tapkey 9
+expect stepnote_4 62
+turn PRESET -1
+expect cursor 4
+press SEL
+tapkey b2
+turn PRESET -10
+spin K1 5
+release SEL
+expect stepprob_4 10
+expect lockharm_4 69
+expect cursor 4
+tapkey 11
+expect stepnote_4 64
+expect stepprob_4 10
+expect lockharm_4 69
+expect cursor 5
+# a tie: a key held and PRESET, two steps long; the cursor moves on by two
+key 7 down
+turn PRESET 2
+key 7 up
+expect steplen_5 16
+expect cursor 7
+# a rest: PRESET moves on, the step stays off
+turn PRESET 1
+expect cursor 8
+expect stepon_7 0
+# SEL + a white key: the cursor there; SEL + a black key and PRESET: its step's function
+press SEL
+tapkey w4
+expect cursor 5
+tapkey b1
+tapkey b2
+turn PRESET -10
+expect stepprob_5 10
+release SEL
+# the keys of the cursor's step lit
+turn PRESET -3
+expect cursor 2
+expect leds_lit 18560
+# PRESET no longer picks the pattern in NOTES; disarmed again it does
+turn PRESET 1
+expect pattern 1
+expect cursor 3
+tap REC
+expect rec 0
+turn PRESET 1
+expect pattern 2
+turn PRESET -1
+expect pattern 1
+# the cursor loops on LEN, the page follows it
+tap REC
+tap REC
+expect rec 2
+expect cursor 1
+turn K1 16
+expect len 32
+turn PRESET -16
+expect cursor 17
+expect spage 2
+turn PRESET 16
+expect cursor 1
+expect spage 1
+turn K1 -28
+expect len 4
+turn PRESET -1
+expect cursor 4
+turn PRESET 1
+expect cursor 1
+# a key still down across a domain change writes nothing more
+turn PRESET 2
+expect cursor 3
+key 7 down
+tap EDIT
+key 7 up
+expect cursor 3
+expect stepnote_3 60
+# a track whose LEN is under the cursor: back to 1
+tap SEQ
+turn K1 12
+expect len 16
+turn PRESET 6
+expect cursor 9
+turn ALGO 1
+expect len 4
+expect cursor 1

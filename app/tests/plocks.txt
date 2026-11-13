@@ -317,9 +317,12 @@ key 0 up
 # a KIT's step takes locks: ADSR, FILTER, LFO
 turn ALGO 1
 tap EDIT
+tap REC
+expect rec 0
 turn PRESET 20
 expect model 24
 tap SEQ
+tap REC
 key 0 down
 expect lpage 1
 turn K1 3
@@ -335,8 +338,11 @@ key 0 up
 # the INSERT and MIX lock pages (an insert with a K1 role: a knob without one is not locked)
 turn ALGO 1
 tap FX
+tap REC
+expect rec 0
 turn PRESET 1
 tap SEQ
+tap REC
 key 0 down
 turn SELECT 5
 expect lpage 6
