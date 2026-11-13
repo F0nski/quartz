@@ -804,7 +804,7 @@ static void rec_lock(int pid, int k)
 static void pattern_set(int n)
 {
     ui.p->pattern[ui.track] = (uint8_t)n;
-    ui.held = 0;                        /* the hold was another pattern's step: its release toggles nothing */
+    ui.held = ui.cell = 0;              /* the hold was another pattern's step or cell: its release toggles nothing */
     sel_clear();
     ui.nchord = 0;                      /* the keys still down only sound */
     if (ui.cursor > pat()->len)
@@ -1472,7 +1472,7 @@ void ui_input(void)
     if ((e = plat_enc(EN_ALGO)) != 0) {
         preview_off();                  /* before the track changes */
         ui.track = clamp(ui.track + e, 0, Q_TRACKS - 1);
-        ui.held = 0;
+        ui.held = ui.cell = 0;
         sel_clear();
         ui.nchord = 0;
         if (ui.cursor > ui.p->pat[ui.track][ui.p->pattern[ui.track]].len)       /* LEN is per track: same rule as when it shrinks */

@@ -1,0 +1,28 @@
+# A LANES cell held while the pattern changes: its release writes nothing into the new pattern
+wait 600
+tap SEQ
+turn K4 4
+press SEQ
+key 2 down
+key 2 up
+release SEQ
+expect pattern 2
+turn K4 4
+expect src 4
+press SEQ
+key 0 down
+key 0 up
+release SEQ
+expect pattern 1
+tap REC
+expect badge 1
+key 4 down
+expect lcell 3
+press SEQ
+key 2 down
+key 2 up
+release SEQ
+expect pattern 2
+key 4 up
+expect lv_0_3 1
+expect lcell 0
