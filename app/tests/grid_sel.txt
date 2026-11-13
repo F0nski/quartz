@@ -1,0 +1,59 @@
+# SEL held on the grid: steps in and out of a selection, the first its reference; functions, p-locks and lengths on its
+# lit steps; let go, the selection is gone
+wait 600
+tap SEQ
+tap REC
+tapkey w0
+tapkey w2
+tapkey w4
+expect stepon_1 1
+expect stepon_3 1
+expect stepon_5 1
+press SEL
+tapkey w0
+tapkey w2
+tapkey w6
+expect sel 69
+expect selref 1
+expect stepon_7 0
+expect stepon_1 1
+# PROB from the reference, on the lit steps only
+tapkey b2
+turn PRESET -10
+expect stepprob_1 10
+expect stepprob_3 10
+expect stepprob_5 20
+expect stepprob_7 20
+# SLIDE: all to the opposite of the reference's
+tapkey b5
+expect stepslide_1 1
+expect stepslide_3 1
+expect stepslide_5 0
+# a p-lock: the reference's value on all
+spin K1 5
+expect lockharm_1 69
+expect lockharm_3 69
+expect lockharm_5 -1
+expect lockharm_7 -1
+# OCT: each one's length
+tap OCT+
+expect steplen_1 8
+expect steplen_3 8
+expect steplen_5 4
+expect spage 1
+# out again
+tapkey w2
+expect sel 65
+release SEL
+expect sel 0
+expect selref 0
+# LEN 2: a selected step past the end is left alone
+turn K1 -14
+expect len 2
+press SEL
+tapkey w0
+tapkey w2
+tap OCT+
+expect steplen_1 16
+expect steplen_3 8
+release SEL

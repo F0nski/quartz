@@ -146,7 +146,9 @@ static struct {
     uint32_t btn, keys, msg_until, locks_until, path_until, punch_until;
     uint32_t down_ms[NB], used;                /* when each button went down; used: bit b, a key or button came while b was held */
     q_clip clip;                               /* the grid's clipboard, common to the tracks: the last step cut or chord played */
-    uint8_t preview[4];                        /* the held step's notes sounding at the stop, 0 none */
+    uint8_t preview[4];
+    uint16_t sel;                              /* SEL held on the grid: the page's cells selected */
+    int sel_ref;                               /* the selection's reference cell, the first pressed; -1 none */                        /* the held step's notes sounding at the stop, 0 none */
     int arm_key;                               /* ARM: the key that started the playing, played once step 1 is under way (key + 1) */
     q_view shown;
     int full;                                  /* the next frame draws everything */
@@ -415,6 +417,8 @@ static void knob_turn(int pid, int k, int d)
 
 /* ------------------------------------------------------------------ input --- */
 static void rec_set(int r);
+static void sel_clear(void);
+static uint16_t sel_others(void);
 
 /* SEQ's white keys are its steps: REC on the grid, a STEP pattern */
 static int grid_on(void) { return ui.domain == D_SEQ && ui.rec == R_GRID && pat()->src == SRC_STEP; }
@@ -430,8 +434,10 @@ static void button(int b)
     int d;
     for (d = 0; d < ND; d++)
         if (b == DOMAIN_BTN[d]) {
-            if (ui.domain != d)
+            if (ui.domain != d) {
                 ui.held = 0;
+                sel_clear();
+            }
             ui.domain = d;
         }
     switch (b) {
@@ -474,8 +480,19 @@ static void button(int b)
             q_step *s = &pat()->steps[ui.held - 1];
             s->len = (uint8_t)len_step(s->len, d);
             ui.edited = ui.dirty = 1;
-        } else if (grid_on())
+        } else if (grid_on() && ui.sel_ref >= 0) {     /* the selection's: each its own */
+            q_pattern *t = pat();
+            uint16_t m = sel_others();
+            int c, ref = ui.spage * 16 + ui.sel_ref;
+            if (ref < t->len && t->steps[ref].flags & SF_ON)
+                m |= (uint16_t)(1u << ui.sel_ref);
+            for (c = 0; c < 16; c++)
+                if (m >> c & 1u)
+                    t->steps[ui.spage * 16 + c].len = (uint8_t)len_step(t->steps[ui.spage * 16 + c].len, d);
+            ui.dirty = 1;
+        } else if (grid_on()) {
             ui.spage = clamp(ui.spage + d, 0, Q_STEPS / 16 - 1);
+        }
         else
             ui.octave = clamp(ui.octave + d, -2, 2);
         break;
@@ -551,6 +568,25 @@ static void attr_turn(q_step *s, int d)
     }
 }
 
+/* the attribute's value from src to dst */
+static void attr_copy(q_step *dst, const q_step *src, int attr)
+{
+    switch (attr) {
+    case A_VEL: dst->vel = src->vel; break;
+    case A_RATCHET: dst->flags = (uint8_t)((dst->flags & ~0x18) | (src->flags & 0x18)); break;
+    case A_PROB: dst->prob = src->prob; break;
+    case A_COND: dst->cond = src->cond; break;
+    case A_SLIDE: dst->flags = (uint8_t)((dst->flags & ~SF_SLIDE) | (src->flags & SF_SLIDE)); break;
+    case A_ACCENT: dst->flags = (uint8_t)((dst->flags & ~SF_ACCENT) | (src->flags & SF_ACCENT)); break;
+    case A_NOTE:                        /* a KIT's pads stay, as attr_turn leaves them */
+        if (!kit())
+            __builtin_memcpy(dst->note, src->note, sizeof dst->note);
+        break;
+    case A_LEN: dst->len = src->len; break;
+    case A_MICRO: dst->micro = src->micro; break;
+    }
+}
+
 /* the held step's p-lock pages: a synth track's 8, a KIT's ADSR, FILTER, LFO, INSERT and MIX (ui.lpage counts in the track's own
    list); LOCK_OF: the LK_* each knob locks, -1 for the ones that do not (MODEL, POLY) */
 static const uint8_t LPAGE[8] = {P_ENGINE, P_SOUND, P_ADSR, P_FILTER, P_LFO, P_INSERT, P_MIX, P_ARP};
@@ -563,28 +599,28 @@ static int lpage_row(void) { return ui.lpage + (kit() ? 2 : 0); }
 static int lock_pid(void) { return LPAGE[lpage_row()]; }
 static int lock_param(int k) { return LOCK_OF[lpage_row()][k]; }
 
-static int lock_value(const q_pattern *t, int k, int *locked)
+static int lock_value(const q_pattern *t, int step, int k, int *locked)
 {
-    int param = lock_param(k), i = lock_find(t, ui.held - 1, param);
+    int param = lock_param(k), i = lock_find(t, step, param);
     *locked = i >= 0;
     if (i < 0)
         return knob_get(lock_pid(), k);
     return param == LK_TUNE || param == LK_ENVAMT || param == LK_DEPTH || param == LK_PAN ? (int8_t)t->locks[i].value : t->locks[i].value;
 }
 
-static void lock_turn(int k, int d)
+static void lock_turn(int step, int k, int d)
 {
     q_pattern *t = pat();
     int pid = lock_pid(), param = lock_param(k), locked, v;
     if (!d || param < 0 || knob_hidden(pid, k))
         return;
-    v = clamp(lock_value(t, k, &locked) + d, PAGE[pid].min[k], PAGE[pid].max[k]);
+    v = clamp(lock_value(t, step, k, &locked) + d, PAGE[pid].min[k], PAGE[pid].max[k]);
     ui.edited = 1;                      /* a knob turned on a held step is an edit, the lock fitting or not */
-    if (lock_set(t, ui.held - 1, param, v)) {
+    if (lock_set(t, step, param, v)) {
         ui.locks_until = plat_ms() + MSG_MS;
         return;
     }
-    step_on(&t->steps[ui.held - 1]);
+    step_on(&t->steps[step]);
     ui.dirty = 1;
 }
 
@@ -722,8 +758,10 @@ static void rec_set(int r)
 {
     if (r == R_NOTES && ui.rec != R_NOTES)
         ui.cursor = 1;
-    if (r != R_GRID)                    /* a step held on the grid is let go: its release toggles nothing */
+    if (r != R_GRID) {                  /* a step held on the grid is let go: its release toggles nothing */
         ui.held = 0;
+        sel_clear();
+    }
     ui.rec = r;
     audio_rec(r == R_LIVE);
 }
@@ -745,6 +783,64 @@ static void rec_release(void)
         rec_set(ui.rec == R_OFF ? R_GRID : ui.rec == R_GRID ? R_NOTES : R_OFF);
     else if (ui.domain != D_SEQ)
         rec_set(ui.rec != R_OFF ? R_OFF : audio_playing() ? R_LIVE : R_NOTES);
+}
+
+/* the selection's lit steps within LEN, the reference aside: bit c, the page's cell c */
+static uint16_t sel_others(void)
+{
+    const q_pattern *t = pat();
+    uint16_t m = 0;
+    int c;
+    for (c = 0; c < 16; c++)
+        if (ui.sel >> c & 1u && c != ui.sel_ref && ui.spage * 16 + c < t->len && t->steps[ui.spage * 16 + c].flags & SF_ON)
+            m |= (uint16_t)(1u << c);
+    return m;
+}
+
+static void sel_clear(void)
+{
+    ui.sel = 0;
+    ui.sel_ref = -1;
+}
+
+/* SEL held: the white key's cell in or out; the first in is the reference, then the lowest one left */
+static void sel_key(int w)
+{
+    ui.sel ^= (uint16_t)(1u << w);
+    if (ui.sel_ref < 0) {
+        ui.sel_ref = w;
+        ui.attr = A_VEL;
+        ui.lpage = 0;
+    } else if (ui.sel_ref == w) {
+        ui.sel_ref = ui.sel ? __builtin_ctz(ui.sel) : -1;
+    }
+}
+
+/* the chosen function's value from the reference to the others */
+static void sel_copy(void)
+{
+    q_pattern *t = pat();
+    uint16_t m = sel_others();
+    int c;
+    for (c = 0; c < 16; c++)
+        if (m >> c & 1u)
+            attr_copy(&t->steps[ui.spage * 16 + c], &t->steps[ui.spage * 16 + ui.sel_ref], ui.attr);
+    ui.dirty = 1;
+}
+
+/* K on the selection: the reference's p-lock turned, its value on the others */
+static void sel_lock(int k, int d)
+{
+    q_pattern *t = pat();
+    uint16_t m = sel_others();
+    int c, locked, v, ref = ui.spage * 16 + ui.sel_ref;
+    lock_turn(ref, k, d);
+    v = lock_value(t, ref, k, &locked);
+    if (!d || !locked)
+        return;
+    for (c = 0; c < 16; c++)
+        if (m >> c & 1u && lock_set(t, ui.spage * 16 + c, lock_param(k), v))
+            ui.locks_until = plat_ms() + MSG_MS;
 }
 
 static void save_release(void)
@@ -909,6 +1005,22 @@ static void key_down(int k)
             return;
         }
     } else if (grid_on()) {             /* the white keys are the page's 16 steps */
+        if (ui.seldown && !ui.held) {   /* SEL held: the selection, the black keys on it */
+            for (b = 0; b < 11 && BLACK[b] != k; b++) {}
+            if (w < 16) {
+                sel_key(w);
+            } else if (ui.sel_ref >= 0) {
+                s = &t->steps[ui.spage * 16 + ui.sel_ref];
+                family_key(b, s);
+                if (FAMILY[b][0] == A_SLIDE || FAMILY[b][0] == A_ACCENT) {
+                    i = ui.attr;
+                    ui.attr = FAMILY[b][0];
+                    sel_copy();
+                    ui.attr = i;
+                }
+            }
+            return;
+        }
         if (w < 16 && !ui.held) {
             ui.held = ui.spage * 16 + w + 1;
             ui.held_key = k;
@@ -1022,6 +1134,8 @@ void ui_input(void)
     ui.homedown = btn >> B_HOME & 1u;
     ui.savedown = btn >> B_SAVE & 1u;
     ui.seldown = btn >> B_SEL & 1u;
+    if (!ui.seldown)
+        sel_clear();
     ui.arpdown = btn >> B_ARP & 1u;
     ui.fxdown = btn >> B_FX & 1u;
     if (!ui.fxdown && ui.punch) {       /* FX let go: every punch-in with it */
@@ -1061,6 +1175,7 @@ void ui_input(void)
     if ((e = plat_enc(EN_ALGO)) != 0) {
         ui.track = clamp(ui.track + e, 0, Q_TRACKS - 1);
         ui.held = 0;
+        sel_clear();
         if (ui.cursor > ui.p->pat[ui.track][ui.p->pattern[ui.track]].len)       /* LEN is per track: same rule as when it shrinks */
             ui.cursor = 1;
     }
@@ -1074,6 +1189,9 @@ void ui_input(void)
         if (ui.held) {
             attr_turn(&pat()->steps[ui.held - 1], e);
             ui.edited = ui.dirty = 1;
+        } else if (ui.sel_ref >= 0) {
+            attr_turn(&pat()->steps[ui.spage * 16 + ui.sel_ref], e);
+            sel_copy();
         } else if (ui.domain == D_SEQ) {
             pattern_set(clamp(ui.p->pattern[ui.track] + e, 0, Q_PATTERNS - 1));
         } else if (ui.domain == D_EDIT && ui.padheld && kit()) {
@@ -1096,7 +1214,9 @@ void ui_input(void)
     for (i = 0; i < 4; i++) {
         e = plat_enc(EN_K1 + i);
         if (ui.held) {
-            lock_turn(i, e);
+            lock_turn(ui.held - 1, i, e);
+        } else if (ui.sel_ref >= 0) {
+            sel_lock(i, e);
         } else {
             knob_turn(kpid, i, e);
             if (e && ui.rec == R_LIVE && audio_playing())
@@ -1374,7 +1494,7 @@ static void view_now(q_view *v)
                 v->foot.hide |= (uint8_t)(1u << k);
                 continue;
             }
-            v->foot.v[k] = (int16_t)lock_value(t, k, &locked);
+            v->foot.v[k] = (int16_t)lock_value(t, ui.held - 1, k, &locked);
             v->foot.col |= (uint8_t)(locked << k);
         }
     if (pid == P_ENGINE || pid == P_SOUND || pid == P_SCALE || pid == P_PAD || pid >= P_ADSR) {
@@ -1761,6 +1881,7 @@ void ui_init(q_project *p)
     step_default(&ui.clip.st);
     ui.p = p;
     ui.cursor = 1;
+    ui.sel_ref = -1;
     ui.full = 1;
     ui.dirty = dirty;
     ui.btn = btn;
@@ -1982,6 +2103,8 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "rec")) *got = ui.rec;
     else if (!strcmp(what, "cursor")) *got = ui.cursor;
     else if (!strcmp(what, "octave")) *got = ui.octave;
+    else if (!strcmp(what, "sel")) *got = ui.sel;
+    else if (!strcmp(what, "selref")) *got = ui.sel_ref + 1;
     else if (!strcmp(what, "clip_n")) for (*got = 1; *got < 4 && ui.clip.st.note[*got]; ++*got) {}
     else if (!strcmp(what, "clip_note")) *got = ui.clip.st.note[0];
     else if (!strcmp(what, "clip_locks")) *got = ui.clip.nlocks;
