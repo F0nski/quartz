@@ -1,0 +1,244 @@
+<title>Mimic Source Scenes</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+/* Three directions for the MIMIC source's scene, in the device's frame, driven by one run. */
+:root {
+  --bg: #efedf5; --fg: #1c1830; --muted: #5d5873; --line: #d9d5e6; --device: #151320; --hot: #d4247a; --panel: #e4e1ee;
+  --display: "Chakra Petch", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --line: #2a2440; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --line: #2a2440; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.5; margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 48px }
+main { max-width: 1040px; margin: 0 auto; display: grid; gap: 22px }
+h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; line-height: 1.1; margin: 0; text-transform: uppercase; letter-spacing: .02em }
+h1 em { font-style: normal; color: var(--hot) }
+.lead { color: var(--muted); max-width: 72ch; margin: 8px 0 0 }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px }
+figure { margin: 0; display: grid; gap: 8px; align-content: start; min-width: 0 }
+canvas { width: 100%; max-width: 100%; aspect-ratio: 1; background: #000; border: 12px solid var(--device); border-radius: 16px; box-sizing: border-box; image-rendering: pixelated }
+h2 { font-family: var(--display); font-size: 1.1rem; margin: 0; text-transform: uppercase; letter-spacing: .04em }
+.tag { font-family: var(--display); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--hot) }
+figcaption p { margin: 2px 0 0; font-size: .88rem; color: var(--muted) }
+.knobs { background: var(--panel); border-radius: 12px; padding: 14px 16px; display: grid; gap: 12px }
+.knobs header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between }
+.knobs header b { font-family: var(--display); text-transform: uppercase; letter-spacing: .04em }
+.knobs header div, .row { display: flex; flex-wrap: wrap; gap: 6px }
+.pages { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 20px }
+.page h3 { font-family: var(--display); font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 0 4px }
+label { display: grid; grid-template-columns: 6.5em 1fr 4em; gap: 8px; align-items: center; font-size: .85rem }
+label span:last-child { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted) }
+input[type=range] { width: 100%; accent-color: var(--hot) }
+button { font: inherit; font-family: var(--display); text-transform: uppercase; letter-spacing: .04em; border: 1px solid var(--line); background: var(--bg); color: var(--fg); border-radius: 8px; padding: 3px 10px; cursor: pointer; font-size: .8rem }
+button[aria-pressed=true] { background: var(--hot); color: #fff; border-color: var(--hot) }
+button:focus-visible { outline: 2px solid var(--hot); outline-offset: 2px }
+.keys button { min-width: 2.6em; padding: 10px 6px }
+.hint { font-size: .82rem; color: var(--muted); margin: 0 }
+</style>
+
+<main>
+<header>
+  <h1>Source <em>MIMIC</em> : la scène</h1>
+  <p class="lead">Tu joues une phrase en LISTEN ; MIMIC retient chaque note et l'écart jusqu'à la suivante. Puis il improvise : il cherche dans la
+  phrase où se trouvent les dernières notes jouées (1 ou 2 selon ORDER), en tire une et joue ce qui la suit. DRIFT saute ailleurs dans la phrase ;
+  LOOP rejoue le même tirage tous les N pas ; PRESET fait un nouveau tirage. La direction retenue : deux rouleaux, la tête de lecture de C avec les couleurs de B.</p>
+</header>
+
+<section class="knobs" aria-label="Encodeurs">
+  <header><b>Encodeurs, REC et PRESET</b><div>
+    <button id="snd" aria-pressed="false">Écouter</button><button id="listen" aria-pressed="false">REC : LISTEN</button><button id="preset">PRESET : nouveau tirage</button></div></header>
+  <div class="pages" id="pages"></div>
+  <div><span class="tag">Clavier (en LISTEN, il apprend ; touches A S D F G H J K aussi)</span><div class="row keys" id="keys"></div>
+  <p class="hint">Essaie : REC : LISTEN, joue une petite phrase en rythme, REC : LISTEN à nouveau pour la figer.</p></div>
+</section>
+
+<div class="grid">
+  <figure><canvas id="c1" width="240" height="240"></canvas><figcaption><span class="tag">Retenue : C + B</span><h2>Tête de lecture en couleurs</h2><p>Ta phrase en haut, coupée en quatre quarts de couleur (bleu, vert, orange, blanc). Une tête de lecture rose la parcourt ; sur un saut, une flèche courbe va de l'endroit quitté à l'endroit lu (claire : un lien appris, rose : DRIFT). En bas, l'impro défile depuis la ligne NOW, chaque note à la couleur du quart qu'elle cite.</p></figcaption></figure>
+</div>
+</main>
+
+<script>
+const C = { bg: '#000', wire: '#2a2148', dim: '#1c1340', txt: '#c9c3e4', mute: '#4a4466', pink: '#ff4fa8', white: '#f4f1ff', orange: '#ff7a2e' };
+const GEM = { blue: ['#8fb0ff', '#3a6dff', '#2a52c8', '#1c3590'], pink: ['#ffb8dc', '#ff4fa8', '#d4247a', '#9a1659'],
+  orange: ['#ffc196', '#ff7a2e', '#d45a14', '#8f3a0a'], dim: ['#4a4466', '#2a2148', '#241850', '#1c1340'] };
+const KNOB = ['#3a6dff', '#3fd17a', '#f4f1ff', '#ff7a2e'];
+const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const nm = n => NAMES[n % 12] + (Math.floor(n / 12) - 1);
+const DIVS = [['1/32', 62.5], ['1/16', 125], ['1/8', 250]];
+const KEYS = [60, 62, 64, 65, 67, 69, 71, 72], KBD = 'asdfghjk';
+const S = { div: 1, order: 1, drift: 16, loop: 0, seed: 1, page: 0, listen: false,
+  ph: [[60, 2], [62, 1], [64, 1], [67, 2], [64, 1], [62, 1], [60, 4]] };   // the default phrase: [note, gap in steps]
+
+/* ---- the run: as the generator will do it ---- */
+let rs = 1;
+const rnd = () => { rs = (rs * 1103515245 + 12345) >>> 0; return (rs >>> 8) / 16777216; };
+let k = -1, frac = 0, acc = 0, last = performance.now(), wait = 0, cur = -1, prev = -1, playT = 0, jump = false, cand = [], from = -1;
+const trail = [];   // M3: the notes played, newest last
+let ac = null, on = false;
+function play(n) {
+  if (!ac || !on) return;
+  const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+  o.type = 'triangle'; o.frequency.value = 440 * 2 ** ((n - 69) / 12);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.16, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+  o.connect(g).connect(ac.destination); o.start(t); o.stop(t + 0.22);
+}
+function matches(c, p, o) {
+  const P = S.ph, n = P.length;
+  return [...Array(n).keys()].filter(i => P[i][0] === P[c][0] && (o < 2 || p < 0 || P[(i + n - 1) % n][0] === P[p][0]));
+}
+function next() {                    // the event to play after cur: a place in the phrase matching the context, then what follows it
+  const P = S.ph, n = P.length;
+  from = cur; jump = false; cand = [];
+  if (cur < 0) return 0;
+  if (rnd() < S.drift / 127) { jump = true; return Math.floor(rnd() * n); }
+  cand = matches(cur, prev, S.order); if (!cand.length) cand = matches(cur, prev, 1);
+  return (cand[Math.floor(rnd() * cand.length)] + 1) % n;
+}
+function tick() {
+  k++;
+  if (S.listen) return;
+  if (S.loop && k % S.loop === 0) { rs = S.seed * 2654435761 >>> 0; wait = 0; cur = prev = -1; }
+  if (wait > 0) { wait--; if (wait > 0) return; }
+  for (let c = 0; c < 4; c++) {      // a gap of 0: the next one on the same step
+    const e = next(); prev = cur; cur = e; playT = performance.now();
+    play(S.ph[e][0]); trail.push([S.ph[e][0], k, jump, e]); if (trail.length > 24) trail.shift();
+    wait = S.ph[e][1]; if (wait > 0) break;
+  }
+}
+const lit = () => performance.now() - playT < 160;
+
+/* ---- learning ---- */
+let lt = 0, fresh = false;
+function key(n) {
+  play(n);
+  if (!S.listen) return;
+  const t = performance.now(), ms = DIVS[S.div][1];
+  if (fresh) { S.ph = []; fresh = false; } else S.ph[S.ph.length - 1][1] = Math.min(7, Math.round((t - lt) / ms));
+  S.ph.push([n, 1]); if (S.ph.length > 32) S.ph.shift();
+  lt = t; cur = S.ph.length - 1; prev = -1; playT = t;
+}
+function setListen(v) {
+  if (!v && !fresh && S.ph.length) S.ph[S.ph.length - 1][1] = Math.max(1, Math.min(7, Math.round((performance.now() - lt) / DIVS[S.div][1])));
+  S.listen = v; fresh = v; cur = prev = -1; wait = 0; trail.length = 0;
+  document.getElementById('listen').setAttribute('aria-pressed', String(v));
+}
+
+/* ---- controls ---- */
+const PAGES = [['MIMIC', [['DIV', 0, 2, () => S.div, v => S.div = v, v => DIVS[v][0]], ['ORDER', 1, 2, () => S.order, v => S.order = v, String],
+                          ['DRIFT', 0, 127, () => S.drift, v => S.drift = v, String]]],
+               ['LOOP', [['LOOP', 0, 16, () => S.loop, v => S.loop = v, v => v ? String(v) : 'FREE']]]];
+const pagesEl = document.getElementById('pages');
+PAGES.forEach(([name, ks], pi) => {
+  const d = document.createElement('div'); d.className = 'page'; d.innerHTML = `<h3>Page ${name}</h3>`;
+  ks.forEach(([n, lo, hi, get, set, fmt], ki) => {
+    const l = document.createElement('label');
+    l.innerHTML = `<span>K${ki + 1} ${n}</span><input type="range" min="${lo}" max="${hi}" value="${get()}"><span></span>`;
+    const inp = l.querySelector('input'), out = l.lastChild, upd = () => { out.textContent = fmt(+inp.value); };
+    inp.addEventListener('input', () => { set(+inp.value); S.page = pi; upd(); }); upd(); d.appendChild(l);
+  });
+  pagesEl.appendChild(d);
+});
+const keysEl = document.getElementById('keys');
+KEYS.forEach((n, i) => { const b = document.createElement('button'); b.textContent = NAMES[n % 12] + (i === 7 ? "'" : ''); b.onpointerdown = () => key(n); keysEl.appendChild(b); });
+addEventListener('keydown', e => { const i = KBD.indexOf(e.key); if (i >= 0 && !e.repeat && !e.target.matches('input')) key(KEYS[i]); });
+document.getElementById('snd').onclick = e => { if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)(); ac.resume(); on = !on; e.target.setAttribute('aria-pressed', String(on)); };
+document.getElementById('listen').onclick = () => setListen(!S.listen);
+document.getElementById('preset').onclick = () => { S.seed++; rs = S.seed * 2654435761 >>> 0; seedT = performance.now(); };
+let seedT = -1e9;
+
+/* ---- drawing ---- */
+function poly(g, pts, fill) { g.beginPath(); g.moveTo(...pts[0]); for (const p of pts.slice(1)) g.lineTo(...p); g.closePath(); g.fillStyle = fill; g.fill(); }
+function line(g, x0, y0, x1, y1, col, w = 1, dash) { g.beginPath(); g.setLineDash(dash || []); g.moveTo(x0, y0); g.lineTo(x1, y1); g.strokeStyle = col; g.lineWidth = w; g.stroke(); g.setLineDash([]); }
+function txt(g, s, x, y, col = C.txt, size = 10, align = 'left') { g.font = `700 ${size}px "Chakra Petch", sans-serif`; g.fillStyle = col; g.textAlign = align; g.fillText(s, x, y); }
+function gem(g, x, y, r, sh) { poly(g, [[x, y - r], [x + r, y], [x, y]], sh[0]); poly(g, [[x + r, y], [x, y + r], [x, y]], sh[2]); poly(g, [[x, y + r], [x - r, y], [x, y]], sh[3]); poly(g, [[x - r, y], [x, y - r], [x, y]], sh[1]); }
+function chrome(g) {
+  g.fillStyle = C.bg; g.fillRect(0, 0, 240, 30); g.fillRect(0, 196, 240, 44);
+  txt(g, '1', 8, 20, C.pink, 13); txt(g, 'SEQ  P1', 30, 20, C.txt, 11); txt(g, (S.page + 1) + '/2', 234, 20, C.mute, 10, 'right');
+  if (S.listen && Math.floor(performance.now() / 300) % 2 === 0) { poly(g, [[110, 9], [160, 9], [160, 23], [110, 23]], C.pink); txt(g, 'LISTEN', 135, 20, C.bg, 10, 'center'); }
+  line(g, 0, 29.5, 240, 29.5, C.wire); line(g, 0, 196.5, 240, 196.5, C.wire);
+  const ks = S.page ? [['LOOP', S.loop ? String(S.loop) : 'FREE']] : [['DIV', DIVS[S.div][0]], ['ORDER', String(S.order)], ['DRIFT', String(S.drift)], ['SOURCE', 'MIMIC']];
+  ks.forEach(([n, v], i) => { const x = 30 + i * 60; poly(g, [[x - 26, 203], [x + 26, 203], [x + 26, 205], [x - 26, 205]], KNOB[i]);
+    txt(g, n, x, 218, C.mute, 8, 'center'); txt(g, v, x, 233, C.white, 11, 'center'); });
+}
+function topBar(g) {                 // the phrase's size, LOOP's place, DRIFT as 8 diamonds, the seed (flashes on PRESET)
+  txt(g, S.ph.length + ' NOTES', 8, 45, C.txt, 9);
+  txt(g, S.loop ? 'LOOP ' + ((Math.max(k, 0) % S.loop) + 1) + '/' + S.loop : 'FREE', 74, 45, S.loop ? C.white : C.mute, 9);
+  for (let i = 0; i < 8; i++) { const x = 140 + i * 7; poly(g, [[x, 38], [x + 3, 41], [x, 44], [x - 3, 41]], i < Math.round(S.drift / 16) ? C.pink : '#2a2148'); }
+  txt(g, '#' + S.seed, 234, 45, performance.now() - seedT < 300 ? C.pink : C.mute, 9, 'right');
+}
+const STARS = [...Array(40)].map((_, i) => [(i * 73.3 + 17) % 240, 34 + (i * 47.9) % 160, i % 4]);
+function sky(g) { STARS.forEach(([x, y, b]) => { g.fillStyle = b ? '#1c1340' : '#3a2f63'; g.fillRect(x, y, 1, 1); }); }
+const curNote = () => cur >= 0 && cur < S.ph.length ? S.ph[cur][0] : -1, prevNote = () => prev >= 0 && prev < S.ph.length ? S.ph[prev][0] : -1;
+
+/* the rows: one per distinct note of the phrase, low at the bottom; shared by both rolls */
+function rows() { return [...new Set(S.ph.map(e => e[0]))].sort((a, b) => a - b); }
+const BAND = [GEM.blue, ['#8ff5c8', '#22d58e', '#16a06a', '#0f6d48'], GEM.orange, ['#ffffff', '#e4e0f5', '#b8b2d6', '#8a84ab']];
+const PH = [54, 106], IM = [124, 188], NOWX = 196, SC = 8;
+function layout() {                  // x of each phrase cell, row y in each roll
+  const P = S.ph, tot = P.reduce((s, e) => s + Math.max(1, e[1]), 0), x0 = 30, W = 202, xs = [], ws = [];
+  let x = x0; P.forEach(e => { xs.push(x); ws.push(Math.max(1, e[1]) / tot * W); x += ws[ws.length - 1]; });
+  const R = rows(), rowY = (note, [t, b]) => { const i = R.indexOf(note), h = (b - t) / R.length; return b - (i + 0.5) * h; };
+  return { xs, ws, R, rowY, rh: Math.min(6, (PH[1] - PH[0]) / R.length - 1) };
+}
+function labels(g, L, cn) {          // the note names at the left, once per row, between both rolls when they fit
+  const h = (PH[1] - PH[0]) / L.R.length;
+  L.R.forEach(note => { const on = note === cn; [PH, IM].forEach(r => {
+    const y = L.rowY(note, r); line(g, 30, y + 0.5, 232, y + 0.5, '#0e0a22');
+    if (h >= 7) txt(g, nm(note), 26, y + 3, on ? C.white : C.mute, 7, 'right'); }); });
+}
+function cell(g, x, y, w, h, sh) { poly(g, [[x, y - h / 2], [x + w - 1, y - h / 2], [x + w - 1, y + h / 2], [x, y + h / 2]], sh[1]);
+  poly(g, [[x, y - h / 2], [x + w - 1, y - h / 2], [x + w - 2, y - h / 2 + 1.5], [x, y - h / 2 + 1.5]], sh[0]); }
+function improv(g, L, colour) {      // the improvisation: born on the NOW line, scrolling left
+  const now = Math.max(k, 0) + frac;
+  line(g, NOWX + 0.5, IM[0] - 4, NOWX + 0.5, IM[1] + 2, '#3a2f63'); txt(g, 'NOW', NOWX, IM[0] - 6, C.mute, 7, 'center');
+  if (S.loop) for (let st = Math.floor(now / S.loop) * S.loop; NOWX - (now - st) * SC > 30; st -= S.loop) {   // LOOP: where the draw restarts
+    const x = Math.round(NOWX - (now - st) * SC) + 0.5; line(g, x, IM[0], x, IM[1], '#3a2f63', 1, [2, 3]); }
+  if (!learning()) trail.slice(-S.order).forEach(([note, step]) => {   // ORDER: the notes it looks for in the phrase, bracketed
+    const x = NOWX - (now - step) * SC, y = L.rowY(note, IM); if (x < 30) return;
+    line(g, x - 2, y - L.rh / 2 - 3, x - 2, y + L.rh / 2 + 3, C.white); line(g, x - 2, y - L.rh / 2 - 3.5, x + 2, y - L.rh / 2 - 3.5, C.white); line(g, x - 2, y + L.rh / 2 + 3.5, x + 2, y + L.rh / 2 + 3.5, C.white); });
+  trail.forEach(([note, step, j, i], q) => { const x = NOWX - (now - step) * SC, w = Math.max(1, S.ph[i] ? S.ph[i][1] : 1) * SC;
+    if (x + w < 30 || L.R.indexOf(note) < 0) return; const cx = Math.max(30, x), newest = q === trail.length - 1;
+    cell(g, cx, L.rowY(note, IM), Math.min(w, x + w - cx) , L.rh, colour(i, j, newest));
+    if (colour === bandColour && j) poly(g, [[cx, IM[0] - 2], [cx + 3, IM[0] - 2], [cx + 1.5, IM[0] + 1]], C.pink); });
+}
+const bandColour = (i, j, newest) => newest && lit() ? GEM.pink : BAND[Math.min(3, Math.floor(i * 4 / S.ph.length))];
+function heads(g) { txt(g, 'YOU', 8, PH[0] - 4, C.mute, 7); txt(g, 'MIMIC', 8, IM[0] - 6, C.mute, 7); line(g, 8, 115.5, 232, 115.5, '#1c1340'); }
+const learning = () => S.listen;
+
+function vc(g) {                     // the reading head
+  const L = layout(), P = S.ph, n = P.length, newest = trail[trail.length - 1], src = newest ? newest[3] : -1, cn = learning() ? (n ? P[n - 1][0] : -1) : curNote();
+  heads(g); labels(g, L, cn);
+  for (let b = 0; b < 4; b++) {      // the quarters' marks under the phrase
+    const i0 = Math.ceil(b * n / 4), i1 = Math.ceil((b + 1) * n / 4) - 1; if (i1 < i0) continue;
+    poly(g, [[L.xs[i0], PH[1] + 3], [L.xs[i1] + L.ws[i1] - 1, PH[1] + 3], [L.xs[i1] + L.ws[i1] - 1, PH[1] + 5], [L.xs[i0], PH[1] + 5]], BAND[b][2]); }
+  P.forEach((e, i) => cell(g, L.xs[i], L.rowY(e[0], PH), L.ws[i], L.rh, (learning() ? i === n - 1 : i === src && lit()) ? GEM.pink : BAND[Math.min(3, Math.floor(i * 4 / n))]));
+  if (!learning() && src >= 0 && P[src]) {
+    const age = Math.min(1, (performance.now() - playT) / (DIVS[S.div][1] * Math.max(1, P[src][1]))), hx = L.xs[src] + age * L.ws[src];
+    poly(g, [[hx - 1, PH[0] - 2], [hx + 1, PH[0] - 2], [hx + 1, PH[1] + 2], [hx - 1, PH[1] + 2]], C.pink);
+    poly(g, [[hx - 4, PH[0] - 6], [hx + 4, PH[0] - 6], [hx, PH[0] - 2]], C.pink);
+    const fr = from, a = performance.now() - playT;          // a jump: the arrow from the place left to the place read
+    if (fr >= 0 && fr < n && src !== (fr + 1) % n && a < 600) {
+      const ax = L.xs[fr] + L.ws[fr], bx = L.xs[src], top = PH[0] - 8 - Math.min(14, Math.abs(bx - ax) * 0.15), M = 12, col = newest[2] ? C.pink : C.txt;
+      g.beginPath(); for (let q = 0; q <= M; q++) { const t = q / M; g.lineTo(ax + (bx - ax) * t, PH[0] - 4 - (PH[0] - 4 - top) * Math.sin(Math.PI * t)); }
+      g.strokeStyle = col; g.lineWidth = 1.5; g.stroke();
+      poly(g, [[bx, PH[0] - 3], [bx - 3, PH[0] - 8], [bx + 3, PH[0] - 8]], col);
+    }
+  }
+  improv(g, L, bandColour);
+}
+
+const G = ['c1'].map(id => document.getElementById(id).getContext('2d')), DRAW = [vc];
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function frame() {
+  const t = performance.now(), ms = DIVS[S.div][1];
+  acc += Math.min(200, t - last); last = t;
+  while (acc >= ms) { acc -= ms; tick(); }
+  frac = reduce ? 0 : acc / ms;
+  G.forEach((g, i) => { g.fillStyle = C.bg; g.fillRect(0, 0, 240, 240); sky(g); DRAW[i](g); topBar(g); chrome(g); });
+  requestAnimationFrame(frame);
+}
+document.fonts.ready.then(() => { rs = S.seed * 2654435761 >>> 0; tick(); requestAnimationFrame(frame); });
+</script>
