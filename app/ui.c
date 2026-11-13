@@ -17,7 +17,8 @@
 
 enum { D_EDIT, D_SEQ, D_GLO, D_HOME, D_ENV, D_LFO, D_ARP, D_FX, ND };
 enum { P_ENGINE, P_SOUND, P_STEPS, P_TEMPO, P_SCALE, P_CPU, P_XY, P_TRACKS, P_SONG, P_GRIDS, P_MAP, P_DENS, P_MARBLES, P_T,
-       P_X, P_NOTES, P_PAD, P_KIT, P_ADSR, P_FILTER, P_LFO, P_ARP, P_INSERT, P_MIX, P_GFX, P_KEYS };
+       P_X, P_NOTES, P_PAD, P_KIT, P_ADSR, P_FILTER, P_LFO, P_ARP, P_INSERT, P_MIX, P_GFX, P_KEYS,
+       P_SN1, P_SN2, P_SN3 };            /* NOTES in SEQ: the cursor's step on K1-K4 */
 /* what PRESET sets on a held step; the black keys pick them by family (FAMILY) */
 /* REC: GRID the white keys are SEQ's steps, NOTES they write at a cursor, LIVE they record while playing, ARM the first
    note starts LIVE */
@@ -30,6 +31,7 @@ static const uint8_t DOMAIN_PAGES[ND][5] = {{P_ENGINE, P_SOUND}, {P_STEPS, P_XY}
 static const uint8_t DOMAIN_N[ND] = {2, 1, 5, 2, 2, 1, 1, 2};      /* SEQ: 2 pages while PATH is XY (pages) */
 static const uint8_t GEN_PAGES[2][5] = {{P_GRIDS, P_MAP, P_DENS}, {P_MARBLES, P_T, P_X, P_NOTES}};
 static const uint8_t KIT_PAGES[5] = {P_PAD, P_KIT};
+static const uint8_t NOTES_PAGES[5] = {P_SN1, P_SN2, P_SN3, P_STEPS, P_XY};
 static const uint8_t DOMAIN_BTN[ND] = {B_EDIT, B_SEQ, B_GLO, B_HOME, B_ENV, B_LFO, B_ARP, B_FX};
 static const char *const DOMAIN_NAME[ND] = {"EDIT", "SEQ", "GLO", "HOME", "ENV", "LFO", "ARP", "FX"};
 
@@ -61,6 +63,9 @@ static const q_page PAGE[] = {
     {"MIX", {"DELAY", "REVERB", "PAN", "LEVEL"}, {0, 0, -64, 0}, {127, 127, 63, 127}},
     {"FX", {"DLY TIME", "DLY FB", "REV SIZE", "REV TONE"}, {0, 0, 0, 0}, {DIV_N - 1, 127, 127, 127}},
     {"KEYS", {"IN SCALE"}, {0}, {KEYS_ALL}},
+    {"STEP", {"NOTE", "LEN", "VEL", "PROB"}, {1, 1, 1, 0}, {127, 64, 127, 20}},
+    {"STEP", {"RATCHET", "COND", "MICRO"}, {1, 0, -11}, {4, 39, 11}},      /* COND: its index, COND_N - 1 at most */
+    {"STEP", {"SLIDE", "ACCENT"}, {0, 0}, {1, 1}},
 };
 
 /* Plaits' registration order (pq.h) */
@@ -166,6 +171,12 @@ static struct {
 } ui;
 
 static q_pattern *pat(void) { return &ui.p->pat[ui.track][ui.p->pattern[ui.track]]; }
+static int notes_on(void);
+static int cond_index(int c);
+static void step_on(q_step *s);
+static void step_default(q_step *s);
+static void attr_turn(q_step *s, int a, int d);
+static const uint8_t SN_ATTR[3][4] = {{A_NOTE, A_LEN, A_VEL, A_PROB}, {A_RATCHET, A_COND, A_MICRO}, {A_SLIDE, A_ACCENT}};   /* P_SN1..3 */
 static int kit(void) { return ui.p->sound[ui.track].model == M_KIT; }
 
 /* the domain's pages: their number, their ids in out (5 always written: a page index not yet brought back in range
@@ -176,6 +187,10 @@ static int pages(int d, uint8_t *out)
     if (d == D_SEQ && t->src != SRC_STEP) {
         __builtin_memcpy(out, GEN_PAGES[t->src - 1], 5);
         return t->src == SRC_GRIDS ? 3 : kit() ? 2 : 4;     /* a KIT has no X section */
+    }
+    if (d == D_SEQ && notes_on()) {     /* the cursor's step first, then SEQ's own */
+        __builtin_memcpy(out, NOTES_PAGES, 5);
+        return t->path == PATH_XY ? 5 : 4;
     }
     if (d == D_EDIT && kit()) {
         __builtin_memcpy(out, KIT_PAGES, 5);
@@ -205,7 +220,8 @@ static int knob_page(void) { return ui.domain == D_EDIT && ui.padheld && kit() ?
 static int knob_hidden(int pid, int k)
 {
     return (kit() && ((pid == P_GRIDS && (k == 1 || k == 2)) || (pid == P_MARBLES && k == 1) || pid == P_ARP))   /* a KIT has no arp */
-           || (pid == P_INSERT && k < 3 && !*INS_LABEL[ui.p->sound[ui.track].itype][k]);   /* no role: turns ignored */
+           || (pid == P_INSERT && k < 3 && !*INS_LABEL[ui.p->sound[ui.track].itype][k])    /* no role: turns ignored */
+           || (pid == P_SN1 && !k && kit());                                                /* a KIT's pads stay */
 }
 
 static int knob_get(int pid, int k)
@@ -213,7 +229,17 @@ static int knob_get(int pid, int k)
     const q_sound *s = &ui.p->sound[ui.track];
     const q_pattern *t = &ui.p->pat[ui.track][ui.p->pattern[ui.track]];
     const q_pad *pd = &ui.p->kit[ui.track][ui.pad];
+    const q_step *st = &t->steps[ui.cursor - 1];
     switch (pid * 4 + k) {
+    case P_SN1 * 4: return st->note[0];
+    case P_SN1 * 4 + 1: return st->len;
+    case P_SN1 * 4 + 2: return st->vel;
+    case P_SN1 * 4 + 3: return st->prob;
+    case P_SN2 * 4: return STEP_RATCHET(st);
+    case P_SN2 * 4 + 1: return cond_index(st->cond);
+    case P_SN2 * 4 + 2: return st->micro;
+    case P_SN3 * 4: return st->flags & SF_SLIDE ? 1 : 0;
+    case P_SN3 * 4 + 1: return st->flags & SF_ACCENT ? 1 : 0;
     case P_ENGINE * 4: return s->harm;
     case P_ENGINE * 4 + 1: return s->timb;
     case P_ENGINE * 4 + 2: return s->morph;
@@ -310,6 +336,17 @@ static void knob_set(int pid, int k, int v)
     q_sound *s = &ui.p->sound[ui.track];
     q_pattern *t = &ui.p->pat[ui.track][ui.p->pattern[ui.track]];
     q_pad *pd = &ui.p->kit[ui.track][ui.pad];
+    if (pid >= P_SN1) {                 /* the cursor's step, made when it was empty */
+        q_step *st = &t->steps[ui.cursor - 1];
+        if (!(st->flags & SF_ON)) {
+            step_default(st);
+            lock_clear_step(t, ui.cursor - 1);
+        }
+        attr_turn(st, SN_ATTR[pid - P_SN1][k], v - knob_get(pid, k));
+        step_on(st);
+        ui.dirty = 1;
+        return;
+    }
     switch (pid * 4 + k) {
     case P_ENGINE * 4: s->harm = (uint8_t)v; break;
     case P_ENGINE * 4 + 1: s->timb = (uint8_t)v; break;
@@ -481,7 +518,8 @@ static void button(int b)
         ui.msg_scene = 0;
         break;
     case B_SEL:                         /* the SONG page: clears the entry (SEL with HOME held is for the scenes) */
-        if (ui.domain == D_HOME && page_id() == P_SONG && !ui.homedown && ui.entry) {
+        if (ui.domain == D_HOME && page_id() == P_SONG && !ui.homedown && ui.entry && !notes_on()) {   /* (NOTES: SEL is
+                                                                                                    the cursor's) */
             q_project *p = ui.p;
             int i;
             for (i = ui.entry; i < p->nsong; i++)
@@ -560,11 +598,12 @@ static void step_clear(q_pattern *t, int n)
     lock_clear_step(t, n);
 }
 
-/* PRESET on the held step: the chosen attribute */
-static void attr_turn(q_step *s, int d)
+/* the step's attribute a turned by d (PRESET on a held step, NOTES' knobs); SLIDE and ACCENT: on to the right, off to the
+   left */
+static void attr_turn(q_step *s, int a, int d)
 {
     int i, lo = 127, hi = 0;
-    switch (ui.attr) {
+    switch (a) {
     case A_VEL: s->vel = (uint8_t)clamp(s->vel + d, 1, 127); break;
     case A_RATCHET: s->flags = (uint8_t)((s->flags & ~0x18) | (clamp(STEP_RATCHET(s) + d, 1, 4) - 1) << 3); break;
     case A_PROB: s->prob = (uint8_t)clamp(s->prob + d, 0, 20); break;
@@ -584,6 +623,11 @@ static void attr_turn(q_step *s, int d)
         break;
     case A_LEN: s->len = (uint8_t)clamp(s->len + d, 1, 64); break;
     case A_MICRO: s->micro = (int8_t)clamp(s->micro + d, -11, 11); break;
+    case A_SLIDE:
+    case A_ACCENT:
+        if (d)
+            s->flags = (uint8_t)(d > 0 ? s->flags | (a == A_SLIDE ? SF_SLIDE : SF_ACCENT) : s->flags & ~(a == A_SLIDE ? SF_SLIDE : SF_ACCENT));
+        break;
     }
 }
 
@@ -786,6 +830,8 @@ static void rec_set(int r)
 {
     if (r == R_NOTES && ui.rec != R_NOTES)
         ui.cursor = 1;
+    if ((r == R_NOTES) != (ui.rec == R_NOTES))  /* SEQ's pages change: the first one */
+        ui.page[D_SEQ] = 0;
     if (r != R_GRID) {                  /* a step held on the grid is let go: its release toggles nothing */
         ui.held = 0;
         sel_clear();
@@ -1121,13 +1167,9 @@ static void key_down(int k)
         }
     } else if (notes_on()) {            /* the keys write the cursor's step */
         s = &t->steps[ui.cursor - 1];
-        if (ui.seldown) {               /* SEL held: a white key the cursor to its step, a black key the function */
-            for (b = 0; b < 11 && BLACK[b] != k; b++) {}
+        if (ui.seldown) {               /* SEL held: a white key puts the cursor on its step (the knobs set the step) */
             if (w < 16 && ui.spage * 16 + w < t->len)
                 ui.cursor = ui.spage * 16 + w + 1;
-            else if (w == 16)
-                family_key(b, s);
-            ui.dirty = 1;
             return;
         }
         if ((note = key_play_note(k)) < 0)
@@ -1335,10 +1377,7 @@ void ui_input(void)
             ui.page[d] = ((ui.page[d] + e) % n + n) % n;
     }
     if ((e = plat_enc(EN_PRESET)) != 0) {
-        if (notes_on() && ui.seldown) { /* the cursor's step: the chosen function */
-            attr_turn(&pat()->steps[ui.cursor - 1], e);
-            ui.dirty = 1;
-        } else if (notes_on() && ui.nchord) {   /* keys held: the note tied over the next steps, or untied */
+        if (notes_on() && ui.nchord) {   /* keys held: the note tied over the next steps, or untied */
             q_step *s = &pat()->steps[ui.cursor - 1];
             for (; e; e -= e > 0 ? 1 : -1)
                 s->len = (uint8_t)len_step(s->len, e);
@@ -1346,10 +1385,10 @@ void ui_input(void)
         } else if (notes_on()) {
             cursor_move(e);
         } else if (ui.held) {
-            attr_turn(&pat()->steps[ui.held - 1], e);
+            attr_turn(&pat()->steps[ui.held - 1], ui.attr, e);
             ui.edited = ui.dirty = 1;
         } else if (ui.sel_ref >= 0) {
-            attr_turn(&pat()->steps[ui.spage * 16 + ui.sel_ref], e);
+            attr_turn(&pat()->steps[ui.spage * 16 + ui.sel_ref], ui.attr, e);
             sel_copy();
         } else if (ui.domain == D_SEQ) {
             pattern_set(clamp(ui.p->pattern[ui.track] + e, 0, Q_PATTERNS - 1));
@@ -1440,11 +1479,17 @@ static uint32_t layer_keys(int b)
         for (i = 0; i < (b == B_FX ? 16 : 8); i++)
             keys |= 1u << WHITE[i];
         return keys;
+    case B_SEL:
+        if (!notes_on())
+            break;
+        for (i = 0; i < 16; i++)        /* NOTES: the white keys, the cursor */
+            keys |= 1u << WHITE[i];
+        return keys;
     case B_REC:
         if (ui.rec != R_LIVE)
             return 1u << BLACK[0] | 1u << BLACK[1];
     }
-    return (1u << NKEYS) - 1u;          /* every key: ARP's latch, SEL, REC's erasing in LIVE */
+    return (1u << NKEYS) - 1u;          /* every key: ARP's latch, SEL on the grid, REC's erasing in LIVE */
 }
 
 /* the keys whose note is one of the step's (it lit) */
@@ -1556,8 +1601,17 @@ static void hz_text(float f, char *b)
 /* the engines with their own envelope: the ADSR shapes only their filter (6-OP, STRING, MODAL, the drums, the KIT) */
 static int own_env(int m) { return (m >= 2 && m <= 4) || m >= 19; }
 
+static void attr_text(const q_step *s, int a, char *b);
+
 static void knob_text(int pid, int k, int v, char *b)
 {
+    if (pid >= P_SN1) {                 /* as a held step's panel shows it: a step with v in every field */
+        int a = SN_ATTR[pid - P_SN1][k];
+        q_step st = {{(uint8_t)v}, (uint8_t)v, (uint8_t)v, (uint8_t)v, (uint8_t)cond_value(v),
+                     (uint8_t)(a == A_RATCHET ? (v - 1) << 3 : v ? SF_SLIDE | SF_ACCENT : 0), (int8_t)v};
+        attr_text(&st, a, b);
+        return;
+    }
     if (pid >= P_ADSR) {
         const char *s = 0;
         switch (pid * 4 + k) {
@@ -1751,7 +1805,7 @@ static void view_now(q_view *v)
         v->scene.anim = 7;                      /* scene_glo.c; ui_frame fills its view */
         if (pid == P_SONG && !ui.entry)
             v->foot.hide = 7;
-    } else if (pid == P_ENGINE || pid == P_SOUND || pid == P_PAD || pid >= P_ADSR) {
+    } else if (pid == P_ENGINE || pid == P_SOUND || pid == P_PAD || (pid >= P_ADSR && pid < P_SN1)) {
         __builtin_memcpy(v->scene.v, v->foot.v, sizeof v->scene.v);
         v->scene.model = pid == P_PAD ? KIT_MODEL + ui.p->kit[ui.track][ui.pad].engine : ui.p->sound[ui.track].model;
         if (pid == P_PAD) {                     /* a KIT's scene: the edited pad's knobs on its engine's polyhedron */
@@ -1769,7 +1823,7 @@ static void view_now(q_view *v)
         v->scene.pad = (uint8_t)ui.pad;
         for (k = 0; k < Q_PADS; k++)
             v->scene.eng[k] = ui.p->kit[ui.track][k].engine;
-    } else if (pid == P_STEPS || pid == P_XY) {
+    } else if (pid == P_STEPS || pid == P_XY || pid >= P_SN1) {
         v->scene.anim = 2;
         v->scene.spage = (int8_t)ui.spage;
         v->scene.path = (int8_t)t->path;
@@ -2008,8 +2062,7 @@ static void layer_combo(int32_t y, const char *btn, const char *s)
 static void draw_layer(const q_view *v, int32_t oy)
 {
     static const uint8_t AFTER[11] = {0, 1, 2, 4, 5, 7, 8, 9, 11, 12, 14};   /* the white key each black one follows */
-    static const char *const SEL_NAME[2][5] = {{"SELECT THE STEP", "ITS FUNCTIONS", "SET ON ALL", "LOCK ALL", "THEIR LENGTHS"},
-                                               {"CURSOR THERE", "A FUNCTION", "SET IT", "LOCK IT", ""}};
+    static const char *const SEL_NAME[5] = {"SELECT THE STEP", "ITS FUNCTIONS", "SET ON ALL", "LOCK ALL", "THEIR LENGTHS"};
     const char *names[16], *tags[16], *combo[3][2] = {{0}};
     char nb[16][12], tb[16][4];
     int b = v->scene.layer - 1, n = 0, i, k;
@@ -2064,12 +2117,17 @@ static void draw_layer(const q_view *v, int32_t oy)
         tags[n] = "KEY", names[n++] = "LATCH ITS NOTE";
         break;
     case B_SEL:
-        tags[n] = "W", names[n++] = SEL_NAME[v->scene.lmode][0];
-        tags[n] = "#", names[n++] = SEL_NAME[v->scene.lmode][1];
-        combo[0][0] = "+ PRESET", combo[0][1] = SEL_NAME[v->scene.lmode][2];
-        combo[1][0] = "+ K1-K4", combo[1][1] = SEL_NAME[v->scene.lmode][3];
-        if (!v->scene.lmode)
-            combo[2][0] = "+ OCT", combo[2][1] = SEL_NAME[0][4];
+        if (v->scene.lmode) {           /* NOTES: the knobs set the step without SEL */
+            tags[n] = "W", names[n++] = "CURSOR THERE";
+            combo[0][0] = "+ K1-K4", combo[0][1] = "LOCK THE STEP";
+            combo[1][0] = "+ SELECT", combo[1][1] = "LOCK PAGE";
+            break;
+        }
+        tags[n] = "W", names[n++] = SEL_NAME[0];
+        tags[n] = "#", names[n++] = SEL_NAME[1];
+        combo[0][0] = "+ PRESET", combo[0][1] = SEL_NAME[2];
+        combo[1][0] = "+ K1-K4", combo[1][1] = SEL_NAME[3];
+        combo[2][0] = "+ OCT", combo[2][1] = SEL_NAME[4];
         break;
     case B_REC:
         if (v->scene.lmode) {

@@ -171,7 +171,7 @@ dans une croche ou une noire.
 | SELECT (encodeur) | passer d'une page à l'autre dans le domaine courant |
 | PRESET | parcourir ce qui est à l'écran : presets du moteur, type d'insert, pattern… |
 | K1–K4 | les 4 paramètres de la page ; couleurs fixes bleu, vert, blanc, orange |
-| SEL (bouton) | valider (charger le preset choisi, confirmer une action) ; maintenu + K1–K4 : réglage fin |
+| SEL (bouton) | valider (charger le preset choisi, confirmer une action) ; maintenu : Shift des pas (sélection dans la grille, p-locks en NOTES) |
 | MASTER | volume |
 | PLAY | lecture / stop |
 | REC | appuis courts : GRILLE puis NOTES dans SEQ, NOTES ailleurs ; tenu + PLAY : live ; tenu : couche (CLEAR…) (spec `2026-11-12-quartz-step-entry-design.md`) |

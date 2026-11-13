@@ -1,0 +1,95 @@
+# NOTES in SEQ: K1-K4 set the cursor's step on three pages SELECT turns (then SEQ's own pages); SEL + white and SEL + K
+# stay, SEL + black does nothing; out of SEQ the knobs keep the page shown; SEL on SONG deletes nothing in NOTES
+wait 600
+tap SEQ
+tap REC
+tap REC
+expect rec 2
+expect page 1
+tapkey 7
+expect stepnote_1 60
+turn PRESET -1
+expect cursor 1
+# page 1: NOTE, LEN, VEL, PROB
+turn K1 2
+expect stepnote_1 62
+turn K2 4
+expect steplen_1 8
+turn K3 -30
+expect stepvel_1 70
+turn K4 -10
+expect stepprob_1 10
+# page 2: RATCHET, COND, MICRO
+turn SELECT 1
+expect page 2
+turn K1 1
+expect stepratchet_1 2
+turn K2 5
+expect stepcond_1 33
+turn K3 -3
+expect stepmicro_1 -3
+# page 3: SLIDE, ACCENT (right on, left off)
+turn SELECT 1
+expect page 3
+turn K1 1
+expect stepslide_1 1
+turn K2 1
+expect stepaccent_1 1
+turn K2 -1
+expect stepaccent_1 0
+# then SEQ's STEPS page: LEN of the pattern
+turn SELECT 1
+expect page 4
+turn K1 -8
+expect len 8
+turn SELECT 1
+expect page 1
+# a knob on an empty step makes it
+turn PRESET 1
+expect cursor 2
+expect stepon_2 0
+turn K3 -10
+expect stepon_2 1
+expect stepvel_2 90
+expect stepnote_2 60
+# SEL + black: nothing; SEL + K: a p-lock; SEL + white: the cursor
+press SEL
+tapkey b2
+expect stepprob_2 20
+expect stepon_3 0
+spin K1 5
+expect lockharm_2 69
+tapkey w4
+expect cursor 5
+release SEL
+# disarmed: SEQ's pages again
+tap REC
+expect rec 0
+expect page 1
+turn K1 8
+expect len 16
+# out of SEQ, NOTES armed: the knobs set the page shown
+tap EDIT
+tap REC
+expect rec 2
+expect page 1
+turn K1 5
+expect harm 69
+expect stepnote_2 60
+tap REC
+expect rec 0
+# SONG: an entry, then SEL with NOTES armed deletes nothing; disarmed it does
+press SAVE
+tapkey w0
+release SAVE
+expect song_n 1
+tap HOME
+turn SELECT 1
+tap REC
+expect rec 2
+tap SEL
+expect song_n 1
+tap REC
+expect rec 0
+tap SEL
+expect song_n 0

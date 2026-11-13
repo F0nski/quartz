@@ -87,14 +87,26 @@ Dans SEQ à l'arrêt comme en lecture ; hors de SEQ à l'arrêt seulement. Toute
   - Sur un pas allumé, seules ses notes sont remplacées ; vélocité, durée, fonctions et p-locks restent.
   - Quand toutes les touches sont relâchées, le curseur avance de la durée du pas (en pas entiers, 1 au moins).
 - **Liaison** : touche(s) tenue(s) + PRESET allonge ou raccourcit la note d'un pas (de 1 à 8).
-- **Fonctions du pas sous le curseur** : SEL tenu + noires les choisissent (section 5), SEL tenu + PRESET règle la valeur,
-  SEL tenu + K1–K4 posent des p-locks. Le pas sous le curseur est montré comme un pas tenu tant que SEL est tenu.
+- **Réglages du pas sous le curseur (dans SEQ)** : K1–K4 les règlent directement, sur trois pages que SELECT fait défiler
+  avant les pages de SEQ (STEPS, XY) ; on entre en NOTES sur la première. Tourner un encodeur sur un pas éteint le crée
+  (comme ci-dessus), puis applique le réglage. KIT : NOTE n'agit pas (les pads restent).
+
+  | Page | K1 | K2 | K3 | K4 |
+  |---|---|---|---|---|
+  | 1 | NOTE (l'accord entier, par demi-ton) | LEN (1/8 de pas) | VEL | PROB |
+  | 2 | RATCHET | COND | MICRO | — |
+  | 3 | SLIDE | ACCENT | — | — |
+
+  SLIDE et ACCENT : vers la droite actif, vers la gauche inactif. Hors de SEQ, K1–K4 restent ceux de la page affichée.
+- **SEL tenu** : + K1–K4 posent des p-locks sur le pas sous le curseur, + SELECT tourne la page de p-locks ; le pas sous
+  le curseur est montré comme un pas tenu. SEL + noire ne fait rien en NOTES. Sur la page SONG, SEL ne supprime pas
+  l'entrée tant que NOTES est actif.
 - PRESET ne parcourt plus ce qu'il parcourt d'habitude (pattern dans SEQ ; modèle, insert, FREE / TRIG, entrée de
   chanson ailleurs) tant que NOTES est actif.
 
 ## 5. Les fonctions d'un pas (les noires)
 
-Sur un pas tenu, une sélection, ou en NOTES avec SEL tenu. Chaque noire porte une famille : un appui choisit sa première
+Sur un pas tenu ou une sélection (en NOTES : les encodeurs, section 4). Chaque noire porte une famille : un appui choisit sa première
 fonction, un nouvel appui passe à la suivante de la famille ; PRESET règle la fonction choisie, dont le nom s'affiche.
 SLIDE et ACCENT basculent à l'appui.
 
@@ -138,7 +150,7 @@ Une noire sans fonction ne fait rien. La liste des pas tenus de la spec 5b (`ATT
 | SAVE | blanches 1–8 : ajouter la scène à la chanson |
 | SEQ | blanches 1–8 : pattern de la piste |
 | ARP | touches : notes tenues (latch) |
-| SEL | GRILLE : sélection de pas ; NOTES : curseur (blanches) et fonctions (noires) |
+| SEL | GRILLE : sélection de pas ; NOTES : curseur (blanches), p-locks (K1–K4) |
 | REC | voir ci-dessous |
 
 Couche REC :
@@ -192,7 +204,7 @@ SEQ tenu + noire 1 (l'ancien CLEAR) disparaît.
     durée par OCT (1 à 8 pas, OCT ne change pas de page), OCT seul tourne la page, familles (deux appuis sur la noire 3 :
     COND), sélection SEL + noire + PRESET, + K, + OCT, sélection vidée au relâchement ;
   - NOTES : note et accord sur un pas éteint, sur un pas allumé (attributs et p-locks gardés), note noire, liaison,
-    silence, curseur par SEL, bouclage sur LEN et page qui suit, LED des notes du pas sous le curseur, SEL + noire + PRESET sur le pas du curseur, PRESET rendu
+    silence, curseur par SEL, bouclage sur LEN et page qui suit, LED des notes du pas sous le curseur, les trois pages de K1–K4 sur le pas du curseur, PRESET rendu
     à son rôle quand REC est désarmé ;
   - LIVE : REC tenu + PLAY à l'arrêt attend la première note ; avec décompte, part après une mesure ; en lecture, ne
     s'arrête pas ; effacement par touche (sans son ni enregistrement) et par OCT− ; REC court désarme ;

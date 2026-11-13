@@ -182,15 +182,23 @@
     <li><strong>Une note ou un accord</strong> : jouer. Sur un pas vide, le pas est créé (vélocité 100, un demi-pas). Sur un pas allumé, <strong>seules les notes changent</strong> : vélocité, durée, fonctions et p-locks restent.</li>
     <li><strong>Le curseur avance</strong> de la durée du pas quand la dernière touche est relâchée. Pour corriger : <kbd>PRESET</kbd> d'un cran en arrière, rejouer.</li>
     <li><strong>Une note longue</strong> : touche tenue + <kbd>PRESET</kbd> (un pas par cran).</li>
-    <li><strong>Un silence</strong> : <kbd>PRESET</kbd> sans touche, on avance sans écrire.</li>
-    <li><strong>Les fonctions du pas sous le curseur</strong> : <kbd>SEL</kbd> tenu + noires, <kbd>SEL</kbd> tenu + <kbd>PRESET</kbd> pour la valeur, <kbd>SEL</kbd> tenu + <kbd>K1</kbd>–<kbd>K4</kbd> pour les p-locks.</li>
+    <li><strong>Sauter un pas</strong> (un silence) : <kbd>PRESET</kbd> d'un cran sans touche tenue, on avance sans écrire.</li>
+    <li><strong>Régler le pas sous le curseur</strong> (dans SEQ) : <kbd>K1</kbd>–<kbd>K4</kbd> directement, sur trois pages que <kbd>SELECT</kbd> fait défiler avant les pages de SEQ (STEPS, pour LEN, DIV, PATH). Tourner un encodeur sur un pas vide le crée.</li>
+    <li><strong>Les p-locks du pas sous le curseur</strong> : <kbd>SEL</kbd> tenu + <kbd>K1</kbd>–<kbd>K4</kbd>, <kbd>SEL</kbd> tenu + <kbd>SELECT</kbd> pour la page de p-locks.</li>
   </ul>
+  <table>
+    <tr><th>Page</th><th><kbd>K1</kbd></th><th><kbd>K2</kbd></th><th><kbd>K3</kbd></th><th><kbd>K4</kbd></th></tr>
+    <tr><td>1</td><td>NOTE (tout l'accord)</td><td>LEN (1/8 de pas)</td><td>VEL</td><td>PROB</td></tr>
+    <tr><td>2</td><td>RATCHET</td><td>COND</td><td>MICRO</td><td class="dim">—</td></tr>
+    <tr><td>3</td><td>SLIDE</td><td>ACCENT</td><td class="dim">—</td><td class="dim">—</td></tr>
+  </table>
+  <p>SLIDE et ACCENT : vers la droite actif, vers la gauche inactif. Hors de SEQ, <kbd>K1</kbd>–<kbd>K4</kbd> restent ceux de la page affichée.</p>
   <p>Dans SEQ, NOTES marche aussi en lecture (on corrige le pattern qui tourne), et l'arrêt ne le quitte pas. Hors de
   SEQ, à l'arrêt seulement : lancer la lecture y passe en live (avec le décompte s'il est activé). Tant que NOTES est actif, <kbd>PRESET</kbd> sert au curseur et ne change plus de
   pattern, de modèle ni d'insert.</p>
 
   <h2 id="fonctions">Les fonctions d'un pas</h2>
-  <p>Sur un pas tenu, une sélection, ou en NOTES avec <kbd>SEL</kbd> tenu. Chaque noire porte une famille : un appui
+  <p>Sur un pas tenu ou une sélection (en NOTES, ce sont les encodeurs). Chaque noire porte une famille : un appui
   choisit sa première fonction, un nouvel appui la suivante. Le nom s'affiche, <kbd>PRESET</kbd> règle la valeur.</p>
   <div class="scroll">
   <table>
@@ -239,7 +247,7 @@
     <tr><td><kbd>SAVE</kbd></td><td>blanches 1–8 : ajouter la scène à la chanson</td></tr>
     <tr><td><kbd>SEQ</kbd></td><td>blanches 1–8 : pattern de la piste</td></tr>
     <tr><td><kbd>ARP</kbd></td><td>touches : notes tenues (latch)</td></tr>
-    <tr><td><kbd>SEL</kbd></td><td>GRID : sélection ; NOTES : curseur et fonctions</td></tr>
+    <tr><td><kbd>SEL</kbd></td><td>GRID : sélection ; NOTES : curseur (blanches), p-locks (<kbd>K1</kbd>–<kbd>K4</kbd>)</td></tr>
     <tr><td><kbd>REC</kbd></td><td>ci-dessous</td></tr>
   </table>
   </div>
@@ -337,8 +345,8 @@
       cap: ['SEL tenu : un appui sur un pas l\'ajoute à la sélection (orange) ou l\'en retire.', 'Noires + PRESET, K1–K4, OCT agissent sur tous les pas sélectionnés allumés.'] },
     notes: { w: (k, i) => [name(k), [4, 6, 8].includes(i) ? 'cur' : ''], b: (k) => name(k),
       cap: ['Toutes les touches écrivent au curseur, puis il avance. Allumées (bleu) : les notes déjà écrites au pas du curseur, ici C4 E4 G4.', 'PRESET : curseur ; touche tenue + PRESET : note plus longue.'] },
-    notessel: { w: (k, i) => [String(i + 1), i === 4 ? 'cur' : ''], b: (k, j) => FAMILY[j],
-      cap: ['SEL tenu : blanches = poser le curseur sur le pas n de la page.', 'Noires = fonctions du pas sous le curseur, PRESET = valeur, K1–K4 = p-locks.'] },
+    notessel: { w: (k, i) => [String(i + 1), i === 4 ? 'cur' : ''], b: () => '',
+      cap: ['SEL tenu : blanches = poser le curseur sur le pas n de la page ; noires : rien.', 'K1–K4 = p-locks du pas sous le curseur, SELECT = page de p-locks. Sans SEL, K1–K4 règlent le pas lui-même.'] },
     rec: { w: () => [''], b: (k, j) => (j === 0 ? 'CLEAR' : j === 1 ? 'LOCKS' : ''),
       cap: ['REC tenu (carte affichée après 0,4 s) :', '+ PLAY : live (arm ou décompte). + noire 1 : vider le pattern. + noire 2 : retirer ses p-locks.', 'En live : + touches = effacer ces notes au passage ; + OCT− = effacer chaque pas traversé.'] },
     fx: { w: (k, i) => [PUNCH[i], 'on'], b: () => '',

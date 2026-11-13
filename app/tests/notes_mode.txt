@@ -41,9 +41,8 @@ tapkey 9
 expect stepnote_4 62
 turn PRESET -1
 expect cursor 4
+turn K4 -10
 press SEL
-tapkey b2
-turn PRESET -10
 spin K1 5
 release SEL
 expect stepprob_4 10
@@ -64,15 +63,13 @@ expect cursor 7
 turn PRESET 1
 expect cursor 8
 expect stepon_7 0
-# SEL + a white key: the cursor there; SEL + a black key and PRESET: its step's function
+# SEL + a white key: the cursor there; K4 (page 1): its step's PROB
 press SEL
 tapkey w4
 expect cursor 5
-tapkey b1
-tapkey b2
-turn PRESET -10
-expect stepprob_5 10
 release SEL
+turn K4 -10
+expect stepprob_5 10
 # the keys of the cursor's step lit
 turn PRESET -3
 expect cursor 2
@@ -92,6 +89,9 @@ tap REC
 tap REC
 expect rec 2
 expect cursor 1
+# (SEQ's STEPS page, after the cursor's step's three)
+turn SELECT -1
+expect page 4
 turn K1 16
 expect len 32
 turn PRESET -16

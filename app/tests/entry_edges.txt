@@ -33,6 +33,8 @@ expect src 0
 tap REC
 tap REC
 expect rec 2
+turn SELECT -1
+expect page 4
 spin K1 32
 expect len 48
 spin PRESET 39
