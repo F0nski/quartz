@@ -22,10 +22,15 @@ static uint32_t gen_rand(uint32_t *rng)
 /* 0..1, below 1: 24 bits */
 static float gen_float(uint32_t *rng) { return (gen_rand(rng) >> 8) * (1.0f / 16777216.0f); }
 
+void gen_marbles_draw(q_gen *g, uint32_t *rng)
+{
+    for (int i = 0; i < 16; i++) { g->t.loop[i] = gen_float(rng); g->x.loop[i] = gen_float(rng); }
+}
+
 void gen_reset(q_gen *g, uint32_t *rng)
 {
     __builtin_memset(g, 0, sizeof *g);
-    for (int i = 0; i < 16; i++) { g->t.loop[i] = gen_float(rng); g->x.loop[i] = gen_float(rng); }
+    gen_marbles_draw(g, rng);
     g->drum_step = 8;          /* the first step draws a drum pattern */
 }
 

@@ -1295,6 +1295,16 @@ static void orbits_moons(void)
     assert(G.orbits_n == 17);
 }
 
+/* MARBLES' new draw (PRESET): the deja vu loops drawn again */
+static void marbles_draw_new_loops(void)
+{
+    msetup(8, 0);
+    gen_reset(&G, &R);
+    q_dejavu t = G.t, x = G.x;
+    gen_marbles_draw(&G, &R);
+    assert(memcmp(t.loop, G.t.loop, sizeof t.loop) && memcmp(x.loop, G.x.loop, sizeof x.loop));
+}
+
 int main(void)
 {
     grids_level_matches_step();
@@ -1375,6 +1385,7 @@ int main(void)
     orbits_period_change();
     orbits_four();
     orbits_moons();
+    marbles_draw_new_loops();
     puts("gen ok");
     return 0;
 }

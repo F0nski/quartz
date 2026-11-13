@@ -31,4 +31,6 @@ expect cvoice 1
 wait 100
 shot chords_page2.png
 turn SELECT 1
+expect page 3
+turn SELECT 1
 expect page 1

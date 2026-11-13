@@ -18,7 +18,7 @@
 enum { D_EDIT, D_SEQ, D_GLO, D_HOME, D_ENV, D_LFO, D_ARP, D_FX, ND };
 enum { P_ENGINE, P_SOUND, P_STEPS, P_TEMPO, P_SCALE, P_CPU, P_XY, P_TRACKS, P_SONG, P_GRIDS, P_MAP, P_DENS, P_MARBLES, P_T,
        P_X, P_NOTES, P_LIFE, P_LIFEK, P_SEED, P_EVOL, P_PAD, P_KIT, P_ADSR, P_FILTER, P_LFO, P_ARP, P_INSERT, P_MIX, P_GFX, P_KEYS,
-       P_SN1, P_SN2, P_SN3, P_LANES, P_LENS, P_CHORDS, P_PROG, P_TONNETZ, P_WALK, P_PLAY, P_ORBITS, P_MOON, P_MOONK };            /* NOTES in SEQ: the cursor's step on K1-K4 */
+       P_SN1, P_SN2, P_SN3, P_LANES, P_LENS, P_CHORDS, P_PROG, P_TONNETZ, P_WALK, P_PLAY, P_ORBITS, P_MOON, P_MOONK, P_CHORD, P_TZSTEP };            /* NOTES in SEQ: the cursor's step on K1-K4 */
 /* what PRESET sets on a held step; the black keys pick them by family (FAMILY) */
 /* REC: GRID the white keys are SEQ's steps, NOTES they write at a cursor, LIVE they record while playing, ARM the first
    note starts LIVE */
@@ -30,8 +30,8 @@ static const uint8_t DOMAIN_PAGES[ND][5] = {{P_ENGINE, P_SOUND}, {P_STEPS, P_XY}
                                                 {P_ADSR, P_FILTER}, {P_LFO}, {P_ARP}, {P_MIX, P_INSERT}};
 static const uint8_t DOMAIN_N[ND] = {2, 1, 5, 2, 2, 1, 1, 2};      /* SEQ: 2 pages while PATH is XY (pages) */
 static const uint8_t GEN_PAGES[7][5] = {{P_GRIDS, P_MAP, P_DENS}, {P_MARBLES, P_T, P_X, P_NOTES}, {P_LIFE, P_SEED, P_EVOL},
-                                        {P_LANES, P_LENS}, {P_CHORDS, P_PROG},
-                                        {P_TONNETZ, P_WALK, P_PLAY}, {P_ORBITS, P_MOON}};
+                                        {P_LANES, P_LENS}, {P_CHORDS, P_PROG, P_CHORD},
+                                        {P_TONNETZ, P_WALK, P_PLAY, P_TZSTEP}, {P_ORBITS, P_MOON}};
 static const uint8_t KIT_PAGES[5] = {P_PAD, P_KIT};
 static const uint8_t NOTES_PAGES[5] = {P_SN1, P_SN2, P_SN3, P_STEPS, P_XY};
 static const uint8_t DOMAIN_BTN[ND] = {B_EDIT, B_SEQ, B_GLO, B_HOME, B_ENV, B_LFO, B_ARP, B_FX};
@@ -82,6 +82,8 @@ static const q_page PAGE[] = {
     {"ORBITS", {"DIV", "NOTE", "MOONS", "SOURCE"}, {0, 1, 1, 0}, {DIV_N - 1, 127, 4, SRC_N - 1}},
     {"MOON", {"PERIOD", "PHASE", "NOTE"}, {1, 0, 0}, {32, 31, 15}},
     {"MOON", {"PERIOD", "PHASE", "PAD"}, {1, 0, 0}, {32, 31, 15}},       /* a KIT's: PAD for NOTE */
+    {"CHORD", {"DEGREE", "SIZE"}, {0, 0}, {6, CS_N - 1}},                 /* the chord under PRESET's cursor */
+    {"STEP", {"OP"}, {0}, {3}},                                          /* the TONNETZ step under PRESET's cursor */
 };
 
 /* Plaits' registration order (pq.h) */
@@ -183,6 +185,8 @@ static struct {
     int lane, cell, cell_key, cell_edited;     /* LANES: the lane edited (L_*); the cell held 1..16, 0 none, its key */
     int cell_lane;                             /* the lane of the cell last touched */
     int moon;                                  /* ORBITS: the moon MOON sets, 0..moons - 1 */
+    int chcur, tzcur;                          /* CHORDS, TONNETZ: PRESET's cursor, 0..len - 1 */
+    int draws;                                 /* MARBLES: new draws asked (a probe) */
     int cell_flash;                            /* the cell last touched 1..16 (0 none) and when, for the scene */
     uint32_t cell_ms;
     int layer;                                 /* the layer whose map is shown: its button + 1, 0 none */                               /* ARM: the key that started the playing, played once step 1 is under way (key + 1) */
@@ -214,7 +218,7 @@ static int pages(int d, uint8_t *out)
             out[0] = P_LIFEK;
         if (t->src == SRC_ORBITS && kit())
             out[1] = P_MOONK;
-        return t->src == SRC_TONNETZ ? 3 : t->src == SRC_ORBITS ? 2 : t->src == SRC_LANES || t->src == SRC_CHORDS ? 2 : t->src != SRC_MARBLES ? 3 : kit() ? 2 : 4;   /* a KIT has no X section */
+        return t->src == SRC_TONNETZ ? 4 : t->src == SRC_CHORDS ? 3 : t->src == SRC_ORBITS || t->src == SRC_LANES ? 2 : t->src != SRC_MARBLES ? 3 : kit() ? 2 : 4;   /* a KIT has no X section */
     }
     if (d == D_SEQ && notes_on()) {     /* the cursor's step first, then SEQ's own */
         __builtin_memcpy(out, NOTES_PAGES, 5);
@@ -298,6 +302,9 @@ static int knob_get(int pid, int k)
     case P_CHORDS * 4:
     case P_TONNETZ * 4:
     case P_ORBITS * 4: return t->div;
+    case P_CHORD * 4: return CH_DEG(t->chords.ch[ui.chcur]);
+    case P_CHORD * 4 + 1: return CH_SIZE(t->chords.ch[ui.chcur]);
+    case P_TZSTEP * 4: return TZ_OP(&t->tonnetz, ui.tzcur);
     case P_ORBITS * 4 + 1: return t->orbits.note;
     case P_ORBITS * 4 + 2: return t->orbits.moons;
     case P_MOON * 4:
@@ -452,6 +459,9 @@ static void knob_set(int pid, int k, int v)
     case P_CHORDS * 4:
     case P_TONNETZ * 4:
     case P_ORBITS * 4: t->div = (uint8_t)v; break;
+    case P_CHORD * 4: t->chords.ch[ui.chcur] = CH_MAKE(v, CH_SIZE(t->chords.ch[ui.chcur])); break;
+    case P_CHORD * 4 + 1: t->chords.ch[ui.chcur] = CH_MAKE(CH_DEG(t->chords.ch[ui.chcur]), v); break;
+    case P_TZSTEP * 4: TZ_SET(&t->tonnetz, ui.tzcur, v); break;
     case P_ORBITS * 4 + 1: t->orbits.note = (uint8_t)v; break;
     case P_ORBITS * 4 + 2:
         t->orbits.moons = (uint8_t)v;
@@ -1633,7 +1643,24 @@ void ui_input(void)
         } else if (ui.sel_ref >= 0) {
             attr_turn(&pat()->steps[ui.spage * 16 + ui.sel_ref], ui.attr, e);
             sel_copy();
-        } else if (ui.domain == D_SEQ && pat()->src == SRC_ORBITS && (page_id() == P_MOON || page_id() == P_MOONK)) {   /* the moon set */
+        } else if (ui.domain == D_SEQ && pat()->src == SRC_GRIDS) {   /* the map's 25 rhythms: X and Y on its nodes */
+            q_grids *gr = &pat()->grids;
+            static const uint8_t NODE[5] = {0, 32, 64, 96, 127};
+            int i = clamp((gr->y + 16) / 32, 0, 4) * 5 + clamp((gr->x + 16) / 32, 0, 4);
+            i = clamp(i + e, 0, 24);
+            gr->x = NODE[i % 5], gr->y = NODE[i / 5];
+            ui.dirty = 1;
+        } else if (ui.domain == D_SEQ && pat()->src == SRC_MARBLES) {   /* a new draw of the random loops */
+            audio_marbles_draw(ui.track);
+            ui.draws++;
+        } else if (ui.domain == D_SEQ && pat()->src == SRC_LIFE) {      /* SEED: a new grid at the next tour */
+            pat()->life.seed = (uint8_t)clamp(pat()->life.seed + e, 0, 127);
+            ui.dirty = 1;
+        } else if (ui.domain == D_SEQ && pat()->src == SRC_CHORDS) {    /* the chord the CHORD page sets */
+            ui.chcur = clamp(ui.chcur + e, 0, pat()->chords.len - 1);
+        } else if (ui.domain == D_SEQ && pat()->src == SRC_TONNETZ) {   /* the step the STEP page sets */
+            ui.tzcur = clamp(ui.tzcur + e, 0, pat()->tonnetz.len - 1);
+        } else if (ui.domain == D_SEQ && pat()->src == SRC_ORBITS) {   /* the moon set (MOON page) */
             ui.moon = clamp(ui.moon + e, 0, pat()->orbits.moons - 1);
         } else if (lanes_on()) {        /* the lane edited; a KIT has no OCT */
             ui.lane = clamp(ui.lane + e, 0, L_N - 1);
@@ -1662,6 +1689,10 @@ void ui_input(void)
         ui.cell = 0;
     if (ui.moon >= pat()->orbits.moons)         /* fewer moons: the one set among them */
         ui.moon = pat()->orbits.moons - 1;
+    if (ui.chcur >= pat()->chords.len)          /* a shorter progression or sequence: the cursor within it */
+        ui.chcur = pat()->chords.len - 1;
+    if (ui.tzcur >= pat()->tonnetz.len)
+        ui.tzcur = pat()->tonnetz.len - 1;
     if (kit() && ui.lane == L_OCT)              /* the track became a KIT: no OCT lane */
         ui.lane = L_NOTE;
     kpid = knob_page();
@@ -2014,6 +2045,19 @@ static void knob_text(int pid, int k, int v, char *b)
         while ((*b++ = *s++) != 0) {}
         return;
     }
+    if (pid == P_CHORD || pid == P_TZSTEP) {   /* the cursor's chord: its degree and note, its size; a step's op */
+        static const char *const RN[7] = {"I", "II", "III", "IV", "V", "VI", "VII"}, *const SZ[CS_N] = {"TRIAD", "SEVENTH", "SUS2", "SUS4"};
+        static const char *const OP[4] = {"-", "P", "L", "R"};
+        const char *s = pid == P_TZSTEP ? OP[v] : k ? SZ[v] : RN[v];
+        while ((*b++ = *s++) != 0) {}
+        if (pid == P_CHORD && !k) {         /* "IV F" */
+            b[-1] = ' ';
+            const char *const NN[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+            const char *n = NN[gen_life_note(pat()->chords.note, gen_scale(ui.p), ui.p->tonic, v) % 12];
+            while ((*b++ = *n++) != 0) {}
+        }
+        return;
+    }
     if ((pid == P_MOON || pid == P_MOONK) && k == 2) {   /* the moon's note, or its pad */
         static const char *const PADS3[3] = {"BD", "SN", "HH"};
         if (pid == P_MOONK) {
@@ -2219,9 +2263,9 @@ static void view_now(q_view *v)
             v->scene.anim = 8;                  /* scene_life.c; ui_frame fills its view */
         if (pid == P_LANES || pid == P_LENS)
             v->scene.anim = 9;                  /* scene_lanes.c; ui_frame fills its view */
-        if (pid == P_CHORDS || pid == P_PROG)
+        if (pid == P_CHORDS || pid == P_PROG || pid == P_CHORD)
             v->scene.anim = 10;                 /* scene_chords.c; ui_frame fills its view */
-        if (pid == P_TONNETZ || pid == P_WALK || pid == P_PLAY)
+        if (pid == P_TONNETZ || pid == P_WALK || pid == P_PLAY || pid == P_TZSTEP)
             v->scene.anim = 11;                 /* scene_tonnetz.c; ui_frame fills its view */
         if (pid == P_ORBITS || pid == P_MOON || pid == P_MOONK)
             v->scene.anim = 12;                 /* scene_orbits.c; ui_frame fills its view */
@@ -2891,7 +2935,8 @@ void ui_frame(void)
                     chv.strikes = strikes;
                     chv.step = (uint8_t)(v.scene.pos >= 0 ? v.scene.pos % 16 : 0);
                 }
-                chv.held = (int8_t)(chords_on() && ui.rec == R_GRID && ui.cell ? ui.cell - 1 : -1);
+                chv.held = (int8_t)(chords_on() && ui.rec == R_GRID && ui.cell ? ui.cell - 1   /* a chord held, or the CHORD page's */
+                                    : v.scene.pid == P_CHORD ? ui.chcur : -1);
                 for (int d = 0; d < 7; d++)
                     chv.scale_pc[d] = (uint8_t)(gen_life_note(c->note, sc, ui.p->tonic, d) % 12);
                 if (chv.held >= 0) {            /* the held chord: SMOOTH from the chord before it, that one in root position */
@@ -2980,7 +3025,8 @@ void ui_frame(void)
                 for (const char *p = NN[x[0]]; *p; p++) *o++ = *p;
                 if (cur.m) *o++ = 'm';
                 *o = 0;
-                tzw.held = (int8_t)(tonnetz_on() && ui.rec == R_GRID && ui.cell ? ui.cell - 1 : -1);
+                tzw.held = (int8_t)(tonnetz_on() && ui.rec == R_GRID && ui.cell ? ui.cell - 1   /* a step held, or the STEP page's */
+                                    : v.scene.pid == P_TZSTEP ? ui.tzcur : -1);
                 tzw.banner[0] = 0;
                 if (tzw.held >= 0) {            /* "STEP 3 - R > DM": what the step would give from the chord shown */
                     static const char OPC[4] = {'-', 'P', 'L', 'R'};
@@ -3007,7 +3053,7 @@ void ui_frame(void)
                 orw.o = t->orbits, orw.kit = (uint8_t)kit();
                 orw.playing = (uint8_t)(v.scene.pos >= 0);
                 orw.n = orw.playing ? audio_orbits(ui.track) : 0;
-                orw.sel = (int8_t)(v.scene.pid == P_MOON || v.scene.pid == P_MOONK ? ui.moon : -1);
+                orw.sel = (int8_t)ui.moon;     /* PRESET's moon, on both pages */
                 for (int m = 0; m < 4; m++) {   /* the moons' notes, or pads */
                     char *o = orw.name[m];
                     int val = t->orbits.val[m];
@@ -3280,6 +3326,7 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "active")) *got = (int)audio_load().active;
     else if (!strcmp(what, "src")) *got = t->src;
     else if (!strcmp(what, "gx")) *got = t->grids.x;
+    else if (!strcmp(what, "gy")) *got = t->grids.y;
     else if (!strcmp(what, "gdens1")) *got = t->grids.dens[0];
     else if (!strcmp(what, "mlen")) *got = t->marbles.len;
     else if (!strcmp(what, "mnotes")) *got = t->marbles.notes[0] | t->marbles.notes[1] << 8;
@@ -3313,6 +3360,9 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "onote")) *got = t->orbits.note;
     else if (!strcmp(what, "omoons")) *got = t->orbits.moons;
     else if (!strcmp(what, "osel")) *got = ui.moon;
+    else if (!strcmp(what, "chcur")) *got = ui.chcur;
+    else if (!strcmp(what, "tzcur")) *got = ui.tzcur;
+    else if (!strcmp(what, "mdraws")) *got = ui.draws;
     else if (!strncmp(what, "oper_", 5) && atoi(what + 5) >= 1 && atoi(what + 5) <= 4) *got = t->orbits.per[atoi(what + 5) - 1];
     else if (!strncmp(what, "opha_", 5) && atoi(what + 5) >= 1 && atoi(what + 5) <= 4) *got = t->orbits.pha[atoi(what + 5) - 1];
     else if (!strncmp(what, "oval_", 5) && atoi(what + 5) >= 1 && atoi(what + 5) <= 4) *got = t->orbits.val[atoi(what + 5) - 1];

@@ -1,0 +1,56 @@
+# PRESET in SEQ, by source: GRIDS the map's 25 rhythms, MARBLES a new draw, LIFE the seed, CHORDS and TONNETZ a cursor
+# with its page, ORBITS the moon on both pages; the pattern stays (SEQ held + white keys change it)
+wait 600
+tap SEQ
+turn K4 1
+expect src 1
+expect gx 64
+turn PRESET 1
+expect gx 96
+expect gy 64
+turn PRESET -2
+expect gx 32
+expect pattern 1
+turn K4 1
+expect src 2
+turn PRESET 1
+expect mdraws 1
+expect pattern 1
+turn K4 1
+expect src 3
+turn PRESET 2
+expect lseed 2
+expect pattern 1
+turn K4 2
+expect src 5
+turn PRESET 2
+expect chcur 2
+turn SELECT 2
+expect page 3
+spin K1 1
+expect cdeg_3 4
+spin K2 1
+expect csize_3 1
+wait 100
+shot preset_chord.png
+turn PRESET 9
+expect chcur 3
+turn SELECT 1
+expect page 1
+turn K4 1
+expect src 6
+turn PRESET 1
+expect tzcur 1
+turn SELECT 3
+expect page 4
+spin K1 -1
+expect top_2 1
+wait 100
+shot preset_tzstep.png
+turn SELECT 1
+expect page 1
+turn K4 1
+expect src 7
+turn PRESET 1
+expect osel 1
+expect pattern 1

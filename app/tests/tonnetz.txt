@@ -49,4 +49,6 @@ expect tvoice 1
 wait 100
 shot tonnetz_page3.png
 turn SELECT 1
+expect page 4
+turn SELECT 1
 expect page 1

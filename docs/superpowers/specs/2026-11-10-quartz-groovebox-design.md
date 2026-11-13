@@ -177,7 +177,7 @@ dans une croche ou une noire.
 |---|---|
 | ALGORITHM | choisir la piste 1–4 |
 | SELECT (encodeur) | passer d'une page à l'autre dans le domaine courant |
-| PRESET | parcourir ce qui est à l'écran : presets du moteur, type d'insert, pattern… ; dans SEQ, sur un pattern LANES, la ligne éditée ; sur un pattern ORBITS (page MOON), la lune réglée |
+| PRESET | parcourir ce qui est à l'écran : presets du moteur, type d'insert, pattern… ; dans SEQ selon la source : STEP le pattern (un pas tenu : sa fonction), GRIDS les 25 rythmes de la carte (X et Y sur ses nœuds), MARBLES un nouveau tirage des boucles, LIFE SEED, LANES la ligne éditée, CHORDS et TONNETZ un curseur (pages CHORD et STEP), ORBITS la lune réglée |
 | K1–K4 | les 4 paramètres de la page ; couleurs fixes bleu, vert, blanc, orange |
 | SEL (bouton) | valider (charger le preset choisi, confirmer une action) ; maintenu : Shift des pas (sélection dans la grille, p-locks en NOTES) |
 | MASTER | volume |

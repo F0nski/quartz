@@ -57,6 +57,8 @@ plus de 4 lunes, une saisie au clavier de la note d'une lune, MIMIC.
 - **Pas de mode GRILLE** : REC court ne fait rien (comme GRIDS) ; le clavier joue la piste.
 - **LED** : les blanches 1..MOONS à mi-niveau, pleine au passage de leur lune (si le pattern affiché joue).
 
+- **PRESET** choisit la lune réglée sur les deux pages (la scène l'encadre) ; la page MOON la règle.
+
 ## 5. La scène
 
 Direction V2 de la maquette. Coordonnées de la zone de scène 240 × 166 ; l'en-tête et les encodeurs restent ceux de

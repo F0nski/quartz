@@ -42,6 +42,7 @@ uint16_t gen_kept(uint16_t allowed, int tonic, int steps);  /* the pitch classes
 int gen_quantize(int note, uint16_t allowed, int tonic, int steps);  /* 1..127, in the notes STEPS keeps */
 
 void gen_reset(q_gen *g, uint32_t *rng);   /* rng fills the deja vu loops */
+void gen_marbles_draw(q_gen *g, uint32_t *rng);   /* MARBLES: its deja vu loops drawn again (PRESET) */
 /* The rank k of the pattern (0..loop - 1): fills *st (SF_ON when something plays, note[], vel, len 4, micro, ratchet)
    and returns the accented note slots (bit i: note[i]). rng: the sequencer's xorshift state. */
 int gen_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, int k, uint32_t *rng, q_step *st);

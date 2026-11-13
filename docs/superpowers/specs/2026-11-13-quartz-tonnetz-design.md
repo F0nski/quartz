@@ -101,6 +101,9 @@ REC, appui court, dans SEQ sur un pattern TONNETZ : désarmé ↔ GRILLE, comme 
   1–4.
 - L'état de la case tenue est celui de LANES et CHORDS ; PRESET change le pattern ; désarmé, le clavier joue la piste.
 
+- **PRESET** déplace un curseur sur les pas 1..LEN ; une 4e page, STEP (K1 OP), règle le pas sous le curseur, et la scène
+  le montre comme un pas tenu (bandeau).
+
 ## 6. La scène
 
 Direction T1 de la maquette. Coordonnées de la zone de scène 240 × 166 ; l'en-tête et les encodeurs restent ceux de

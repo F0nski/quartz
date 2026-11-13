@@ -107,6 +107,9 @@ REC, appui court, dans SEQ sur un pattern CHORDS : désarmé ↔ GRILLE, comme L
   de pattern ou de piste.
 - Désarmé, le clavier joue la piste.
 
+- **PRESET** déplace un curseur sur les accords 1..LEN ; une 3e page, CHORD (K1 DEGREE, K2 SIZE), règle l'accord sous le
+  curseur, et la scène le montre comme un accord tenu (bandeau).
+
 ## 6. La scène
 
 Direction C1 « Heptagone » de la maquette. Coordonnées de la zone de scène 240 × 166 ; l'en-tête et les encodeurs
