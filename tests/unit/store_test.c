@@ -442,6 +442,24 @@ static void store_keeps_punch_locks(void)
     assert(!memcmp(&a, &b, sizeof a));
 }
 
+/* LIFE's settings out of range in flash: brought back (poly 9 would overrun gen_life_rows' rows[4]) */
+static void store_clamps_life(void)
+{
+    static q_project a, b;
+    project_defaults(&a);
+    store_save(&a);
+    b = a;
+    b.pat[1][0].life = (q_life){ 9, 0, 5, 200, 200, 7, 40, 200 };
+    b.pat[1][1].life = (q_life){ 0, 200, 0, 0, 0, 0, 0, 0 };
+    write_raw(&b);
+    memset(&a, 0xAA, sizeof a);
+    assert(store_load(&a) == 0);
+    const q_life *l = &a.pat[1][0].life;
+    assert(l->poly == 4 && l->note == 1 && l->map == 1 && l->seed == 127 && l->dens == 127 && l->autos == 1 && l->gen == 3 && l->mut == 127);
+    l = &a.pat[1][1].life;
+    assert(l->poly == 1 && l->note == 127);
+}
+
 int main(void)
 {
     forget();
@@ -455,6 +473,7 @@ int main(void)
     store_clamps_fields();
     store_roundtrip_v3();
     store_clamps_v3();
+    store_clamps_life();
     store_v2_gives_defaults();
     store_roundtrip_v4();
     store_clamps_v4();

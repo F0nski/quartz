@@ -110,6 +110,11 @@ static void clamp_project(q_project *p)
             m->dejavu = (uint8_t)clampi(m->dejavu, 0, 127); m->spread = (uint8_t)clampi(m->spread, 0, 127);
             m->xbias = (uint8_t)clampi(m->xbias, 0, 127); m->steps = (uint8_t)clampi(m->steps, 0, 127);
             m->note = (uint8_t)clampi(m->note, 1, 127);
+            q_life *l = &q->life;
+            l->poly = (uint8_t)clampi(l->poly, 1, 4); l->note = (uint8_t)clampi(l->note, 1, 127);
+            l->map = (uint8_t)clampi(l->map, 0, 1); l->seed = (uint8_t)clampi(l->seed, 0, 127);
+            l->dens = (uint8_t)clampi(l->dens, 0, 127); l->autos = (uint8_t)clampi(l->autos, 0, 1);
+            l->gen = (uint8_t)clampi(l->gen, 0, 3); l->mut = (uint8_t)clampi(l->mut, 0, 127);
             for (int k = 0; k < Q_STEPS; k++) {
                 q_step *st = &q->steps[k];
                 for (int j = 0; j < 4; j++) st->note[j] = (uint8_t)clampi(st->note[j], 0, 127);

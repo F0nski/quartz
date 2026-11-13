@@ -531,7 +531,7 @@ static void life_seed_change_next_tour(void)
     gen_step(&G, &P, 0, pt, 0, &R, &st);
     assert(G.life.reseeds == 1);
     q_life_run want; memset(&want, 0, sizeof want);
-    life_seed(&want, 9, pt->life.dens);
+    gen_life_seed(&want, 9, pt->life.dens);
     assert(!memcmp(want.grid, G.life.grid, sizeof want.grid));
 }
 
@@ -619,7 +619,7 @@ static void life_pattern_switch_reseeds(void)
     q_step st;
     gen_step(&G, &P, 0, p2, 0, &R, &st);
     q_life_run want; memset(&want, 0, sizeof want);
-    life_seed(&want, 2, p2->life.dens);
+    gen_life_seed(&want, 2, p2->life.dens);
     assert(!memcmp(want.grid, G.life.grid, sizeof want.grid));
 }
 

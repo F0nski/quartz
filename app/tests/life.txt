@@ -24,6 +24,10 @@ spin K2 -127
 expect ldens 0
 spin K2 127
 expect ldens 127
+expect lempty 0
+spin K2 -127
+expect lempty 1
+spin K2 127
 spin K3 -3
 expect lauto 0
 spin K3 3

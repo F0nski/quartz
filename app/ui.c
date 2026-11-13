@@ -1635,6 +1635,19 @@ static int own_env(int m) { return (m >= 2 && m <= 4) || m >= 19; }
 
 static void attr_text(const q_step *s, int a, char *b);
 
+/* the grid LIFE's scene shows: the render's run while the pattern shown plays, else the one its SEED and DENS
+   start (stopped, or another pattern playing) */
+static void life_run(const q_pattern *t, q_life_run *out)
+{
+    if (audio_playing() && audio_pattern(ui.track) == ui.p->pattern[ui.track]) {
+        audio_life(ui.track, out);
+        if (out->seeded)
+            return;
+    }
+    __builtin_memset(out, 0, sizeof *out);
+    gen_life_seed(out, t->life.seed, t->life.dens);
+}
+
 static void knob_text(int pid, int k, int v, char *b)
 {
     if (pid >= P_SN1) {                 /* as a held step's panel shows it: a step with v in every field */
@@ -2478,7 +2491,7 @@ void ui_frame(void)
                 int n, k, r;
                 if (fresh)
                     life_enter();
-                audio_life(ui.track, &lfv.run);
+                life_run(t, &lfv.run);
                 lfv.col = (int8_t)(v.scene.pos >= 0 ? v.scene.pos % LIFE_W : -1);
                 lfv.played = 0;
                 n = lfv.col >= 0 ? gen_life_rows(&t->life, kit(), lfv.run.grid, lfv.col, rows) : 0;
@@ -2765,6 +2778,13 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "lauto")) *got = t->life.autos;
     else if (!strcmp(what, "lgen")) *got = t->life.gen;
     else if (!strcmp(what, "lmut")) *got = t->life.mut;
+    else if (!strcmp(what, "lempty")) {         /* the grid LIFE's scene shows */
+        q_life_run r;
+        life_run(t, &r);
+        *got = 1;
+        for (int k = 0; k < LIFE_H; k++)
+            if (r.grid[k]) *got = 0;
+    }
     else if (!strcmp(what, "mnote")) *got = t->marbles.note;
     else if (!strncmp(what, "trlen_", 6) && m >= 1 && m <= Q_TRACKS) *got = ui.shown.scene.tr[m - 1].len;
     else if (!strcmp(what, "pad")) *got = ui.pad + 1;

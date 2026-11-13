@@ -383,7 +383,7 @@ static void life_draw(q_life_run *l)
     l->stuck = 0;
 }
 
-static void life_seed(q_life_run *l, int seed, int dens)
+void gen_life_seed(q_life_run *l, int seed, int dens)
 {
     l->seed = (uint8_t)seed, l->dens = (uint8_t)dens, l->seeded = 1;
     l->rng = ((uint32_t)seed * 2654435761u ^ (uint32_t)dens * 40503u ^ 0x9e3779b9u) | 1;
@@ -456,11 +456,11 @@ static int life_step(q_gen *g, const q_project *p, int track, const q_pattern *p
     q_life_run *l = &g->life;
     const q_life *s = &pt->life;
     if (!l->seeded) {
-        life_seed(l, s->seed, s->dens);
+        gen_life_seed(l, s->seed, s->dens);
     } else if (k == 0) {
         if (l->seed != s->seed || l->dens != s->dens) {
             l->reseeds++;
-            life_seed(l, s->seed, s->dens);
+            gen_life_seed(l, s->seed, s->dens);
             l->tours = 0;
         } else if (++l->tours >= 1 << s->gen) {
             l->tours = 0;

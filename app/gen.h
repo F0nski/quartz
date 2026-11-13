@@ -39,6 +39,8 @@ int gen_loop(const q_pattern *pt);       /* GRIDS 32, MARBLES marbles.len, LIFE 
    cell. Returns their number. */
 /* the note row r plays on a synth: NOTE in the scale, r degrees of the scale up (at most 127) */
 int gen_life_note(int note, uint16_t scale, int tonic, int r);
+/* a fresh run drawn from SEED and DENS, as the render starts it */
+void gen_life_seed(q_life_run *l, int seed, int dens);
 int gen_life_rows(const q_life *l, int kit, const uint16_t grid[LIFE_H], int col, uint8_t rows[4]);
 
 #endif
