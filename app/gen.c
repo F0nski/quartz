@@ -501,7 +501,7 @@ static int lanes_step(q_gen *g, const q_project *p, int track, const q_pattern *
     const q_lanes *l = &pt->lanes;
     uint32_t c = g->lanes_n++;
     int v[L_N];
-    for (int i = 0; i < L_N; i++) v[i] = l->v[i][c % l->len[i]];
+    for (int i = 0; i < L_N; i++) v[i] = lanes_get(l, i, (int)(c % (uint32_t)lanes_len(l, i)));
     if (!v[L_TRIG]) return 0;
     int n;
     if (p->sound[track].model == M_KIT) n = KIT_NOTE + v[L_NOTE];

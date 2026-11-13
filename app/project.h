@@ -43,8 +43,30 @@ typedef struct { uint8_t tout, len, mode, bias, jitter, dejavu, spread, xbias, s
 /* poly 1..4, note 1..127, map 0 PADS / 1 BANDS, seed and dens 0..127, autos 0..1, gen 0..3 (1, 2, 4, 8 tours), mut 0..127 */
 typedef struct { uint8_t poly, note, map, seed, dens, autos, gen, mut; } q_life;
 enum { L_TRIG, L_NOTE, L_OCT, L_DUR, L_VEL, L_N };   /* LANES' lanes */
-/* note 1..127; len 1..16; v: TRIG 0..1, NOTE 0..15 (scale degrees; a KIT's pad), OCT 0..4 (-2..+2), DUR 0..4 (1/4..4 steps), VEL 0..3 */
-typedef struct { uint8_t note, len[L_N], v[L_N][16]; } q_lanes;
+/* note 1..127; nlen: lane l's length 1..16, less 1, in nibble l; trig: TRIG's cells (bit c); v: NOTE 0..15 (scale degrees; a
+   KIT's pad), OCT 0..4 (-2..+2), DUR 0..4 (1/4..4 steps), VEL 0..3, a nibble a cell (cell c in byte c / 2, low first).
+   Packed: 38 B a pattern, as the pool keeps its 8 KB spare (build.py) */
+typedef struct { uint8_t note, nlen[3]; uint16_t trig; uint8_t v[L_N - 1][8]; } q_lanes;
+static inline int lanes_len(const q_lanes *l, int i) { return (l->nlen[i >> 1] >> (i & 1) * 4 & 15) + 1; }
+static inline int lanes_get(const q_lanes *l, int i, int c)
+{
+    return i == L_TRIG ? l->trig >> c & 1 : l->v[i - 1][c >> 1] >> (c & 1) * 4 & 15;
+}
+static inline void lanes_set_len(q_lanes *l, int i, int n)
+{
+    int s = (i & 1) * 4;
+    l->nlen[i >> 1] = (uint8_t)((l->nlen[i >> 1] & ~(15 << s)) | (n - 1) << s);
+}
+static inline void lanes_set(q_lanes *l, int i, int c, int v)
+{
+    if (i == L_TRIG) {
+        l->trig = (uint16_t)(v ? l->trig | 1u << c : l->trig & ~(1u << c));
+        return;
+    }
+    int s = (c & 1) * 4;
+    uint8_t *b = &l->v[i - 1][c >> 1];
+    *b = (uint8_t)((*b & ~(15 << s)) | v << s);
+}
 typedef struct { uint8_t len, div, nlocks, path, xlen, ylen, ydiv, src; q_grids grids; q_marbles marbles; q_life life; q_lanes lanes; q_step steps[Q_STEPS]; q_lock locks[Q_LOCKS]; } q_pattern;
 typedef struct { uint8_t used, mute, pat[Q_TRACKS]; } q_scene;
 typedef struct { uint8_t scene, reps; } q_entry;          /* scene 0..7, reps 1..16 */

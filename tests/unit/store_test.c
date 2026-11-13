@@ -460,7 +460,7 @@ static void store_clamps_life(void)
     assert(l->poly == 1 && l->note == 127);
 }
 
-/* LANES' values out of range in flash: brought back (len 0 would divide by zero, v past the tables) */
+/* LANES' values out of range in flash: brought back (a nibble past the tables' ends) */
 static void lanes_clamped_on_load(void)
 {
     static q_project a, b;
@@ -468,14 +468,14 @@ static void lanes_clamped_on_load(void)
     store_save(&a);
     b = a;
     q_lanes *w = &b.pat[2][0].lanes;
-    w->note = 0; w->len[L_TRIG] = 0; w->len[L_NOTE] = 40; w->v[L_NOTE][0] = 99; w->v[L_OCT][0] = 9;
-    w->v[L_TRIG][1] = 7; w->v[L_DUR][2] = 9; w->v[L_VEL][3] = 9;
+    w->note = 0;
+    lanes_set(w, L_OCT, 0, 9); lanes_set(w, L_DUR, 2, 15); lanes_set(w, L_VEL, 3, 12); lanes_set(w, L_NOTE, 1, 15);
     write_raw(&b);
     memset(&a, 0xAA, sizeof a);
     assert(store_load(&a) == 0);
     const q_lanes *l = &a.pat[2][0].lanes;
-    assert(l->note == 1 && l->len[L_TRIG] == 1 && l->len[L_NOTE] == 16 && l->v[L_NOTE][0] == 15 && l->v[L_OCT][0] == 4);
-    assert(l->v[L_TRIG][1] == 1 && l->v[L_DUR][2] == 4 && l->v[L_VEL][3] == 3);
+    assert(l->note == 1 && lanes_get(l, L_OCT, 0) == 4 && lanes_get(l, L_DUR, 2) == 4 && lanes_get(l, L_VEL, 3) == 3);
+    assert(lanes_get(l, L_NOTE, 1) == 15 && lanes_get(l, L_OCT, 1) == 2);   /* in range: kept, the neighbour untouched */
 }
 
 int main(void)

@@ -1794,9 +1794,13 @@ static void nreset(void)
 {
     static const char *const N[16] = {"C", "D", "E", "F", "G", "A", "B", "C", "D", "E", "F", "G", "A", "B", "C", "D"};
     memset(&NV, 0, sizeof NV);
-    static const q_lanes D = { 48, { 7, 5, 3, 4, 6 }, {
-        { 1, 0, 1, 1, 0, 1, 0 }, { 0, 4, 2, 5, 3 }, { 2, 2, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 }, { 1, 3, 1, 2 }, { 3, 1, 2, 1, 3, 2 } } };
-    NV.lanes = D;                                    /* a fresh pattern's (seq.c) */
+    static const uint8_t LEN[L_N] = { 7, 5, 3, 4, 6 }, V[L_N][16] = {
+        { 1, 0, 1, 1, 0, 1, 0 }, { 0, 4, 2, 5, 3 }, { 2, 2, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 }, { 1, 3, 1, 2 }, { 3, 1, 2, 1, 3, 2 } };
+    NV.lanes.note = 48;                              /* a fresh pattern's (seq.c) */
+    for (int l = 0; l < L_N; l++) {
+        lanes_set_len(&NV.lanes, l, LEN[l]);
+        for (int c = 0; c < 16; c++) lanes_set(&NV.lanes, l, c, V[l][c]);
+    }
     NV.head[0] = 3, NV.head[1] = 2, NV.head[2] = 1, NV.head[3] = 0, NV.head[4] = 5;
     NV.sel = L_NOTE, NV.flash = -1, NV.n = 40, NV.step_ms = 125;
     for (int c = 0; c < 16; c++) strcpy(NV.name[c], N[c]);
@@ -1818,7 +1822,7 @@ static int nbig_pink(int c) { int x = 6 + 29 * (c % 8), y = c < 8 ? 120 : 162; r
 static void lanes_budget(void)
 {
     nreset();
-    for (int l = 0; l < L_N; l++) { NV.lanes.len[l] = 16; memset(NV.lanes.v[l], l == L_TRIG ? 1 : l == L_NOTE ? 15 : l == L_VEL ? 3 : 4, 16); }
+    for (int l = 0; l < L_N; l++) { lanes_set_len(&NV.lanes, l, 16); for (int c = 0; c < 16; c++) lanes_set(&NV.lanes, l, c, l == L_TRIG ? 1 : l == L_NOTE ? 15 : l == L_VEL ? 3 : 4); }
     lanes_frame(&NV, 1000);
     assert(p3d_count() <= 300);
 }
@@ -1826,7 +1830,7 @@ static void lanes_budget(void)
 static void lanes_budget_floor_last(void)
 {
     nreset();
-    for (int l = 0; l < L_N; l++) { NV.lanes.len[l] = 16; memset(NV.lanes.v[l], 1, 16); NV.head[l] = -1; }
+    for (int l = 0; l < L_N; l++) { lanes_set_len(&NV.lanes, l, 16); for (int c = 0; c < 16; c++) lanes_set(&NV.lanes, l, c, 1); NV.head[l] = -1; }
     lanes_frame(&NV, 1000);
     nfull();
     for (int c = 0; c < 16; c++) assert(gcount(KBLUE[1], 6 + 29 * (c % 8), 6 + 29 * (c % 8) + 24, c < 8 ? 80 : 122, c < 8 ? 121 : 163) > 0);
@@ -1859,11 +1863,11 @@ static int wall_x(int y0, int y1)
 static void lanes_wall_follows_len(void)
 {
     nreset();
-    NV.lanes.len[L_NOTE] = 5;
+    lanes_set_len(&NV.lanes, L_NOTE, 5);
     lanes_frame(&NV, 1000);
     nfull();
     int top5 = wall_x(14 + 13 - 12, 14 + 13 + 1), big5 = wall_x(80, 121);
-    NV.lanes.len[L_NOTE] = 7;
+    lanes_set_len(&NV.lanes, L_NOTE, 7);
     lanes_frame(&NV, 1000);
     nfull();
     int top7 = wall_x(14 + 13 - 12, 14 + 13 + 1), big7 = wall_x(80, 121);
@@ -1876,7 +1880,8 @@ static void lanes_kit_four_rows(void)
     nreset();
     NV.kit = 1;
     lanes_frame(&NV, 1000); nfull(); memcpy(a, FULL, sizeof a);
-    memset(NV.lanes.v[L_OCT], 4, 16); NV.lanes.len[L_OCT] = 16;     /* a KIT has no OCT row: nothing changes */
+    for (int c = 0; c < 16; c++) lanes_set(&NV.lanes, L_OCT, c, 4);
+    lanes_set_len(&NV.lanes, L_OCT, 16);     /* a KIT has no OCT row: nothing changes */
     lanes_frame(&NV, 1000); nfull();
     assert(memcmp(a, FULL, sizeof a) == 0);
 }
@@ -1919,8 +1924,8 @@ static int ndiffers(void (*change)(void))
     nfull();
     return memcmp(ref, FULL, sizeof ref) != 0;
 }
-static void nch_len0(void) { NV.lanes.len[L_TRIG] = 3; }
-static void nch_len4(void) { NV.lanes.len[L_VEL] = 2; }
+static void nch_len0(void) { lanes_set_len(&NV.lanes, L_TRIG, 3); }
+static void nch_len4(void) { lanes_set_len(&NV.lanes, L_VEL, 2); }
 static void nch_sel(void) { NV.sel = L_DUR; }
 static void nch_name(void) { strcpy(NV.name[0], "D#"); }
 static void nch_head(void) { NV.head[L_TRIG] = 4; }

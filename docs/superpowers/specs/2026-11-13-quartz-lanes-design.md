@@ -51,9 +51,12 @@ les autres générateurs.
 ## 3. Données
 
 - `SRC_LANES` après `SRC_LIFE` (`project.h`), `SRC_NAME` « LANES ».
-- Dans `q_pattern`, à côté de `q_life` :
-  `typedef struct { uint8_t note, len[5], v[5][16]; } q_lanes;` (note 1..127, len 1..16, v selon la ligne,
-  section 2). 86 octets par pattern ; `store.c` vérifie déjà que `q_project` tient dans ses blocs.
+- Dans `q_pattern`, à côté de `q_life`, une structure compacte de 38 octets, lue et écrite par
+  `lanes_len`, `lanes_get`, `lanes_set_len`, `lanes_set` (`project.h`) :
+  `typedef struct { uint8_t note, nlen[3]; uint16_t trig; uint8_t v[4][8]; } q_lanes;` (note 1..127 ; chaque
+  longueur − 1 dans un demi-octet ; TRIG en masque de 16 bits ; NOTE, OCT, DUR et VEL un demi-octet par case).
+  Compacte parce que le projet vit dans le pool, qui doit garder 8 Ko de marge (`build.py`) : 86 octets par pattern
+  l'en privaient.
 - Valeurs par défaut (celles de la maquette, pour qu'un pattern neuf joue tout de suite) : NOTE 48 ;
   TRIG 1 0 1 1 0 1 0 (LEN 7) ; NOTE 0 4 2 5 3 (LEN 5) ; OCT 2 2 3 (LEN 3) ; DUR 1 3 1 2 (LEN 4) ; VEL 3 1 2 1 3 2
   (LEN 6) ; les cases au-delà valent 0 (OCT 2).

@@ -119,8 +119,8 @@ static void clamp_project(q_project *p)
             static const uint8_t LMAX[L_N] = { 1, 15, 4, 4, 3 };
             ln->note = (uint8_t)clampi(ln->note, 1, 127);
             for (int j = 0; j < L_N; j++) {
-                ln->len[j] = (uint8_t)clampi(ln->len[j], 1, 16);
-                for (int c = 0; c < 16; c++) ln->v[j][c] = (uint8_t)clampi(ln->v[j][c], 0, LMAX[j]);
+                for (int c = 0; c < 16; c++)         /* (a length, a nibble, is always 1..16) */
+                    lanes_set(ln, j, c, clampi(lanes_get(ln, j, c), 0, LMAX[j]));
             }
             for (int k = 0; k < Q_STEPS; k++) {
                 q_step *st = &q->steps[k];

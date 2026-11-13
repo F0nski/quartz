@@ -60,7 +60,7 @@ void lanes_frame(const q_laneview *v, uint32_t ms)
     ln.ms = ms;
     p3d_begin();
     /* the edited lane, big: front, top and side facets; a TRIG off a slab */
-    int l = v->sel, len = v->lanes.len[l];
+    int l = v->sel, len = lanes_len(&v->lanes, l);
     for (int c = 0; c < 16; c++) {
         float x = LN_BX + LN_BW * (float)(c % 8), y = LN_BASE[c / 8], w = 24.0f, d = 4.0f;
         if (c >= len) {
@@ -68,7 +68,7 @@ void lanes_frame(const q_laneview *v, uint32_t ms)
             continue;
         }
         const uint16_t *t = ln_tones(v, l, c, 1);
-        int val = v->lanes.v[l][c];
+        int val = lanes_get(&v->lanes, l, c);
         if (l == L_TRIG && !val) {
             ln_quad(x, y - 3.0f, x + w, y - 3.0f, x + w, y, x, y, 0.0f, t[2]);
             continue;
@@ -103,7 +103,7 @@ void lanes_band(const q_laneview *v, int32_t oy)
     p3d_draw(oy);
     /* the overview: a front and a top strip per block, a wall after LEN */
     for (int r = 0; r < nr; r++) {
-        int l = rows[r], len = v->lanes.len[l];
+        int l = rows[r], len = lanes_len(&v->lanes, l);
         int32_t y0 = oy + LN_Y0 + rh * r;
         glo_text(4, y0 - 4, &FONT_XS, LN_NAME[l], l == v->sel ? PINK3[1] : LN_UI, 2);
         for (int c = 0; c < 16; c++) {
@@ -113,7 +113,7 @@ void lanes_band(const q_laneview *v, int32_t oy)
                 continue;
             }
             const uint16_t *t = ln_tones(v, l, c, 0);
-            int val = v->lanes.v[l][c], cur = v->head[l] == c;
+            int val = lanes_get(&v->lanes, l, c), cur = v->head[l] == c;
             if (l == L_TRIG && !val) {
                 cv_rect(x, y0 - 2, 10, 2, t[cur ? 1 : 2]);
                 continue;
@@ -125,7 +125,7 @@ void lanes_band(const q_laneview *v, int32_t oy)
         cv_rect((int32_t)(LN_X0 + LN_CW * (float)len) - 2, y0 - 11, 2, 11, LN_WALL);
     }
     /* the edited lane: its title, its values above the blocks, the keys' numbers at their feet */
-    int l = v->sel, len = v->lanes.len[l];
+    int l = v->sel, len = lanes_len(&v->lanes, l);
     cv_rect(0, oy + 71, 240, 1, LN_DIM);
     char s[7] = {'L', 'E', 'N', ' ', (char)(len >= 10 ? '1' : '0' + len), (char)(len >= 10 ? '0' + len - 10 : 0), 0};
     glo_text(4, oy + 82, &FONT_S, "EDIT", PINK3[1], 2);
@@ -138,7 +138,7 @@ void lanes_band(const q_laneview *v, int32_t oy)
             glo_text(x, y - 6, &FONT_XS, num, LN_DIM, 0);
             continue;
         }
-        int val = v->lanes.v[l][c], cur = v->head[l] == c;
+        int val = lanes_get(&v->lanes, l, c), cur = v->head[l] == c;
         float h = l == L_TRIG ? (val ? 22.0f : 3.0f) : 6.0f + ln_h(l, val) * 20.0f;
         glo_text(x, y - 4, &FONT_XS, num, cur ? MB_WHITE[0] : KBLUE[0], 0);
         if (l == L_TRIG) continue;

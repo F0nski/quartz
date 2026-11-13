@@ -278,11 +278,11 @@ static int knob_get(int pid, int k)
     case P_LIFEK * 4:
     case P_LANES * 4: return t->div;
     case P_LANES * 4 + 1: return t->lanes.note;
-    case P_LANES * 4 + 2: return t->lanes.len[L_TRIG];
+    case P_LANES * 4 + 2: return lanes_len(&t->lanes, L_TRIG);
     case P_LENS * 4:
     case P_LENS * 4 + 1:
     case P_LENS * 4 + 2:
-    case P_LENS * 4 + 3: return t->lanes.len[1 + k];
+    case P_LENS * 4 + 3: return lanes_len(&t->lanes, 1 + k);
     case P_LIFE * 4 + 1:
     case P_LIFEK * 4 + 1: return t->life.poly;
     case P_LIFE * 4 + 2: return t->life.note;
@@ -408,11 +408,11 @@ static void knob_set(int pid, int k, int v)
     case P_LIFEK * 4:
     case P_LANES * 4: t->div = (uint8_t)v; break;
     case P_LANES * 4 + 1: t->lanes.note = (uint8_t)v; break;
-    case P_LANES * 4 + 2: t->lanes.len[L_TRIG] = (uint8_t)v; break;
+    case P_LANES * 4 + 2: lanes_set_len(&t->lanes, L_TRIG, v); break;
     case P_LENS * 4:
     case P_LENS * 4 + 1:
     case P_LENS * 4 + 2:
-    case P_LENS * 4 + 3: t->lanes.len[1 + k] = (uint8_t)v; break;
+    case P_LENS * 4 + 3: lanes_set_len(&t->lanes, 1 + k, v); break;
     case P_LIFE * 4 + 1:
     case P_LIFEK * 4 + 1: t->life.poly = (uint8_t)v; break;
     case P_LIFE * 4 + 2: t->life.note = (uint8_t)v; break;
@@ -1245,13 +1245,13 @@ static void key_down(int k)
         q_lanes *l = &t->lanes;
         if (ui.cell) {                  /* a NOTE cell held: another key writes its degree (a KIT: its pad) */
             if (ui.lane == L_NOTE && (note = key_play_note(k)) >= 0) {
-                l->v[L_NOTE][ui.cell - 1] = (uint8_t)(kit() ? clamp(note - KIT_NOTE, 0, 15)
-                                                           : gen_lanes_degree(l->note, gen_scale(ui.p), ui.p->tonic, note));
+                lanes_set(l, L_NOTE, ui.cell - 1, kit() ? clamp(note - KIT_NOTE, 0, 15)
+                                                       : gen_lanes_degree(l->note, gen_scale(ui.p), ui.p->tonic, note));
                 ui.cell_edited = ui.dirty = 1;
             }
             return;
         }
-        if (w < l->len[ui.lane]) {      /* past LEN: nothing */
+        if (w < lanes_len(l, ui.lane)) {   /* past LEN: nothing */
             ui.cell = ui.cell_flash = w + 1;
             ui.cell_key = k;
             ui.cell_edited = 0;
@@ -1376,8 +1376,8 @@ static void key_up(int k)
     }
     if (ui.cell && k == ui.cell_key) {  /* nothing edited: the cell's value steps up, back to 0 past its top (TRIG toggles) */
         if (!ui.cell_edited && pat()->src == SRC_LANES) {
-            uint8_t *v = &pat()->lanes.v[ui.lane][ui.cell - 1];
-            *v = (uint8_t)((*v + 1) % (LANE_MAX[ui.lane] + 1));
+            q_lanes *l = &pat()->lanes;
+            lanes_set(l, ui.lane, ui.cell - 1, (lanes_get(l, ui.lane, ui.cell - 1) + 1) % (LANE_MAX[ui.lane] + 1));
             ui.dirty = 1;
         }
         ui.cell = 0;
@@ -1527,8 +1527,8 @@ void ui_input(void)
         e = plat_enc(EN_K1 + i);
         if (ui.cell) {                          /* a LANES cell held: K1 sets it, the others nothing */
             if (!i && e && pat()->src == SRC_LANES) {
-                uint8_t *v = &pat()->lanes.v[ui.lane][ui.cell - 1];
-                *v = (uint8_t)clamp(*v + e, 0, LANE_MAX[ui.lane]);
+                q_lanes *l = &pat()->lanes;
+                lanes_set(l, ui.lane, ui.cell - 1, clamp(lanes_get(l, ui.lane, ui.cell - 1) + e, 0, LANE_MAX[ui.lane]));
                 ui.cell_edited = ui.dirty = 1;
             }
         } else if (ui.held) {
@@ -1643,10 +1643,10 @@ static uint32_t key_lights(uint32_t *mid)
     } else if (notes_on()) {                    /* the cursor's step's notes */
         keys = step_keys(&t->steps[ui.cursor - 1]);
     } else if (ui.domain == D_SEQ && t->src == SRC_LANES) {  /* the edited lane's cells set at mid level, its head lit */
-        int len = t->lanes.len[ui.lane];
+        int len = lanes_len(&t->lanes, ui.lane);
         uint32_t n = audio_lanes(ui.track);
         for (i = 0; i < len; i++)
-            if (t->lanes.v[ui.lane][i])
+            if (lanes_get(&t->lanes, ui.lane, i))
                 *mid |= 1u << WHITE[i];
         if (pos >= 0 && n && audio_pattern(ui.track) == ui.p->pattern[ui.track])
             keys |= 1u << WHITE[(n - 1) % (uint32_t)len];
@@ -2882,8 +2882,8 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "lsel")) *got = ui.lane;
     else if (!strcmp(what, "lcell")) *got = ui.cell;
     else if (!strncmp(what, "lv_", 3) && what[3] >= '0' && what[3] < '0' + L_N && what[4] == '_' && atoi(what + 5) >= 1 && atoi(what + 5) <= 16)
-        *got = t->lanes.v[what[3] - '0'][atoi(what + 5) - 1];
-    else if (!strncmp(what, "llen_", 5) && what[5] >= '0' && what[5] < '0' + L_N && !what[6]) *got = t->lanes.len[what[5] - '0'];
+        *got = lanes_get(&t->lanes, what[3] - '0', atoi(what + 5) - 1);
+    else if (!strncmp(what, "llen_", 5) && what[5] >= '0' && what[5] < '0' + L_N && !what[6]) *got = lanes_len(&t->lanes, what[5] - '0');
     else if (!strcmp(what, "lempty")) {         /* the grid LIFE's scene shows */
         q_life_run r;
         life_run(t, &r);
