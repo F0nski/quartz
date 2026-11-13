@@ -144,7 +144,7 @@ typedef struct {
 void lanes_frame(const q_laneview *v, uint32_t ms);  /* builds the primitives */
 void lanes_band(const q_laneview *v, int32_t oy);    /* p3d_draw, then the texts */
 ```
-Géométrie : spec section 6 (coordonnées, hauteurs, sol filaire), maquette `drawFocus(g, 1)` et `decor(g, 1)` pour les tons et les facettes ; mur rose `#9a1659` ; case touchée blanche pendant 300 ms après `flash_ms` ; le sol glisse de la fraction `(ms - t_pas) / step_ms`, où `t_pas` est l'heure où `lanes_frame` a vu `n` changer, et ne bouge pas quand `n` ne change plus (arrêt). Ordre d'envoi : ligne éditée, vue d'ensemble, murs, sol. Textes : `FONT_S`, `EDIT <LANE>` et `LEN <n>`, `-2 -1 0 +1 +2`, `1/4 1/2 1 2 4`, `pp mf f ff`.
+Géométrie : spec section 6 (coordonnées, hauteurs, sol filaire), maquette `drawFocus(g, 1)` et `decor(g, 1)` pour les tons et les facettes ; mur rose `#9a1659` ; case touchée blanche pendant 300 ms après `flash_ms` ; le sol glisse de la fraction `(ms - t_pas) / step_ms`, bornée à 1, où `t_pas` est l'heure où `lanes_frame` a vu `n` changer, et ne bouge pas quand `n` ne change plus (arrêt). Ordre d'envoi : ligne éditée, vue d'ensemble, murs, sol. Textes : `FONT_S`, `EDIT <LANE>` et `LEN <n>`, `-2 -1 0 +1 +2`, `1/4 1/2 1 2 4`, `pp mf f ff`.
 
 - [ ] **Step 1: Tests** dans `scene_test.c` (`lnview()` : défauts de Task 1, `head` {3, 2, 1, 0, 5}, `sel` 1, `flash` −1 ; `lnband(b)` sur le modèle de `lband`) :
   - `lanes_budget` : cinq lignes de 16 cases toutes à leur max, LEN 16 : `p3d_count() <= 300`.
