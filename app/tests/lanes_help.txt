@@ -1,0 +1,26 @@
+# A LANES cell held long: its help (layer 15: no button, NB + 1); let go then, it changes nothing; a tap still steps it
+wait 600
+tap SEQ
+turn K4 4
+tap REC
+turn PRESET 1
+expect lsel 1
+key 0 down
+wait 600
+expect layer 15
+wait 100
+shot lanes_help_note.png
+key 0 up
+expect layer 0
+expect lv_1_1 0
+tapkey w0
+expect lv_1_1 1
+turn PRESET 1
+expect lsel 2
+key 0 down
+wait 600
+expect layer 15
+wait 100
+shot lanes_help_oct.png
+key 0 up
+expect layer 0

@@ -93,8 +93,9 @@ passe en LIVE pour jouer sans rien écrire, comme pour les autres générateurs.
     et borné entre 0 et 15 ;
   - KIT : écrit le pad que joue cette touche.
 - Une case au-delà de LEN ne fait rien.
-- L'aide des boutons tenus (spec `2026-11-12-quartz-step-entry-design.md`, section 7) montre ces gestes pour une case
-  tenue.
+- **Case tenue plus de 0,4 s** (sans rien éditer) : son aide remplace la scène, comme celle d'un bouton tenu
+  (`+ K1 SET THE CELL`, sur NOTE `+ KEY WRITES ITS NOTE` avec les touches qui écrivent allumées, `HOLD NOTHING ON
+  RELEASE`) ; relâchée ensuite, elle ne change rien.
 
 ## 6. La scène
 

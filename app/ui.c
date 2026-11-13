@@ -1375,8 +1375,8 @@ static void key_up(int k)
         ui.punch &= (uint16_t)~(1u << w);
         audio_punch(ui.punch);
     }
-    if (ui.cell && k == ui.cell_key) {  /* nothing edited: the cell's value steps up, back to 0 past its top (TRIG toggles) */
-        if (!ui.cell_edited && pat()->src == SRC_LANES) {
+    if (ui.cell && k == ui.cell_key) {  /* a tap: the cell's value steps up, back to 0 past its top (TRIG toggles) */
+        if (!ui.cell_edited && plat_ms() - ui.cell_ms <= HOLD_MS && pat()->src == SRC_LANES) {   /* a long hold: its help */
             q_lanes *l = &pat()->lanes;
             lanes_set(l, ui.lane, ui.cell - 1, (lanes_get(l, ui.lane, ui.cell - 1) + 1) % (LANE_MAX[ui.lane] + 1));
             ui.dirty = 1;
@@ -1570,6 +1570,7 @@ static uint32_t scale_keys(void)
 /* the buttons that lay a layer on the keys, and the one whose map is shown: held over HOLD_MS with nothing pressed
    before the map came, then kept while it is held (SEL only on the grid and in NOTES); -1 none */
 static const uint8_t LAYER_BTN[7] = {B_HOME, B_FX, B_SAVE, B_SEQ, B_ARP, B_SEL, B_REC};
+#define B_CELL NB                       /* a LANES cell held long: its layer, no button's */
 static int layer_shown(void)
 {
     int i, b;
@@ -1581,6 +1582,8 @@ static int layer_shown(void)
         if (long_held(b) && !(ui.used >> b & 1u) && (b != B_SEL || grid_on() || notes_on()) && (b != B_REC || ui.rec != R_ARM))
             return b;
     }
+    if (ui.cell && !ui.cell_edited && plat_ms() - ui.cell_ms > HOLD_MS)
+        return B_CELL;
     return -1;
 }
 
@@ -1593,6 +1596,13 @@ static uint32_t layer_keys(int b)
     case B_HOME:                        /* the mutes, the scenes */
         for (i = 0; i < 16; i++)
             keys |= (uint32_t)(i < Q_TRACKS || i >= 8) << WHITE[i];
+        return keys;
+    case B_CELL:                        /* NOTE: every other key writes its note (a KIT: the white keys, its pads) */
+        if (ui.lane != L_NOTE)
+            return 0;
+        for (i = 0; i < NKEYS; i++)
+            if (key_play_note(i) >= 0 && i != ui.cell_key)
+                keys |= 1u << i;
         return keys;
     case B_FX:
     case B_SAVE:
@@ -2250,6 +2260,12 @@ static void draw_layer(const q_view *v, int32_t oy)
             tags[n] = tb[i], names[n++] = nb[i];
         }
         combo[0][0] = "+ SEL", combo[0][1] = "STORE THE SCENE";
+        break;
+    case B_CELL:
+        combo[0][0] = "+ K1", combo[0][1] = "SET THE CELL";
+        if (v->scene.lkeys)
+            combo[1][0] = "+ KEY", combo[1][1] = "WRITES ITS NOTE";
+        combo[v->scene.lkeys ? 2 : 1][0] = "HOLD", combo[v->scene.lkeys ? 2 : 1][1] = "NOTHING ON RELEASE";
         break;
     case B_FX:
         for (i = 0; i < 16; i++) {
