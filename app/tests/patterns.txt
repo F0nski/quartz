@@ -1,6 +1,7 @@
 # PATH, the XY page, and the pattern asked
 wait 600
 tap SEQ
+tap REC
 turn K3 3
 expect path 3
 wait 100

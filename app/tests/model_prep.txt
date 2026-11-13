@@ -2,6 +2,7 @@
 # sounds its one voice (4), none left after stop
 wait 600
 tap SEQ
+tap REC
 key 0 down
 key 0 up
 turn ALGO 1

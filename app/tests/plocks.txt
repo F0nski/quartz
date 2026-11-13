@@ -1,6 +1,7 @@
 # P-locks from a held step; the table full
 wait 600
 tap SEQ
+tap REC
 key 0 down
 turn K1 20
 expect lockharm_1 84

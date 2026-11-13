@@ -1,6 +1,7 @@
 # MARBLES: 4 pages, the allowed notes, and back to STEP with its steps kept
 wait 600
 tap SEQ
+tap REC
 key 0 down
 key 0 up
 expect stepon_1 1

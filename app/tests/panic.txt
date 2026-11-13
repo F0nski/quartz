@@ -1,6 +1,7 @@
 # An update that commits nothing: app_panic mutes, then app_ui_init resumes the sound
 wait 600
 tap SEQ
+tap REC
 key 0 down
 key 0 up
 key 1 down

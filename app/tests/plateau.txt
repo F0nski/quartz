@@ -1,6 +1,7 @@
 # The SEQ plateau: stopped, playing, a held step, the path, a short LEN, XY, then page 3 of 64 steps
 wait 600
 tap SEQ
+tap REC
 expect anim 2
 key 0 down
 key 0 up

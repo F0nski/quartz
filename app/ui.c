@@ -407,6 +407,9 @@ static void knob_turn(int pid, int k, int d)
 /* ------------------------------------------------------------------ input --- */
 static void rec_set(int r);
 
+/* SEQ's white keys are its steps: REC on the grid, a STEP pattern */
+static int grid_on(void) { return ui.domain == D_SEQ && ui.rec == R_GRID && pat()->src == SRC_STEP; }
+
 static void button(int b)
 {
     int d;
@@ -432,7 +435,7 @@ static void button(int b)
                 rec_set(R_OFF);
             audio_play(0);
         } else {                        /* NOTES out of SEQ starts LIVE; armed before the start: the count-in */
-            if (ui.rec == R_ARM || (ui.rec == R_NOTES && ui.domain != D_SEQ))
+            if (ui.rec == R_ARM || ((ui.rec == R_NOTES || ui.rec == R_GRID) && ui.domain != D_SEQ))
                 rec_set(R_LIVE);
             audio_play(1);
         }
@@ -452,7 +455,7 @@ static void button(int b)
     case B_OCTDN:
     case B_OCTUP:
         d = b == B_OCTUP ? 1 : -1;
-        if (ui.domain == D_SEQ)
+        if (grid_on())
             ui.spage = clamp(ui.spage + d, 0, Q_STEPS / 16 - 1);
         else
             ui.octave = clamp(ui.octave + d, -2, 2);
@@ -657,6 +660,8 @@ static void rec_set(int r)
 {
     if (r == R_NOTES && ui.rec != R_NOTES)
         ui.cursor = 1;
+    if (r != R_GRID)                    /* a step held on the grid is let go: its release toggles nothing */
+        ui.held = 0;
     ui.rec = r;
     audio_rec(r == R_LIVE);
 }
@@ -787,6 +792,18 @@ static int scale_note(int w)
     return -1;
 }
 
+/* the note key k plays: octave, KEYS (the scale on the white keys, the black ones mute), a KIT's pads; -1 none */
+static int key_play_note(int k)
+{
+    int w;
+    for (w = 0; w < 16 && WHITE[w] != k; w++) {}
+    if (kit())
+        return w < 16 ? KIT_NOTE + w : -1;
+    if (keys_in_scale())
+        return w < 16 ? scale_note(w) : -1;
+    return 53 + k + 12 * ui.octave;
+}
+
 static void key_down(int k)
 {
     q_pattern *t = pat();
@@ -814,22 +831,22 @@ static void key_down(int k)
         }
         return;
     }
-    if (ui.domain == D_SEQ && t->src != SRC_STEP && !ui.seqdown) {     /* a generator: the keys play the track */
+    if (ui.domain == D_SEQ && ui.seqdown) {    /* SEQ held: the white keys 1..8 are the patterns, the first black one CLEAR */
+        if (w < Q_PATTERNS) {
+            pattern_set(w);
+        } else if (k == BLACK[0]) {
+            for (i = 0; i < Q_STEPS; i++)
+                step_clear(t, i);
+            ui.dirty = 1;
+        }
+        return;
+    }
+    if (ui.domain == D_SEQ && t->src != SRC_STEP) {    /* a generator: the keys play the track */
         if (page_id() == P_NOTES) {
             notes_toggle(note % 12);
             return;
         }
-    } else if (ui.domain == D_SEQ) {    /* the white keys are the page's 16 steps */
-        if (ui.seqdown) {               /* SEQ held: the white keys 1..8 are the patterns, the first black one CLEAR */
-            if (w < Q_PATTERNS) {
-                pattern_set(w);
-            } else if (k == BLACK[0]) {
-                for (i = 0; i < Q_STEPS; i++)
-                    step_clear(t, i);
-                ui.dirty = 1;
-            }
-            return;
-        }
+    } else if (grid_on()) {             /* the white keys are the page's 16 steps */
         if (w < 16 && !ui.held) {
             ui.held = ui.spage * 16 + w + 1;
             ui.held_key = k;
@@ -847,12 +864,9 @@ static void key_down(int k)
             return;
         }
     }
-    if (keys_in_scale() && (w == 16 || (note = scale_note(w)) < 0))
+    if ((note = key_play_note(k)) < 0)
         return;
     if (kit()) {                        /* the white keys are the pads */
-        if (w == 16)
-            return;
-        note = KIT_NOTE + w;
         ui.pad = w;
         if (!s)
             ui.padheld = k + 1;
@@ -876,7 +890,7 @@ static void key_down(int k)
         if (ui.nwrote < ui.p->sound[ui.track].poly)
             s->note[ui.nwrote++] = (uint8_t)note;
         step_on(s);
-    } else if (ui.rec == R_NOTES && !audio_playing() && t->src == SRC_STEP) {    /* step entry: the note at the cursor, then the next step; playing, the render records */
+    } else if ((ui.rec == R_NOTES || ui.rec == R_GRID) && !audio_playing() && t->src == SRC_STEP) {    /* step entry: the note at the cursor, then the next step; playing, the render records */
         s = &t->steps[ui.cursor - 1];
         s->note[0] = (uint8_t)note;
         s->vel = 100;
@@ -953,9 +967,9 @@ void ui_input(void)
         save_release();
     if ((ui.btn & ~btn) >> B_REC & 1u)
         rec_release();
-    if (ui.domain != D_SEQ && (ui.rec == R_GRID || (ui.rec == R_NOTES && audio_playing())))   /* out of SEQ: GRID is NOTES,
-                                                                                              NOTES playing is LIVE */
-        rec_set(audio_playing() ? R_LIVE : R_NOTES);
+    if (ui.domain != D_SEQ && (ui.rec == R_GRID || ui.rec == R_NOTES) && audio_playing())   /* out of SEQ, GRID is NOTES:
+                                                                                               playing, LIVE */
+        rec_set(R_LIVE);
     if (ui.arm_key && audio_pos(ui.track) >= 0 && (i = ui.arm_key - 1, ui.arm_key = 0, keys >> i & 1u))
         key_down(i);
     for (i = 0; i < NKEYS; i++) {
@@ -966,6 +980,8 @@ void ui_input(void)
     }
     ui.btn = btn;
     ui.keys = keys;
+    if (ui.domain == D_SEQ && (ui.rec == R_OFF || ui.rec == R_LIVE) && audio_pos(ui.track) >= 0)   /* the page playing shown */
+        ui.spage = audio_pos(ui.track) / 16;
     punch_rec();
     d = ui.domain;                      /* after the buttons: SELECT turns the page of the domain just picked */
     n = domain_n(d);
@@ -1044,7 +1060,7 @@ static void lights(void)
         btn |= 1u << B_PLAY;
     if (ui.rec)
         btn |= 1u << B_REC;
-    if (ui.domain != D_SEQ && ui.octave)        /* the octave shifted: its direction lit (in SEQ they page the steps) */
+    if (!grid_on() && ui.octave)                /* the octave shifted: its direction lit (on the grid they page the steps) */
         btn |= 1u << (ui.octave > 0 ? B_OCTUP : B_OCTDN);
     if (ui.domain == D_SEQ && ui.seqdown)       /* SEQ held: the pattern asked */
         keys = 1u << WHITE[ui.p->pattern[ui.track]];
@@ -1891,6 +1907,8 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "playing")) *got = audio_playing();
     else if (!strcmp(what, "rec")) *got = ui.rec;
     else if (!strcmp(what, "cursor")) *got = ui.cursor;
+    else if (!strcmp(what, "octave")) *got = ui.octave;
+    else if (!strcmp(what, "spage")) *got = ui.spage + 1;
     else if (!strcmp(what, "model")) *got = s->model;
     else if (!strcmp(what, "poly")) *got = s->poly;
     else if (!strcmp(what, "tune")) *got = s->tune;

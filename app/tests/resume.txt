@@ -4,6 +4,7 @@ key 7 down
 wait 100
 expect active 1
 tap SEQ
+tap REC
 key 0 down
 key 0 up
 expect dirty 1

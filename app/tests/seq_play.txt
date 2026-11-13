@@ -1,0 +1,32 @@
+# SEQ disarmed: the keys play the track, OCT is the octave; on the grid OCT pages the steps; playing, the page follows
+wait 600
+tap SEQ
+expect hits 0
+key w0 down
+wait 50
+expect hits 1
+expect stepon_1 0
+expect held 0
+key w0 up
+expect stepon_1 0
+tap OCT+
+expect octave 1
+expect spage 1
+tap REC
+expect rec 1
+tap OCT+
+expect spage 2
+expect octave 1
+tap OCT-
+expect spage 1
+tap REC
+tap REC
+expect rec 0
+# a pattern of 32 steps playing, disarmed: the page shown is the one playing
+turn K1 16
+expect len 32
+tap PLAY
+wait 2600
+expect pos >16
+expect spage 2
+tap PLAY

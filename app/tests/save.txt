@@ -4,6 +4,7 @@ tap GLO
 turn K1 5
 expect tempo 125
 tap SEQ
+tap REC
 key 0 down
 key 0 up
 expect stepon_1 1

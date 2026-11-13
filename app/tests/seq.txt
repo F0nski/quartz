@@ -1,6 +1,7 @@
 # Steps by hand, step pages, step entry, then playback
 wait 600
 tap SEQ
+tap REC
 turn K1 -8
 expect len 8
 key 0 down
@@ -18,7 +19,7 @@ key 0 up
 expect stepon_17 1
 tap OCT-
 tap REC
-expect rec 1
+expect rec 2
 expect cursor 1
 tap EDIT
 key 7 down

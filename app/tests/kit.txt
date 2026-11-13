@@ -35,6 +35,7 @@ key 1 up
 expect pad 4
 # SEQ: step 4 held, the white keys 1 and 3 in, then 1 out
 tap SEQ
+tap REC
 key 6 down
 key 0 down
 key 0 up
@@ -108,6 +109,9 @@ turn K1 -60
 expect tempo 60
 tap EDIT
 tap REC
+expect rec 0
+tap REC
+expect rec 2
 tap PLAY
 expect overdub 1
 wait 200

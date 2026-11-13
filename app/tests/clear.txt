@@ -1,6 +1,7 @@
 # SEQ held and the first black key: CLEAR empties the pattern shown, steps and locks; the other patterns keep theirs
 wait 600
 tap SEQ
+tap REC
 press SEQ
 key 2 down
 key 2 up
