@@ -19,9 +19,9 @@ static const uint16_t HM_CYAN[3] = {RGB(0xc8, 0xf4, 0xff), RGB(0x5f, 0xe0, 0xff)
 static const uint16_t HM_DARK[3] = {RGB(0x0b, 0x2a, 0x1f), RGB(0x06, 0x20, 0x1a), RGB(0x03, 0x14, 0x0f)};
 enum { HE_FM, HE_KIT, HE_MODAL, HE_SPEECH, HE_VA, HE_WAVE, HE_GARDEN, HE_CHIP, HE_CHOIR, HE_ROPE, HE_DANCE };
 static const char *const HM_MODEL[25] = {
-    "VA VCF", "PHASE DIST", "6-OP A", "6-OP B", "6-OP C", "WAVE TERRAIN", "STRING MACH", "CHIPTUNE",
-    "VA", "WAVESHAPE", "2-OP FM", "GRAIN FORM", "ADDITIVE", "WAVETABLE", "CHORDS", "SPEECH",
-    "SWARM", "NOISE", "PARTICLE", "STRING", "MODAL", "BASS DRUM", "SNARE", "HI-HAT", "KIT"};
+    "SWEEP", "KINK", "HEX A", "HEX B", "HEX C", "BOWL", "ENSEMBLE", "ARCADE",
+    "CREST", "PRISM", "MOON", "POLLEN", "FACETS", "PIPE", "CHORALE", "ORATOR",
+    "CROWD", "STATIC", "GLITTER", "WIRE", "CHLADNI", "BASS DRUM", "SNARE", "HI-HAT", "KIT"};
 static struct {
     float t, since[4], x[4], z[4];
     uint32_t hits[4], hit_ms[4];

@@ -1408,7 +1408,7 @@ static void sound_tests(void)
 /* ---- 5g: the global pages TEMPO, SCALE, KEYS, FX, SONG ---- */
 static const char *const G_NOTES[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
 static const char *const G_QUANT[3] = {"OFF", "50 %", "100 %"}, *const G_CLICK[4] = {"OFF", "METRO", "COUNT", "BOTH"};
-static const char *const G_INS[3] = {"OFF", "MARBLES", "ALL"};
+static const char *const G_INS[3] = {"OFF", "FLEET", "ALL"};
 static q_glview GV;
 static void greset(int page)
 {

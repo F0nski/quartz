@@ -48,15 +48,15 @@ static const q_page PAGE[] = {
     {"XY", {"X LEN", "X DIV", "Y LEN", "Y DIV"}, {1, 0, 1, 0}, {4, DIV_N - 1, 4, DIV_N - 1}},
     {"TRACKS", {"LVL 1", "LVL 2", "LVL 3", "LVL 4"}, {0, 0, 0, 0}, {127, 127, 127, 127}},   /* the mixer: MIX LEVEL */
     {"SONG", {"ENTRY", "SCENE", "REPEAT", "MODE"}, {1, 1, 1, 0}, {Q_SONG, Q_SCENES, 16, 1}},
-    {"GRIDS", {"DIV", "VOICE", "NOTE", "SOURCE"}, {0, 1, 1, 0}, {DIV_N - 1, 3, 127, SRC_N - 1}},
+    {"ATLAS", {"DIV", "VOICE", "NOTE", "SOURCE"}, {0, 1, 1, 0}, {DIV_N - 1, 3, 127, SRC_N - 1}},
     {"MAP", {"X", "Y", "CHAOS"}, {0, 0, 0}, {127, 127, 127}},
     {"DENS", {"DENS 1", "DENS 2", "DENS 3"}, {0, 0, 0}, {127, 127, 127}},
-    {"MARBLES", {"DIV", "T OUT", "LEN", "SOURCE"}, {0, 1, 1, 0}, {DIV_N - 1, 3, 16, SRC_N - 1}},
+    {"FLEET", {"DIV", "T OUT", "LEN", "SOURCE"}, {0, 1, 1, 0}, {DIV_N - 1, 3, 16, SRC_N - 1}},
     {"T", {"MODE", "BIAS", "JITTER", "DEJA VU"}, {0, 0, 0, 0}, {6, 127, 127, 127}},
     {"X", {"SPREAD", "X BIAS", "STEPS"}, {0, 0, 0}, {127, 127, 127}},
     {"NOTES", {"NOTE", "RANGE"}, {1, 1}, {127, 4}},
-    {"LIFE", {"DIV", "POLY", "NOTE", "SOURCE"}, {0, 1, 1, 0}, {DIV_N - 1, 4, 127, SRC_N - 1}},
-    {"LIFE", {"DIV", "POLY", "MAP", "SOURCE"}, {0, 1, 0, 0}, {DIV_N - 1, 4, 1, SRC_N - 1}},     /* a KIT's: MAP for NOTE */
+    {"COLONY", {"DIV", "POLY", "NOTE", "SOURCE"}, {0, 1, 1, 0}, {DIV_N - 1, 4, 127, SRC_N - 1}},
+    {"COLONY", {"DIV", "POLY", "MAP", "SOURCE"}, {0, 1, 0, 0}, {DIV_N - 1, 4, 1, SRC_N - 1}},     /* a KIT's: MAP for NOTE */
     {"SEED", {"SEED", "DENS", "AUTO"}, {0, 0, 0}, {127, 127, 1}},
     {"EVOL", {"GEN", "MUT"}, {0, 0}, {3, 127}},
     {"PAD", {"TUNE", "HARM", "TIMB", "DECAY"}, {-24, 0, 0, 0}, {24, 127, 127, 127}},
@@ -72,14 +72,14 @@ static const q_page PAGE[] = {
     {"STEP", {"NOTE", "LEN", "VEL", "PROB"}, {1, 1, 1, 0}, {127, 64, 127, 20}},
     {"STEP", {"RATCHET", "COND", "MICRO"}, {1, 0, -11}, {4, 39, 11}},      /* COND: its index, COND_N - 1 at most */
     {"STEP", {"SLIDE", "ACCENT"}, {0, 0}, {1, 1}},
-    {"LANES", {"DIV", "NOTE", "TRIG LEN", "SOURCE"}, {0, 1, 1, 0}, {DIV_N - 1, 127, 16, SRC_N - 1}},
+    {"LOOM", {"DIV", "NOTE", "TRIG LEN", "SOURCE"}, {0, 1, 1, 0}, {DIV_N - 1, 127, 16, SRC_N - 1}},
     {"LENS", {"NOTE LEN", "OCT LEN", "DUR LEN", "VEL LEN"}, {1, 1, 1, 1}, {16, 16, 16, 16}},
-    {"CHORDS", {"DIV", "NOTE", "RATE", "SOURCE"}, {0, 1, 0, 0}, {DIV_N - 1, 127, 4, SRC_N - 1}},
+    {"CADENCE", {"DIV", "NOTE", "RATE", "SOURCE"}, {0, 1, 0, 0}, {DIV_N - 1, 127, 4, SRC_N - 1}},
     {"PROG", {"LEN", "STRUM", "VOICE"}, {1, 0, 0}, {8, 7, 1}},
-    {"TONNETZ", {"DIV", "NOTE", "RATE", "SOURCE"}, {0, 1, 0, 0}, {DIV_N - 1, 127, 4, SRC_N - 1}},
+    {"LATTICE", {"DIV", "NOTE", "RATE", "SOURCE"}, {0, 1, 0, 0}, {DIV_N - 1, 127, 4, SRC_N - 1}},
     {"WALK", {"LEN", "CHAOS", "SCALE", "RETURN"}, {1, 0, 0, 0}, {8, 127, 1, 1}},
     {"PLAY", {"STRUM", "VOICE"}, {0, 0}, {7, 1}},
-    {"ORBITS", {"DIV", "NOTE", "MOONS", "SOURCE"}, {0, 1, 1, 0}, {DIV_N - 1, 127, 4, SRC_N - 1}},
+    {"MOONS", {"DIV", "NOTE", "MOONS", "SOURCE"}, {0, 1, 1, 0}, {DIV_N - 1, 127, 4, SRC_N - 1}},
     {"MOON", {"PERIOD", "PHASE", "NOTE"}, {1, 0, 0}, {32, 31, 15}},
     {"MOON", {"PERIOD", "PHASE", "PAD"}, {1, 0, 0}, {32, 31, 15}},       /* a KIT's: PAD for NOTE */
     {"CHORD", {"DEGREE", "SIZE"}, {0, 0}, {6, CS_N - 1}},                 /* the chord under PRESET's cursor */
@@ -88,9 +88,9 @@ static const q_page PAGE[] = {
 
 /* Plaits' registration order (pq.h) */
 static const char *const MODEL_NAME[M_KIT + 1] = {
-    "VA VCF", "PHASE DIST", "6-OP A", "6-OP B", "6-OP C", "WAVE TERRAIN", "STRING MACH", "CHIPTUNE",
-    "VA", "WAVESHAPE", "2-OP FM", "GRAIN FORM", "ADDITIVE", "WAVETABLE", "CHORDS", "SPEECH",
-    "SWARM", "NOISE", "PARTICLE", "STRING", "MODAL", "BASS DRUM", "SNARE", "HI-HAT", "KIT"};
+    "SWEEP", "KINK", "HEX A", "HEX B", "HEX C", "BOWL", "ENSEMBLE", "ARCADE",
+    "CREST", "PRISM", "MOON", "POLLEN", "FACETS", "PIPE", "CHORALE", "ORATOR",
+    "CROWD", "STATIC", "GLITTER", "WIRE", "CHLADNI", "BASS DRUM", "SNARE", "HI-HAT", "KIT"};
 static const char *const ENGINE_NAME[3] = {"BD", "SN", "HH"};
 static const char *const DIV_NAME[DIV_N] = {"1/32", "1/16T", "1/16", "1/8T", "1/8", "1/4T", "1/4", "1/2", "1/1"};
 static const char *const FTYPE_NAME[3] = {"LP", "HP", "BP"};
@@ -103,7 +103,7 @@ static const char *const INS_NAME[IT_N] = {"INSERT OFF", "OVERDRIVE", "WAVEFOLD"
 static const char *const INS_LABEL[IT_N][3] = {{"", "", ""}, {"DRIVE", "TONE", ""}, {"FOLD", "BIAS", "TONE"}, {"BITS", "RATE", ""},
                                                 {"RATE", "DEPTH", ""}, {"RATE", "DEPTH", "FEEDBK"}, {"FREQ", "", ""}, {"NOTE", "FEEDBK", "DAMP"}};
 static const char *const AMODE_NAME[6] = {"OFF", "UP", "DOWN", "UP-DN", "RAND", "ORDER"};
-static const char *const SRC_NAME[SRC_N] = {"STEP", "GRIDS", "MARBLES", "LIFE", "LANES", "CHORDS", "TONNETZ", "ORBITS"};
+static const char *const SRC_NAME[SRC_N] = {"STEP", "ATLAS", "FLEET", "COLONY", "LOOM", "CADENCE", "LATTICE", "MOONS"};
 /* Marbles' T models, its TGeneratorModel order (gen.c) */
 static const char *const T_MODE_NAME[7] = {"C.BERN", "CLUSTERS", "DRUMS", "I.BERN", "DIVIDER", "3 STATES", "MARKOV"};
 static const char *const PATH_NAME[PATH_N] = {"FWD", "REV", "PING-PONG", "SNAKE", "COLUMNS", "SPIRAL", "RANDOM", "XY"};
@@ -112,7 +112,7 @@ static const char *const MODE_NAME[11] = {"CHROM", "MAJOR", "MINOR", "DORIAN", "
                                           "HARM MIN", "PENTA", "MIN PENTA"};
 static const char *const QUANT_NAME[3] = {"OFF", "50 %", "100 %"};
 static const char *const CLICK_NAME[4] = {"OFF", "METRO", "COUNT", "BOTH"};
-static const char *const KEYS_NAME[3] = {"OFF", "MARBLES", "ALL"};
+static const char *const KEYS_NAME[3] = {"OFF", "FLEET", "ALL"};
 static const char *const ATTR_NAME[A_N] = {"VEL", "RATCHET", "PROB", "COND", "SLIDE", "ACCENT", "NOTE", "LEN", "MICRO"};
 static const uint8_t ATTR_ROW[A_N] = {A_RATCHET, A_VEL, A_PROB, A_COND, A_NOTE, A_LEN, A_MICRO, A_SLIDE, A_ACCENT};
 /* each black key's family of step functions, 0xFF none: a press picks the first, a press again the next (the empty ones

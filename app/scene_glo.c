@@ -126,7 +126,7 @@ static void glo_scale(const q_glview *v, int32_t oy)
    blue; else ordinary), the black keys where a piano has them, crossed out in the scale; the held key pink */
 static void glo_keys(const q_glview *v, int32_t oy)
 {
-    static const char *const SAY[3] = {"CHROMATIC KEYBOARD", "SCALE ON MARBLES TRACKS", "SCALE ON EVERY TRACK"};
+    static const char *const SAY[3] = {"CHROMATIC KEYBOARD", "SCALE ON FLEET TRACKS", "SCALE ON EVERY TRACK"};
     glo_opts("IN SCALE", v->opt[0], v->nopt[0], v->k[0], oy + 14, HM_BLUE[1]);
     glo_text(120, oy + 42, &FONT_S, SAY[v->k[0]], GL_INK, 0);
     if (v->inscale)

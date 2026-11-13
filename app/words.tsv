@@ -26,27 +26,27 @@ LOST BLOCKS	lost blocks
 VOICES	voices
 BYTES/VOICE	bytes per voice
 EFFECTS	effects
-VA VCF	V A, V C F
-PHASE DIST	phase distortion
-6-OP A	six-op A
-6-OP B	six-op B
-6-OP C	six-op C
-WAVE TERRAIN	wave terrain
-STRING MACH	string machine
-CHIPTUNE	chiptune
-VA	V A
-WAVESHAPE	waveshape
-2-OP FM	two-op F M
-GRAIN FORM	grain formant
-ADDITIVE	additive
-WAVETABLE	wavetable
-CHORDS	chords
-SPEECH	speech
-SWARM	swarm
-NOISE	noise
-PARTICLE	particle
-STRING	string
-MODAL	modal
+SWEEP	sweep
+KINK	kink
+HEX A	hex A
+HEX B	hex B
+HEX C	hex C
+BOWL	bowl
+ENSEMBLE	ensemble
+ARCADE	arcade
+CREST	crest
+PRISM	prism
+MOON	moon
+POLLEN	pollen
+FACETS	facets
+PIPE	pipe
+CHORALE	chorale
+ORATOR	orator
+CROWD	crowd
+STATIC	static
+GLITTER	glitter
+WIRE	wire
+CHLADNI	chladni
 BASS DRUM	bass drum
 SNARE	snare
 HI-HAT	hi-hat
@@ -160,8 +160,8 @@ COUNT	count in
 BOTH	both
 SOURCE	source
 STEP	step
-GRIDS	grids
-MARBLES	marbles
+ATLAS	atlas
+FLEET	fleet
 VOICE	voice
 MAP	map
 CHAOS	chaos
