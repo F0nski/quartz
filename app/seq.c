@@ -11,6 +11,10 @@ static const q_pad KIT_DEFAULT[Q_PADS] = {
     { PAD_HH, -5, 80, 50, 110, 80 },
 };
 
+/* a fresh LANES pattern plays at once: 7, 5, 3, 4, 6 cells (OCT 2 is no shift) */
+static const q_lanes LANES_DEFAULT = { 48, { 7, 5, 3, 4, 6 }, {
+    { 1, 0, 1, 1, 0, 1, 0 }, { 0, 4, 2, 5, 3 }, { 2, 2, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 }, { 1, 3, 1, 2 }, { 3, 1, 2, 1, 3, 2 } } };
+
 void project_defaults(q_project *p)
 {
     __builtin_memset(p, 0, sizeof *p);
@@ -36,6 +40,7 @@ void project_defaults(q_project *p)
             pt->grids = (q_grids){ 64, 64, 0, { 64, 64, 64 }, 1, 60 };
             pt->marbles = (q_marbles){ 1, 8, 0, 64, 0, 0, 64, 64, 0, 48, 2, { 0, 0 } };
             pt->life = (q_life){ 2, 48, 0, 0, 70, 1, 1, 0 };
+            pt->lanes = LANES_DEFAULT;
             for (int k = 0; k < Q_STEPS; k++) {
                 q_step *st = &pt->steps[k];
                 st->note[0] = 60; st->vel = 100; st->len = 4; st->prob = 20;

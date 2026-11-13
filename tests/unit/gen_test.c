@@ -130,6 +130,8 @@ static void loop_lengths(void)
     assert(gen_loop(pt) == 7);
     pt->src = SRC_LIFE;
     assert(gen_loop(pt) == 16);
+    pt->src = SRC_LANES;
+    assert(gen_loop(pt) == 16);
 }
 
 /* MARBLES */
@@ -623,6 +625,171 @@ static void life_pattern_switch_reseeds(void)
     assert(!memcmp(want.grid, G.life.grid, sizeof want.grid));
 }
 
+/* LANES */
+
+static q_pattern *lanes_setup(int model)
+{
+    project_defaults(&P);
+    P.sound[0].model = model;
+    q_pattern *pt = &P.pat[0][0];
+    pt->src = SRC_LANES;
+    memset(&G, 0, sizeof G);
+    return pt;
+}
+
+/* the step n played (n counts from the reset, k is the rank in the tour) */
+static int lanes_play(const q_pattern *pt, int n, q_step *st) { return gen_step(&G, &P, 0, pt, n % 16, &R, st); }
+
+static void lanes_defaults(void)
+{
+    const q_pattern *pt = lanes_setup(8);
+    const q_lanes *l = &pt->lanes;
+    static const uint8_t len[L_N] = { 7, 5, 3, 4, 6 };
+    static const uint8_t v[L_N][7] = { { 1, 0, 1, 1, 0, 1, 0 }, { 0, 4, 2, 5, 3 }, { 2, 2, 3 }, { 1, 3, 1, 2 }, { 3, 1, 2, 1, 3, 2 } };
+    assert(l->note == 48);
+    for (int i = 0; i < L_N; i++) {
+        assert(l->len[i] == len[i]);
+        for (int c = 0; c < 16; c++) assert(l->v[i][c] == (c < len[i] ? v[i][c] : i == L_OCT ? 2 : 0));
+    }
+}
+
+static void lanes_heads(void)
+{
+    const q_pattern *pt = lanes_setup(8);
+    static q_step a[840];
+    for (int n = 0; n < 840; n++) lanes_play(pt, n, &a[n]);
+    for (int n = 0; n < 420; n++)
+        assert(a[n].flags == a[n + 420].flags && a[n].note[0] == a[n + 420].note[0] && a[n].len == a[n + 420].len && a[n].vel == a[n + 420].vel);
+    for (int m = 1; m < 420; m++) {
+        int same = 1;
+        for (int n = 0; n < 420 && same; n++)
+            same = a[n].flags == a[n + m].flags && a[n].note[0] == a[n + m].note[0] && a[n].len == a[n + m].len && a[n].vel == a[n + m].vel;
+        assert(!same);
+    }
+}
+
+static void lanes_no_reset_at_wrap(void)
+{
+    q_pattern *pt = lanes_setup(8);
+    q_lanes *l = &pt->lanes;
+    l->len[L_TRIG] = 16; memset(l->v[L_TRIG], 1, 16);
+    l->len[L_OCT] = 1; l->len[L_NOTE] = 5;
+    q_step st[17];
+    for (int n = 0; n < 17; n++) lanes_play(pt, n, &st[n]);
+    assert(st[16].note[0] == st[1].note[0] && st[16].note[0] != st[0].note[0]);   /* NOTE cell 1, not 0 */
+}
+
+static void lanes_reset(void)
+{
+    q_pattern *pt = lanes_setup(8);
+    q_step a, b;
+    lanes_play(pt, 0, &a);
+    for (int n = 1; n < 7; n++) lanes_play(pt, n, &b);
+    gen_reset(&G, &R);
+    lanes_play(pt, 0, &b);
+    assert(G.lanes_n == 1 && b.flags == a.flags && b.note[0] == a.note[0]);
+}
+
+static void lanes_len_shrink(void)
+{
+    q_pattern *pt = lanes_setup(8);
+    q_lanes *l = &pt->lanes;
+    l->len[L_TRIG] = 1; l->v[L_TRIG][0] = 1; l->len[L_OCT] = 1;
+    l->len[L_NOTE] = 16;
+    for (int c = 0; c < 16; c++) l->v[L_NOTE][c] = (uint8_t)c;
+    q_step st;
+    for (int n = 0; n < 9; n++) lanes_play(pt, n, &st);
+    l->len[L_NOTE] = 4;
+    lanes_play(pt, 9, &st);
+    assert(st.note[0] == gen_life_note(48, gen_scale(&P), 0, 1));                /* 9 mod 4 = cell 1 */
+}
+
+static void lanes_trig_off(void)
+{
+    q_pattern *pt = lanes_setup(8);
+    memset(pt->lanes.v[L_TRIG], 0, 16);
+    q_step st;
+    for (int n = 0; n < 16; n++) { lanes_play(pt, n, &st); assert(!(st.flags & SF_ON)); }
+}
+
+/* the note of one step with NOTE deg and OCT oct, every lane one cell long */
+static int lanes_one(q_pattern *pt, int deg, int oct, int dur, int vel, q_step *st)
+{
+    q_lanes *l = &pt->lanes;
+    for (int i = 0; i < L_N; i++) l->len[i] = 1;
+    l->v[L_TRIG][0] = 1; l->v[L_NOTE][0] = (uint8_t)deg; l->v[L_OCT][0] = (uint8_t)oct;
+    l->v[L_DUR][0] = (uint8_t)dur; l->v[L_VEL][0] = (uint8_t)vel;
+    memset(&G, 0, sizeof G);
+    int acc = lanes_play(pt, 0, st);
+    assert(st->flags & SF_ON);
+    return acc;
+}
+
+static void lanes_notes_synth(void)
+{
+    q_pattern *pt = lanes_setup(8);                     /* C major, NOTE 48 */
+    q_step st;
+    static const int deg[4] = { 0, 1, 2, 7 }, want[4] = { 48, 50, 52, 60 };
+    for (int i = 0; i < 4; i++) { lanes_one(pt, deg[i], 2, 2, 2, &st); assert(st.note[0] == want[i]); }
+    lanes_one(pt, 0, 0, 2, 2, &st); assert(st.note[0] == 24);
+    lanes_one(pt, 0, 4, 2, 2, &st); assert(st.note[0] == 72);
+}
+
+static void lanes_note_clamp(void)
+{
+    q_pattern *pt = lanes_setup(8);
+    q_step st;
+    pt->lanes.note = 127;
+    lanes_one(pt, 15, 4, 2, 2, &st); assert(st.note[0] >= 1 && st.note[0] <= 127);
+    pt->lanes.note = 1;
+    lanes_one(pt, 0, 0, 2, 2, &st); assert(st.note[0] >= 1 && st.note[0] <= 127);
+}
+
+static void lanes_kit(void)
+{
+    q_pattern *pt = lanes_setup(M_KIT);
+    q_step st;
+    lanes_one(pt, 4, 0, 2, 2, &st); assert(st.note[0] == KIT_NOTE + 4);
+    lanes_one(pt, 15, 4, 2, 2, &st); assert(st.note[0] == KIT_NOTE + 15);
+}
+
+static void lanes_dur_vel(void)
+{
+    q_pattern *pt = lanes_setup(8);
+    q_step st;
+    static const int len[5] = { 2, 4, 8, 16, 32 }, vel[3] = { 40, 70, 100 };
+    for (int d = 0; d < 5; d++) { lanes_one(pt, 0, 2, d, 2, &st); assert(st.len == len[d]); }
+    for (int v = 0; v < 3; v++) { assert(lanes_one(pt, 0, 2, 2, v, &st) == 0); assert(st.vel == vel[v]); }
+    assert(lanes_one(pt, 0, 2, 2, 3, &st) == 1 && st.vel == 100);
+}
+
+static void lanes_degree(void)
+{
+    lanes_setup(8);
+    uint16_t sc = gen_scale(&P);
+    assert(gen_lanes_degree(48, sc, 0, 48) == 0);
+    assert(gen_lanes_degree(48, sc, 0, 52) == 2);
+    assert(gen_lanes_degree(48, sc, 0, 61) == 7);       /* C#4: C4 and D4 tie, the lower */
+    assert(gen_lanes_degree(48, sc, 0, 30) == 0);
+    assert(gen_lanes_degree(48, sc, 0, 100) == 15);
+}
+
+static void lanes_pattern_switch(void)
+{
+    q_pattern *pt = lanes_setup(8);
+    q_step st, want;
+    for (int n = 0; n < 16; n++) lanes_play(pt, n, &st);
+    q_pattern *p2 = &P.pat[0][1];
+    p2->src = SRC_LANES;
+    for (int i = 0; i < L_N; i++) p2->lanes.len[i] = 3;
+    p2->lanes.v[L_TRIG][0] = 1; p2->lanes.v[L_NOTE][0] = 9;
+    gen_reset(&G, &R);
+    lanes_play(p2, 0, &st);
+    memset(&G, 0, sizeof G);
+    lanes_play(p2, 0, &want);
+    assert(st.flags & SF_ON && st.note[0] == want.note[0] && st.note[0] == gen_life_note(48, gen_scale(&P), 0, 9));
+}
+
 int main(void)
 {
     grids_level_matches_step();
@@ -658,6 +825,18 @@ int main(void)
     life_notes_kit();
     life_born_accented();
     life_pattern_switch_reseeds();
+    lanes_defaults();
+    lanes_heads();
+    lanes_no_reset_at_wrap();
+    lanes_reset();
+    lanes_len_shrink();
+    lanes_trig_off();
+    lanes_notes_synth();
+    lanes_note_clamp();
+    lanes_kit();
+    lanes_dur_vel();
+    lanes_degree();
+    lanes_pattern_switch();
     puts("gen ok");
     return 0;
 }

@@ -115,6 +115,13 @@ static void clamp_project(q_project *p)
             l->map = (uint8_t)clampi(l->map, 0, 1); l->seed = (uint8_t)clampi(l->seed, 0, 127);
             l->dens = (uint8_t)clampi(l->dens, 0, 127); l->autos = (uint8_t)clampi(l->autos, 0, 1);
             l->gen = (uint8_t)clampi(l->gen, 0, 3); l->mut = (uint8_t)clampi(l->mut, 0, 127);
+            q_lanes *ln = &q->lanes;
+            static const uint8_t LMAX[L_N] = { 1, 15, 4, 4, 3 };
+            ln->note = (uint8_t)clampi(ln->note, 1, 127);
+            for (int j = 0; j < L_N; j++) {
+                ln->len[j] = (uint8_t)clampi(ln->len[j], 1, 16);
+                for (int c = 0; c < 16; c++) ln->v[j][c] = (uint8_t)clampi(ln->v[j][c], 0, LMAX[j]);
+            }
             for (int k = 0; k < Q_STEPS; k++) {
                 q_step *st = &q->steps[k];
                 for (int j = 0; j < 4; j++) st->note[j] = (uint8_t)clampi(st->note[j], 0, 127);

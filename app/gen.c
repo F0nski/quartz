@@ -31,7 +31,7 @@ void gen_reset(q_gen *g, uint32_t *rng)
 
 int gen_loop(const q_pattern *pt)
 {
-    return pt->src == SRC_MARBLES ? pt->marbles.len : pt->src == SRC_LIFE ? LIFE_W : GRIDS_STEPS;
+    return pt->src == SRC_MARBLES ? pt->marbles.len : pt->src == SRC_LIFE || pt->src == SRC_LANES ? LIFE_W : GRIDS_STEPS;
 }
 
 /* settings 0..127 as Grids' 0..255 */
@@ -482,10 +482,44 @@ static int life_step(q_gen *g, const q_project *p, int track, const q_pattern *p
     return acc;
 }
 
+/* LANES */
+
+int gen_lanes_degree(int note, uint16_t scale, int tonic, int pitch)
+{
+    int best = 0, dist = 1000;
+    for (int d = 0; d < 16; d++) {
+        int n = gen_life_note(note, scale, tonic, d), e = n > pitch ? n - pitch : pitch - n;
+        if (e < dist) best = d, dist = e;           /* strictly nearer: a tie keeps the lower */
+    }
+    return best;
+}
+
+/* the step lanes_n: each lane's head is lanes_n mod its length; the heads never go back at the tour's end */
+static int lanes_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, q_step *st)
+{
+    static const uint8_t LEN[5] = { 2, 4, 8, 16, 32 }, VEL[4] = { 40, 70, 100, 100 };
+    const q_lanes *l = &pt->lanes;
+    uint32_t c = g->lanes_n++;
+    int v[L_N];
+    for (int i = 0; i < L_N; i++) v[i] = l->v[i][c % l->len[i]];
+    if (!v[L_TRIG]) return 0;
+    int n;
+    if (p->sound[track].model == M_KIT) n = KIT_NOTE + v[L_NOTE];
+    else {
+        n = gen_life_note(l->note, gen_scale(p), p->tonic, v[L_NOTE]);
+        for (int o = v[L_OCT] - 2; o > 0 && n + 12 <= 127; o--) n += 12;   /* an octave out of range: the one that fits */
+        for (int o = v[L_OCT] - 2; o < 0 && n - 12 >= 1; o++) n -= 12;
+    }
+    st->flags = SF_ON; st->note[0] = (uint8_t)n;
+    st->len = LEN[v[L_DUR]]; st->vel = VEL[v[L_VEL]]; st->prob = 20;
+    return v[L_VEL] == 3;
+}
+
 int gen_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, int k, uint32_t *rng, q_step *st)
 {
     __builtin_memset(st, 0, sizeof *st);
     if (pt->src == SRC_GRIDS) return grids_step(g, p, track, pt, k, rng, st);
     if (pt->src == SRC_LIFE) return life_step(g, p, track, pt, k, st);
+    if (pt->src == SRC_LANES) return lanes_step(g, p, track, pt, st);
     return marbles_step(g, p, track, pt, rng, st);
 }
