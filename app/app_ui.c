@@ -19,6 +19,7 @@
 #include "scene_chords.c"
 #include "scene_tonnetz.c"
 #include "scene_orbits.c"
+#include "scene_mimic.c"
 #include "plateau.c"
 #include "ui.c"
 

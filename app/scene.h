@@ -157,4 +157,15 @@ void orbits_enter(void);                             /* arrival: no pass, no fla
 void orbits_frame(const q_orview *v, uint32_t ms);   /* builds the primitives: the far planet, the orbits, the planet, the moons */
 void orbits_band(const q_orview *v, int32_t oy);     /* the sky, p3d_draw, then the ticks, dots, labels and the top strip */
 
+/* MIMIC's two rolls (scene_mimic.c); ui.c fills the view */
+typedef struct {
+    q_mimic m;                 /* the pattern's */
+    q_mimic_run r;             /* audio_mimic; zeroed when the pattern shown does not play */
+    uint8_t playing, kit, listen;   /* the pattern shown plays; a KIT; LISTEN */
+    uint32_t step_ms;          /* a step in ms */
+} q_miview;
+void mimic_enter(void);                              /* arrival: nothing played yet, no flash */
+void mimic_frame(const q_miview *v, uint32_t ms);    /* reads the steps played; builds the primitives: the jump's arrow */
+void mimic_band(const q_miview *v, int32_t oy);      /* the rolls, p3d_draw, then the head and the top strip */
+
 #endif
