@@ -2,6 +2,7 @@
 #ifndef QUARTZ_SCENE_H
 #define QUARTZ_SCENE_H
 #include <stdint.h>
+#include "project.h"
 
 /* what a scene shows: the track's model; k: its ENGINE knobs HARM, TIMB, MORPH, DECAY 0..127 (a KIT: the edited pad's
    TUNE -24..24, HARM, TIMB, DECAY); hits: hits[0] audio_hits of the track (a KIT: audio_kit_hits per pad engine);
@@ -47,6 +48,30 @@ typedef struct {
 } q_pview;
 void sound_frame(const q_pview *v, uint32_t ms);
 void sound_band(int32_t oy);
+
+/* the global pages TEMPO, SCALE, KEYS, FX, SONG (spec 5g): the page, its 4 knobs in ui.c PAGE[]'s ranges; title: the scale ("A LOCRIAN";
+   FX: the delay's division); notes: the 12 pitch classes' names from C; opt: the option rows' names (SCALE QUANT, CLICK;
+   KEYS IN SCALE); tonic, mask (bit n: n semitones above it); inscale: KEYS' white keys play the scale; pos: the track's
+   step, -1 stopped; held: SCALE the pitch classes held (bit n), KEYS the white keys (bit w); keyn: the MIDI note each white
+   key plays, -1 none; hits: FX the note-ons of all tracks; song: SONG's entries, the cursor and the one playing (1..n) */
+enum { GP_TEMPO, GP_SCALE, GP_KEYS, GP_FX, GP_SONG };
+typedef struct {
+    uint8_t page;
+    int16_t k[4];
+    const char *title;
+    const char *const *notes;
+    const char *const *opt[2];
+    uint8_t nopt[2];
+    uint8_t tonic, inscale;
+    uint16_t mask;
+    int8_t pos;
+    uint16_t held;
+    int8_t keyn[16];
+    uint32_t hits;
+    struct { int8_t n, cursor, playing, on; q_entry e[Q_SONG]; } song;
+} q_glview;
+void glo_frame(const q_glview *v, uint32_t ms);
+void glo_band(const q_glview *v, int32_t oy);
 
 /* MARBLES (spec 5b, 3): a fleet firing on the notes' crystals in a canyon; a shot lands when its note sounds */
 typedef struct { uint8_t tout, mode, bias, jitter, dejavu, spread, xbias, len; int8_t pos; uint16_t allowed, kept;

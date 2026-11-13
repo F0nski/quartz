@@ -69,8 +69,9 @@ release HOME
 wait 100
 expect anim 5
 shot home_tracks_mute.png
-# leaving for a page with no scene (TEMPO) and back: a fresh arrival, notes played meanwhile do not react
+# leaving for a page with no scene (CPU) and back: a fresh arrival, notes played meanwhile do not react
 tap GLO
+turn SELECT 4
 wait 100
 expect anim 0
 expect scene_key -1
