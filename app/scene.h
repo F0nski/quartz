@@ -144,4 +144,17 @@ void tonnetz_enter(void);                            /* arrival: no slide, no st
 void tonnetz_frame(const q_tzview *v, uint32_t ms);  /* builds the primitives: edges, traces, the chord */
 void tonnetz_band(const q_tzview *v, int32_t oy);    /* p3d_draw, then the nodes, names, steps and notches */
 
+/* ORBITS' radar (scene_orbits.c); ui.c fills the view */
+typedef struct {
+    q_orbits o;                /* the pattern's */
+    uint32_t n;                /* the steps played (audio_orbits); 0 stopped */
+    int8_t sel;                /* the moon set on MOON, -1 on ORBITS */
+    uint8_t playing, kit;      /* the pattern shown plays; a KIT */
+    char name[4][5];           /* the moons' notes ("C3") or pads ("BD") */
+    uint32_t step_ms;          /* a step in ms */
+} q_orview;
+void orbits_enter(void);                             /* arrival: no pass, no flash */
+void orbits_frame(const q_orview *v, uint32_t ms);   /* builds the primitives: the far planet, the orbits, the planet, the moons */
+void orbits_band(const q_orview *v, int32_t oy);     /* the sky, p3d_draw, then the ticks, dots, labels and the top strip */
+
 #endif

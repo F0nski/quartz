@@ -24,6 +24,7 @@ static void lcd_blit(uint32_t x, uint32_t y, uint32_t w, uint32_t h, const uint1
 #include "scene_lanes.c"
 #include "scene_chords.c"
 #include "scene_tonnetz.c"
+#include "scene_orbits.c"
 
 static uint16_t px(int x, int y) { return swap16(cv_px[y * 240 + x]); }
 static int is_orange(uint16_t c) { return c == ORANGE[0] || c == ORANGE[1] || c == ORANGE[2]; }
@@ -2261,8 +2262,109 @@ static void tonnetz_knobs_visible(void)
            tvdiffers(tch_scale) && tvdiffers(tch_ret) && tvdiffers(tch_voice));
 }
 
+/* ---- ORBITS: the radar ---- */
+static q_orview OV;
+static void ovreset(void)
+{
+    static const char *const N[4] = {"C3", "E3", "G3", "C4"};
+    memset(&OV, 0, sizeof OV);
+    OV.o = (q_orbits){ 48, 3, { 8, 6, 5, 3 }, { 0, 0, 0, 0 }, { 0, 2, 4, 7 } };
+    OV.sel = -1, OV.playing = 1, OV.step_ms = 125;
+    for (int m = 0; m < 4; m++) strcpy(OV.name[m], N[m]);
+    orbits_enter();
+}
+static void ovfull(void)
+{
+    for (int b = 0; b < 2; b++) {
+        cv_begin(240, 83, 0);
+        orbits_band(&OV, -83 * b);
+        memcpy(FULL + 240 * 83 * b, cv_px, sizeof(uint16_t) * 240 * 83);
+    }
+}
+static int owhite(int x0, int x1, int y0, int y1) { return gcount(MB_WHITE[0], x0, x1, y0, y1); }
+
+static void orbits_budget(void)
+{
+    ovreset();
+    OV.o.moons = 4;
+    for (int m = 0; m < 4; m++) OV.o.per[m] = 32;
+    OV.n = 5;
+    orbits_frame(&OV, 1000);
+    assert(p3d_count() <= 300);
+}
+static void orbits_pass_pink(void)
+{
+    ovreset();
+    orbits_frame(&OV, 0);
+    OV.n = 1;
+    orbits_frame(&OV, 1000);
+    orbits_frame(&OV, 1010); ovfull();               /* (10 ms: the moons still at their gates) */
+    for (int m = 0; m < 3; m++) { int y = 90 - (24 + 17 * m); assert(gpink(94, 116, y - 9, y + 9) > 40); }
+}
+static void orbits_sync_flash(void)
+{
+    ovreset();
+    orbits_frame(&OV, 0);
+    OV.n = 1;                                        /* step 0: the three pass together */
+    orbits_frame(&OV, 1000);
+    orbits_frame(&OV, 1030); ovfull();
+    assert(owhite(92, 117, 78, 103) > 20);
+    orbits_frame(&OV, 1400); ovfull();
+    assert(owhite(92, 117, 78, 103) == 0);
+    OV.n = 25;                                       /* step 24: two of the three */
+    orbits_frame(&OV, 2000);
+    orbits_frame(&OV, 2030); ovfull();
+    assert(owhite(92, 117, 78, 103) == 0);
+}
+static void orbits_ticks(void)
+{
+    ovreset();
+    OV.playing = 0, OV.o.per[0] = 7;
+    orbits_frame(&OV, 1000); ovfull();
+    int n = 0;
+    for (int y = 60; y < 120; y++) for (int x = 74; x < 134; x++) {
+        int dx = x - 104, dy = y - 90, d2 = dx * dx + dy * dy;
+        if (d2 >= 21 * 21 && d2 <= 27 * 27) n += fpx(x, y) == RGB(0x4a, 0x44, 0x66);
+    }
+    assert(n == 6 * 5);                              /* 7 ticks, the gate's pink: 6 grey crosses of 5 pixels */
+}
+static void orbits_idle(void)
+{
+    ovreset();
+    OV.playing = 0;
+    orbits_frame(&OV, 1000); ovfull();
+    assert(gpink(0, 99, 20, 166) == 0 && gpink(110, 240, 20, 166) == 0);
+}
+static int ovdiffers(void (*change)(void))
+{
+    static uint16_t ref[240 * 166];
+    ovreset();
+    OV.n = 3;
+    orbits_frame(&OV, 5000); ovfull();
+    memcpy(ref, FULL, sizeof ref);
+    change();
+    orbits_frame(&OV, 5000); ovfull();
+    return memcmp(ref, FULL, sizeof ref) != 0;
+}
+static void och_name(void) { strcpy(OV.name[0], "D3"); }
+static void och_moons(void) { OV.o.moons = 2; }
+static void och_per(void) { OV.o.per[1] = 9; }
+static void och_pha(void) { OV.o.pha[2] = 2; }
+static void och_sel(void) { OV.sel = 1; }
+static void och_n(void) { OV.n = 4; }
+static void orbits_knobs_visible(void)
+{
+    assert(ovdiffers(och_name) && ovdiffers(och_moons) && ovdiffers(och_per) && ovdiffers(och_pha) && ovdiffers(och_sel) && ovdiffers(och_n));
+}
+
 int main(void)
 {
+    orbits_budget();
+    orbits_pass_pink();
+    orbits_sync_flash();
+    orbits_ticks();
+    orbits_idle();
+    orbits_knobs_visible();
     tonnetz_budget();
     tonnetz_triangle_pink();
     tonnetz_octaves();

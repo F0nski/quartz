@@ -701,14 +701,6 @@ static int tonnetz_step(q_gen *g, const q_project *p, int track, const q_pattern
 
 /* ORBITS */
 
-int gen_orbits_hits(const q_orbits *o, uint32_t n)
-{
-    int hits = 0;
-    for (int m = 0; m < o->moons; m++)
-        if (n % o->per[m] == (uint32_t)(o->pha[m] % o->per[m])) hits |= 1 << m;
-    return hits;
-}
-
 /* the step orbits_n: each moon passing plays its note; two or more together, all accented */
 static int orbits_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, q_step *st)
 {

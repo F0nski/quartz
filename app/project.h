@@ -81,6 +81,14 @@ enum { TZ_STAY, TZ_P, TZ_L, TZ_R };                       /* TONNETZ's steps */
 typedef struct { uint8_t note, len, rate, strum, voice, chaos, scale, ret; uint16_t seq; } q_tonnetz;
 /* note 1..127, moons 1..4; per 1..32, pha 0..31, val 0..15 (a scale degree; a KIT's pad - 1) */
 typedef struct { uint8_t note, moons, per[4], pha[4], val[4]; } q_orbits;
+/* bit m: moon m passes at step n (n mod its period = its phase mod its period); the run and the scene */
+static inline int gen_orbits_hits(const q_orbits *o, uint32_t n)
+{
+    int hits = 0;
+    for (int m = 0; m < o->moons; m++)
+        if (n % o->per[m] == (uint32_t)(o->pha[m] % o->per[m])) hits |= 1 << m;
+    return hits;
+}
 #define TZ_OP(t, i) ((t)->seq >> 2 * (i) & 3)
 #define TZ_SET(t, i, o) ((t)->seq = (uint16_t)(((t)->seq & ~(3u << 2 * (i))) | (unsigned)(o) << 2 * (i)))
 typedef struct { uint8_t len, div, nlocks, path, xlen, ylen, ydiv, src; q_grids grids; q_marbles marbles; q_life life; q_lanes lanes; q_chords chords; q_tonnetz tonnetz; q_orbits orbits; q_step steps[Q_STEPS]; q_lock locks[Q_LOCKS]; } q_pattern;
