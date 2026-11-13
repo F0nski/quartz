@@ -2906,7 +2906,9 @@ void ui_frame(void)
                     cur = r.cur, base = r.base;
                 else                            /* stopped: the start */
                     gen_tz_start(ui.p, z, &cur, &base);
-                if (have && (cur.i != last.i || cur.j != last.j || cur.m != last.m)) {   /* the three chords before */
+                if (!tzw.playing)               /* stopped: the start alone */
+                    for (int q = 0; q < 3; q++) tzw.trail[q].m = 255;
+                else if (have && (cur.i != last.i || cur.j != last.j || cur.m != last.m)) {   /* the three chords before */
                     tzw.trail[2] = tzw.trail[1], tzw.trail[1] = tzw.trail[0], tzw.trail[0] = last;
                 }
                 last = cur, have = 1;
@@ -2939,7 +2941,7 @@ void ui_frame(void)
                     *o++ = OPC[op];
                     for (const char *p = " > "; *p; p++) *o++ = *p;
                     for (const char *p = NN[x[0]]; *p; p++) *o++ = *p;
-                    if (nx.m) *o++ = 'M';
+                    if (nx.m) *o++ = 'm';
                     *o = 0;
                 }
                 tzw.step_ms = 2500u * DIV96[t->div] / ui.p->tempo;

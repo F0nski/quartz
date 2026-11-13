@@ -35,7 +35,9 @@ départ sur un autre accord que celui de NOTE, l'enregistrement en live, les aut
 | R | mineur `(i−1, j)` | majeur `(i+1, j)` | C ↔ Am |
 
 - **Accord de départ** : la triade de la gamme de GLO posée sur NOTE ramenée dans la gamme (`gen_life_note(note, scale,
-  tonic, 0)` et ses degrés +2 et +4) ; majeure ou mineure selon sa tierce ; une triade diminuée part mineure. Il est
+  tonic, 0)` et ses degrés +2 et +4) ; majeure ou mineure selon sa tierce ; une triade diminuée part mineure ; sans
+  tierce dans la gamme (pentatoniques), la qualité qui a le plus de notes dans la gamme. En IN SCALE, un départ hors de
+  la gamme cède la place à son premier voisin dans la gamme (P, L, R) ; aucun : il reste. Il est
   placé au triangle `(0, 0)` ; les classes du Tonnetz sont comptées depuis sa fondamentale.
 - **Un accord par mesure** (16 pas à la division du pattern) : le rendu compte les pas depuis le départ (`n`, aligné
   sur le tour comme CHORDS) ; la mesure 0 joue l'accord de départ ; chaque mesure `b ≥ 1` applique un pas de la
@@ -45,7 +47,8 @@ départ sur un autre accord que celui de NOTE, l'enregistrement en live, les aut
   suivante revient à l'accord de départ, et ainsi de suite.
 - **CHAOS** (0..127) : à chaque pas appliqué, avec la probabilité CHAOS / 128, la transformation est remplacée par
   l'une des deux autres (P, L, R), tirée au hasard ; un `—` remplacé devient P, L ou R. Le tirage utilise le
-  générateur du séquenceur.
+  générateur du séquenceur. La tuile du pas ne passe en orange que si l'accord obtenu diffère de celui du pas écrit.
+- Une marche FREE très longue ramène `(i, j)` près de l'origine par 12 colonnes ou 3 rangées : mêmes classes de hauteur.
 - **SCALE** :
   - FREE : la transformation s'applique toujours ;
   - IN SCALE : si l'accord obtenu a une note hors de la gamme, on essaie les deux autres dans l'ordre P → L → R → P à
@@ -112,7 +115,7 @@ Direction T1 de la maquette. Coordonnées de la zone de scène 240 × 166 ; l'en
   l'un après l'autre, du grave à l'aigu) ; un petit triangle blanc sous le nœud de la note la plus grave (VOICE). Les
   trois accords précédents : leurs triangles pleins en bleus de plus en plus sombres. La carte glisse pour garder
   l'accord au centre (x 120, y 92), en 250 ms.
-- **Pas tenu** : un bandeau clair à la place des crans, `STEP 3 - R > DM` (le pas, sa transformation, l'accord qu'elle
+- **Pas tenu** : un bandeau clair à la place des crans, `STEP 3 - R > Dm` (le pas, sa transformation, l'accord qu'elle
   donnerait depuis l'accord en cours, dans le mode SCALE) ; sa tuile en blanc.
 - À l'arrêt : l'accord de départ, sans rose ; **KIT** : `NO CHORDS ON A KIT`.
 
@@ -130,7 +133,7 @@ Direction T1 de la maquette. Coordonnées de la zone de scène 240 × 166 ; l'en
 
 Le code va dans `app/scene_tonnetz.c` (`tonnetz_enter`, `tonnetz_frame`, `tonnetz_band`), sa vue dans `scene.h` ;
 `ui.c` la choisit (anim 11) sur les pages TONNETZ, WALK et PLAY. Budget : une trentaine d'arêtes et de nœuds visibles, 3 facettes, 3 traces :
-moins de 120 primitives.
+environ 150 primitives (300 au plus).
 
 ## 7. Tests
 

@@ -137,7 +137,7 @@ typedef struct {
     uint8_t chaos_hit, playing, kit, step;   /* the last step swapped by CHAOS; the pattern shown plays; a KIT; the step in the bar */
     uint8_t notes[4], n, strikes;            /* the last strike's notes (ascending); a change lights the strike */
     uint16_t scale;            /* the project's scale, absolute pitch classes */
-    char name[8], banner[24];  /* the chord's name; "STEP 3 - R > DM" when held */
+    char name[8], banner[24];  /* the chord's name; "STEP 3 - R > Dm" when held */
     uint32_t step_ms;          /* a step in ms (STRUM's delay: step_ms x strum / 24) */
 } q_tzview;
 void tonnetz_enter(void);                            /* arrival: no slide, no strike lights */

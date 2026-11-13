@@ -1077,7 +1077,10 @@ static void tonnetz_start(void)
     q_tz s; int base; uint8_t x[3];
     gen_tz_start(&P, &pt->tonnetz, &s, &base); gen_tz_pcs(s, base, x); assert(s.i == 0 && s.j == 0 && has3(x, 0, 4, 7) && x[0] == 0);
     pt->tonnetz.note = 50; gen_tz_start(&P, &pt->tonnetz, &s, &base); gen_tz_pcs(s, base, x); assert(s.m == 1 && has3(x, 2, 5, 9) && x[0] == 2);
-    pt->tonnetz.note = 59; gen_tz_start(&P, &pt->tonnetz, &s, &base); gen_tz_pcs(s, base, x); assert(s.m == 1 && has3(x, 11, 2, 6) && x[0] == 11);
+    pt->tonnetz.note = 59; pt->tonnetz.scale = 0;    /* FREE: B diminished starts minor */
+    gen_tz_start(&P, &pt->tonnetz, &s, &base); gen_tz_pcs(s, base, x); assert(s.m == 1 && has3(x, 11, 2, 6) && x[0] == 11);
+    pt->tonnetz.scale = 1;                            /* IN SCALE: Bm (F#) is out, its first neighbour in the scale: L, G */
+    gen_tz_start(&P, &pt->tonnetz, &s, &base); gen_tz_pcs(s, base, x); assert(has3(x, 7, 11, 2));
 }
 
 static void tonnetz_walk_free(void)
@@ -1118,12 +1121,15 @@ static void tonnetz_in_scale_stuck(void)
 {
     q_pattern *pt = tonnetz_setup(8);
     P.mode = 9;                                       /* MAJ PENTA: C D E G A */
+    uint16_t sc = gen_scale(&P);
+    pt->tonnetz.note = 52;                            /* E: E G# B would start out of the scale and stay there */
     pt->tonnetz.seq = 0x55; pt->tonnetz.len = 1; pt->tonnetz.ret = 0;
     memset(&G, 0, sizeof G);
-    for (int n = 0; n < 16 * 8; n++) { q_step st; gen_step(&G, &P, 0, pt, n % 16, &R, &st); }
-    uint8_t x[3];
-    gen_tz_pcs(G.tonnetz.cur, G.tonnetz.base, x);
-    assert(x[0] <= 11 && x[1] <= 11 && x[2] <= 11);
+    for (int n = 0; n < 16 * 16; n++) {
+        q_step st;
+        gen_step(&G, &P, 0, pt, n % 16, &R, &st);
+        for (int i = 0; i < 4 && st.note[i]; i++) assert(sc >> (st.note[i] % 12) & 1);
+    }
 }
 
 static void tonnetz_chaos(void)
@@ -1167,6 +1173,23 @@ static void tonnetz_long_walk(void)
         for (int i = 0; i < 4 && st.note[i]; i++) assert(st.note[i] >= 1 && st.note[i] <= 127);
         assert(G.tonnetz.cur.i >= -2000 && G.tonnetz.cur.i <= 2000 && G.tonnetz.cur.j >= -2000 && G.tonnetz.cur.j <= 2000);
     }
+}
+
+/* a FREE walk far from the start: the lattice wraps (i by 12, j by 3: the same pitch classes), the chord stays */
+static void tonnetz_wrap(void)
+{
+    q_pattern *pt = tonnetz_setup(8);
+    pt->tonnetz.scale = 0; pt->tonnetz.ret = 0; pt->tonnetz.seq = TZ_STAY; pt->tonnetz.len = 1;
+    memset(&G, 0, sizeof G);
+    q_step st;
+    gen_step(&G, &P, 0, pt, 0, &R, &st);
+    G.tonnetz.cur = (q_tz){ 9500, -9400, 1 };
+    uint8_t a[3], b[3];
+    gen_tz_pcs(G.tonnetz.cur, G.tonnetz.base, a);
+    for (int n = 1; n < 17; n++) gen_step(&G, &P, 0, pt, n % 16, &R, &st);
+    gen_tz_pcs(G.tonnetz.cur, G.tonnetz.base, b);
+    assert(G.tonnetz.cur.i > -100 && G.tonnetz.cur.i < 100 && G.tonnetz.cur.j > -100 && G.tonnetz.cur.j < 100);
+    assert(a[0] == b[0] && a[1] == b[1] && a[2] == b[2] && G.tonnetz.cur.m == 1);
 }
 
 static void tonnetz_play_like_chords(void)
@@ -1261,6 +1284,7 @@ int main(void)
     tonnetz_chaos();
     tonnetz_len_shrink();
     tonnetz_long_walk();
+    tonnetz_wrap();
     tonnetz_play_like_chords();
     puts("gen ok");
     return 0;

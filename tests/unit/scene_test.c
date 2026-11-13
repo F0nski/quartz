@@ -2226,6 +2226,17 @@ static void tonnetz_far_walk(void)
     tvfull();
     assert(gpink(110, 130, 82, 102) > 0);
 }
+/* a note below MIDI 12: its octave reads -1 */
+static void tonnetz_low_octave(void)
+{
+    int x, y;
+    tvreset();
+    TV.notes[0] = 0, TV.notes[1] = 4, TV.notes[2] = 7;
+    tonnetz_frame(&TV, 1000); tvfull();
+    tvnode(0, 0, &x, &y);
+    assert(gcount(C_WHITE, x + 5, x + 14, y - 14, y - 5) > 0);   /* "C-1": wider than "C3", its tail past x + 5 */
+}
+
 static int tvdiffers(void (*change)(void))
 {
     static uint16_t ref[240 * 166];
@@ -2261,6 +2272,7 @@ int main(void)
     tonnetz_held_banner();
     tonnetz_idle();
     tonnetz_far_walk();
+    tonnetz_low_octave();
     tonnetz_knobs_visible();
     chords_budget();
     chords_poly_pink();

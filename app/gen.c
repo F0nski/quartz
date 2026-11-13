@@ -633,9 +633,20 @@ q_tz gen_tz_step(q_tz s, int op, int in_scale, uint16_t scale, int base)
 void gen_tz_start(const q_project *p, const q_tonnetz *t, q_tz *s, int *base)
 {
     uint16_t sc = gen_scale(p);
-    int r = gen_life_note(t->note, sc, p->tonic, 0), third = gen_life_note(t->note, sc, p->tonic, 2) - r;
-    *s = (q_tz){0, 0, (uint8_t)(third == 3)};      /* a diminished triad starts minor */
-    *base = ((r - (s->m ? 4 : 0)) % 12 + 12) % 12;   /* the minor (0, 0)'s root is the lattice's 4 */
+    int r = gen_life_note(t->note, sc, p->tonic, 0), third = gen_life_note(t->note, sc, p->tonic, 2) - r, m;
+    if (third == 3 || third == 4)       /* a diminished triad starts minor */
+        m = third == 3;
+    else {                              /* no third in the scale (a pentatonic): the quality with more notes in it */
+        int maj = (sc >> (r + 4) % 12 & 1) + (sc >> (r + 7) % 12 & 1), min = (sc >> (r + 3) % 12 & 1) + (sc >> (r + 7) % 12 & 1);
+        m = min > maj;
+    }
+    *s = (q_tz){0, 0, (uint8_t)m};
+    *base = ((r - (m ? 4 : 0)) % 12 + 12) % 12;      /* the minor (0, 0)'s root is the lattice's 4 */
+    if (t->scale && !tz_in_scale(*s, sc, *base))     /* IN SCALE and out: its first neighbour in the scale (P, L, R) */
+        for (int op = TZ_P; op <= TZ_R; op++) {
+            q_tz n = gen_tz_move(*s, op);
+            if (tz_in_scale(n, sc, *base)) { *s = n; break; }
+        }
 }
 
 /* the step tonnetz.n: a bar's chord from the walk, struck as CHORDS does */
@@ -657,12 +668,17 @@ static int tonnetz_step(q_gen *g, const q_project *p, int track, const q_pattern
             r->base = (int8_t)base, r->applied = -1;
         } else {
             int op = TZ_OP(t, rr);
+            q_tz written = gen_tz_step(r->cur, op, t->scale, gen_scale(p), r->base);
             if (t->chaos && (int)(gen_rand(rng) >> 8 & 127) < t->chaos) {   /* CHAOS: one of the other two (a stay: any) */
                 int x = (int)(gen_rand(rng) >> 8);
                 op = op == TZ_STAY ? 1 + x % 3 : 1 + (op - 1 + 1 + x % 2) % 3;
-                r->chaos_hit = 1;
             }
             r->cur = gen_tz_step(r->cur, op, t->scale, gen_scale(p), r->base);
+            r->chaos_hit = (uint8_t)(r->cur.i != written.i || r->cur.j != written.j || r->cur.m != written.m);   /* swapped, and it shows */
+            if (r->cur.i > 9000 || r->cur.i < -9000)     /* far: back by 12 columns or 3 rows, the same pitch classes */
+                r->cur.i = (int16_t)(r->cur.i % 12);
+            if (r->cur.j > 9000 || r->cur.j < -9000)
+                r->cur.j = (int16_t)(r->cur.j % 3);
             r->applied = (int8_t)rr;
         }
     }

@@ -79,9 +79,9 @@ static void tzv_tri(const q_tzview *v, q_tz s, float z, const uint16_t *tones, i
 void tonnetz_frame(const q_tzview *v, uint32_t ms)
 {
     if (tzv.seen && (v->cur.i != tzv.cur.i || v->cur.j != tzv.cur.j || v->cur.m != tzv.cur.m)) {   /* a new chord: slide to it */
-        float ox, oy, nx, ny;
+        float ox, oy, nx, ny, u = ms - tzv.move_ms >= TZV_SLIDE_MS ? 1.0f : (float)(ms - tzv.move_ms) / (float)TZV_SLIDE_MS;
         tzv_centre(tzv.cur, v->cur, &ox, &oy), tzv_centre(v->cur, v->cur, &nx, &ny);
-        tzv.fx = ox - nx, tzv.fy = oy - ny;
+        tzv.fx = ox - nx + tzv.fx * (1.0f - u), tzv.fy = oy - ny + tzv.fy * (1.0f - u);   /* from where the map shows now */
         if (tzv.fx * tzv.fx + tzv.fy * tzv.fy > 200.0f * 200.0f)   /* a far jump (RETURN after a long walk): a cut */
             tzv.fx = tzv.fy = 0.0f;
         tzv.move_ms = ms;
@@ -94,8 +94,8 @@ void tonnetz_frame(const q_tzview *v, uint32_t ms)
     p3d_begin();
     if (v->kit)
         return;
-    for (int dj = -3; dj <= 3; dj++)                /* the lattice's edges on the map */
-        for (int di = -5; di <= 5; di++) {
+    for (int dj = -5; dj <= 5; dj++)                /* the lattice's edges on the map (wide: a slide shows more of it) */
+        for (int di = -8; di <= 8; di++) {
             float x0, y0, x1, y1, x2, y2;
             tzv_at(v, di, dj, &x0, &y0), tzv_at(v, di + 1, dj, &x1, &y1), tzv_at(v, di, dj + 1, &x2, &y2);
             if (y0 < 0.0f || y0 > 210.0f || x0 < -60.0f || x0 > 300.0f)
@@ -122,8 +122,8 @@ void tonnetz_band(const q_tzview *v, int32_t oy)
     p3d_draw(oy);
     int n[3][2];
     tzv_nodes(v->cur, n);
-    for (int dj = -3; dj <= 3; dj++)                /* the nodes and their notes */
-        for (int di = -5; di <= 5; di++) {
+    for (int dj = -5; dj <= 5; dj++)                /* the nodes and their notes */
+        for (int di = -8; di <= 8; di++) {
             float fx, fy;
             tzv_at(v, di, dj, &fx, &fy);
             int32_t x = (int32_t)fx, y = (int32_t)fy;
@@ -144,7 +144,8 @@ void tonnetz_band(const q_tzview *v, int32_t oy)
                 const char *s = TZV_NOTE[pc];
                 int bi = 0;
                 while (*s) b[bi++] = *s++;
-                if (k >= 0) b[bi] = (char)('0' + (v->notes[k] / 12 + 9) % 10);   /* octave: C4 = 60 */
+                if (k >= 0 && v->notes[k] >= 12) b[bi] = (char)('0' + v->notes[k] / 12 - 1);   /* octave: C4 = 60 */
+                else if (k >= 0) b[bi] = '-', b[bi + 1] = '1';
                 glo_text(x, oy + y - 10, &FONT_XS, b, C_WHITE, 0);
                 if (k == 0)
                     p3d_fill((float)x - 4.0f, (float)(oy + y + 8), (float)x + 4.0f, (float)(oy + y + 8), (float)x, (float)(oy + y + 13), MB_WHITE[0]);
