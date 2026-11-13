@@ -1,0 +1,37 @@
+# The TONNETZ map on its pages: playing, NOTE changed while playing, a step held, CHAOS, a KIT
+wait 600
+tap SEQ
+turn K4 6
+expect src 6
+wait 100
+expect anim 11
+tap PLAY
+wait 3000
+shot tonnetz_play.png
+spin K2 2
+expect tnote 50
+wait 1500
+shot tonnetz_note.png
+tap REC
+key 4 down
+wait 200
+expect anim 11
+shot tonnetz_held.png
+key 4 up
+tap REC
+turn SELECT 1
+expect anim 11
+spin K2 127
+expect tchaos 127
+wait 3000
+shot tonnetz_chaos.png
+tap PLAY
+tap EDIT
+turn PRESET 20
+expect model 24
+tap SEQ
+tap PLAY
+wait 1000
+expect anim 11
+shot tonnetz_kit.png
+tap PLAY

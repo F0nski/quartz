@@ -147,7 +147,8 @@ typedef struct {
                                                    knobs), 2 the SEQ plateau, 3 MARBLES (v: SPREAD, X BIAS, DEJA VU), 4 GRIDS,
                                                    5 HOME's tracks (scene_home.c), 6 a sound page ADSR .. MIX (scene_sound.c),
                                                    7 TEMPO, SCALE, KEYS, FX, SONG (scene_glo.c), 8 LIFE (scene_life.c),
-                                                   9 LANES (scene_lanes.c), 10 CHORDS (scene_chords.c) */
+                                                   9 LANES (scene_lanes.c), 10 CHORDS (scene_chords.c),
+                                                   11 TONNETZ (scene_tonnetz.c) */
         q_trow tr[Q_TRACKS];                    /* TRACKS */
         int8_t layer, lmode;                    /* a layer's map instead of the scene: its button + 1; REC in LIVE, SEL in NOTES */
         uint32_t lkeys, hot;                    /* its keys, and the keys pressed */
@@ -2170,6 +2171,8 @@ static void view_now(q_view *v)
             v->scene.anim = 9;                  /* scene_lanes.c; ui_frame fills its view */
         if (pid == P_CHORDS || pid == P_PROG)
             v->scene.anim = 10;                 /* scene_chords.c; ui_frame fills its view */
+        if (pid == P_TONNETZ || pid == P_WALK || pid == P_PLAY)
+            v->scene.anim = 11;                 /* scene_tonnetz.c; ui_frame fills its view */
         if (pid == P_MARBLES || pid == P_T || pid == P_X) {
             v->scene.anim = 3;
             v->scene.v[0] = t->marbles.spread;
@@ -2645,6 +2648,7 @@ void ui_frame(void)
     static q_lview lfv;                    /* LIFE's view, the same way */
     static q_laneview lnv;                 /* LANES' */
     static q_chview chv;                   /* CHORDS' */
+    static q_tzview tzw;                   /* TONNETZ's */
     int b;
     ui_input();
     lights();
@@ -2880,6 +2884,66 @@ void ui_frame(void)
                 }
                 chv.step_ms = 2500u * DIV96[t->div] / ui.p->tempo;
                 chords_frame(&chv, now);
+            } else if (v.scene.anim == 11) {
+                static const char *const NN[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+                static q_tz last;
+                static int have, last_pos = -1;
+                static uint8_t strikes;
+                const q_pattern *t = pat();
+                const q_tonnetz *z = &t->tonnetz;
+                q_tonnetz_run r;
+                q_tz cur;
+                int base;
+                uint8_t x[3];
+                audio_tonnetz(ui.track, &r);
+                if (fresh) {
+                    tonnetz_enter();
+                    have = 0;
+                    for (int q = 0; q < 3; q++) tzw.trail[q].m = 255;
+                }
+                tzw.playing = (uint8_t)(v.scene.pos >= 0 && r.n);
+                if (tzw.playing)
+                    cur = r.cur, base = r.base;
+                else                            /* stopped: the start */
+                    gen_tz_start(ui.p, z, &cur, &base);
+                if (have && (cur.i != last.i || cur.j != last.j || cur.m != last.m)) {   /* the three chords before */
+                    tzw.trail[2] = tzw.trail[1], tzw.trail[1] = tzw.trail[0], tzw.trail[0] = last;
+                }
+                last = cur, have = 1;
+                tzw.tz = *z, tzw.cur = cur, tzw.base = (int8_t)base, tzw.kit = (uint8_t)kit();
+                tzw.applied = (int8_t)(tzw.playing ? r.applied : -1), tzw.chaos_hit = r.chaos_hit;
+                tzw.scale = gen_scale(ui.p);
+                tzw.n = tzw.playing ? r.nlast : 0;
+                __builtin_memcpy(tzw.notes, r.last, 4);
+                if (v.scene.pos >= 0 && v.scene.pos != last_pos && v.scene.pos % (16 >> z->rate) == 0)
+                    strikes++;                  /* a strike lights as it sounds */
+                last_pos = v.scene.pos;
+                tzw.strikes = strikes;
+                tzw.step = (uint8_t)(v.scene.pos >= 0 ? v.scene.pos % 16 : 0);
+                gen_tz_pcs(cur, base, x);
+                char *o = tzw.name;
+                for (const char *p = NN[x[0]]; *p; p++) *o++ = *p;
+                if (cur.m) *o++ = 'm';
+                *o = 0;
+                tzw.held = (int8_t)(tonnetz_on() && ui.rec == R_GRID && ui.cell ? ui.cell - 1 : -1);
+                tzw.banner[0] = 0;
+                if (tzw.held >= 0) {            /* "STEP 3 - R > DM": what the step would give from the chord shown */
+                    static const char OPC[4] = {'-', 'P', 'L', 'R'};
+                    int op = TZ_OP(z, tzw.held);
+                    q_tz nx = gen_tz_step(cur, op, z->scale, tzw.scale, base);
+                    gen_tz_pcs(nx, base, x);
+                    o = tzw.banner;
+                    for (const char *p = "STEP "; *p; p++) *o++ = *p;
+                    *o++ = (char)('1' + tzw.held);
+                    for (const char *p = " - "; *p; p++) *o++ = *p;
+                    *o++ = OPC[op];
+                    for (const char *p = " > "; *p; p++) *o++ = *p;
+                    for (const char *p = NN[x[0]]; *p; p++) *o++ = *p;
+                    if (nx.m) *o++ = 'M';
+                    *o = 0;
+                }
+                tzw.step_ms = 2500u * DIV96[t->div] / ui.p->tempo;
+                tonnetz_frame(&tzw, now);
             } else if (v.scene.anim == 7) {
                 static char title[14];
                 int pid = v.scene.pid, k, w;
@@ -2961,6 +3025,8 @@ void ui_frame(void)
                     lanes_band(&lnv, -BAND_H * b);
                 else if (v.scene.anim == 10)
                     chords_band(&chv, -BAND_H * b);
+                else if (v.scene.anim == 11)
+                    tonnetz_band(&tzw, -BAND_H * b);
                 else
                     plateau_band(-BAND_H * b);
                 cv_blit(0, HEAD_H + BAND_H * b);
