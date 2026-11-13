@@ -65,8 +65,8 @@ expect stepnote_2 36
 expect stepnotes_2 1
 # PRESET NOTE leaves a KIT step's pads
 key 2 down
-key 13 down
-key 13 up
+key 8 down
+key 8 up
 expect attr 6
 turn PRESET 3
 expect stepnote_2 36

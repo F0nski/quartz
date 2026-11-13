@@ -39,12 +39,3 @@ expect locks 1
 expect stepon_5 0
 tap PLAY
 expect overdub 0
-# CLEAR on the step removes it
-tap SEQ
-tap REC
-key 7 down
-key 20 down
-key 20 up
-key 7 up
-expect lock_31_5 -1
-expect locks 0

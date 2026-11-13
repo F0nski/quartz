@@ -18,7 +18,7 @@
 enum { D_EDIT, D_SEQ, D_GLO, D_HOME, D_ENV, D_LFO, D_ARP, D_FX, ND };
 enum { P_ENGINE, P_SOUND, P_STEPS, P_TEMPO, P_SCALE, P_CPU, P_XY, P_TRACKS, P_SONG, P_GRIDS, P_MAP, P_DENS, P_MARBLES, P_T,
        P_X, P_NOTES, P_PAD, P_KIT, P_ADSR, P_FILTER, P_LFO, P_ARP, P_INSERT, P_MIX, P_GFX, P_KEYS };
-/* what PRESET sets on a held step; the black keys 0..7 pick RATCHET .. MICRO, 8 is CLEAR */
+/* what PRESET sets on a held step; the black keys pick them by family (FAMILY) */
 /* REC: GRID the white keys are SEQ's steps, NOTES they write at a cursor, LIVE they record while playing, ARM the first
    note starts LIVE */
 enum { R_OFF, R_GRID, R_NOTES, R_LIVE, R_ARM };
@@ -91,7 +91,13 @@ static const char *const QUANT_NAME[3] = {"OFF", "50 %", "100 %"};
 static const char *const CLICK_NAME[4] = {"OFF", "METRO", "COUNT", "BOTH"};
 static const char *const KEYS_NAME[3] = {"OFF", "MARBLES", "ALL"};
 static const char *const ATTR_NAME[A_N] = {"VEL", "RATCHET", "PROB", "COND", "SLIDE", "ACCENT", "NOTE", "LEN", "MICRO"};
-static const uint8_t ATTR_ROW[A_N] = {A_NOTE, A_VEL, A_LEN, A_MICRO, A_PROB, A_COND, A_RATCHET, A_SLIDE, A_ACCENT};
+static const uint8_t ATTR_ROW[A_N] = {A_RATCHET, A_VEL, A_PROB, A_COND, A_NOTE, A_LEN, A_MICRO, A_SLIDE, A_ACCENT};
+/* each black key's family of step functions, 0xFF none: a press picks the first, a press again the next (the empty ones
+   are kept for the step components) */
+#define X 0xFF
+static const uint8_t FAMILY[11][2] = {{A_RATCHET, X}, {A_VEL, X}, {A_PROB, A_COND}, {A_NOTE, X}, {A_LEN, A_MICRO}, {A_SLIDE, X},
+                                      {A_ACCENT, X}, {X, X}, {X, X}, {X, X}, {X, X}};
+#undef X
 static const char *const COND_NAME[5] = {"NONE", "FIRST", "!FIRST", "PRE", "!PRE"};
 static const uint8_t WHITE[16] = PLAT_WHITE_KEYS;
 static const uint8_t BLACK[11] = PLAT_BLACK_KEYS;
@@ -640,19 +646,14 @@ static void pad_toggle(q_step *s, int note)
     }
 }
 
-/* a black key while a step is held */
-static void black_key(int b, q_step *s, q_pattern *t)
+/* a black key on a step: SLIDE and ACCENT toggle, the others pick the function PRESET sets */
+static void family_key(int b, q_step *s)
 {
-    if (b >= 11)
-        return;
-    if (b == 8) {
-        step_clear(t, ui.held - 1);
-    } else if (b < 8) {
-        if (b == 3 || b == 4)           /* SLIDE, ACCENT: toggles */
-            s->flags ^= b == 3 ? SF_SLIDE : SF_ACCENT;
-        else
-            ui.attr = b + 1;
-    }
+    const uint8_t *f = FAMILY[b];
+    if (f[0] == A_SLIDE || f[0] == A_ACCENT)
+        s->flags ^= f[0] == A_SLIDE ? SF_SLIDE : SF_ACCENT;
+    else if (f[0] != 0xFF)
+        ui.attr = f[0] == ui.attr && f[1] != 0xFF ? f[1] : f[0];
 }
 
 /* the only writer of ui.rec: the recorder armed in LIVE alone */
@@ -860,7 +861,7 @@ static void key_down(int k)
         s = &t->steps[ui.held - 1];
         if (w == 16) {
             for (b = 0; b < 11 && BLACK[b] != k; b++) {}
-            black_key(b, s, t);
+            family_key(b, s);
             return;
         }
     }

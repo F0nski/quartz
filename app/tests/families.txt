@@ -1,0 +1,35 @@
+# The black keys on a held step: a family each, a second press its next function; SLIDE and ACCENT toggle
+wait 600
+tap SEQ
+tap REC
+tapkey w0
+expect stepon_1 1
+key w0 down
+expect attr 0
+tapkey b2
+expect attr 2
+tapkey b2
+expect attr 3
+tapkey b2
+expect attr 2
+tapkey b4
+tapkey b4
+expect attr 8
+turn PRESET 3
+expect stepmicro_1 3
+tapkey b5
+expect stepslide_1 1
+tapkey b6
+expect stepaccent_1 1
+# a black key with no function does nothing (the old CLEAR on the 9th is gone)
+tapkey b8
+expect stepon_1 1
+expect attr 8
+tapkey b3
+expect attr 6
+tapkey b0
+expect attr 1
+tapkey b1
+expect attr 0
+key w0 up
+expect stepon_1 1
