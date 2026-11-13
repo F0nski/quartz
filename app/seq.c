@@ -436,11 +436,12 @@ static void plan_notes(q_seq *s, const q_project *p, int t, const q_step *st, in
     q_queue *q = &s->q[t];
     int r = STEP_RATCHET(st), g = r > 1 && st->len > 8 ? 8 : st->len, hold = 0;
     int64_t f = 200 * st->micro + (tr->k & 1 ? 96 * (p->swing - 50) : 0), from = tie_date(q);
+    int strum = p->pat[t][tr->pat].src != SRC_STEP ? 200 * SF_STRUM(st) : 0;   /* a generator's notes one after the other */
     if (st->flags & SF_ACCENT) acc = 15;
     for (int j = 0; j < r; j++) {
-        int64_t on = date(&tr->x, f + 4800 * j / r), off = date(&tr->x, f + 4800 * j / r + 600 * g / r);
-        if (on < (int64_t)s->now) on = (int64_t)s->now;     /* dated before this block: at its start */
         for (int i = 0; i < 4; i++) {
+            int64_t on = date(&tr->x, f + 4800 * j / r + strum * i), off = date(&tr->x, f + 4800 * j / r + 600 * g / r + strum * i);
+            if (on < (int64_t)s->now) on = (int64_t)s->now;     /* dated before this block: at its start */
             if (!st->note[i]) continue;
             int vel = acc >> i & 1 ? st->vel + 32 : st->vel;
             if (vel > 127) vel = 127;

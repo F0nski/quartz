@@ -1489,6 +1489,54 @@ static void grids_notes_in_ring(void)
     assert(got > 5);
 }
 
+/* CHORDS' STRUM: a strike's notes one after the other, lowest first, STRUM / 24 of a step apart */
+static void chords_setup_seq(int rate, int strum)
+{
+    setup();
+    for (int t = 1; t < Q_TRACKS; t++) for (int i = 0; i < Q_STEPS; i++) P.pat[t][0].steps[i].flags = 0;
+    q_pattern *pt = &P.pat[0][0];
+    pt->src = SRC_CHORDS;
+    pt->chords.rate = (uint8_t)rate; pt->chords.strum = (uint8_t)strum; pt->chords.voice = 0;
+    P.sound[0].poly = 3;
+    seq_start(&S, &P, 0);
+}
+static int nth_note(int k)
+{
+    for (int i = 0; i < NEV; i++)
+        if (EV[i].e.track == 0 && EV[i].e.on && k-- == 0) return EV[i].e.note;
+    return -1;
+}
+static void chords_strum_staggers(void)
+{
+    chords_setup_seq(0, 3);
+    run(40);
+    for (int i = 0; i < 3; i++) assert(nth(0, 1, i) == at16(0, 600 * i));
+    assert(nth_note(0) < nth_note(1) && nth_note(1) < nth_note(2));
+}
+static void chords_strum_zero(void)
+{
+    chords_setup_seq(0, 0);
+    run(40);
+    for (int i = 0; i < 3; i++) assert(nth(0, 1, i) == at16(0, 0));
+}
+static void chords_strum_overlaps(void)
+{
+    chords_setup_seq(4, 7);
+    run(40);
+    for (int k = 0; k < 2; k++)
+        for (int i = 0; i < 3; i++) assert(nth(0, 1, 3 * k + i) == at16(k, 1400 * i));
+}
+static void step_ignores_strum_bits(void)
+{
+    setup();
+    only_step(0, 2);
+    q_step *st = &P.pat[0][0].steps[2];
+    st->note[1] = 64; st->note[2] = 67; st->flags |= 7 << 5;
+    P.sound[0].poly = 3;
+    run(80);
+    for (int i = 0; i < 3; i++) assert(nth(0, 1, i) == at16(2, 0));
+}
+
 int main(void)
 {
     marbles_timing_unchanged();
@@ -1506,6 +1554,10 @@ int main(void)
     events_sorted();
     length_sets_gate();
     micro_shifts_note();
+    chords_strum_staggers();
+    chords_strum_zero();
+    chords_strum_overlaps();
+    step_ignores_strum_bits();
     swing_delays_odd_steps();
     ratchet_repeats();
     repeat_flag_on_ratchet_repeats();
