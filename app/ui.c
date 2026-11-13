@@ -169,6 +169,9 @@ static struct {
     int nchord;                                /* NOTES: notes written since all the keys were up */
     int erase_pos;                             /* LIVE, REC held: the last step erased, -1 none */
     uint8_t erase_notes[8];                    /* the notes of the keys held then, 0 none */
+    int lane, cell, cell_key, cell_edited;     /* LANES: the lane edited (L_*); the cell held 1..16, 0 none, its key */
+    int cell_flash;                            /* the cell last touched 1..16 (0 none) and when, for the scene */
+    uint32_t cell_ms;
     int layer;                                 /* the layer whose map is shown: its button + 1, 0 none */                               /* ARM: the key that started the playing, played once step 1 is under way (key + 1) */
     q_view shown;
     int full;                                  /* the next frame draws everything */
@@ -528,6 +531,10 @@ static int layer_shown(void);
 
 /* SEQ's white keys are its steps: REC on the grid, a STEP pattern */
 static int grid_on(void) { return ui.domain == D_SEQ && ui.rec == R_GRID && pat()->src == SRC_STEP; }
+
+/* LANES in SEQ: PRESET picks the lane, the grid's white keys are its cells */
+static int lanes_on(void) { return ui.domain == D_SEQ && pat()->src == SRC_LANES; }
+static const uint8_t LANE_MAX[L_N] = { 1, 15, 4, 4, 3 };
 
 /* NOTES: the keys write the cursor's step (GRID out of SEQ is NOTES); in SEQ a STEP pattern, elsewhere stopped */
 static int notes_on(void)
@@ -894,7 +901,7 @@ static void rec_set(int r)
     if ((r == R_NOTES) != (ui.rec == R_NOTES))  /* SEQ's pages change: the first one */
         ui.page[D_SEQ] = 0;
     if (r != R_GRID) {                  /* a step held on the grid is let go: its release toggles nothing */
-        ui.held = 0;
+        ui.held = ui.cell = 0;
         sel_clear();
     }
     ui.rec = r;
@@ -916,6 +923,8 @@ static void rec_release(void)
         rec_set(R_OFF);
     else if (ui.domain == D_SEQ && pat()->src == SRC_STEP)
         rec_set(ui.rec == R_OFF ? R_GRID : ui.rec == R_GRID ? R_NOTES : R_OFF);
+    else if (lanes_on())                /* LANES: the grid only, no NOTES */
+        rec_set(ui.rec == R_OFF ? R_GRID : R_OFF);
     else if (ui.domain == D_SEQ)        /* a generator is never written: an armed REC disarms */
         rec_set(R_OFF);
     else if (ui.domain != D_SEQ)
@@ -1232,6 +1241,24 @@ static void key_down(int k)
             pattern_set(w);
         return;
     }
+    if (lanes_on() && ui.rec == R_GRID) {      /* LANES on the grid: the white keys are the edited lane's cells */
+        q_lanes *l = &t->lanes;
+        if (ui.cell) {                  /* a NOTE cell held: another key writes its degree (a KIT: its pad) */
+            if (ui.lane == L_NOTE && (note = key_play_note(k)) >= 0) {
+                l->v[L_NOTE][ui.cell - 1] = (uint8_t)(kit() ? clamp(note - KIT_NOTE, 0, 15)
+                                                           : gen_lanes_degree(l->note, gen_scale(ui.p), ui.p->tonic, note));
+                ui.cell_edited = ui.dirty = 1;
+            }
+            return;
+        }
+        if (w < l->len[ui.lane]) {      /* past LEN: nothing */
+            ui.cell = ui.cell_flash = w + 1;
+            ui.cell_key = k;
+            ui.cell_edited = 0;
+            ui.cell_ms = plat_ms();
+        }
+        return;
+    }
     if (ui.domain == D_SEQ && t->src != SRC_STEP) {    /* a generator: the keys play the track */
         if (page_id() == P_NOTES) {
             notes_toggle(note % 12);
@@ -1346,6 +1373,14 @@ static void key_up(int k)
     if (w < 16 && ui.punch >> w & 1) {
         ui.punch &= (uint16_t)~(1u << w);
         audio_punch(ui.punch);
+    }
+    if (ui.cell && k == ui.cell_key) {  /* nothing edited: the cell's value steps up, back to 0 past its top (TRIG toggles) */
+        if (!ui.cell_edited && pat()->src == SRC_LANES) {
+            uint8_t *v = &pat()->lanes.v[ui.lane][ui.cell - 1];
+            *v = (uint8_t)((*v + 1) % (LANE_MAX[ui.lane] + 1));
+            ui.dirty = 1;
+        }
+        ui.cell = 0;
     }
     if (ui.held && k == ui.held_key) {  /* nothing edited: a lit step is cut, an empty one takes the clipboard */
         if (!ui.edited) {
@@ -1462,6 +1497,11 @@ void ui_input(void)
         } else if (ui.sel_ref >= 0) {
             attr_turn(&pat()->steps[ui.spage * 16 + ui.sel_ref], ui.attr, e);
             sel_copy();
+        } else if (lanes_on()) {        /* the lane edited; a KIT has no OCT */
+            ui.lane = clamp(ui.lane + e, 0, L_N - 1);
+            if (kit() && ui.lane == L_OCT)
+                ui.lane = e > 0 ? L_DUR : L_NOTE;
+            ui.cell = 0;
         } else if (ui.domain == D_SEQ) {
             pattern_set(clamp(ui.p->pattern[ui.track] + e, 0, Q_PATTERNS - 1));
         } else if (ui.domain == D_EDIT && ui.padheld && kit()) {
@@ -1480,10 +1520,18 @@ void ui_input(void)
     }
     if (ui.page[D_SEQ] >= domain_n(D_SEQ))      /* another pattern or track, no XY page */
         ui.page[D_SEQ] = 0;
+    if (kit() && ui.lane == L_OCT)              /* the track became a KIT: no OCT lane */
+        ui.lane = L_NOTE;
     kpid = knob_page();
     for (i = 0; i < 4; i++) {
         e = plat_enc(EN_K1 + i);
-        if (ui.held) {
+        if (ui.cell) {                          /* a LANES cell held: K1 sets it, the others nothing */
+            if (!i && e && pat()->src == SRC_LANES) {
+                uint8_t *v = &pat()->lanes.v[ui.lane][ui.cell - 1];
+                *v = (uint8_t)clamp(*v + e, 0, LANE_MAX[ui.lane]);
+                ui.cell_edited = ui.dirty = 1;
+            }
+        } else if (ui.held) {
             lock_turn(ui.held - 1, i, e);
         } else if (notes_on() && ui.seldown) {
             lock_turn(ui.cursor - 1, i, e);
@@ -1594,6 +1642,14 @@ static uint32_t key_lights(uint32_t *mid)
             keys |= (uint32_t)ui.p->scene[i].used << WHITE[8 + i];
     } else if (notes_on()) {                    /* the cursor's step's notes */
         keys = step_keys(&t->steps[ui.cursor - 1]);
+    } else if (ui.domain == D_SEQ && t->src == SRC_LANES) {  /* the edited lane's cells set at mid level, its head lit */
+        int len = t->lanes.len[ui.lane];
+        uint32_t n = audio_lanes(ui.track);
+        for (i = 0; i < len; i++)
+            if (t->lanes.v[ui.lane][i])
+                *mid |= 1u << WHITE[i];
+        if (pos >= 0 && n && audio_pattern(ui.track) == ui.p->pattern[ui.track])
+            keys |= 1u << WHITE[(n - 1) % (uint32_t)len];
     } else if (ui.domain == D_SEQ && t->src == SRC_STEP) {   /* the steps lit at mid level, the one playing and the selection lit */
         for (i = 0; i < 16; i++) {
             if (t->steps[ui.spage * 16 + i].flags & SF_ON)
@@ -1849,7 +1905,7 @@ static int badge(void)
 {
     if (ui.rec == R_ARM)
         return plat_ms() / 500u & 1u ? 0 : 4;
-    if (ui.domain == D_SEQ && pat()->src != SRC_STEP && ui.rec != R_LIVE)   /* a generator: nothing written */
+    if (ui.domain == D_SEQ && pat()->src != SRC_STEP && pat()->src != SRC_LANES && ui.rec != R_LIVE)   /* a generator: nothing written */
         return 0;
     return ui.rec == R_GRID ? (ui.domain == D_SEQ ? 1 : 2) : ui.rec;
 }
@@ -2823,6 +2879,10 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "lgen")) *got = t->life.gen;
     else if (!strcmp(what, "lmut")) *got = t->life.mut;
     else if (!strcmp(what, "lnbase")) *got = t->lanes.note;
+    else if (!strcmp(what, "lsel")) *got = ui.lane;
+    else if (!strcmp(what, "lcell")) *got = ui.cell;
+    else if (!strncmp(what, "lv_", 3) && what[3] >= '0' && what[3] < '0' + L_N && what[4] == '_' && atoi(what + 5) >= 1 && atoi(what + 5) <= 16)
+        *got = t->lanes.v[what[3] - '0'][atoi(what + 5) - 1];
     else if (!strncmp(what, "llen_", 5) && what[5] >= '0' && what[5] < '0' + L_N && !what[6]) *got = t->lanes.len[what[5] - '0'];
     else if (!strcmp(what, "lempty")) {         /* the grid LIFE's scene shows */
         q_life_run r;

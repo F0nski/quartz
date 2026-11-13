@@ -1,0 +1,63 @@
+# LANES on the grid: REC toggles GRID only, PRESET picks the lane, the white keys are its cells
+wait 600
+tap SEQ
+turn K4 4
+tap REC
+expect badge 1
+turn PRESET 1
+expect lsel 1
+expect pattern 1
+# a tap steps the value up, back to 0 past 15
+tapkey w0
+expect lv_1_1 1
+tapkey w0
+tapkey w0
+tapkey w0
+tapkey w0
+tapkey w0
+tapkey w0
+tapkey w0
+tapkey w0
+tapkey w0
+tapkey w0
+tapkey w0
+tapkey w0
+tapkey w0
+tapkey w0
+tapkey w0
+expect lv_1_1 0
+# held + K1 sets it, the release adds nothing
+key 2 down
+expect lcell 2
+turn K1 3
+key 2 up
+expect lv_1_2 7
+expect lcell 0
+# held NOTE cell + a key: key 11 sounds 64 (E4), degree 9 above C3 in C major
+key 4 down
+key 11 down
+key 11 up
+key 4 up
+expect lv_1_3 9
+# TRIG toggles; a key past LEN (TRIG LEN 7) does nothing
+turn PRESET -1
+expect lsel 0
+tapkey w1
+expect lv_0_2 1
+tapkey w8
+expect lv_0_9 0
+expect lcell 0
+wait 100
+shot lanes_entry.png
+tap REC
+expect badge 0
+# a KIT: OCT edited becomes NOTE, PRESET skips OCT
+turn PRESET 2
+expect lsel 2
+tap EDIT
+turn PRESET 20
+expect model 24
+tap SEQ
+expect lsel 1
+turn PRESET 1
+expect lsel 3

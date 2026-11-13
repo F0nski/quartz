@@ -36,6 +36,7 @@ void audio_punch(uint16_t mask);                        /* the punch-ins held, b
 int audio_playing(void);
 /* a LIFE pattern's run as the render left it (a copy read while it may write: one frame off at worst) */
 void audio_life(int track, q_life_run *out);
+uint32_t audio_lanes(int track);                        /* a LANES pattern's steps played since its reset (0: stopped or just reset) */
 int audio_pos(int track);                               /* step in progress, -1 when stopped */
 uint32_t audio_hits(int track);                         /* note-ons the track sounded since boot (compare by difference) */
 uint32_t audio_kit_hits(int track, int engine);         /* a KIT's note-ons whose pad had that engine (PAD_BD, PAD_SN, PAD_HH) */
