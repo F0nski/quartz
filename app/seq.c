@@ -491,7 +491,7 @@ static void plan(q_seq *s, const q_project *p, int t, uint64_t end, const q_cloc
         if (!due(&tr->x, end, src == SRC_MARBLES)) return;
         if (wrap) {                     /* the pattern and its path are taken at the wrap */
             if (tr->want != tr->pat || pt->path != tr->path) tr->pp = 0;
-            if (tr->want != tr->pat) gen_reset(&s->g[t], &s->rng);
+            if (tr->want != tr->pat) gen_reset(&s->g[t], &s->rng), tr->src = src + 1;   /* (a new pattern: reset once) */
             tr->loops = tr->want != tr->pat ? 0 : tr->loops + 1;
             tr->pat = tr->want;
             tr->path = pt->path;
@@ -511,6 +511,9 @@ static void plan(q_seq *s, const q_project *p, int t, uint64_t end, const q_cloc
            step, so its state moves on. A generator's step has no condition nor probability. */
         q_step g;
         const q_step *st = &g;
+        if (tr->src && tr->src != src + 1)   /* SOURCE changed while playing: the generator starts over (CHORDS, TONNETZ line up) */
+            gen_reset(&s->g[t], &s->rng);
+        tr->src = src + 1;
         if (gen) acc = gen_step(&s->g[t], p, t, pt, tr->k, &s->rng, &g);
         else st = &pt->steps[step];
         if ((st->flags & SF_ON) && (gen || decide(s, tr, st)) && !(s->mute >> t & 1))

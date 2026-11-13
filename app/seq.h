@@ -29,6 +29,7 @@ typedef struct {
     int loops, pre, tie;        /* passes of the pattern; PRE's result; the last step planned tied a note */
     int want, seen;             /* the pattern asked, taken at the wrap; p->pattern[t] last seen: a change asks */
     int anchor;                 /* to start over at the pending launch's bar */
+    int src;                    /* the source last played + 1, 0 none yet: another one starts its generator over */
     q_planned h[2];             /* the last two steps planned, [1] the newest */
 } q_seq_track;
 typedef struct {

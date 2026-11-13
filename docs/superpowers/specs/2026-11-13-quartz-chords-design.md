@@ -61,6 +61,9 @@ notes, un arpège propre à CHORDS, les autres nouveaux séquenceurs (TONNETZ, O
 - **Arpège** : ARP actif sur la piste arpège l'accord tenu, sans rien de propre à CHORDS.
 - **KIT** : un pattern CHORDS sur un KIT ne joue rien.
 
+- Si la SOURCE du pattern change en cours de lecture (vers une autre source puis retour), le séquenceur repart d'un
+  générateur neuf : le compteur s'aligne de nouveau sur le tour.
+
 ## 3. Données
 
 - `SRC_CHORDS` après `SRC_LANES` (`project.h`), `SRC_NAME` « CHORDS ».

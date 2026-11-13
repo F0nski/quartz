@@ -62,6 +62,9 @@ départ sur un autre accord que celui de NOTE, l'enregistrement en live, les aut
     sur toutes ses notes, vélocité 100 ;
   - régler SOURCE sur TONNETZ monte POLY à 3 s'il est plus bas ; un KIT ne joue rien.
 
+- Si la SOURCE du pattern change en cours de lecture (vers une autre source puis retour), le séquenceur repart d'un
+  générateur neuf : le compteur s'aligne de nouveau sur le tour.
+
 ## 3. Données
 
 - `SRC_TONNETZ` après `SRC_CHORDS`, `SRC_NAME` « TONNETZ ».

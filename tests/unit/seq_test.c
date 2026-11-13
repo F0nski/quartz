@@ -1537,6 +1537,20 @@ static void step_ignores_strum_bits(void)
     for (int i = 0; i < 3; i++) assert(nth(0, 1, i) == at16(2, 0));
 }
 
+/* SOURCE switched away and back while playing: the generator starts over, its bars on the tour (CHORDS, TONNETZ) */
+static void source_back_restarts_generator(void)
+{
+    chords_setup_seq(0, 0);                          /* CHORDS, a strike a bar */
+    q_pattern *pt = &P.pat[0][0];
+    run(110);                                        /* about 5 steps into bar 0 (a step is about 21 blocks) */
+    pt->src = SRC_STEP;
+    run(90);                                         /* about 4 steps of STEP */
+    pt->src = SRC_CHORDS;
+    NEV = 0;
+    run(60);
+    assert(S.g[0].chords.n % 16 == (uint32_t)(S.t[0].k + 1) % 16);   /* the counter on the tour's rank again */
+}
+
 int main(void)
 {
     marbles_timing_unchanged();
@@ -1558,6 +1572,7 @@ int main(void)
     chords_strum_zero();
     chords_strum_overlaps();
     step_ignores_strum_bits();
+    source_back_restarts_generator();
     swing_delays_odd_steps();
     ratchet_repeats();
     repeat_flag_on_ratchet_repeats();
