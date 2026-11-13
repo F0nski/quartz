@@ -27,7 +27,8 @@ notes, un arpège propre à CHORDS, les autres nouveaux séquenceurs (TONNETZ, O
 - **La progression** : LEN (1..8) accords, un par mesure de 16 pas à la division du pattern. Le rendu compte les pas
   joués depuis le départ du pattern (`chords_n`, comme `lanes_n`) : l'accord en cours est `(chords_n / 16) mod LEN`, le
   pas dans la mesure `chords_n mod 16`. Le compteur repart à zéro au STOP puis PLAY et au changement de pattern
-  (`gen_reset`). Un tour du pattern fait 16 pas (`gen_loop`).
+  (`gen_reset`). Un tour du pattern fait 16 pas (`gen_loop`). SOURCE réglée sur CHORDS en cours de tour : le compteur
+  part du rang du tour, les mesures s'alignent sur le tour.
 - **Un accord** : un degré 0..6 (I..VII) de la gamme du projet (`gen_scale`) et une taille :
 
 | Taille | Degrés empilés depuis la fondamentale |
@@ -39,7 +40,8 @@ notes, un arpège propre à CHORDS, les autres nouveaux séquenceurs (TONNETZ, O
 
   La fondamentale est NOTE ramenée dans la gamme et montée du degré (`gen_life_note(note, scale, tonic, degré)`), les
   autres notes autant de degrés au-dessus. Majeur, mineur ou diminué découlent de la gamme.
-- **Nombre de notes** : au plus le POLY de la piste (`q_sound.poly`, 1..4). On garde dans l'ordre la fondamentale,
+- **Nombre de notes** : au plus le POLY de la piste (`q_sound.poly`, 1..4). Régler SOURCE sur CHORDS (piste synthé)
+  monte POLY à 3 s'il est plus bas : POLY vaut 1 par défaut et ne jouerait que la fondamentale. On garde dans l'ordre la fondamentale,
   la tierce (ou la seconde / quarte d'un sus), la septième, puis la quinte.
 - **VOICE** :
   - ROOT : les notes gardées, en position fondamentale ;
