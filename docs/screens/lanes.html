@@ -1,0 +1,262 @@
+<title>Lanes Scenes</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+/* Three directions for the LANES source's scene at the device's 240x240, all driven by one run and the knobs below. */
+:root {
+  --bg: #efedf5; --fg: #1c1830; --muted: #5d5873; --line: #d9d5e6; --device: #151320; --hot: #d4247a; --panel: #e4e1ee;
+  --display: "Chakra Petch", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --line: #2a2440; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --line: #2a2440; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.5; margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 48px }
+main { max-width: 1040px; margin: 0 auto; display: grid; gap: 22px }
+h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; line-height: 1.1; margin: 0; text-transform: uppercase; letter-spacing: .02em }
+h1 em { font-style: normal; color: var(--hot) }
+.lead { color: var(--muted); max-width: 70ch; margin: 8px 0 0 }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px }
+figure { margin: 0; display: grid; gap: 8px; align-content: start; min-width: 0 }
+canvas { width: 100%; max-width: 100%; aspect-ratio: 1; background: #000; border: 12px solid var(--device); border-radius: 16px; box-sizing: border-box; image-rendering: pixelated }
+h2 { font-family: var(--display); font-size: 1.1rem; margin: 0; text-transform: uppercase; letter-spacing: .04em }
+.tag { font-family: var(--display); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--hot) }
+figcaption p { margin: 2px 0 0; font-size: .88rem; color: var(--muted) }
+.knobs { background: var(--panel); border-radius: 12px; padding: 14px 16px; display: grid; gap: 12px }
+.knobs header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between }
+.knobs header b { font-family: var(--display); text-transform: uppercase; letter-spacing: .04em }
+.knobs header div { display: flex; flex-wrap: wrap; gap: 8px }
+.pages { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 20px }
+.page h3 { font-family: var(--display); font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 0 4px }
+label { display: grid; grid-template-columns: 6.5em 1fr 3.4em; gap: 8px; align-items: center; font-size: .85rem }
+label span:last-child { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted) }
+input[type=range] { width: 100%; accent-color: var(--hot) }
+button { font: inherit; font-family: var(--display); text-transform: uppercase; letter-spacing: .04em; border: 1px solid var(--line); background: var(--bg); color: var(--fg); border-radius: 8px; padding: 4px 12px; cursor: pointer; font-size: .82rem }
+button[aria-pressed=true] { background: var(--hot); color: #fff; border-color: var(--hot) }
+button:focus-visible { outline: 2px solid var(--hot); outline-offset: 2px }
+.map { font-size: .85rem; color: var(--muted); margin: 0; padding-left: 1.1em }
+.map b { color: var(--fg) }
+</style>
+
+<main>
+<header>
+  <h1>Source <em>LANES</em> : la scène</h1>
+  <p class="lead">Cinq lignes (TRIG, NOTE, OCT, DUR, VEL), chacune une boucle de 1 à 16 cases avec sa longueur ; toutes les têtes
+  avancent d'une case par pas. Trois versions de la direction C (blocs), animées par la même partie.</p>
+</header>
+
+<section class="knobs" aria-label="Encodeurs">
+  <header><b>Encodeurs et PRESET</b><div>
+    <button id="snd" aria-pressed="false">Écouter</button><button id="kit" aria-pressed="false">KIT</button></div></header>
+  <div class="pages" id="pages"></div>
+  <div><span class="tag">PRESET : ligne éditée</span><div id="lanesel" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px"></div></div>
+  <ul class="map">
+    <li><b>DIV</b> : vitesse des têtes. <b>NOTE</b> : la base, écrite en bas à gauche ; les notes du rouleau ou les éclats montent ou descendent avec elle.</li>
+    <li><b>Les cinq LEN</b> : la longueur de la rangée ; un mur rose ferme la boucle, les cases au-delà ne sont plus que des traits au sol.</li>
+    <li><b>PRESET</b> : la rangée éditée passe en bleu vif, son nom en rose (C3 : elle passe en grand en bas, valeurs écrites).</li>
+    <li>Une case tenue ou touchée sur la grille clignote en blanc ; cliquer un bouton PRESET simule un appui sur sa case 1.</li>
+  </ul>
+</section>
+
+<div class="grid">
+  <figure><canvas id="c1" width="240" height="240"></canvas><figcaption><span class="tag">C1</span><h2>Blocs et rouleau</h2><p>Les rangées de blocs, plus grandes et alignées, une tête par rangée (le bloc rose, une flèche blanche au-dessus). En bas, ce qui sort vraiment : les notes en rouleau de piano, la dernière nommée en grand.</p></figcaption></figure>
+  <figure><canvas id="c2" width="240" height="240"></canvas><figcaption><span class="tag">C2</span><h2>Plateau</h2><p>Les rangées posées en profondeur sur un sol filaire, TRIG devant, sous un horizon façon Rez. Chaque tête est un viseur rose ; quand une note part, un éclat s'envole de la tête de TRIG vers le ciel avec son nom.</p></figcaption></figure>
+  <figure><canvas id="c3" width="240" height="240"></canvas><figcaption><span class="tag">C3</span><h2>Focus</h2><p>Les cinq rangées en petit en haut pour voir la polymétrie ; la rangée éditée (PRESET) en grand en bas, chaque valeur écrite sur son bloc : nom de la note, octave, durée, nuance. Pensé pour la saisie.</p></figcaption></figure>
+</div>
+</main>
+
+<script>
+const C = { bg: '#000', wire: '#2a2148', dim: '#1c1340', txt: '#c9c3e4', mute: '#4a4466', pink: '#ff4fa8', white: '#f4f1ff' };
+const GEM = { blue: ['#8fb0ff', '#3a6dff', '#2a52c8', '#1c3590'], pink: ['#ffb8dc', '#ff4fa8', '#d4247a', '#9a1659'],
+  dim: ['#4a4466', '#2a2148', '#241850', '#1c1340'], white: ['#ffffff', '#e4e0f5', '#b8b2d6', '#8a84ab'] };
+const NAMES = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+const SCALE = [0, 2, 3, 5, 7, 9, 10];                    // the project's scale: D dorian on C here
+const LANE = ['TRIG', 'NOTE', 'OCT', 'DUR', 'VEL'], MAX = [1, 14, 4, 4, 3];   // OCT 0..4 = -2..+2; DUR 1/4,1/2,1,2,4; VEL 4 levels
+const DURS = [0.25, 0.5, 1, 2, 4];
+const DIVS = [['1/32', 62.5], ['1/16', 125], ['1/8', 250], ['1/4', 500]];
+const S = { div: 1, note: 48, len: [7, 5, 3, 4, 6], sel: 1, kit: false };
+const V = [[1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1], [0, 4, 2, 7, 3, 5, 1, 6, 9, 4, 2, 0, 7, 3, 8, 5],
+           [2, 2, 3, 1, 2, 4, 2, 3, 2, 2, 1, 2, 3, 2, 2, 2], [1, 3, 1, 2, 0, 1, 2, 4, 1, 1, 3, 1, 2, 0, 1, 2],
+           [3, 1, 2, 1, 3, 2, 0, 2, 3, 1, 2, 1, 3, 2, 1, 2]];
+const cell = (l, k) => V[l][k % S.len[l]];
+const pitch = k => S.kit ? 36 + cell(1, k) % 16 : (() => { const d = cell(1, k); return S.note + 12 * Math.floor(d / 7) + SCALE[d % 7] + 12 * (cell(2, k) - 2); })();
+const label = n => S.kit ? 'P' + (n - 35) : NAMES[n % 12] + Math.floor(n / 12 - 1);
+
+/* ---- controls ---- */
+const PAGES = [['LANES', [['DIV', 0, 3, () => S.div, v => S.div = v, v => DIVS[v][0]], ['NOTE', 24, 84, () => S.note, v => S.note = v, v => label(v)],
+                          ['TRIG LEN', 1, 16, () => S.len[0], v => S.len[0] = v, String], ['SOURCE', 0, 0, () => 0, () => {}, () => 'LANES']]],
+               ['LENS', [['NOTE LEN', 1, 16, () => S.len[1], v => S.len[1] = v, String], ['OCT LEN', 1, 16, () => S.len[2], v => S.len[2] = v, String],
+                         ['DUR LEN', 1, 16, () => S.len[3], v => S.len[3] = v, String], ['VEL LEN', 1, 16, () => S.len[4], v => S.len[4] = v, String]]]];
+const pagesEl = document.getElementById('pages'), outs = [];
+PAGES.forEach(([name, ks], pi) => {
+  const d = document.createElement('div'); d.className = 'page'; d.innerHTML = `<h3>Page ${name}</h3>`;
+  ks.forEach(([n, lo, hi, get, set, fmt], ki) => {
+    const id = `k${pi}${ki}`, l = document.createElement('label');
+    l.innerHTML = `<span>K${ki + 1} ${n}</span><input type="range" id="${id}" min="${lo}" max="${hi}" value="${get()}"${lo === hi ? ' disabled' : ''}><span></span>`;
+    const inp = l.querySelector('input'), out = l.lastChild, upd = () => { out.textContent = fmt(+inp.value); };
+    inp.addEventListener('input', () => { set(+inp.value); upd(); });
+    outs.push([upd, l, n]); upd(); d.appendChild(l);
+  });
+  pagesEl.appendChild(d);
+});
+const selEl = document.getElementById('lanesel');
+const drawSel = () => { selEl.innerHTML = ''; LANE.forEach((n, i) => { if (S.kit && i === 2) return; const b = document.createElement('button'); b.textContent = n; b.setAttribute('aria-pressed', String(S.sel === i)); b.onclick = () => { S.sel = i; tap = { l: i, c: 0, t: performance.now() }; drawSel(); }; selEl.appendChild(b); }); };
+drawSel();
+document.getElementById('kit').onclick = e => { S.kit = !S.kit; e.target.setAttribute('aria-pressed', String(S.kit)); if (S.kit && S.sel === 2) S.sel = 1;
+  outs.forEach(([upd, l, n]) => { l.style.opacity = S.kit && (n === 'NOTE' || n === 'OCT LEN') ? .35 : 1; upd(); }); drawSel(); };
+let tap = null;
+
+/* ---- sound ---- */
+let ac = null, on = false;
+document.getElementById('snd').onclick = e => { if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)(); ac.resume(); on = !on; e.target.setAttribute('aria-pressed', String(on)); };
+function play(n, vel, dur) {
+  if (!ac || !on) return;
+  const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+  o.type = S.kit ? 'square' : 'triangle'; o.frequency.value = 440 * 2 ** ((n - 69) / 12);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.18 * vel, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.05);
+  o.connect(g).connect(ac.destination); o.start(t); o.stop(t + dur + 0.1);
+}
+
+/* ---- the run: one clock, the heads are k mod LEN ---- */
+let k = -1, frac = 0, last = performance.now(), acc = 0; const notes = [], shards = [];
+function tick() {
+  k++;
+  if (cell(0, k)) {
+    const n = pitch(k), d = DURS[cell(3, k)], v = (cell(4, k) + 1) / 4;
+    notes.push({ k, n, d }); if (notes.length > 40) notes.shift(); shards.push({ n, k, t: performance.now() });
+    play(n, v, d * DIVS[S.div][1] / 1000);
+  }
+}
+
+/* ---- drawing helpers ---- */
+function poly(g, pts, fill) { g.beginPath(); g.moveTo(...pts[0]); for (const p of pts.slice(1)) g.lineTo(...p); g.closePath(); g.fillStyle = fill; g.fill(); }
+function line(g, x0, y0, x1, y1, col, w = 1) { g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.strokeStyle = col; g.lineWidth = w; g.stroke(); }
+function txt(g, s, x, y, col = C.txt, size = 10, align = 'left') { g.font = `700 ${size}px "Chakra Petch", sans-serif`; g.fillStyle = col; g.textAlign = align; g.fillText(s, x, y); }
+function topbar(g) {
+  g.fillStyle = C.bg; g.fillRect(0, 0, 240, 18); txt(g, 'LANES', 6, 13, C.pink, 11);
+  txt(g, `${DIVS[S.div][0]} · ${S.kit ? 'KIT' : label(S.note)} · EDIT ${LANE[S.sel]}`, 234, 13, C.txt, 9, 'right'); line(g, 0, 18.5, 240, 18.5, C.wire);
+}
+const lanesShown = () => S.kit ? [0, 1, 3, 4] : [0, 1, 2, 3, 4];
+const tapped = (l, c) => tap && tap.l === l && tap.c === c && performance.now() - tap.t < 300;
+const valH = (l, v) => l === 0 ? (v ? 1 : 0) : l === 2 ? Math.abs(v - 2) / 2 : v / MAX[l];   // 0..1, OCT from the centre
+
+/* a faceted block: front face, top facet, right facet; s: 4 tones light..dark */
+function block(g, x, y0, w, h, d, s, lit) {
+  poly(g, [[x, y0 - h], [x + w, y0 - h], [x + w, y0], [x, y0]], s[lit ? 1 : 2]);
+  poly(g, [[x, y0 - h], [x + w, y0 - h], [x + w + d, y0 - h - d], [x + d, y0 - h - d]], s[0]);
+  poly(g, [[x + w, y0 - h], [x + w + d, y0 - h - d], [x + w + d, y0 - d], [x + w, y0]], s[3]);
+}
+const SEL = ['#8fb0ff', '#3a6dff', '#2a52c8', '#1c3590'], OFF = ['#3a2f63', '#2a2148', '#241850', '#160f30'];
+const tone = (l, c, cur) => cur ? GEM.pink : tapped(l, c) ? GEM.white : l === S.sel ? SEL : OFF;
+const valTxt = (l, v) => l === 0 ? (v ? '●' : '') : l === 1 ? (S.kit ? 'P' + (v % 16 + 1) : NAMES[(S.note + SCALE[v % 7]) % 12]) : l === 2 ? ['-2', '-1', '0', '+1', '+2'][v] : l === 3 ? ['¼', '½', '1', '2', '4'][v] : ['pp', 'mf', 'f', 'ff'][v];
+function lastNote(g, x, y) { const l = notes[notes.length - 1]; if (l) txt(g, label(l.n), x, y, l.k === k ? C.pink : C.txt, 18, 'right'); }
+
+/* a row of blocks: cells 0..LEN-1, a pink wall closing the loop, floor dashes beyond */
+function row(g, l, x0, y0, cw, w, hmax, d, opt = {}) {
+  const len = S.len[l];
+  for (let c = 0; c < 16; c++) {
+    const x = x0 + c * cw;
+    if (c >= len) { line(g, x + 1, y0 - 0.5, x + w - 1, y0 - 0.5, '#241850'); continue; }
+    const v = V[l][c], cur = c === k % len, s = tone(l, c, cur);
+    const h = l === 0 ? (v ? hmax * 0.6 : 2) : 3 + valH(l, v) * (hmax - 3);
+    if (l === 0 && !v) poly(g, [[x, y0 - 2], [x + w, y0 - 2], [x + w, y0], [x, y0]], cur ? GEM.pink[2] : s[3]);
+    else block(g, x, y0, w, h, d, s, cur || l === S.sel);
+    if (opt.vals) txt(g, valTxt(l, v), x + w / 2, y0 + 12, cur ? C.pink : l === S.sel ? C.txt : C.mute, 9, 'center');
+    if (cur && opt.arrow) poly(g, [[x + w / 2 - 3, y0 - h - d - 7], [x + w / 2 + 3, y0 - h - d - 7], [x + w / 2, y0 - h - d - 3]], C.white);
+  }
+  const xe = x0 + len * cw - (cw - w) / 2;
+  poly(g, [[xe, y0], [xe + 2, y0], [xe + 2 + d, y0 - d - hmax], [xe + d, y0 - d - hmax]], '#9a1659');   // the loop's wall
+}
+
+/* C1: blocks and the piano roll */
+function drawC1(g) {
+  g.fillStyle = C.bg; g.fillRect(0, 0, 240, 240);
+  const ls = lanesShown(), RH = ls.length === 5 ? 25 : 31;
+  ls.forEach((l, r) => {
+    const y0 = 46 + r * RH, sel = l === S.sel;
+    txt(g, LANE[l], 4, y0 - 4, sel ? C.pink : C.mute, 8); txt(g, String(S.len[l]), 4, y0 + 5, sel ? C.pink : '#3a2f63', 8);
+    row(g, l, 30, y0, 13, 10, 16, 3, { arrow: true });
+  });
+  const yb = 162; line(g, 0, yb - 0.5, 240, yb - 0.5, C.wire);
+  const CW = 9, X0 = 30, CUR = 14;
+  g.save(); g.beginPath(); g.rect(X0, yb, 240 - X0, 78); g.clip();
+  for (const nt of notes) {
+    const x = X0 + (nt.k - k + CUR - frac) * CW, y = 232 - (nt.n - S.note + 16) * 1.6, w = Math.max(3, nt.d * CW - 2);
+    const s = nt.k <= k && nt.k + nt.d > k ? GEM.pink : GEM.blue;
+    poly(g, [[x, y], [x + w, y], [x + w, y + 4], [x, y + 4]], s[1]); poly(g, [[x, y], [x + w, y], [x, y + 2]], s[0]);
+  }
+  g.restore();
+  line(g, X0 + CUR * CW, yb, X0 + CUR * CW, 240, C.pink);
+  txt(g, 'OUT', 4, yb + 12, C.mute, 8); txt(g, S.kit ? 'KIT' : label(S.note), 4, 234, C.mute, 8);
+  lastNote(g, 236, yb + 20);
+  topbar(g);
+}
+
+/* C2: the plateau, rows in depth under a horizon */
+function drawC2(g) {
+  g.fillStyle = C.bg; g.fillRect(0, 0, 240, 240);
+  const HZ = 70, now = performance.now();
+  line(g, 0, HZ + 0.5, 240, HZ + 0.5, '#3a2f63');
+  for (let i = -8; i <= 8; i++) line(g, 120 + i * 9, HZ, 120 + i * 60, 240, '#120c2a');
+  for (let j = 0; j < 6; j++) { const y = HZ + 6 + j * j * 5.2; line(g, 0, y, 240, y, '#120c2a'); }
+  const ls = lanesShown();
+  ls.slice().reverse().forEach((l, ri) => {
+    const r = ls.length - 1 - ri, depth = r / 4, sc = 1 - depth * 0.38;          // TRIG in front, the biggest
+    const y0 = 214 - (r * 30 - r * r * 1.6), cw = 13 * sc, w = 10.5 * sc, x0 = 120 - 8 * cw + 6;
+    row(g, l, x0, y0, cw, w, 22 * sc, 4 * sc);
+    txt(g, LANE[l], x0 - 4, y0 - 2, l === S.sel ? C.pink : C.mute, Math.round(9 * sc), 'right');
+    const c = k % S.len[l], x = x0 + c * cw, a = 3 * sc, top = y0 - 30 * sc, bot = y0 + 3;
+    [[x - a, top, 1, 1], [x + w + a, top, -1, 1], [x - a, bot, 1, -1], [x + w + a, bot, -1, -1]].forEach(([px, py, dx, dy]) => {   // the lock-on sight
+      line(g, px, py, px + dx * 4, py, C.pink, 1.5); line(g, px, py, px, py + dy * 4, C.pink, 1.5); });
+  });
+  for (let j = shards.length - 1; j >= 0; j--) {
+    const sh = shards[j], a = (now - sh.t) / 700; if (a > 1) { shards.splice(j, 1); continue; }
+    const x0 = 120 - 8 * 13 + 6 + (sh.k % S.len[0]) * 13 + 5, x = x0 + (sh.n - S.note) * a * 1.2, y = 186 - a * 150;
+    poly(g, [[x, y - 7], [x + 4, y - 1], [x + 1, y + 7], [x - 4, y]], a < 0.3 ? C.white : a < 0.6 ? C.pink : '#9a1659');
+    if (a < 0.6 && y < HZ + 8) txt(g, label(sh.n), x, y - 10, C.white, 10, 'center');
+  }
+  txt(g, S.kit ? 'KIT' : 'BASE ' + label(S.note), 4, 30, C.mute, 8);
+  topbar(g);
+}
+
+/* C3: all rows small, the edited row big with its values */
+function drawC3(g) {
+  g.fillStyle = C.bg; g.fillRect(0, 0, 240, 240);
+  const ls = lanesShown();
+  ls.forEach((l, r) => {
+    const y0 = 36 + r * 16;
+    txt(g, LANE[l], 4, y0, l === S.sel ? C.pink : C.mute, 8);
+    row(g, l, 34, y0, 12.5, 10, 9, 2);
+  });
+  const l = S.sel, yb = 126; line(g, 0, yb - 0.5, 240, yb - 0.5, C.wire);
+  txt(g, 'EDIT ' + LANE[l], 4, yb + 13, C.pink, 10); txt(g, 'LEN ' + S.len[l], 236, yb + 13, C.txt, 10, 'right');
+  // two rows of eight big blocks: cells 1-8 then 9-16, as the white keys
+  for (let h = 0; h < 2; h++) {
+    const y0 = yb + 52 + h * 50;
+    for (let c = h * 8; c < h * 8 + 8; c++) {
+      const x = 8 + (c % 8) * 28.5, len = S.len[l], v = V[l][c];
+      if (c >= len) { line(g, x + 2, y0 - 0.5, x + 22, y0 - 0.5, '#241850'); txt(g, String(c + 1), x + 12, y0 + 11, '#241850', 8, 'center'); continue; }
+      const cur = c === k % len, s = cur ? GEM.pink : tapped(l, c) ? GEM.white : SEL;
+      const hh = l === 0 ? (v ? 18 : 2) : 4 + valH(l, v) * 20;
+      if (l === 0 && !v) poly(g, [[x, y0 - 2], [x + 22, y0 - 2], [x + 22, y0], [x, y0]], cur ? GEM.pink[2] : SEL[3]);
+      else block(g, x, y0, 22, hh, 4, s, true);
+      txt(g, valTxt(l, v), x + 11, y0 - hh - 8, cur ? C.white : C.txt, 10, 'center');
+      txt(g, String(c + 1), x + 11, y0 + 11, cur ? C.pink : C.mute, 8, 'center');
+    }
+  }
+  topbar(g);
+}
+
+const G = ['c1', 'c2', 'c3'].map(id => document.getElementById(id).getContext('2d'));
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function frame() {
+  const t = performance.now(), ms = DIVS[S.div][1];
+  acc += Math.min(200, t - last); last = t;
+  while (acc >= ms) { acc -= ms; tick(); }
+  frac = reduce ? 0 : acc / ms;
+  drawC1(G[0]); drawC2(G[1]); drawC3(G[2]);
+  requestAnimationFrame(frame);
+}
+document.fonts.ready.then(() => { tick(); requestAnimationFrame(frame); });
+</script>

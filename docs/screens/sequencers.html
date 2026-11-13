@@ -1,0 +1,425 @@
+<title>QUARTZ Sequencer Ideas</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+/* Six candidate sources, one small animated 240x240 screen each, with sound on demand. */
+:root {
+  --bg: #efedf5; --fg: #1c1830; --muted: #5d5873; --line: #d9d5e6; --device: #151320; --hot: #d4247a; --panel: #e4e1ee;
+  --display: "Chakra Petch", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --line: #2a2440; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --line: #2a2440; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.5; margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 48px }
+main { max-width: 1040px; margin: 0 auto; display: grid; gap: 22px }
+h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; line-height: 1.1; margin: 0; text-transform: uppercase; letter-spacing: .02em; text-wrap: balance }
+h1 em { font-style: normal; color: var(--hot) }
+.lead { color: var(--muted); max-width: 70ch; margin: 8px 0 0 }
+.family { font-family: var(--display); font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 10px 0 -8px; border-bottom: 1px solid var(--line); padding-bottom: 4px }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 26px 20px }
+figure { margin: 0; display: grid; gap: 8px; align-content: start; min-width: 0 }
+canvas { width: 100%; max-width: 100%; aspect-ratio: 1; background: #000; border: 12px solid var(--device); border-radius: 16px; box-sizing: border-box; image-rendering: pixelated }
+figcaption { display: grid; gap: 6px; min-width: 0 }
+.head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap }
+h2 { font-family: var(--display); font-size: 1.15rem; margin: 0; text-transform: uppercase; letter-spacing: .04em }
+.tag { font-family: var(--display); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--hot) }
+figcaption p { margin: 0; font-size: .9rem }
+dl { margin: 0; display: grid; grid-template-columns: 6.6em 1fr; gap: 3px 10px; font-size: .84rem; color: var(--muted) }
+dt { font-family: var(--display); text-transform: uppercase; letter-spacing: .05em; font-size: .74rem; padding-top: 2px; color: var(--fg) }
+dd { margin: 0 }
+button { font: inherit; font-family: var(--display); text-transform: uppercase; letter-spacing: .04em; border: 1px solid var(--line); background: var(--bg); color: var(--fg); border-radius: 8px; padding: 3px 12px; cursor: pointer; font-size: .8rem }
+button[aria-pressed=true] { background: var(--hot); color: #fff; border-color: var(--hot) }
+button:focus-visible { outline: 2px solid var(--hot); outline-offset: 2px }
+.reco { background: var(--panel); border-radius: 12px; padding: 14px 16px; font-size: .92rem }
+.reco b { font-family: var(--display); text-transform: uppercase; letter-spacing: .04em }
+.reco ul { margin: 6px 0 0; padding-left: 1.1em }
+</style>
+
+<main>
+<header>
+  <h1>Nouvelles sources pour <em>QUARTZ</em></h1>
+  <p class="lead">Six idées de séquenceurs qui n'existent pas encore dans QUARTZ (STEP, GRIDS, MARBLES et LIFE sont déjà là).
+  Chaque écran est une esquisse du principe, pas la scène finale. Le bouton « Écouter » joue le séquenceur avec un son simple, un seul à la fois.</p>
+</header>
+
+<section class="reco">
+  <b>En résumé</b>
+  <ul>
+    <li>Le plus utile au quotidien : <b>LANES</b> (des mélodies longues et vivantes à partir de peu de pas).</li>
+    <li>Le plus original : <b>TONNETZ</b> (harmonie) et <b>MIMIC</b> (il improvise d'après ce que tu joues).</li>
+    <li>Le plus visuel : <b>ORBITS</b> et <b>BOUNCE</b> (le rythme se voit, la scène est le séquenceur).</li>
+  </ul>
+</section>
+
+<p class="family">Mélodie et rythme</p>
+<div class="grid">
+  <figure><canvas id="lanes" width="240" height="240"></canvas><figcaption>
+    <div class="head"><div><span class="tag">Polymétrie</span><h2>LANES</h2></div><button data-id="lanes" aria-pressed="false">Écouter</button></div>
+    <p>Au lieu d'un pas qui porte tout, chaque propriété a sa propre petite boucle : déclenchement (7 pas), note (5), octave (3), durée (4), vélocité (6). Les boucles se décalent : la phrase ne se répète à l'identique qu'au bout de 420 pas, mais garde une identité nette.</p>
+    <dl><dt>Inspiré de</dt><dd>monome Kria, Five12 Vector, le mode « polymeter » des Elektron</dd>
+    <dt>Encodeurs</dt><dd>longueur de chaque ligne ; les valeurs se saisissent sur la grille comme STEP</dd>
+    <dt>Apporte</dt><dd>beaucoup de variation sans hasard, reproductible</dd></dl>
+  </figcaption></figure>
+
+  <figure><canvas id="orbits" width="240" height="240"></canvas><figcaption>
+    <div class="head"><div><span class="tag">Polyrythmes</span><h2>ORBITS</h2></div><button data-id="orbits" aria-pressed="false">Écouter</button></div>
+    <p>Des lunes tournent autour d'une planète, chacune avec sa période en pas (ici 16, 12, 10 et 7). Chaque fois qu'une lune passe devant (la ligne rose), elle joue sa note. On lit le polyrythme d'un coup d'œil, et le tout ne se réaligne qu'après 1680 pas.</p>
+    <dl><dt>Inspiré de</dt><dd>Rozeta Orbit (iOS), les séquenceurs « planétaires » à roues</dd>
+    <dt>Encodeurs</dt><dd>nombre de lunes, période de chaque lune, note de chaque lune, phase</dd>
+    <dt>Apporte</dt><dd>des rythmes croisés impossibles à écrire à la main</dd></dl>
+  </figcaption></figure>
+
+  <figure><canvas id="bounce" width="240" height="240"></canvas><figcaption>
+    <div class="head"><div><span class="tag">Physique</span><h2>BOUNCE</h2></div><button data-id="bounce" aria-pressed="false">Écouter</button></div>
+    <p>Des billes tombent et rebondissent ; chaque choc au sol joue une note. Les rebonds se resserrent et accélèrent tout seuls, comme une balle de ping-pong qui s'arrête, puis la bille est relâchée. Hors grille, mais avec une logique physique qui sonne naturelle.</p>
+    <dl><dt>Inspiré de</dt><dd>le patch « bouncing ball » des modulaires (Make Noise Maths), Bouncy Notes (Max for Live)</dd>
+    <dt>Encodeurs</dt><dd>gravité, rebond (élasticité), nombre de billes, hauteur de lâcher</dd>
+    <dt>Apporte</dt><dd>des accelerandos et des rolls organiques, idéal pour percussions et pizz</dd></dl>
+  </figcaption></figure>
+</div>
+
+<p class="family">Harmonie</p>
+<div class="grid">
+  <figure><canvas id="tonnetz" width="240" height="240"></canvas><figcaption>
+    <div class="head"><div><span class="tag">Accords en marche</span><h2>TONNETZ</h2></div><button data-id="tonnetz" aria-pressed="false">Écouter</button></div>
+    <p>Le Tonnetz est une carte des notes où chaque triangle est un accord. À chaque mesure, l'accord « bascule » sur un triangle voisin par une des trois transformations P, L ou R, qui gardent toujours deux notes communes. On obtient des enchaînements doux mais surprenants (C → Am → F → Fm → …), joués en arpège.</p>
+    <dl><dt>Inspiré de</dt><dd>Ornament &amp; Crime « Automatonnetz », la théorie néo-riemannienne (musiques de film)</dd>
+    <dt>Encodeurs</dt><dd>probabilité de P, de L, de R ; durée d'un accord ; motif d'arpège</dd>
+    <dt>Apporte</dt><dd>des progressions d'accords qu'on n'aurait pas écrites, toujours fluides</dd></dl>
+  </figcaption></figure>
+
+  <figure><canvas id="chords" width="240" height="240"></canvas><figcaption>
+    <div class="head"><div><span class="tag">Progression</span><h2>CHORDS</h2></div><button data-id="chords" aria-pressed="false">Écouter</button></div>
+    <p>On écrit une progression de 1 à 8 accords (ici I – vi – IV – V), un par mesure, et la piste la joue en accords plaqués, grattés (strum) ou en arpège. Plus classique, mais très pratique pour poser une harmonie sous les autres pistes.</p>
+    <dl><dt>Inspiré de</dt><dd>les modes accords de l'Oxi One et du Squarp Hapax, le « chord track » des DAW</dd>
+    <dt>Encodeurs</dt><dd>degré et type de chaque accord, durée, mode STRUM / ARP, voicing</dd>
+    <dt>Apporte</dt><dd>une harmonie rapide à poser, dans la gamme du projet</dd></dl>
+  </figcaption></figure>
+</div>
+
+<p class="family">Interaction</p>
+<div class="grid">
+  <figure><canvas id="mimic" width="240" height="240"></canvas><figcaption>
+    <div class="head"><div><span class="tag">Apprentissage</span><h2>MIMIC</h2></div><button data-id="mimic" aria-pressed="false">Écouter</button></div>
+    <p>Tu joues une phrase au clavier ; QUARTZ note quelles notes suivent quelles notes (une chaîne de Markov, les traits du graphe). Puis il improvise en suivant ces liens : ça ressemble à ta phrase sans la répéter. DÉRIVE l'autorise à sortir des chemins appris.</p>
+    <dl><dt>Inspiré de</dt><dd>le Continuator (François Pachet, Sony CSL), les générateurs Markov de Max/MSP</dd>
+    <dt>Encodeurs</dt><dd>DÉRIVE, mémoire (1 ou 2 notes), apprendre on/off, longueur</dd>
+    <dt>Apporte</dt><dd>un partenaire de jeu : tu donnes une idée, il la développe</dd></dl>
+  </figcaption></figure>
+</div>
+</main>
+
+<script>
+const STEP_MS = 125;                          // 120 BPM, 16ths
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const C = { bg: '#000', wire: '#2a2148', dim: '#1c1340', txt: '#c9c3e4', mute: '#4a4466', pink: '#ff4fa8', white: '#f4f1ff' };
+const GEM = {
+  blue: ['#8fb0ff', '#3a6dff', '#2a52c8', '#1c3590'], pink: ['#ffb8dc', '#ff4fa8', '#d4247a', '#9a1659'],
+  orange: ['#ffc196', '#ff7a2e', '#d45a14', '#8f3a0a'], dim: ['#4a4466', '#2a2148', '#241850', '#1c1340'],
+  white: ['#ffffff', '#e4e0f5', '#b8b2d6', '#8a84ab'] };
+const NAMES = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+const MAJ = [0, 2, 4, 5, 7, 9, 11];
+
+/* ---- sound: one source audible at a time ---- */
+let ac = null, master = null, audible = null;
+function play(id, midi, vel = 0.8, dur = 0.15, delay = 0) {
+  if (!ac || audible !== id) return;
+  const t = ac.currentTime + delay, o = ac.createOscillator(), g = ac.createGain();
+  o.type = 'triangle'; o.frequency.value = 440 * 2 ** ((midi - 69) / 12);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.22 * vel, t + 0.005);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.06);
+  o.connect(g).connect(master); o.start(t); o.stop(t + dur + 0.1);
+}
+document.querySelectorAll('button[data-id]').forEach(b => b.addEventListener('click', () => {
+  if (!ac) { ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = 0.7; master.connect(ac.destination); }
+  ac.resume();
+  audible = audible === b.dataset.id ? null : b.dataset.id;
+  document.querySelectorAll('button[data-id]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.id === audible)));
+}));
+
+/* ---- drawing helpers: flat facets only ---- */
+function poly(g, pts, fill) { g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (const p of pts.slice(1)) g.lineTo(p[0], p[1]); g.closePath(); g.fillStyle = fill; g.fill(); }
+function line(g, x0, y0, x1, y1, col, w = 1) { g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.strokeStyle = col; g.lineWidth = w; g.stroke(); }
+function gem(g, x, y, r, sh, rot = 0) {         // a diamond cut in four flat facets
+  const p = k => [x + r * Math.cos(rot + k * Math.PI / 2 - Math.PI / 2), y + r * Math.sin(rot + k * Math.PI / 2 - Math.PI / 2)];
+  const c = [x - r * 0.15, y - r * 0.15], P = [p(0), p(1), p(2), p(3)];
+  poly(g, [P[3], P[0], c], sh[0]); poly(g, [P[0], P[1], c], sh[1]); poly(g, [P[2], P[3], c], sh[2]); poly(g, [P[1], P[2], c], sh[3]);
+}
+function txt(g, s, x, y, col = C.txt, size = 10, align = 'left') { g.font = `700 ${size}px "Chakra Petch", sans-serif`; g.fillStyle = col; g.textAlign = align; g.fillText(s, x, y); }
+function bar(g, name, right) { g.fillStyle = C.bg; g.fillRect(0, 0, 240, 18); txt(g, name, 6, 13, C.pink, 11); txt(g, right, 234, 13, C.txt, 10, 'right'); line(g, 0, 18.5, 240, 18.5, C.wire); }
+const lcm = (a, b) => { const gcd = (x, y) => y ? gcd(y, x % y) : x; return a * b / gcd(a, b); };
+
+/* ---- LANES ---- */
+const lanes = (() => {
+  const L = [
+    { n: 'TRIG', v: [1, 0, 1, 1, 0, 1, 0] }, { n: 'NOTE', v: [0, 4, 2, 5, 3] }, { n: 'OCT', v: [0, 0, 1] },
+    { n: 'DUR', v: [1, 3, 1, 2] }, { n: 'VEL', v: [3, 1, 2, 1, 3, 2] }];
+  const cyc = L.reduce((a, l) => lcm(a, l.v.length), 1);
+  const note = k => 48 + MAJ[L[1].v[k % 5]] + 12 * L[2].v[k % 3];
+  return {
+    step(k) { if (L[0].v[k % 7]) play('lanes', note(k) + 12, L[4].v[k % 6] / 3, L[3].v[k % 4] * 0.1); },
+    draw(g, t) {
+      g.fillStyle = C.bg; g.fillRect(0, 0, 240, 240);
+      const k0 = Math.floor(t), fr = t - k0, CW = 14, X0 = 42, CUR = 3;
+      bar(g, 'LANES', `PAS ${k0 % cyc} / ${cyc}`);
+      L.forEach((l, r) => {
+        const y = 26 + r * 26, len = l.v.length;
+        txt(g, l.n, 6, y + 15, C.txt, 9); txt(g, String(len), 36, y + 15, C.pink, 9, 'right');
+        g.save(); g.beginPath(); g.rect(X0, y - 4, 240 - X0, 26); g.clip();
+        for (let c = -1; c < 15; c++) {
+          const k = k0 - CUR + c; if (k < 0) continue;
+          const x = X0 + (c - fr) * CW, v = l.v[k % len], now = k === k0, s = now ? GEM.pink : GEM.blue;
+          if (k % len === 0) poly(g, [[x, y - 3], [x + 4, y - 3], [x, y + 1]], C.pink);   // loop start
+          if (r === 0) { if (v) { poly(g, [[x + 1, y + 2], [x + 12, y + 2], [x + 12, y + 18]], s[1]); poly(g, [[x + 1, y + 2], [x + 12, y + 18], [x + 1, y + 18]], s[3]); } else poly(g, [[x + 5, y + 9], [x + 8, y + 9], [x + 8, y + 12], [x + 5, y + 12]], C.wire); }
+          if (r === 1) { const h = 3 + v * 2.6; poly(g, [[x + 2, y + 19 - h], [x + 11, y + 19 - h], [x + 11, y + 19], [x + 2, y + 19]], s[2]); poly(g, [[x + 2, y + 19 - h], [x + 11, y + 19 - h], [x + 6.5, y + 16 - h]], s[0]); }
+          if (r === 2) { const yy = v ? y + 5 : y + 12; poly(g, [[x + 2, yy + 5], [x + 6.5, yy], [x + 11, yy + 5]], s[v ? 0 : 3]); }
+          if (r === 3) poly(g, [[x + 2, y + 8], [x + 2 + v * 10 - 3, y + 8], [x + 2 + v * 10, y + 11], [x + 2, y + 13]], now ? s[1] : GEM.blue[2]);
+          if (r === 4) poly(g, [[x + 3, y + 4], [x + 10, y + 4], [x + 10, y + 16], [x + 3, y + 16]], (now ? GEM.pink : GEM.blue)[3 - v]);
+        }
+        g.restore();
+      });
+      const cx = X0 + CUR * CW - fr * 0;                          // the head: fixed column
+      g.strokeStyle = C.pink; g.lineWidth = 1; g.strokeRect(cx - 1.5, 21, CW + 1, 133);
+      // the result, as a piano roll on the same timeline
+      line(g, 0, 160.5, 240, 160.5, C.wire); txt(g, 'RÉSULTAT', 6, 172, C.mute, 9);
+      g.save(); g.beginPath(); g.rect(X0, 162, 240 - X0, 78); g.clip();
+      for (let c = -4; c < 15; c++) {
+        const k = k0 - CUR + c; if (k < 0 || !L[0].v[k % 7]) continue;
+        const x = X0 + (c - fr) * CW, n = note(k) - 48, y = 228 - n * 2.6, w = L[3].v[k % 4] * CW - 3;
+        const s = k <= k0 && k + L[3].v[k % 4] > k0 ? GEM.pink : k > k0 ? GEM.dim : GEM.blue;
+        poly(g, [[x + 1, y], [x + w, y], [x + w, y + 5], [x + 1, y + 5]], s[1]); poly(g, [[x + 1, y], [x + w, y], [x + 1, y + 2]], s[0]);
+      }
+      g.restore();
+      line(g, cx - 1, 162, cx - 1, 240, C.pink);
+    } };
+})();
+
+/* ---- ORBITS ---- */
+const orbits = (() => {
+  const M = [{ p: 16, rx: 48, n: 43, sh: GEM.orange, s: 7 }, { p: 12, rx: 68, n: 55, sh: GEM.blue, s: 6 },
+             { p: 10, rx: 88, n: 62, sh: GEM.pink, s: 6 }, { p: 7, rx: 106, n: 67, sh: GEM.white, s: 5 }];
+  const cx = 120, cy = 116, K = 0.3, fx = [];
+  const cyc = M.reduce((a, m) => lcm(a, m.p), 1);
+  return {
+    step(k) { M.forEach((m, i) => { if (k % m.p === 0) { play('orbits', m.n + 12, 0.8, 0.25); fx.push({ i, t: performance.now() }); } }); },
+    draw(g, t) {
+      g.fillStyle = C.bg; g.fillRect(0, 0, 240, 240);
+      bar(g, 'ORBITS', M.map(m => m.p).join(' · '));
+      const now = performance.now();
+      const ring = (m, front) => { g.beginPath(); for (let a = 0; a <= 32; a++) { const th = (front ? 0 : Math.PI) + a / 32 * Math.PI, x = cx + m.rx * Math.cos(th), y = cy + m.rx * K * Math.sin(th); a ? g.lineTo(x, y) : g.moveTo(x, y); } g.strokeStyle = front ? '#3a2f63' : C.dim; g.lineWidth = 1; g.stroke(); };
+      const pos = m => { const th = Math.PI / 2 + 2 * Math.PI * (t / m.p); return [cx + m.rx * Math.cos(th), cy + m.rx * K * Math.sin(th), Math.sin(th)]; };
+      M.forEach(m => ring(m, false));
+      M.forEach(m => { const [x, y, z] = pos(m); if (z < 0) gem(g, x, y, m.s * (0.8 + 0.2 * z), GEM.dim, t * 0.2); });
+      // the planet: a faceted octagon
+      const R = 26, pts = [...Array(8)].map((_, i) => [cx + R * Math.cos(i * Math.PI / 4 + 0.2), cy + R * Math.sin(i * Math.PI / 4 + 0.2)]);
+      const pc = [cx - 6, cy - 7], sh = ['#8fb0ff', '#6a8dff', '#3a6dff', '#2a52c8', '#22449f', '#1c3590', '#2a52c8', '#4f78ff'];
+      pts.forEach((p, i) => poly(g, [pc, p, pts[(i + 1) % 8]], sh[(i + 5) % 8]));
+      // the meridian gate
+      for (let y = cy + 30; y < cy + 46; y += 4) line(g, cx, y, cx, y + 2, C.pink, 1.5);
+      M.forEach(m => ring(m, true));
+      M.forEach((m, i) => {
+        const [x, y, z] = pos(m); if (z < 0) return;
+        const hot = fx.some(f => f.i === i && now - f.t < 200);
+        gem(g, x, y, m.s * (1 + 0.2 * z) * (hot ? 1.4 : 1), hot ? GEM.pink : m.sh, t * 0.2);
+      });
+      for (let j = fx.length - 1; j >= 0; j--) {            // hit: a hexagon ring that widens
+        const f = fx[j], a = (now - f.t) / 500; if (a > 1) { fx.splice(j, 1); continue; }
+        const m = M[f.i], x = cx, y = cy + m.rx * K, r = 6 + a * 18;
+        g.beginPath(); for (let s = 0; s <= 6; s++) { const th = s * Math.PI / 3; g.lineTo(x + r * Math.cos(th), y + r * 0.45 * Math.sin(th)); }
+        g.strokeStyle = a < 0.5 ? C.pink : '#9a1659'; g.lineWidth = 1.5; g.stroke();
+      }
+      txt(g, `RÉALIGNEMENT DANS ${cyc - Math.floor(t) % cyc} PAS`, 120, 226, C.mute, 9, 'center');
+    } };
+})();
+
+/* ---- BOUNCE ---- */
+const bounce = (() => {
+  const FLOOR = 204, G = 900;
+  const B = [{ x: 64, h: 150, e: 0.78, n: 60, sh: GEM.blue }, { x: 120, h: 120, e: 0.86, n: 67, sh: GEM.orange }, { x: 176, h: 165, e: 0.9, n: 72, sh: GEM.white }];
+  B.forEach((b, i) => { b.y = FLOOR - b.h; b.v = 0; b.wait = i * 0.6; b.flash = 0; b.rot = 0; b.trail = []; });
+  let last = performance.now(); const hits = [];
+  return {
+    step() {},
+    draw(g) {
+      const now = performance.now(), dt = Math.min(0.05, (now - last) / 1000); last = now;
+      for (const b of B) {
+        if (b.wait > 0) { b.wait -= dt; continue; }
+        b.v += G * dt; b.y += b.v * dt; b.rot += dt * 4;
+        if (b.y >= FLOOR - 8) {
+          b.y = FLOOR - 8; const vin = b.v; b.v = -vin * b.e;
+          play('bounce', b.n, Math.min(1, vin / 520), 0.12); b.flash = now; hits.push({ x: b.x, t: now });
+          if (-b.v < 70) { b.y = FLOOR - b.h; b.v = 0; b.wait = 0.5; b.trail = []; }
+        }
+        if (Math.random() < 0.5) { b.trail.push(b.y); if (b.trail.length > 14) b.trail.shift(); }
+      }
+      g.fillStyle = C.bg; g.fillRect(0, 0, 240, 240);
+      bar(g, 'BOUNCE', 'GRAV 70 · REBOND 85');
+      for (let x = 12; x < 240; x += 24) line(g, x, 30, x, FLOOR, '#120c2a');   // the back wall
+      // the floor: a strip of flat triangles
+      for (let i = 0; i < 10; i++) {
+        const x = i * 24, lit = hits.some(h => Math.abs(h.x - (x + 12)) < 13 && now - h.t < 150);
+        poly(g, [[x, FLOOR], [x + 24, FLOOR], [x + 12, FLOOR + 12]], lit ? GEM.pink[1] : '#241850');
+        poly(g, [[x + 12, FLOOR + 12], [x + 24, FLOOR], [x + 36, FLOOR + 12]], lit ? GEM.pink[3] : '#1c1340');
+      }
+      for (let j = hits.length - 1; j >= 0; j--) {      // shards flying from the hit
+        const h = hits[j], a = (now - h.t) / 350; if (a > 1) { hits.splice(j, 1); continue; }
+        [-1, 1].forEach(d => { const x = h.x + d * (6 + a * 18), y = FLOOR - 4 - a * 14 + a * a * 10; poly(g, [[x, y], [x + 4 * d, y - 3], [x + 2 * d, y + 3]], a < 0.5 ? C.pink : '#9a1659'); });
+      }
+      for (const b of B) {
+        b.trail.forEach((y, i) => { g.fillStyle = i > 7 ? '#3a2f63' : '#241850'; g.fillRect(b.x - 1, y, 2, 2); });
+        const hot = now - b.flash < 120;
+        gem(g, b.x, b.y, 9, hot ? GEM.pink : b.sh, b.rot);
+        txt(g, NAMES[b.n % 12], b.x, 232, hot ? C.pink : C.mute, 10, 'center');
+      }
+    } };
+})();
+
+/* ---- TONNETZ ---- */
+const tonnetz = (() => {
+  const DX = 40, DY = 34.64;
+  let tri = { m: 0, i: 0, j: 0 }, trail = [], hist = ['C'], op = '', opT = 0, cam = null;
+  const pos = (i, j) => [i * DX + j * DX / 2, -j * DY];
+  const nodes = s => s.m ? [[s.i + 1, s.j], [s.i, s.j + 1], [s.i + 1, s.j + 1]] : [[s.i, s.j], [s.i + 1, s.j], [s.i, s.j + 1]];
+  const pc = (i, j) => ((7 * i + 4 * j) % 12 + 12) % 12;
+  const root = s => s.m ? pc(s.i, s.j + 1) : pc(s.i, s.j);
+  const name = s => NAMES[root(s)] + (s.m ? 'm' : '');
+  const triad = s => { const r = root(s); return [r, r + (s.m ? 3 : 4), r + 7]; };
+  const center = s => { const p = nodes(s).map(n => pos(...n)); return [(p[0][0] + p[1][0] + p[2][0]) / 3, (p[0][1] + p[1][1] + p[2][1]) / 3]; };
+  function move(o, s) {                                   // P, L, R: flip across one edge of the triangle
+    if (!s.m) return o === 'P' ? { m: 1, i: s.i, j: s.j - 1 } : o === 'L' ? { m: 1, i: s.i, j: s.j } : { m: 1, i: s.i - 1, j: s.j };
+    return o === 'P' ? { m: 0, i: s.i, j: s.j + 1 } : o === 'L' ? { m: 0, i: s.i, j: s.j } : { m: 0, i: s.i + 1, j: s.j };
+  }
+  const ARP = [0, 1, 2, 3, 2, 1, 0, 1];
+  return {
+    step(k) {
+      if (k % 16 === 0 && k) {
+        const ops = ['P', 'L', 'R'].filter(o => o !== op);   // never undo the last move at once
+        op = ops[Math.floor(Math.random() * 2)]; opT = performance.now();
+        trail.unshift(tri); trail = trail.slice(0, 4); tri = move(op, tri); hist.push(name(tri)); hist = hist.slice(-5);
+      }
+      const tr = triad(tri);
+      if (k % 16 === 0) play('tonnetz', 36 + tr[0], 0.9, 1.4);
+      if (k % 2 === 0) { const a = ARP[(k / 2) % 8]; play('tonnetz', 60 + (a === 3 ? tr[0] + 12 : tr[a]), 0.6, 0.2); }
+    },
+    draw(g, t) {
+      const c = center(tri); if (!cam) cam = c.slice();
+      cam[0] += (c[0] - cam[0]) * 0.06; cam[1] += (c[1] - cam[1]) * 0.06;
+      const ox = 120 - cam[0], oy = 126 - cam[1], S = (i, j) => { const p = pos(i, j); return [p[0] + ox, p[1] + oy]; };
+      g.fillStyle = C.bg; g.fillRect(0, 0, 240, 240);
+      const ci = Math.round(cam[0] / DX - (-cam[1] / DY) / 2), cj = Math.round(-cam[1] / DY);
+      for (let i = ci - 8; i <= ci + 8; i++) for (let j = cj - 5; j <= cj + 5; j++) {
+        const a = S(i, j), b = S(i + 1, j), d = S(i, j + 1);
+        line(g, a[0], a[1], b[0], b[1], C.dim); line(g, a[0], a[1], d[0], d[1], C.dim); line(g, b[0], b[1], d[0], d[1], C.dim);
+      }
+      trail.forEach((s, n) => { const p = nodes(s).map(q => S(...q)); poly(g, p, ['#22449f', '#1c3590', '#241850', '#1c1340'][n]); });
+      const p = nodes(tri).map(q => S(...q)), m = [(p[0][0] + p[1][0] + p[2][0]) / 3 - 2, (p[0][1] + p[1][1] + p[2][1]) / 3 - 2];
+      poly(g, [p[0], p[1], m], GEM.pink[1]); poly(g, [p[1], p[2], m], GEM.pink[2]); poly(g, [p[2], p[0], m], GEM.pink[0]);
+      const on = nodes(tri).map(n => pc(...n));
+      for (let i = ci - 8; i <= ci + 8; i++) for (let j = cj - 5; j <= cj + 5; j++) {
+        const [x, y] = S(i, j); if (x < -10 || x > 250 || y < 20 || y > 250) continue;
+        const hit = nodes(tri).some(n => n[0] === i && n[1] === j);
+        gem(g, x, y, hit ? 7 : 4, hit ? GEM.white : GEM.dim);
+        txt(g, NAMES[pc(i, j)], x, y - (hit ? 10 : 7), hit ? C.white : C.mute, hit ? 11 : 8, 'center');
+      }
+      bar(g, 'TONNETZ', hist.join(' → '));
+      g.fillStyle = C.bg; g.fillRect(0, 206, 240, 34); line(g, 0, 205.5, 240, 205.5, C.wire);
+      ['P', 'L', 'R'].forEach((o, n) => { const x = 22 + n * 34, hot = o === op && performance.now() - opT < 1500;
+        poly(g, [[x - 11, 214], [x + 11, 214], [x + 11, 234], [x - 11, 234]], hot ? GEM.pink[1] : C.dim); txt(g, o, x, 229, hot ? C.white : C.txt, 13, 'center'); });
+      txt(g, name(tri), 228, 232, C.pink, 20, 'right');
+      txt(g, ['P : MAJ/MIN', 'L : TIERCE', 'R : RELATIF'][['P', 'L', 'R'].indexOf(op)] || '', 112, 228, C.mute, 9, 'left');
+    } };
+})();
+
+/* ---- CHORDS ---- */
+const chords = (() => {
+  const P = [{ n: 'C', d: 'I', v: [48, 60, 64, 67] }, { n: 'Am', d: 'vi', v: [45, 57, 60, 64] },
+             { n: 'F', d: 'IV', v: [41, 57, 60, 65] }, { n: 'G', d: 'V', v: [43, 55, 59, 62] }];
+  const hits = [];
+  const mode = k => Math.floor(k / 128) % 2 ? 'ARP' : 'STRUM';
+  return {
+    step(k) {
+      const c = P[Math.floor(k / 16) % 4], s = k % 16;
+      if (s === 0) play('chords', c.v[0], 0.9, 1.6);
+      if (mode(k) === 'STRUM') { if (s % 4 === 0 || s === 14) c.v.slice(1).forEach((n, i) => { play('chords', n, s % 8 ? 0.45 : 0.7, 0.3, i * 0.025); }); if (s % 4 === 0 || s === 14) hits.push({ t: performance.now(), all: true }); }
+      else { const i = [0, 1, 2, 1][s % 4]; play('chords', c.v[1 + i] + (s % 8 >= 4 ? 12 : 0), 0.6, 0.15); hits.push({ t: performance.now(), i }); }
+    },
+    draw(g, t) {
+      g.fillStyle = C.bg; g.fillRect(0, 0, 240, 240);
+      const k = Math.floor(t), bar_ = Math.floor(t / 16) % 4, now = performance.now();
+      bar(g, 'CHORDS', `I · vi · IV · V   ${mode(k)}`);
+      for (let x = 0; x <= 240; x += 20) line(g, x, 190, 120 + (x - 120) * 2.2, 240, '#120c2a');
+      line(g, 0, 190.5, 240, 190.5, C.wire);
+      P.forEach((c, b) => {
+        const x = 14 + b * 56, cur = b === bar_;
+        c.v.slice(1).forEach((n, i) => {       // a stack of three faceted blocks: the triad, lowest at the bottom
+          const lit = cur && hits.some(h => now - h.t < 140 && (h.all || h.i === i));
+          const sh = cur ? (lit ? GEM.white : GEM.pink) : GEM.blue, y = 176 - i * 30 - (lit ? 4 : 0), w = 44;
+          poly(g, [[x, y], [x + w, y], [x + w - 6, y - 8], [x + 6, y - 8]], sh[0]);
+          poly(g, [[x, y], [x + w, y], [x + w, y + 22], [x, y + 22]], sh[cur ? 1 : 2]);
+          poly(g, [[x + w, y], [x + w, y + 22], [x + w - 10, y + 22]], sh[3]);
+          txt(g, NAMES[n % 12], x + w / 2 - 3, y + 15, cur ? C.white : C.txt, 10, 'center');
+        });
+        txt(g, c.n, x + 22, 210, cur ? C.pink : C.txt, 16, 'center'); txt(g, c.d, x + 22, 226, C.mute, 10, 'center');
+      });
+      const hx = 14 + (t / 16 % 4) * 56 - 6; line(g, hx, 30, hx, 236, C.pink, 1);
+    } };
+})();
+
+/* ---- MIMIC ---- */
+const mimic = (() => {
+  const NOTES = [60, 62, 64, 67, 69, 72], LBL = ['C', 'D', 'E', 'G', 'A', "C'"];
+  const PHRASE = [0, -1, 2, -1, 3, 2, 1, -1, 0, -1, 1, 2, 4, 3, 2, -1];
+  const cnt = NOTES.map(() => NOTES.map(() => 0));
+  const N = NOTES.map((_, i) => { const a = -Math.PI / 2 + i * Math.PI / 3; return [120 + 70 * Math.cos(a), 98 + 58 * Math.sin(a)]; });
+  let cur = 0, prev = -1, flash = 0, out = [], DRIFT = 0.15;
+  const phase = k => k % 112 < 32 ? 'ÉCOUTE' : 'IMPRO';
+  return {
+    step(k) {
+      const s = k % 16, ph = phase(k);
+      if (k % 112 === 0) { cnt.forEach(r => r.fill(0)); prev = -1; out = []; }
+      let n = -1;
+      if (ph === 'ÉCOUTE') { n = PHRASE[s]; if (n >= 0) { if (prev >= 0 && k % 112 < 16) cnt[prev][n]++; prev = n; } }
+      else if (PHRASE[s] >= 0) {                           // rhythm kept, the next note drawn from the learned links
+        const row = cnt[cur], tot = row.reduce((a, b) => a + b, 0);
+        if (!tot || Math.random() < DRIFT) n = Math.floor(Math.random() * NOTES.length);
+        else { let r = Math.random() * tot; n = row.findIndex(c => (r -= c) < 0); }
+      }
+      if (n >= 0) { prev = ph === 'IMPRO' ? cur : prev; cur = n; flash = performance.now(); play('mimic', NOTES[n], ph === 'ÉCOUTE' ? 0.8 : 0.7, 0.18); }
+      out.push(n); if (out.length > 16) out.shift();
+    },
+    draw(g, t) {
+      const k = Math.floor(t), now = performance.now(), ph = phase(k);
+      g.fillStyle = C.bg; g.fillRect(0, 0, 240, 240);
+      bar(g, 'MIMIC', ph === 'ÉCOUTE' ? 'ÉCOUTE · TU JOUES' : `IMPRO · DÉRIVE ${Math.round(DRIFT * 100)}`);
+      cnt.forEach((row, a) => row.forEach((c, b) => {
+        if (!c) return;
+        const [x0, y0] = N[a], [x1, y1] = N[b], dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy), nx = -dy / L, ny = dx / L, w = 1 + c * 1.4;
+        const hot = ph === 'IMPRO' && a === prev && b === cur && now - flash < 250;
+        const ux = dx / L, uy = dy / L, o = 3;           // a link a->b, shifted aside so b->a stays visible
+        line(g, x0 + ux * 11 + nx * o, y0 + uy * 11 + ny * o, x1 - ux * 18 + nx * o, y1 - uy * 18 + ny * o, hot ? C.pink : '#3a2f63', w);
+        const tx = x1 - ux * 12 + nx * o, ty = y1 - uy * 12 + ny * o;
+        poly(g, [[tx, ty], [tx - ux * 8 + nx * 4, ty - uy * 8 + ny * 4], [tx - ux * 8 - nx * 4, ty - uy * 8 - ny * 4]], hot ? C.pink : '#4a4466');
+      }));
+      N.forEach(([x, y], i) => { const hot = i === cur && now - flash < 200; gem(g, x, y, hot ? 12 : 9, hot ? GEM.pink : GEM.blue); txt(g, LBL[i], x, y < 98 ? y - 14 : y + 23, hot ? C.pink : C.txt, 10, 'center'); });
+      line(g, 0, 172.5, 240, 172.5, C.wire);
+      const roll = (arr, y, sh, lbl) => { txt(g, lbl, 6, y + 12, C.mute, 8); arr.forEach((n, c) => { if (n < 0) return; const x = 50 + c * 11.5, yy = y + 22 - n * 3.6; poly(g, [[x, yy], [x + 9, yy], [x + 9, yy + 4], [x, yy + 4]], sh[1]); poly(g, [[x, yy], [x + 9, yy], [x, yy + 2]], sh[0]); }); };
+      roll(PHRASE, 176, GEM.blue, 'APPRIS');
+      roll(out, 206, ph === 'IMPRO' ? GEM.pink : GEM.dim, 'JOUÉ');
+    } };
+})();
+
+/* ---- one clock for all ---- */
+const SIMS = { lanes, orbits, bounce, tonnetz, chords, mimic };
+const ctx = Object.fromEntries(Object.keys(SIMS).map(id => [id, document.getElementById(id).getContext('2d')]));
+const t0 = performance.now(); let lastK = -1;
+function frame() {
+  const t = (performance.now() - t0) / STEP_MS, k = Math.floor(t);
+  for (; lastK < k; ) { lastK++; for (const id in SIMS) SIMS[id].step(lastK); }
+  for (const id in SIMS) if (!reduce || audible === id) SIMS[id].draw(ctx[id], t);
+  requestAnimationFrame(frame);
+}
+if (reduce) for (const id in SIMS) SIMS[id].draw(ctx[id], 0);
+document.fonts.ready.then(() => requestAnimationFrame(frame));
+</script>
