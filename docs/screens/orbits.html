@@ -1,0 +1,228 @@
+<title>Orbits Source Scenes</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+/* Three directions for the ORBITS source's scene, in the device's frame, driven by one run. */
+:root {
+  --bg: #efedf5; --fg: #1c1830; --muted: #5d5873; --line: #d9d5e6; --device: #151320; --hot: #d4247a; --panel: #e4e1ee;
+  --display: "Chakra Petch", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --line: #2a2440; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --line: #2a2440; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.5; margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 48px }
+main { max-width: 1040px; margin: 0 auto; display: grid; gap: 22px }
+h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; line-height: 1.1; margin: 0; text-transform: uppercase; letter-spacing: .02em }
+h1 em { font-style: normal; color: var(--hot) }
+.lead { color: var(--muted); max-width: 70ch; margin: 8px 0 0 }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px }
+figure { margin: 0; display: grid; gap: 8px; align-content: start; min-width: 0 }
+canvas { width: 100%; max-width: 100%; aspect-ratio: 1; background: #000; border: 12px solid var(--device); border-radius: 16px; box-sizing: border-box; image-rendering: pixelated }
+h2 { font-family: var(--display); font-size: 1.1rem; margin: 0; text-transform: uppercase; letter-spacing: .04em }
+.tag { font-family: var(--display); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--hot) }
+figcaption p { margin: 2px 0 0; font-size: .88rem; color: var(--muted) }
+.knobs { background: var(--panel); border-radius: 12px; padding: 14px 16px; display: grid; gap: 12px }
+.knobs header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between }
+.knobs header b { font-family: var(--display); text-transform: uppercase; letter-spacing: .04em }
+.knobs header div { display: flex; flex-wrap: wrap; gap: 8px }
+.pages { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 20px }
+.page h3 { font-family: var(--display); font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 0 4px }
+label { display: grid; grid-template-columns: 6.5em 1fr 4em; gap: 8px; align-items: center; font-size: .85rem }
+label span:last-child { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted) }
+input[type=range] { width: 100%; accent-color: var(--hot) }
+button { font: inherit; font-family: var(--display); text-transform: uppercase; letter-spacing: .04em; border: 1px solid var(--line); background: var(--bg); color: var(--fg); border-radius: 8px; padding: 3px 10px; cursor: pointer; font-size: .8rem }
+button[aria-pressed=true] { background: var(--hot); color: #fff; border-color: var(--hot) }
+button:focus-visible { outline: 2px solid var(--hot); outline-offset: 2px }
+.row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px }
+</style>
+
+<main>
+<header>
+  <h1>Source <em>ORBITS</em> : la scène</h1>
+  <p class="lead">1 à 4 lunes tournent autour d'une planète, chacune avec sa période et sa phase ; à chaque passage devant la planète
+  (la porte rose), la lune joue sa note. Plusieurs lunes au même pas : conjonction, notes accentuées. La direction retenue, V2, avec des arcs en pointillés et une planète qui tourne.</p>
+</header>
+
+<section class="knobs" aria-label="Encodeurs">
+  <header><b>Encodeurs et PRESET</b><div><button id="snd" aria-pressed="false">Écouter</button><button id="kit" aria-pressed="false">KIT</button></div></header>
+  <div class="pages" id="pages"></div>
+  <div><span class="tag">PRESET : la lune réglée sur la page MOON</span><div class="row" id="sel"></div></div>
+</section>
+
+<div class="grid">
+  <figure><canvas id="c1" width="240" height="240"></canvas><figcaption><span class="tag">V2</span><h2>Arcs en pointillés</h2><p>Le chemin parcouru depuis la porte en pointillés discrets dans la couleur de la lune, effacé au passage. La planète est une sphère à facettes qui tourne lentement ; elle clignote en blanc quand toutes les lunes arrivent ensemble à la porte (le réalignement, SYNC). Décor : ciel d'étoiles et une grande planète lointaine, sombre, qui tourne aussi.</p></figcaption></figure>
+</div>
+</main>
+
+<script>
+const C = { bg: '#000', wire: '#2a2148', dim: '#1c1340', txt: '#c9c3e4', mute: '#4a4466', pink: '#ff4fa8', white: '#f4f1ff', orange: '#ff7a2e' };
+const GEM = { blue: ['#8fb0ff', '#3a6dff', '#2a52c8', '#1c3590'], pink: ['#ffb8dc', '#ff4fa8', '#d4247a', '#9a1659'],
+  orange: ['#ffc196', '#ff7a2e', '#d45a14', '#8f3a0a'], green: ['#8ff5c8', '#22d58e', '#16a06a', '#0f6d48'], white: ['#ffffff', '#e4e0f5', '#b8b2d6', '#8a84ab'] };
+const MOON_GEM = [GEM.orange, GEM.blue, GEM.green, GEM.white];   // K-colours, so a moon keeps its colour everywhere
+const KNOB = ['#3a6dff', '#3fd17a', '#f4f1ff', '#ff7a2e'];
+const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'], SCALE = [0, 2, 4, 5, 7, 9, 11];
+const PADS = ['BD', 'SN', 'HH', 'P4', 'P5', 'P6', 'P7', 'P8', 'P9', 'P10', 'P11', 'P12', 'P13', 'P14', 'P15', 'P16'];
+const DIVS = [['1/32', 62.5], ['1/16', 125], ['1/8', 250]];
+const S = { div: 1, note: 48, moons: 3, per: [8, 6, 5, 3], pha: [0, 0, 0, 0], val: [0, 2, 4, 7], sel: 0, kit: false, page: 0 };
+const noteOf = m => S.note + 12 * Math.floor(S.val[m] / 7) + SCALE[S.val[m] % 7];
+const label = m => S.kit ? PADS[S.val[m]] : NAMES[noteOf(m) % 12] + (Math.floor(noteOf(m) / 12) - 1);
+const gcd = (a, b) => b ? gcd(b, a % b) : a, lcm = (a, b) => a * b / gcd(a, b);
+const sync = () => S.per.slice(0, S.moons).reduce(lcm, 1);
+
+/* ---- the run ---- */
+let k = -1, frac = 0, acc = 0, last = performance.now(); const hitT = [0, 0, 0, 0], hist = []; let conjT = 0, conjSet = [];
+let ac = null, on = false;
+function play(n, vel, kick) {
+  if (!ac || !on) return;
+  const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+  o.type = kick ? 'square' : 'triangle'; o.frequency.value = 440 * 2 ** ((n - 69) / 12);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.14 * vel, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+  o.connect(g).connect(ac.destination); o.start(t); o.stop(t + 0.2);
+}
+function tick() {
+  k++;
+  const hits = [];
+  for (let m = 0; m < S.moons; m++) if (k % S.per[m] === S.pha[m] % S.per[m]) hits.push(m);
+  hits.forEach(m => { hitT[m] = performance.now(); play(S.kit ? 36 + S.val[m] * 3 : noteOf(m), hits.length > 1 ? 1 : 0.6, S.kit); });
+  if (hits.length > 1) { conjT = performance.now(); conjSet = hits; }
+  hist.push(hits); if (hist.length > 32) hist.shift();
+}
+const lit = m => performance.now() - hitT[m] < 160;
+const ang = (m, t) => Math.PI / 2 + 2 * Math.PI * ((t - S.pha[m]) / S.per[m]);   // the meridian at the front (pi/2)
+
+/* ---- controls ---- */
+const PAGES = [['ORBITS', [['DIV', 0, 2, () => S.div, v => S.div = v, v => DIVS[v][0]], ['NOTE', 36, 72, () => S.note, v => S.note = v, v => NAMES[v % 12] + (Math.floor(v / 12) - 1)],
+                           ['MOONS', 1, 4, () => S.moons, v => { S.moons = v; S.sel = Math.min(S.sel, v - 1); drawSel(); }, String]]],
+               ['MOON', [['PERIOD', 1, 32, () => S.per[S.sel], v => S.per[S.sel] = v, String], ['PHASE', 0, 31, () => S.pha[S.sel], v => S.pha[S.sel] = v, String],
+                         ['NOTE / PAD', 0, 15, () => S.val[S.sel], v => S.val[S.sel] = v, v => S.kit ? PADS[v] : String(v)]]]];
+const pagesEl = document.getElementById('pages'), inputs = [];
+PAGES.forEach(([nm, ks], pi) => {
+  const d = document.createElement('div'); d.className = 'page'; d.innerHTML = `<h3>Page ${nm}</h3>`;
+  ks.forEach(([n, lo, hi, get, set, fmt], ki) => {
+    const l = document.createElement('label');
+    l.innerHTML = `<span>K${ki + 1} ${n}</span><input type="range" id="k${pi}${ki}" min="${lo}" max="${hi}" value="${get()}"><span></span>`;
+    const inp = l.querySelector('input'), out = l.lastChild, upd = () => { inp.value = get(); out.textContent = fmt(+inp.value); };
+    inp.addEventListener('input', () => { set(+inp.value); S.page = pi; upd(); }); inputs.push(upd); upd(); d.appendChild(l);
+  });
+  pagesEl.appendChild(d);
+});
+const selEl = document.getElementById('sel');
+function drawSel() { selEl.innerHTML = ''; for (let m = 0; m < S.moons; m++) { const b = document.createElement('button'); b.textContent = 'Lune ' + (m + 1);
+  b.setAttribute('aria-pressed', String(S.sel === m)); b.onclick = () => { S.sel = m; S.page = 1; drawSel(); inputs.forEach(u => u()); }; selEl.appendChild(b); } }
+drawSel();
+document.getElementById('snd').onclick = e => { if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)(); ac.resume(); on = !on; e.target.setAttribute('aria-pressed', String(on)); };
+document.getElementById('kit').onclick = e => { S.kit = !S.kit; e.target.setAttribute('aria-pressed', String(S.kit)); inputs.forEach(u => u()); };
+
+/* ---- drawing ---- */
+function poly(g, pts, fill) { g.beginPath(); g.moveTo(...pts[0]); for (const p of pts.slice(1)) g.lineTo(...p); g.closePath(); g.fillStyle = fill; g.fill(); }
+function line(g, x0, y0, x1, y1, col, w = 1) { g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.strokeStyle = col; g.lineWidth = w; g.stroke(); }
+function txt(g, s, x, y, col = C.txt, size = 10, align = 'left') { g.font = `700 ${size}px "Chakra Petch", sans-serif`; g.fillStyle = col; g.textAlign = align; g.fillText(s, x, y); }
+function gem(g, x, y, r, sh) { poly(g, [[x, y - r], [x + r, y], [x, y]], sh[0]); poly(g, [[x + r, y], [x, y + r], [x, y]], sh[2]); poly(g, [[x, y + r], [x - r, y], [x, y]], sh[3]); poly(g, [[x - r, y], [x, y - r], [x, y]], sh[1]); }
+function chrome(g) {
+  g.fillStyle = C.bg; g.fillRect(0, 0, 240, 30); g.fillRect(0, 196, 240, 44);
+  txt(g, '1', 8, 20, C.pink, 13); txt(g, 'SEQ  P1', 30, 20, C.txt, 11); txt(g, (S.page + 1) + '/2', 234, 20, C.mute, 10, 'right');
+  line(g, 0, 29.5, 240, 29.5, C.wire); line(g, 0, 196.5, 240, 196.5, C.wire);
+  const ks = S.page ? [['PERIOD', String(S.per[S.sel])], ['PHASE', String(S.pha[S.sel])], [S.kit ? 'PAD' : 'NOTE', label(S.sel)], ['', '']]
+                    : [['DIV', DIVS[S.div][0]], ['NOTE', S.kit ? '' : NAMES[S.note % 12] + (Math.floor(S.note / 12) - 1)], ['MOONS', String(S.moons)], ['SOURCE', 'ORBITS']];
+  ks.forEach(([n, v], i) => { if (!n) return; const x = 30 + i * 60; poly(g, [[x - 26, 203], [x + 26, 203], [x + 26, 205], [x - 26, 205]], KNOB[i]);
+    txt(g, n, x, 218, C.mute, 8, 'center'); txt(g, v, x, 233, C.white, 11, 'center'); });
+}
+function planet(g, cx, cy, R) {           // a faceted octagon, lit from the top left
+  const pts = [...Array(8)].map((_, i) => [cx + R * Math.cos(i * Math.PI / 4 + 0.2), cy + R * 0.92 * Math.sin(i * Math.PI / 4 + 0.2)]);
+  const sh = ['#4f78ff', '#3a6dff', '#2a52c8', '#1c3590', '#16255e', '#1c3590', '#2a52c8', '#8fb0ff'];
+  pts.forEach((p, i) => poly(g, [[cx - R * 0.2, cy - R * 0.25], p, pts[(i + 1) % 8]], sh[(i + 3) % 8]));
+}
+function topBar(g) {                          // the moons' periods, the selected one framed; SYNC: steps to the realignment
+  for (let m = 0; m < S.moons; m++) {
+    const x = 8 + m * 34, sel = m === S.sel && S.page === 1;
+    poly(g, [[x, 35], [x + 30, 35], [x + 30, 47], [x, 47]], sel ? '#e4e0f5' : '#140e30');
+    gem(g, x + 7, 41, 4, lit(m) ? GEM.pink : MOON_GEM[m]);
+    txt(g, String(S.per[m]), x + 21, 45, sel ? C.bg : C.txt, 9, 'center');
+  }
+  const left = sync() - (Math.max(k, 0) % sync());
+  txt(g, 'SYNC ' + left, 234, 45, performance.now() - conjT < 300 && conjSet.length === S.moons ? C.pink : C.mute, 9, 'right');
+}
+
+/* a moon on an n-step orbit: step i at angle -pi/2 + 2 pi i / n from the gate (top); at step t it is at (t - phase) mod n */
+function moonU(m, t) { const n = S.per[m]; return ((t - S.pha[m]) % n + n) % n; }
+const STARS = [...Array(40)].map((_, i) => [(i * 73.3 + 17) % 240, 34 + (i * 47.9) % 160, i % 4]);
+function sky(g) { STARS.forEach(([x, y, b]) => { g.fillStyle = b ? '#1c1340' : '#3a2f63'; g.fillRect(x, y, 1, 1); }); }
+function farPlanet(g) { sphere(g, 222, 176, 46, performance.now() / 9000, FAR, 0.5); }   /* a large dim planet, cut by the corner */
+function sphere(g, cx, cy, R, turn, tones, tilt = 0.35) {
+  const LON = 8, LAT = 5, V = [];
+  for (let a = 0; a <= LAT; a++) for (let b = 0; b < LON; b++) {
+    const th = Math.PI * a / LAT, ph = 2 * Math.PI * b / LON + turn;
+    let x = Math.sin(th) * Math.cos(ph), y = Math.cos(th), z = Math.sin(th) * Math.sin(ph);
+    const y2 = y * Math.cos(tilt) - z * Math.sin(tilt), z2 = y * Math.sin(tilt) + z * Math.cos(tilt);
+    V.push([x, y2, z2]);
+  }
+  const L = [-0.5, 0.6, 0.62], F = [];
+  for (let a = 0; a < LAT; a++) for (let b = 0; b < LON; b++) {
+    const q = [a * LON + b, a * LON + (b + 1) % LON, (a + 1) * LON + (b + 1) % LON, (a + 1) * LON + b].map(i => V[i]);
+    const c = q.reduce((s, p) => [s[0] + p[0] / 4, s[1] + p[1] / 4, s[2] + p[2] / 4], [0, 0, 0]);
+    if (c[2] < 0) continue;                         // the far side
+    const d = Math.max(0, c[0] * L[0] + c[1] * L[1] + c[2] * L[2]);
+    F.push({ q, z: c[2], tone: tones[Math.min(tones.length - 1, Math.floor((1 - d) * tones.length))] });
+  }
+  F.sort((p, q) => p.z - q.z).forEach(f => poly(g, f.q.map(p => [cx + R * p[0], cy - R * p[1]]), f.tone));
+}
+const PLANET = ['#8fb0ff', '#6a8dff', '#3a6dff', '#2a52c8', '#1c3590', '#16255e'];
+const FAR = ['#2a2148', '#241850', '#1c1340', '#160f30', '#120c2a'];
+const FLASH = ['#ffffff', '#f4f1ff', '#e4e0f5', '#c9c3e4', '#b8b2d6', '#8a84ab'];
+function v(g, mode) {
+  g.fillStyle = C.bg; g.fillRect(0, 0, 240, 240);
+  sky(g);
+  if (mode === 2) farPlanet(g);
+  const cx = 104, cy = 120, t = Math.max(k, 0) + frac, now = performance.now(), conj = now - conjT < 260;
+  const RM = S.moons ? 24 + (S.moons - 1) * 17 : 24;
+  if (mode === 4) {                                  // the gate as a beam of light from the top onto the planet
+    poly(g, [[cx - 7, 34], [cx + 7, 34], [cx + 10, cy - 10], [cx - 10, cy - 10]], '#1c1340');
+    poly(g, [[cx - 2, 34], [cx + 2, 34], [cx + 3, cy - 10], [cx - 3, cy - 10]], '#2a2148');
+  }
+  for (let m = S.moons - 1; m >= 0; m--) {
+    const R = 24 + m * 17, n = S.per[m], sel = m === S.sel && S.page === 1, u = moonU(m, t), P = a => [cx + R * Math.cos(a), cy + R * Math.sin(a)];
+    const angOf = x => -Math.PI / 2 + x / n * 2 * Math.PI;
+    g.beginPath(); for (let a = 0; a <= 72; a++) g.lineTo(...P(a / 72 * 2 * Math.PI)); g.strokeStyle = sel ? '#8a84ab' : '#2a2148'; g.lineWidth = 1; g.stroke();
+    if (mode === 2 && u > 0.02) {                    // the arc travelled since the gate, dotted
+      const len = u / n * 2 * Math.PI * R, dots = Math.floor(len / 5);
+      for (let q = 1; q <= dots; q++) { const [x, y] = P(angOf(u * q * 5 / len)); g.fillStyle = MOON_GEM[m][2]; g.fillRect(x - 1, y - 1, 2, 2); }
+    }
+    for (let i = 0; i < n; i++) { const [x, y] = P(angOf(i)), gate = i === 0, done = mode === 1 && i > 0 && i <= Math.floor(u);
+      poly(g, [[x, y - 2], [x + 2, y], [x, y + 2], [x - 2, y]], gate ? C.pink : done ? MOON_GEM[m][1] : '#4a4466'); }
+    if (mode === 1) for (let b = 3; b >= 1; b--) { const [x, y] = P(angOf(u - b * 0.5)); gem(g, x, y, 4 - b, MOON_GEM[m].map((c, q) => ['#3a2f63', '#2a2148', '#1c1340', '#160f30'][q])); }
+    if (mode === 3) {                                // a comet's tail along the orbit
+      const tail = [...Array(6)].map((_, q) => P(angOf(u - q * 0.12)));
+      for (let q = 0; q < 5; q++) { const w = 4 - q * 0.7, [x0, y0] = tail[q], [x1, y1] = tail[q + 1], nx = (y1 - y0), ny = -(x1 - x0), l = Math.hypot(nx, ny) || 1;
+        poly(g, [[x0 + nx / l * w, y0 + ny / l * w], [x0 - nx / l * w, y0 - ny / l * w], [x1, y1]], MOON_GEM[m][q < 2 ? 2 : 3]); }
+      const a = now - hitT[m];
+      if (a < 350) { const [gx, gy] = P(-Math.PI / 2); for (let q = 0; q < 5; q++) { const th = q * 2 * Math.PI / 5 - Math.PI / 2, d = 6 + a / 350 * 16;
+        poly(g, [[gx + d * Math.cos(th), gy + d * Math.sin(th)], [gx + (d + 5) * Math.cos(th + 0.25), gy + (d + 5) * Math.sin(th + 0.25)], [gx + (d + 3) * Math.cos(th - 0.2), gy + (d + 3) * Math.sin(th - 0.2)]], a < 180 ? C.pink : '#9a1659'); } }
+    }
+    const [x, y] = P(angOf(u)), inBeam = mode === 4 && Math.abs(x - cx) < 9 && y < cy;
+    gem(g, x, y, lit(m) ? 8 : 6, lit(m) || inBeam ? GEM.pink : MOON_GEM[m]);
+    txt(g, label(m), 200, cy - R + 4, lit(m) ? C.white : MOON_GEM[m][1], 9);
+    line(g, cx + 4, cy - R, 196, cy - R, lit(m) ? C.pink : '#1c1340');
+  }
+  const all = S.moons > 1 && now - conjT < 300 && conjSet.length === S.moons;   // every moon at the gate: the planet flashes
+  sphere(g, cx, cy, 15, now / 4000, all && Math.floor((now - conjT) / 75) % 2 === 0 ? FLASH : PLANET);
+  if (mode === 4 && conj) poly(g, [[cx - 2, cy - 13], [cx + 12, cy - 6], [cx + 13, cy + 6], [cx - 2, cy + 13], [cx + 6, cy]], '#0c081e');   // the eclipse's crescent
+  if (mode === 3 && conj) { const r = 18 + (now - conjT) / 260 * 14; g.beginPath(); for (let q = 0; q <= 6; q++) g.lineTo(cx + r * Math.cos(q * Math.PI / 3), cy + r * Math.sin(q * Math.PI / 3)); g.strokeStyle = C.pink; g.lineWidth = 1.5; g.stroke();
+    txt(g, 'CONJ', cx, cy + 30, C.pink, 8, 'center'); }
+  if (mode !== 4) { void RM; }
+  topBar(g); chrome(g);
+}
+
+const G = ['c1'].map(id => document.getElementById(id).getContext('2d'));
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function frame() {
+  const t = performance.now(), ms = DIVS[S.div][1];
+  acc += Math.min(200, t - last); last = t;
+  while (acc >= ms) { acc -= ms; tick(); }
+  frac = reduce ? 0 : acc / ms;
+  v(G[0], 2);
+  requestAnimationFrame(frame);
+}
+document.fonts.ready.then(() => { tick(); requestAnimationFrame(frame); });
+</script>
