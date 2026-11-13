@@ -1,0 +1,302 @@
+<title>Tonnetz Source Scenes</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+/* Four variants of the TONNETZ source's scene, in the device's frame, driven by one walk. */
+:root {
+  --bg: #efedf5; --fg: #1c1830; --muted: #5d5873; --line: #d9d5e6; --device: #151320; --hot: #d4247a; --panel: #e4e1ee;
+  --display: "Chakra Petch", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --line: #2a2440; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --line: #2a2440; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.5; margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 48px }
+main { max-width: 1040px; margin: 0 auto; display: grid; gap: 22px }
+h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; line-height: 1.1; margin: 0; text-transform: uppercase; letter-spacing: .02em }
+h1 em { font-style: normal; color: var(--hot) }
+.lead { color: var(--muted); max-width: 70ch; margin: 8px 0 0 }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 18px }
+figure { margin: 0; display: grid; gap: 8px; align-content: start; min-width: 0 }
+canvas { width: 100%; max-width: 100%; aspect-ratio: 1; background: #000; border: 12px solid var(--device); border-radius: 16px; box-sizing: border-box; image-rendering: pixelated }
+h2 { font-family: var(--display); font-size: 1.1rem; margin: 0; text-transform: uppercase; letter-spacing: .04em }
+.tag { font-family: var(--display); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--hot) }
+figcaption p { margin: 2px 0 0; font-size: .88rem; color: var(--muted) }
+.knobs { background: var(--panel); border-radius: 12px; padding: 14px 16px; display: grid; gap: 12px }
+.knobs header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between }
+.knobs header b { font-family: var(--display); text-transform: uppercase; letter-spacing: .04em }
+.pages { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 20px }
+.page h3 { font-family: var(--display); font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 0 4px }
+label { display: grid; grid-template-columns: 6.5em 1fr 5em; gap: 8px; align-items: center; font-size: .85rem }
+label span:last-child { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted) }
+input[type=range] { width: 100%; accent-color: var(--hot) }
+button { font: inherit; font-family: var(--display); text-transform: uppercase; letter-spacing: .04em; border: 1px solid var(--line); background: var(--bg); color: var(--fg); border-radius: 8px; padding: 3px 10px; cursor: pointer; font-size: .8rem }
+button[aria-pressed=true] { background: var(--hot); color: #fff; border-color: var(--hot) }
+button:focus-visible { outline: 2px solid var(--hot); outline-offset: 2px }
+.row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px }
+</style>
+
+<main>
+<header>
+  <h1>Source <em>TONNETZ</em> : la scène</h1>
+  <p class="lead">L'accord marche sur le Tonnetz : à chaque mesure, le pas suivant de la séquence (P, L, R ou —) le fait basculer
+  sur un triangle voisin, avec deux notes communes. Ici en C majeur, départ sur C. Quatre variantes de la même scène ; toutes gardent
+  en haut la séquence en tuiles 1–8 et en bas le clavier des notes jouées (celui de CHORDS).</p>
+</header>
+
+<section class="knobs" aria-label="Encodeurs et saisie">
+  <header><b>Encodeurs et saisie</b><div><button id="snd" aria-pressed="false">Écouter</button></div></header>
+  <div class="pages" id="pages"></div>
+  <div><span class="tag">Touches 1–8 : clic = appui court (— → P → L → R) ; « tenir » puis une noire = raccourci</span>
+    <div class="row" id="steps"></div>
+    <div class="row" id="blacks"></div></div>
+</section>
+
+<div class="grid">
+  <figure><canvas id="c1" width="240" height="240"></canvas><figcaption><span class="tag">T1</span><h2>Carte qui suit</h2><p>La grille du Tonnetz, notes aux nœuds ; l'accord en cours est le triangle rose à facettes, les trois précédents en traces bleues qui s'éteignent. La carte glisse pour garder l'accord au centre.</p></figcaption></figure>
+  <figure><canvas id="c2" width="240" height="240"></canvas><figcaption><span class="tag">T2</span><h2>Carte fixe</h2><p>Le Tonnetz est un tore : 12 notes suffisent. La carte ne bouge pas, l'accord saute d'un triangle à l'autre et le chemin du tour reste tracé ; l'accord de départ marqué d'un losange (RETURN).</p></figcaption></figure>
+  <figure><canvas id="c3" width="240" height="240"></canvas><figcaption><span class="tag">T3</span><h2>Relief</h2><p>T1 vue en plongée : la carte est une dalle à facettes, l'accord en cours se soulève en pyramide à chaque mesure et retombe quand il cède la place.</p></figcaption></figure>
+  <figure><canvas id="c4" width="240" height="240"></canvas><figcaption><span class="tag">T4</span><h2>Réseau d'accords</h2><p>Le graphe des accords : chaque accord est un nœud, chaque transformation une arête nommée P, L ou R. L'accord en cours au centre, ses trois voisins autour ; l'arête du prochain pas s'allume avant le changement.</p></figcaption></figure>
+</div>
+</main>
+
+<script>
+const C = { bg: '#000', wire: '#2a2148', dim: '#1c1340', txt: '#c9c3e4', mute: '#4a4466', pink: '#ff4fa8', white: '#f4f1ff', orange: '#ff7a2e' };
+const GEM = { blue: ['#8fb0ff', '#3a6dff', '#2a52c8', '#1c3590'], pink: ['#ffb8dc', '#ff4fa8', '#d4247a', '#9a1659'], white: ['#ffffff', '#e4e0f5', '#b8b2d6', '#8a84ab'] };
+const KNOB = ['#3a6dff', '#3fd17a', '#f4f1ff', '#ff7a2e'];
+const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const SCALE = [0, 2, 4, 5, 7, 9, 11];
+const OPS = ['—', 'P', 'L', 'R'], RATES = [1, 2, 4, 8, 16], DIVS = [['1/32', 62.5], ['1/16', 125], ['1/8', 250]];
+const S = { div: 1, note: 48, rate: 2, len: 4, chaos: 0, inScale: 1, ret: 1, strum: 0, voice: 1, seq: [3, 2, 3, 2, 1, 0, 0, 0], page: 0 };
+
+/* the Tonnetz: node (i, j) is pitch class 7i + 4j; major (i, j) = (i, j) (i+1, j) (i, j+1); minor (i, j) = (i+1, j) (i, j+1) (i+1, j+1) */
+const pc = (i, j) => (((7 * i + 4 * j) % 12) + 12) % 12;
+const nodes = s => s.m ? [[s.i + 1, s.j], [s.i, s.j + 1], [s.i + 1, s.j + 1]] : [[s.i, s.j], [s.i + 1, s.j], [s.i, s.j + 1]];
+const root = s => s.m ? pc(s.i, s.j + 1) : pc(s.i, s.j);
+const name = s => NAMES[(root(s) + S.note) % 12] + (s.m ? 'm' : '');
+const triad = s => { const r = root(s); return [r, (r + (s.m ? 3 : 4)) % 12, (r + 7) % 12]; };
+function move(o, s) {
+  if (o === 0) return s;
+  if (!s.m) return o === 1 ? { m: 1, i: s.i, j: s.j - 1 } : o === 2 ? { m: 1, i: s.i, j: s.j } : { m: 1, i: s.i - 1, j: s.j };
+  return o === 1 ? { m: 0, i: s.i, j: s.j + 1 } : o === 2 ? { m: 0, i: s.i, j: s.j } : { m: 0, i: s.i + 1, j: s.j };
+}
+const inScale = s => triad(s).every(p => SCALE.includes(p));
+function step(o, s) {                       // IN SCALE: the first of P, L, R from o that stays in the scale, else stay
+  if (!o || !S.inScale) return move(o, s);
+  for (let t = 0; t < 3; t++) { const q = 1 + (o - 1 + t) % 3, n = move(q, s); if (inScale(n)) return n; }
+  return s;
+}
+const START = { m: 0, i: 0, j: 0 };
+
+/* ---- the walk: one chord a bar ---- */
+let k = -1, frac = 0, acc = 0, last = performance.now(), cur = START, trail = [], applied = -1, chaosHit = -1, barT = 0, strikeT = 0, prevNotes = null, notes = [48, 52, 55];
+function newBar(bar) {
+  trail.unshift(cur); trail = trail.slice(0, 3);
+  if (bar === 0) { cur = START; applied = -1; return; }
+  const b = (bar - 1) % (S.len + (S.ret ? 1 : 0));
+  if (S.ret && b === S.len) { cur = START; applied = -1; return; }
+  let o = S.seq[b]; chaosHit = -1;
+  if (S.chaos && Math.random() * 127 < S.chaos) { const others = [1, 2, 3].filter(x => x !== o); o = others[Math.floor(Math.random() * others.length)]; chaosHit = b; }
+  cur = step(o, cur); applied = b;
+}
+function voiced(t) {                          // the triad's notes near NOTE; SMOOTH: nearest the last strike
+  const base = t.map(p => S.note + ((p - S.note % 12) % 12 + 12) % 12).sort((a, b) => a - b);
+  if (!S.voice || !prevNotes) return base;
+  let best = base, cost = 1e9;
+  for (let inv = 0; inv < 3; inv++) for (let o = -1; o <= 0; o++) {
+    const v = base.map((n, i) => n + (i < inv ? 12 : 0) + 12 * o).sort((a, b) => a - b);
+    if (v[0] < base[0] - 7 || v[0] > base[0] + 7) continue;
+    const c = v.reduce((a, n) => a + Math.min(...prevNotes.map(p => Math.abs(p - n))), 0);
+    if (c < cost) cost = c, best = v;
+  }
+  return best;
+}
+let ac = null, on = false;
+document.getElementById('snd').onclick = e => { if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)(); ac.resume(); on = !on; e.target.setAttribute('aria-pressed', String(on)); };
+function play(n, vel, dur, delay) {
+  if (!ac || !on) return;
+  const t = ac.currentTime + delay, o = ac.createOscillator(), g = ac.createGain();
+  o.type = 'triangle'; o.frequency.value = 440 * 2 ** ((n - 69) / 12);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.11 * vel, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.08);
+  o.connect(g).connect(ac.destination); o.start(t); o.stop(t + dur + 0.12);
+}
+function tick() {
+  k++;
+  const s = k % 16, every = 16 / RATES[S.rate];
+  if (s === 0) { newBar(Math.floor(k / 16)); barT = performance.now(); }
+  if (s % every === 0) {
+    notes = voiced(triad(cur)).map(n => n); prevNotes = notes;
+    const dur = every * DIVS[S.div][1] / 1000 * 0.9;
+    notes.forEach((n, i) => play(n, s === 0 ? 1 : 0.7, dur, i * S.strum * DIVS[S.div][1] / 24 / 1000));
+    strikeT = performance.now();
+  }
+}
+const lit = i => { const t = performance.now() - strikeT - i * S.strum * DIVS[S.div][1] / 24; return t >= 0 && t < 140; };
+
+/* ---- controls ---- */
+const PAGES = [['TONNETZ', [['DIV', 0, 2, () => S.div, v => S.div = v, v => DIVS[v][0]], ['NOTE', 36, 60, () => S.note, v => S.note = v, v => NAMES[v % 12] + (Math.floor(v / 12) - 1)],
+                            ['RATE', 0, 4, () => S.rate, v => S.rate = v, v => RATES[v] + '/BAR']]],
+               ['WALK', [['LEN', 1, 8, () => S.len, v => S.len = v, String], ['CHAOS', 0, 127, () => S.chaos, v => S.chaos = v, String],
+                         ['SCALE', 0, 1, () => S.inScale, v => S.inScale = v, v => v ? 'IN SCALE' : 'FREE'], ['RETURN', 0, 1, () => S.ret, v => S.ret = v, v => v ? 'ON' : 'OFF']]],
+               ['PLAY', [['STRUM', 0, 7, () => S.strum, v => S.strum = v, String], ['VOICE', 0, 1, () => S.voice, v => S.voice = v, v => v ? 'SMOOTH' : 'ROOT']]]];
+const pagesEl = document.getElementById('pages');
+PAGES.forEach(([nm, ks], pi) => {
+  const d = document.createElement('div'); d.className = 'page'; d.innerHTML = `<h3>Page ${nm}</h3>`;
+  ks.forEach(([n, lo, hi, get, set, fmt], ki) => {
+    const l = document.createElement('label');
+    l.innerHTML = `<span>K${ki + 1} ${n}</span><input type="range" id="k${pi}${ki}" min="${lo}" max="${hi}" value="${get()}"><span></span>`;
+    const inp = l.querySelector('input'), out = l.lastChild, upd = () => { out.textContent = fmt(+inp.value); };
+    inp.addEventListener('input', () => { set(+inp.value); S.page = pi; upd(); drawSteps(); }); upd(); d.appendChild(l);
+  });
+  pagesEl.appendChild(d);
+});
+let held = -1, touch = null;
+const stepsEl = document.getElementById('steps'), blacksEl = document.getElementById('blacks');
+function drawSteps() {
+  stepsEl.innerHTML = '';
+  for (let i = 0; i < 8; i++) {
+    const b = document.createElement('button'); b.textContent = (i + 1) + ' · ' + OPS[S.seq[i]]; b.disabled = i >= S.len;
+    b.setAttribute('aria-pressed', String(held === i));
+    b.onclick = () => { S.seq[i] = (S.seq[i] + 1) % 4; touch = { i, t: performance.now() }; drawSteps(); };
+    stepsEl.appendChild(b);
+  }
+  const h = document.createElement('button'); h.textContent = held >= 0 ? 'Relâcher ' + (held + 1) : 'Tenir…'; h.onclick = () => { held = held >= 0 ? -1 : 0; drawSteps(); };
+  stepsEl.appendChild(h);
+  if (held >= 0) { const sel = document.createElement('select'); for (let i = 0; i < S.len; i++) { const o = document.createElement('option'); o.value = i; o.textContent = 'tenir ' + (i + 1); sel.appendChild(o); } sel.value = held; sel.onchange = () => { held = +sel.value; drawSteps(); }; stepsEl.appendChild(sel); }
+  blacksEl.innerHTML = '';
+  ['P', 'L', 'R', '—'].forEach((t, n) => { const b = document.createElement('button'); b.textContent = 'noire ' + (n + 1) + ' = ' + t; b.disabled = held < 0;
+    b.onclick = () => { S.seq[held] = n === 3 ? 0 : n + 1; touch = { i: held, t: performance.now() }; drawSteps(); }; blacksEl.appendChild(b); });
+}
+drawSteps();
+
+/* ---- drawing ---- */
+function poly(g, pts, fill) { g.beginPath(); g.moveTo(...pts[0]); for (const p of pts.slice(1)) g.lineTo(...p); g.closePath(); g.fillStyle = fill; g.fill(); }
+function line(g, x0, y0, x1, y1, col, w = 1) { g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.strokeStyle = col; g.lineWidth = w; g.stroke(); }
+function txt(g, s, x, y, col = C.txt, size = 10, align = 'left') { g.font = `700 ${size}px "Chakra Petch", sans-serif`; g.fillStyle = col; g.textAlign = align; g.fillText(s, x, y); }
+function chrome(g) {
+  g.fillStyle = C.bg; g.fillRect(0, 0, 240, 30); g.fillRect(0, 196, 240, 44);
+  txt(g, '1', 8, 20, C.pink, 13); txt(g, 'SEQ  P1', 30, 20, C.txt, 11); txt(g, (S.page + 1) + '/3', 234, 20, C.mute, 10, 'right');
+  line(g, 0, 29.5, 240, 29.5, C.wire); line(g, 0, 196.5, 240, 196.5, C.wire);
+  const ks = [[['DIV', DIVS[S.div][0]], ['NOTE', NAMES[S.note % 12] + (Math.floor(S.note / 12) - 1)], ['RATE', RATES[S.rate] + '/BAR'], ['SOURCE', 'TONNETZ']],
+              [['LEN', String(S.len)], ['CHAOS', String(S.chaos)], ['SCALE', S.inScale ? 'IN SCALE' : 'FREE'], ['RETURN', S.ret ? 'ON' : 'OFF']],
+              [['STRUM', String(S.strum)], ['VOICE', S.voice ? 'SMOOTH' : 'ROOT'], ['', ''], ['', '']]][S.page];
+  ks.forEach(([n, v], i) => { if (!n) return; const x = 30 + i * 60; poly(g, [[x - 26, 203], [x + 26, 203], [x + 26, 205], [x - 26, 205]], KNOB[i]);
+    txt(g, n, x, 218, C.mute, 8, 'center'); txt(g, v, x, 233, C.white, v.length > 6 ? 9 : 11, 'center'); });
+}
+/* the steps 1-8 on top (letters), the one applied lit, a CHAOS swap orange; RATE's notches; the held step's banner */
+function topStrip(g) {
+  for (let i = 0; i < 8; i++) {
+    const x = 6 + i * 15, on = i < S.len, isA = i === applied, tch = touch && touch.i === i && performance.now() - touch.t < 300;
+    const col = !on ? '#120c2a' : held === i ? '#e4e0f5' : tch ? '#e4e0f5' : isA ? (chaosHit === i ? C.orange : C.pink) : '#1c3590';
+    poly(g, [[x, 34], [x + 13, 34], [x + 13, 46], [x, 46]], col);
+    txt(g, on ? OPS[S.seq[i]] : '', x + 6.5, 44, held === i || tch ? C.bg : C.white, 9, 'center');
+  }
+  if (S.ret) { const x = 6 + S.len * 15 + 6; poly(g, [[x, 35], [x + 5, 40], [x, 45], [x - 5, 40]], C.orange); }   /* RETURN: back to the start after the last step */
+  if (held >= 0) { poly(g, [[132, 33], [234, 33], [234, 47], [132, 47]], '#e4e0f5');
+    const nxt = step(S.seq[held], cur); txt(g, 'STEP ' + (held + 1) + ' - ' + OPS[S.seq[held]] + ' > ' + name(nxt), 183, 43, C.bg, 8, 'center'); }
+  else { const r = RATES[S.rate], every = 16 / r, done = Math.floor((Math.max(k, 0) % 16) / every);
+    for (let i = 0; i < r; i++) { const xx = 170 + (i + 0.5) * 62 / r; poly(g, [[xx - 1.5, 46], [xx + 1.5, 46], [xx, 42]], i <= done ? C.pink : C.wire); } }
+}
+function keyboard(g) {
+  const lo = S.note - 12, ky = 170; let wx = 6;
+  for (let n = lo; wx < 232; n++) { if ([1, 3, 6, 8, 10].includes(n % 12)) continue;
+    const i = notes.indexOf(n); poly(g, [[wx, ky], [wx + 11, ky], [wx + 11, ky + 22], [wx, ky + 22]], i >= 0 ? (lit(i) ? GEM.white[0] : GEM.pink[1]) : '#3a2f63');
+    if (n % 12 === 0) txt(g, 'C' + (Math.floor(n / 12) - 1), wx + 1, ky + 20, '#8a84ab', 6); wx += 12; }
+  wx = 6;
+  for (let n = lo; wx < 232; n++) { if (![1, 3, 6, 8, 10].includes(n % 12)) { wx += 12; continue; }
+    const i = notes.indexOf(n); poly(g, [[wx - 4, ky], [wx + 4, ky], [wx + 4, ky + 13], [wx - 4, ky + 13]], i >= 0 ? GEM.pink[2] : '#120c2a'); }
+}
+const hot = () => performance.now() - strikeT < 140;
+/* a lattice drawn through P: (i, j) -> screen */
+function lattice(g, P, ci, cj, spanI, spanJ, nodeLbl = true) {
+  for (let i = ci - spanI; i <= ci + spanI; i++) for (let j = cj - spanJ; j <= cj + spanJ; j++) {
+    const a = P(i, j), b = P(i + 1, j), d = P(i, j + 1);
+    line(g, ...a, ...b, '#1c1340'); line(g, ...a, ...d, '#1c1340'); line(g, ...b, ...d, '#1c1340');
+  }
+  if (!nodeLbl) return;
+  const tc = triad(cur);
+  for (let i = ci - spanI; i <= ci + spanI; i++) for (let j = cj - spanJ; j <= cj + spanJ; j++) {
+    const [x, y] = P(i, j); if (x < -8 || x > 248 || y < 50 || y > 168) continue;
+    const p = pc(i, j), inT = nodes(cur).some(([a, b]) => a === i && b === j), ins = SCALE.includes(p);
+    poly(g, [[x, y - 4], [x + 4, y], [x, y + 4], [x - 4, y]], inT ? GEM.white[1] : !S.inScale || ins ? GEM.blue[2] : '#1c1340');
+    txt(g, NAMES[(p + S.note) % 12], x, y - 6, inT ? C.white : !S.inScale || ins ? C.mute : '#241850', 7, 'center');
+  }
+}
+function triFacets(g, pts, tones, lift = 0) {
+  const c = [(pts[0][0] + pts[1][0] + pts[2][0]) / 3, (pts[0][1] + pts[1][1] + pts[2][1]) / 3 - lift];
+  pts.forEach((p, i) => poly(g, [p, pts[(i + 1) % 3], c], tones[i]));
+  return c;
+}
+
+/* T1: the map follows the chord */
+const cams = {};
+function drawT1(g, relief) {
+  g.fillStyle = C.bg; g.fillRect(0, 0, 240, 240);
+  const DX = 46, DY = relief ? 22 : 40, ctr = nodes(cur).reduce((a, [i, j]) => [a[0] + (i * DX + j * DX / 2) / 3, a[1] + (-j * DY) / 3], [0, 0]);
+  const cam = cams[relief] || (cams[relief] = ctr.slice());
+  cam[0] += (ctr[0] - cam[0]) * 0.08; cam[1] += (ctr[1] - cam[1]) * 0.08;
+  const P = (i, j) => [120 + i * DX + j * DX / 2 - cam[0], 108 - j * DY - cam[1]];
+  const ci = Math.round(cam[0] / DX + (cam[1] / DY) / 2), cj = Math.round(-cam[1] / DY);
+  lattice(g, P, ci, cj, 6, relief ? 5 : 3);
+  trail.slice().reverse().forEach((s, n) => { const k2 = trail.length - 1 - n; poly(g, nodes(s).map(([i, j]) => P(i, j)), ['#2a52c8', '#1c3590', '#16255e'][k2]); });
+  const lift = relief ? 22 * Math.max(0, 1 - Math.max(0, performance.now() - barT - 600) / 400) * Math.min(1, (performance.now() - barT) / 150) : 0;
+  const c = triFacets(g, nodes(cur).map(([i, j]) => P(i, j)), hot() ? GEM.white.slice(0, 3) : GEM.pink.slice(0, 3), lift);
+  txt(g, name(cur), c[0], c[1] + 4, hot() ? C.bg : C.white, 11, 'center');
+  g.fillStyle = C.bg; g.fillRect(0, 30, 240, 20); g.fillRect(0, 166, 240, 4);
+  topStrip(g); keyboard(g); chrome(g);
+}
+/* T2: the fixed torus, the loop's path */
+const wrapT = s => { let { i, j, m } = s; while (j < 0) { j += 3; } while (j > 2) { j -= 3; } while (i < -1) { i += 4; j -= 1; if (j < 0) j += 3; } while (i > 2) { i -= 4; j += 1; if (j > 2) j -= 3; } return { i, j, m }; };
+let path = [];
+function drawT2(g) {
+  g.fillStyle = C.bg; g.fillRect(0, 0, 240, 240);
+  const DX = 30, DY = 30, P = (i, j) => [96 + i * DX + j * DX / 2, 140 - j * DY];
+  lattice(g, P, 0, 1, 5, 2);
+  const w = wrapT(cur);
+  if (!path.length || path[path.length - 1].k !== Math.floor(k / 16)) { path.push({ s: w, k: Math.floor(k / 16) }); if (path.length > S.len + 1) path.shift(); }
+  const cen = s => { const p = nodes(s).map(([i, j]) => P(i, j)); return [(p[0][0] + p[1][0] + p[2][0]) / 3, (p[0][1] + p[1][1] + p[2][1]) / 3]; };
+  for (let n = 1; n < path.length; n++) line(g, ...cen(path[n - 1].s), ...cen(path[n].s), '#4a4466', 1.5);
+  const st = cen(wrapT(START)); poly(g, [[st[0], st[1] - 5], [st[0] + 5, st[1]], [st[0], st[1] + 5], [st[0] - 5, st[1]]], S.ret ? C.orange : '#3a2f63');
+  const c = triFacets(g, nodes(w).map(([i, j]) => P(i, j)), hot() ? GEM.white.slice(0, 3) : GEM.pink.slice(0, 3));
+  txt(g, name(cur), c[0], c[1] + 4, hot() ? C.bg : C.white, 10, 'center');
+  g.fillStyle = C.bg; g.fillRect(0, 30, 240, 20); g.fillRect(0, 166, 240, 4);
+  topStrip(g); keyboard(g); chrome(g);
+}
+/* T4: the chords' network: a chord a node, a transformation an edge */
+function drawT4(g) {
+  g.fillStyle = C.bg; g.fillRect(0, 0, 240, 240);
+  const cx = 120, cy = 108, R = 40, nb = [1, 2, 3].map(o => ({ o, s: move(o, cur) }));
+  const ang = o => -Math.PI / 2 + (o - 1) * 2 * Math.PI / 3 + (cur.m ? Math.PI : 0);
+  const nextB = Math.floor((Math.max(k, 0) + 1) / 16) % (S.len + (S.ret ? 1 : 0)), nextOp = S.ret && nextB === S.len ? -1 : S.seq[nextB];
+  const soon = (Math.max(k, 0) % 16) >= 12;
+  nb.forEach(({ o, s }) => {
+    const x = cx + R * Math.cos(ang(o)), y = cy + R * Math.sin(ang(o)), x2 = cx + (R + 34) * Math.cos(ang(o)), y2 = cy + (R + 34) * Math.sin(ang(o));
+    const nextHere = nextOp === o, out = S.inScale && !inScale(s);
+    line(g, cx, cy, x, y, nextHere && soon ? C.pink : '#3a2f63', nextHere ? 3 : 1.5);
+    txt(g, OPS[o], (cx + x) / 2 + 8, (cy + y) / 2 + 3, nextHere ? C.pink : C.mute, 10, 'center');
+    poly(g, [[x, y - 9], [x + 9, y], [x, y + 9], [x - 9, y]], out ? '#1c1340' : GEM.blue[2]);
+    txt(g, name(s), x, y + 3, out ? '#3a2f63' : C.txt, 8, 'center');
+    [1, 2, 3].filter(q => q !== o).forEach((q, n) => { const a2 = ang(o) + (n ? 0.5 : -0.5); line(g, x + 9 * Math.cos(a2), y + 9 * Math.sin(a2), x + 18 * Math.cos(a2), y + 18 * Math.sin(a2), '#1c1340'); });
+    void x2; void y2;
+  });
+  const t = hot() ? GEM.white : GEM.pink;
+  const hx = [...Array(6)].map((_, i) => [cx + 17 * Math.cos(i * Math.PI / 3), cy + 17 * Math.sin(i * Math.PI / 3)]);
+  hx.forEach((p, i) => poly(g, [[cx, cy], p, hx[(i + 1) % 6]], t[i % 3]));
+  txt(g, name(cur), cx, cy + 4, hot() ? C.bg : C.white, 11, 'center');
+  g.fillStyle = C.bg; g.fillRect(0, 30, 240, 20); g.fillRect(0, 166, 240, 4);
+  topStrip(g); keyboard(g); chrome(g);
+}
+
+const G = ['c1', 'c2', 'c3', 'c4'].map(id => document.getElementById(id).getContext('2d'));
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function frame() {
+  const t = performance.now(), ms = DIVS[S.div][1];
+  acc += Math.min(200, t - last); last = t;
+  while (acc >= ms) { acc -= ms; tick(); }
+  frac = reduce ? 0 : acc / ms;
+  drawT1(G[0], false); drawT2(G[1]); drawT1(G[2], true); drawT4(G[3]);
+  requestAnimationFrame(frame);
+}
+document.fonts.ready.then(() => { tick(); requestAnimationFrame(frame); });
+</script>
