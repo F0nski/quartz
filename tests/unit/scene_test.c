@@ -19,6 +19,7 @@ static void lcd_blit(uint32_t x, uint32_t y, uint32_t w, uint32_t h, const uint1
 #include "scene_dance.c"
 #include "scene_home.c"
 #include "scene_sound.c"
+#include "scene_glo.c"
 
 static uint16_t px(int x, int y) { return swap16(cv_px[y * 240 + x]); }
 static int is_orange(uint16_t c) { return c == ORANGE[0] || c == ORANGE[1] || c == ORANGE[2]; }
@@ -1399,6 +1400,252 @@ static void sound_tests(void)
     sound_fresh();
 }
 
+/* ---- 5g: the global pages TEMPO, SCALE, KEYS, FX, SONG ---- */
+static const char *const G_NOTES[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+static const char *const G_QUANT[3] = {"OFF", "50 %", "100 %"}, *const G_CLICK[4] = {"OFF", "METRO", "COUNT", "BOTH"};
+static const char *const G_INS[3] = {"OFF", "MARBLES", "ALL"};
+static q_glview GV;
+static void greset(int page)
+{
+    memset(&GV, 0, sizeof GV);
+    GV.page = (uint8_t)page, GV.pos = -1, GV.notes = G_NOTES;
+    GV.opt[0] = page == GP_KEYS ? G_INS : G_QUANT, GV.nopt[0] = 3;
+    GV.opt[1] = G_CLICK, GV.nopt[1] = 4;
+    GV.title = "D DORIAN";
+    GV.mask = 0x6AD;
+    GV.tonic = 2;
+    scene_enter();
+}
+static void gkeys(int inscale)      /* KEYS: the white keys' notes, chromatic or the scale from D */
+{
+    static const int8_t C[7] = {0, 2, 4, 5, 7, 9, 11}, D[7] = {2, 4, 5, 7, 9, 11, 0};
+    greset(GP_KEYS);
+    GV.inscale = (uint8_t)inscale, GV.k[0] = inscale ? 2 : 0;
+    for (int i = 0; i < 16; i++)
+        GV.keyn[i] = inscale ? D[i % 7] : C[i % 7];
+}
+static void gfull(void)             /* both bands, into FULL */
+{
+    for (int b = 0; b < 2; b++) {
+        cv_begin(240, 83, 0);
+        glo_band(&GV, -83 * b);
+        memcpy(FULL + 240 * 83 * b, cv_px, sizeof(uint16_t) * 240 * 83);
+    }
+}
+static int gcount(uint16_t c, int x0, int x1, int y0, int y1)
+{
+    int n = 0;
+    for (int y = y0; y < y1; y++)
+        for (int x = x0; x < x1; x++) n += fpx(x, y) == c;
+    return n;
+}
+static int gpink(int x0, int x1, int y0, int y1)
+{
+    return gcount(PINK3[0], x0, x1, y0, y1) + gcount(PINK3[1], x0, x1, y0, y1) + gcount(PINK3[2], x0, x1, y0, y1);
+}
+
+static void glo_tempo_pos(void)
+{
+    greset(GP_TEMPO);
+    GV.k[0] = 120, GV.k[1] = 62, GV.k[2] = 64, GV.k[3] = 64;
+    GV.pos = 37;
+    glo_frame(&GV, 1000);
+    gfull();
+    /* cell 5 is an off-beat: pushed right by SWING (the page's formula) */
+    int x = (int)(14.0f + 2.0f * 27.0f + (13.5f * (float)(GV.k[1] - 50) / 25.0f + 13.5f) * 0.5f + 6.0f);
+    assert(gpink(x, x + 9, 70, 92) > 0);
+    assert(gpink(0, x, 70, 92) == 0 && gpink(x + 9, 240, 70, 92) == 0);
+    GV.pos = -1;
+    glo_frame(&GV, 1040);
+    gfull();
+    assert(gpink(0, 240, 0, 166) == 0);
+    /* three heights: an eighth (cell 2) taller than an off-beat (cell 1) */
+    int xo = (int)(14.0f + (13.5f * (float)(GV.k[1] - 50) / 25.0f + 13.5f) * 0.5f + 6.0f) + 4, hi = 0, ho = 0;
+    for (int y = 70; y < 92; y++)
+        hi += fpx(14 + 27 + 4, y) != 0, ho += fpx(xo, y) != 0;
+    assert(hi == 14 && ho == 9);
+}
+
+static void glo_tempo_beat(void)    /* the gauges step back on a beat and return in 0.25 s */
+{
+    greset(GP_TEMPO);
+    GV.k[0] = 120, GV.k[1] = 50, GV.k[2] = 127, GV.k[3] = 127;
+    GV.pos = 35;
+    glo_frame(&GV, 5000);
+    GV.pos = 36;
+    glo_frame(&GV, 5030);
+    gfull();
+    int dip = gcount(HM_ORANGE[1], 0, 240, 0, 166);
+    glo_frame(&GV, 5400);
+    gfull();
+    assert(gcount(HM_ORANGE[1], 0, 240, 0, 166) > dip);
+}
+
+static void glo_title_fits(void)
+{
+    for (int p = 0; p < 2; p++) {
+        greset(p ? GP_SCALE : GP_TEMPO);
+        GV.k[0] = 240, GV.k[1] = 75, GV.k[2] = 127, GV.k[3] = 127;
+        GV.title = "C# MIN PENTA";
+        GV.pos = 15;
+        glo_frame(&GV, 1000);
+        gfull();
+        for (int y = 0; y < 166; y++)
+            for (int x = 0; x < 240; x += x == 3 ? 233 : 1)
+                assert(fpx(x, y) == 0);
+    }
+}
+
+static void glo_scale_held(void)
+{
+    greset(GP_SCALE);
+    GV.tonic = 9, GV.mask = 0x56B, GV.title = "A LOCRIAN";
+    GV.k[0] = 9, GV.k[1] = 7;
+    GV.held = 1u << 2;
+    glo_frame(&GV, 1000);
+    gfull();
+    assert(gpink(0, 240, 0, 166) > 0);
+    GV.held = 0;
+    glo_frame(&GV, 1040);
+    gfull();
+    assert(gpink(0, 240, 0, 166) == 0);
+    assert(gcount(HM_BLUE[1], 0, 240, 40, 120) > 0 && gcount(HM_GREEN[1], 0, 240, 40, 120) > 0);
+}
+
+static void glo_keys_chromatic(void)
+{
+    for (int in = 0; in < 2; in++) {
+        gkeys(in);
+        glo_frame(&GV, 1000);
+        gfull();
+        /* the black keys: rows 70..114 of the scene */
+        assert((gcount(SP_WIRE, 0, 240, 72, 112) > 0) == in);
+    }
+}
+
+static void glo_keys_blacks(void)   /* the keyboard starts on F: a black key between A and B (gap 2), none between B and C (gap 3) */
+{
+    gkeys(0);
+    glo_frame(&GV, 1000);
+    gfull();
+    for (int g = 0; g < 7; g++) {
+        int x = 12 + (g + 1) * 27 / 2 - 4;
+        assert((gcount(GL_BLACK, x + 1, x + 8, 74, 110) > 0) == (g != 3 && g != 6));
+    }
+}
+
+static void glo_keys_held(void)
+{
+    gkeys(0);
+    GV.held = 1u << 3;
+    glo_frame(&GV, 1000);
+    gfull();
+    assert(gpink(0, 240, 0, 166) > 0);
+    GV.held = 0;
+    glo_frame(&GV, 1040);
+    gfull();
+    assert(gpink(0, 240, 0, 166) == 0);
+}
+
+static void glo_keys_midi(void)     /* keyn holds MIDI notes: the class tells the tonic and the label, whatever the octave */
+{
+    gkeys(1);
+    GV.keyn[0] = 62, GV.keyn[1] = 64, GV.keyn[2] = -1;      /* D4 (the tonic), E4 */
+    glo_frame(&GV, 1000);
+    gfull();
+    assert(gcount(HM_BLUE[1], 14, 25, 120, 124) > 0 && gcount(HM_BLUE[2], 14, 25, 120, 124) == 0);
+    assert(gcount(HM_BLUE[2], 27, 38, 120, 124) > 0 && gcount(HM_BLUE[1], 27, 38, 120, 124) == 0);
+}
+
+static void gsong(int n, int reps)  /* SONG with n entries of reps repeats, scenes cycling */
+{
+    greset(GP_SONG);
+    GV.song.n = (int8_t)n, GV.song.on = 1;
+    for (int i = 0; i < n; i++)
+        GV.song.e[i].scene = (uint8_t)(i % 8), GV.song.e[i].reps = (uint8_t)reps;
+}
+
+static void glo_fx_note(void)
+{
+    greset(GP_FX);
+    GV.k[0] = 5, GV.k[1] = 100, GV.k[2] = 90, GV.k[3] = 80;
+    GV.title = "1/4";
+    glo_frame(&GV, 1000);
+    GV.hits = 1;
+    glo_frame(&GV, 1050);
+    gfull();
+    assert(gpink(0, 240, 0, 166) > 0);
+    glo_frame(&GV, 4050);
+    gfull();
+    assert(gpink(0, 240, 0, 166) == 0);
+}
+
+static void glo_fresh(void)
+{
+    greset(GP_FX);
+    GV.k[0] = 5, GV.k[1] = 100, GV.k[2] = 90, GV.k[3] = 80;
+    GV.hits = 7;
+    glo_frame(&GV, 1000);
+    gfull();
+    assert(gpink(0, 240, 0, 166) == 0);
+    greset(GP_TEMPO);
+    GV.k[0] = 120, GV.k[2] = 127, GV.k[3] = 127;
+    GV.pos = 4;
+    glo_frame(&GV, 1000);
+    gfull();
+    assert(gcount(HM_ORANGE[1], 56, 226, 140, 146) == 170 * 6);
+}
+
+static void glo_song_empty(void)
+{
+    gsong(0, 1);
+    glo_frame(&GV, 1000);
+    gfull();
+    assert(gcount(HM_GREEN[1], 0, 240, 0, 166) == 0);
+    assert(gcount(GL_UI, 0, 240, 0, 166) > 0);
+}
+
+static void glo_song_full(void)
+{
+    gsong(32, 16);
+    GV.song.cursor = 32;
+    glo_frame(&GV, 1000);
+    gfull();
+    for (int y = 20; y < 166; y++)
+        for (int x = 0; x < 240; x += x == 7 ? 226 : 1)
+            assert(fpx(x, y) == 0);
+}
+
+static void glo_song_playing(void)
+{
+    gsong(4, 3);
+    GV.song.cursor = 2, GV.song.playing = 2;
+    glo_frame(&GV, 1000);
+    gfull();
+    assert(gpink(0, 240, 0, 166) > 0);
+    GV.song.playing = 0;
+    glo_frame(&GV, 1040);
+    gfull();
+    assert(gpink(0, 240, 0, 166) == 0);
+}
+
+static void glo_tests(void)
+{
+    glo_tempo_pos();
+    glo_tempo_beat();
+    glo_title_fits();
+    glo_scale_held();
+    glo_keys_chromatic();
+    glo_keys_blacks();
+    glo_keys_held();
+    glo_keys_midi();
+    glo_fx_note();
+    glo_fresh();
+    glo_song_empty();
+    glo_song_full();
+    glo_song_playing();
+}
+
 int main(void)
 {
     planet_orange_then_pink();
@@ -1456,6 +1703,7 @@ int main(void)
     dance_tests();
     home_tests();
     sound_tests();
+    glo_tests();
     printf("scene ok\n");
     return 0;
 }

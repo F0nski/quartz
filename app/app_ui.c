@@ -13,6 +13,7 @@
 #include "scene_dance.c"
 #include "scene_home.c"
 #include "scene_sound.c"
+#include "scene_glo.c"
 #include "plateau.c"
 #include "ui.c"
 

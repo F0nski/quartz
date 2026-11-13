@@ -18,6 +18,7 @@ static void lcd_blit(uint32_t x, uint32_t y, uint32_t w, uint32_t h, const uint1
 #include "scene_dance.c"
 #include "scene_home.c"
 #include "scene_sound.c"
+#include "scene_glo.c"
 #include "plateau.c"
 
 static q_plateau V;

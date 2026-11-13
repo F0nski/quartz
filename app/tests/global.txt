@@ -1,0 +1,36 @@
+# The flat global pages TEMPO, SCALE, KEYS, FX and SONG: animated scenes (anim 7, scene_glo.c)
+wait 600
+tap GLO
+expect anim 7
+wait 100
+shot glo_tempo.png
+tap PLAY
+wait 300
+shot glo_tempo_play.png
+tap PLAY
+turn SELECT 1
+expect page 2
+expect anim 7
+key 0 down
+wait 30
+shot glo_scale_held.png
+key 0 up
+turn SELECT 1
+expect page 3
+expect anim 7
+key 0 down
+wait 30
+shot glo_keys_held.png
+key 0 up
+turn SELECT 1
+expect page 4
+expect anim 7
+key 0 down
+wait 30
+shot glo_fx_note.png
+key 0 up
+tap HOME
+turn SELECT 1
+expect anim 7
+wait 100
+shot glo_song.png

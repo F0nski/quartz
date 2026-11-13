@@ -110,14 +110,13 @@ typedef struct {
         int16_t v[4];
         uint8_t model, pad;                     /* pad: KIT, the pad its knobs set */
         uint8_t eng[Q_PADS];                    /* KIT: the pads' engines */
-        uint16_t tempo;
         q_step st[16];
         int32_t cpu[8];                         /* the CPU page's numbers as shown; core 2 -1: OFF */
         uint8_t anim;                           /* an animated scene, redrawn as it moves: 0 none, 1 the sound's scene (v: its ENGINE
                                                    knobs), 2 the SEQ plateau, 3 MARBLES (v: SPREAD, X BIAS, DEJA VU), 4 GRIDS,
-                                                   5 HOME's tracks (scene_home.c), 6 a sound page ADSR .. MIX (scene_sound.c) */
+                                                   5 HOME's tracks (scene_home.c), 6 a sound page ADSR .. MIX (scene_sound.c),
+                                                   7 TEMPO, SCALE, KEYS, FX, SONG (scene_glo.c) */
         q_trow tr[Q_TRACKS];                    /* TRACKS */
-        struct { int8_t n, cursor, first, playing; q_entry e[6]; } song;               /* SONG: the 6 entries shown from first */
     } scene;
 } q_view;
 
@@ -1230,7 +1229,11 @@ static void view_now(q_view *v)
             v->foot.v[k] = (int16_t)lock_value(t, k, &locked);
             v->foot.col |= (uint8_t)(locked << k);
         }
-    if (pid == P_ENGINE || pid == P_SOUND || pid == P_SCALE || pid == P_PAD || pid >= P_ADSR) {
+    if (pid == P_TEMPO || pid == P_SCALE || pid == P_KEYS || pid == P_GFX || pid == P_SONG) {
+        v->scene.anim = 7;                      /* scene_glo.c; ui_frame fills its view */
+        if (pid == P_SONG && !ui.entry)
+            v->foot.hide = 7;
+    } else if (pid == P_ENGINE || pid == P_SOUND || pid == P_PAD || pid >= P_ADSR) {
         __builtin_memcpy(v->scene.v, v->foot.v, sizeof v->scene.v);
         v->scene.model = pid == P_PAD ? KIT_MODEL + ui.p->kit[ui.track][ui.pad].engine : ui.p->sound[ui.track].model;
         if (pid == P_PAD) {                     /* a KIT's scene: the edited pad's knobs on its engine's polyhedron */
@@ -1293,20 +1296,6 @@ static void view_now(q_view *v)
             v->scene.tr[k].pos = (int8_t)audio_pos(k);
             v->scene.tr[k].len = (int8_t)(pt->src == SRC_STEP ? pt->len : gen_loop(pt));
         }
-    } else if (pid == P_SONG) {
-        int first = ui.entry > 3 ? ui.entry - 3 : 1;     /* the cursor on the 3rd row at most */
-        if (first + 5 > ui.p->nsong)
-            first = ui.p->nsong - 5 > 1 ? ui.p->nsong - 5 : 1;
-        v->scene.song.n = (int8_t)ui.p->nsong;
-        v->scene.song.cursor = (int8_t)ui.entry;
-        v->scene.song.first = (int8_t)first;
-        v->scene.song.playing = (int8_t)(audio_song_entry() + 1);
-        for (k = 0; k < 6 && first + k <= ui.p->nsong; k++)
-            v->scene.song.e[k] = ui.p->song[first + k - 1];
-        if (!ui.entry)
-            v->foot.hide = 7;
-    } else if (pid == P_TEMPO) {
-        v->scene.tempo = ui.p->tempo;
     } else {
         q_load l = audio_load();
         v->scene.cpu[0] = (int32_t)l.core1_pct;
@@ -1452,9 +1441,7 @@ static void draw_scene(const q_view *v, int32_t oy)
     case P_ENGINE:
     case P_SOUND:
     case P_PAD:
-    case P_GFX:
-        if (v->scene.pid != P_GFX)
-            cv_text(10, oy + 8, &FONT_M, MODEL_NAME[v->scene.model], C_WHITE);
+        cv_text(10, oy + 8, &FONT_M, MODEL_NAME[v->scene.model], C_WHITE);
         for (k = 0; k < 4; k++) {
             const q_page *pg = &PAGE[v->scene.pid];
             int32_t x = 60 * k + 12, h = 108 * (v->scene.v[k] - pg->min[k]) / (pg->max[k] - pg->min[k]);
@@ -1521,36 +1508,6 @@ static void draw_scene(const q_view *v, int32_t oy)
             if (r->pos >= 0)
                 cv_rect(10, y + 28, 220 * (r->pos % r->len + 1) / r->len, 4, PINK);
         }
-        break;
-    case P_SONG:
-        if (!v->scene.song.n)
-            cv_text(16, oy + 8, &FONT_S, "EMPTY", C_GRAY);
-        for (i = 0; i < 6 && v->scene.song.first + i <= v->scene.song.n; i++) {
-            int e = v->scene.song.first + i;
-            int32_t y = oy + 4 + 26 * i;
-            uint16_t c = e == v->scene.song.playing ? PINK : C_WHITE;
-            if (e == v->scene.song.cursor)
-                cv_rect(0, y - 2, 240, 24, C_LINE);
-            int_text(e, t);
-            cv_text(10, y + 3, &FONT_S, t, C_GRAY);
-            t[0] = 'S', t[1] = (char)('1' + v->scene.song.e[i].scene), t[2] = 0;
-            cv_text(60, y + 3, &FONT_S, t, c);
-            t[0] = 'X';
-            int_text(v->scene.song.e[i].reps, t + 1);
-            cv_text(230 - text_w(&FONT_S, t), y + 3, &FONT_S, t, c);
-        }
-        break;
-    case P_TEMPO:
-        int_text(v->scene.tempo, t);
-        cv_text((240 - text_w(&FONT_L, t)) / 2, oy + 52, &FONT_L, t, C_WHITE);
-        cv_text((240 - text_w(&FONT_XS, "BPM")) / 2, oy + 90, &FONT_XS, "BPM", C_GRAY);
-        break;
-    case P_SCALE:
-        cv_text((240 - text_w(&FONT_L, TONIC_NAME[v->scene.v[0]])) / 2, oy + 40, &FONT_L, TONIC_NAME[v->scene.v[0]], C_WHITE);
-        cv_text((240 - text_w(&FONT_M, MODE_NAME[v->scene.v[1]])) / 2, oy + 100, &FONT_M, MODE_NAME[v->scene.v[1]], C_GRAY);
-        break;
-    case P_KEYS:
-        cv_text((240 - text_w(&FONT_M, KEYS_NAME[v->scene.v[0]])) / 2, oy + 60, &FONT_M, KEYS_NAME[v->scene.v[0]], C_WHITE);
         break;
     case P_CPU: {
         static const char *const ROW[8] = {"CORE 1", "CORE 2", "LOST BLOCKS", "VOICES", "BYTES/VOICE", "CORE 2 STACK", "EFFECTS",
@@ -1624,6 +1581,7 @@ void ui_redraw(void) { ui.full = 1; }
 void ui_frame(void)
 {
     q_view v;
+    static q_glview glv;                   /* the global pages' view: the bands drawn after the frame read it */
     int b;
     ui_input();
     lights();
@@ -1637,7 +1595,7 @@ void ui_frame(void)
             /* compared with the last frame drawn, not the last one shown: a change between two draws counts */
             /* (another model, or another pad or its engine on a KIT, is another scene too; so is another sound page) */
             int key = v.scene.anim | v.head.track << 3 | v.head.pat << 6 | v.scene.spage << 10 | v.scene.pad << 14 | v.scene.model << 18
-                      | (v.scene.anim == 6 ? v.scene.pid : 0) << 23;
+                      | (v.scene.anim >= 6 ? v.scene.pid : 0) << 23;
             int fresh = ui.full || key != ui.scene_key;
             ui.scene_key = key;
             ui.scene_ms = now;
@@ -1738,6 +1696,60 @@ void ui_frame(void)
                     if (SCALE_MASK[ui.p->mode] >> k & 1 && (++n == 3 || n == 5))
                         pv.chord[n / 2] = (uint8_t)(pv.chord[0] + k);
                 sound_frame(&pv, now);
+            } else if (v.scene.anim == 7) {
+                static char title[14];
+                int pid = v.scene.pid, k, w;
+                if (fresh)
+                    scene_enter();
+                glv.page = pid == P_TEMPO ? GP_TEMPO : pid == P_SCALE ? GP_SCALE : pid == P_KEYS ? GP_KEYS : pid == P_GFX ? GP_FX : GP_SONG;
+                for (k = 0; k < 4; k++)
+                    glv.k[k] = v.foot.v[k];
+                if (pid == P_GFX) {
+                    glv.title = DIV_NAME[ui.p->dtime];
+                } else {                    /* "TONIC MODE" */
+                    const char *t = TONIC_NAME[ui.p->tonic], *m = MODE_NAME[ui.p->mode];
+                    char *o = title;
+                    while (*t)
+                        *o++ = *t++;
+                    *o++ = ' ';
+                    while (*m)
+                        *o++ = *m++;
+                    *o = 0;
+                    glv.title = title;
+                }
+                glv.notes = TONIC_NAME;
+                glv.nopt[0] = glv.nopt[1] = 0;
+                if (pid == P_SCALE) {
+                    glv.opt[0] = QUANT_NAME, glv.nopt[0] = 3;
+                    glv.opt[1] = CLICK_NAME, glv.nopt[1] = 4;
+                } else if (pid == P_KEYS) {
+                    glv.opt[0] = KEYS_NAME, glv.nopt[0] = 3;
+                }
+                glv.tonic = ui.p->tonic;
+                glv.mask = SCALE_MASK[ui.p->mode];
+                glv.pos = (int8_t)audio_pos(ui.track);
+                glv.inscale = (uint8_t)keys_in_scale();
+                glv.held = 0;
+                for (k = 0; k < NKEYS; k++) {
+                    if (ui.key_note[k] < 0)
+                        continue;
+                    if (pid == P_SCALE)
+                        glv.held |= (uint16_t)(1u << ui.key_note[k] % 12);
+                    for (w = 0; w < 16 && pid == P_KEYS; w++)
+                        if (WHITE[w] == k)
+                            glv.held |= (uint16_t)(1u << w);
+                }
+                for (w = 0; w < 16; w++)
+                    glv.keyn[w] = (int8_t)(glv.inscale ? scale_note(w) : 53 + WHITE[w] + 12 * ui.octave);
+                glv.hits = 0;
+                for (k = 0; k < Q_TRACKS; k++)
+                    glv.hits += audio_hits(k);
+                glv.song.n = (int8_t)ui.p->nsong;
+                glv.song.cursor = (int8_t)ui.entry;
+                glv.song.playing = (int8_t)(audio_song_entry() + 1);
+                glv.song.on = (int8_t)ui.p->song_on;
+                __builtin_memcpy(glv.song.e, ui.p->song, sizeof glv.song.e);
+                glo_frame(&glv, now);
             } else {
                 static q_plateau pv;
                 if (fresh)
@@ -1757,6 +1769,8 @@ void ui_frame(void)
                     home_band(-BAND_H * b);
                 else if (v.scene.anim == 6)
                     sound_band(-BAND_H * b);
+                else if (v.scene.anim == 7)
+                    glo_band(&glv, -BAND_H * b);
                 else
                     plateau_band(-BAND_H * b);
                 cv_blit(0, HEAD_H + BAND_H * b);

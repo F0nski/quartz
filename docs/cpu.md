@@ -30,6 +30,7 @@ core's load and LOST BLOCKS; a step is validated only with zero lost blocks in i
 | Step 5e, the worst case (MODAL, 6-OP A) on HOME's tracks page (17 fps), three 45 s windows | 74-79 % / 57-63 % | 2, 4, 2 |
 | The same session, the ENV page (no scene), 45 s | 81 % / 57 % | 1 |
 | Step 5f, the same worst case on the ENV FILTER page: the harmonics (20 fps), two 45 s windows | 74 % / 65 % | 0 |
+| Step 5g, the same worst case on GLO's TEMPO page: the flat bar (27 fps), 45 s | 81 % / 58 % | 0 |
 
 One Plaits voice costs 5 to 11 % of a core for the light models, 12 to 16 % for the common ones and 20 to 21 % for
 ADDITIVE and MODAL; the cost is linear in voices and the second core halves the wall time. The generators run once
