@@ -1,0 +1,25 @@
+# The ORBITS radar on its pages: playing, the MOON page with a moon set, a KIT
+wait 600
+tap SEQ
+turn K4 7
+expect src 7
+wait 100
+expect anim 12
+tap PLAY
+wait 2500
+shot orbits_play.png
+turn SELECT 1
+expect anim 12
+turn PRESET 1
+wait 300
+shot orbits_moon.png
+tap PLAY
+tap EDIT
+turn PRESET 20
+expect model 24
+tap SEQ
+tap PLAY
+wait 1500
+expect anim 12
+shot orbits_kit.png
+tap PLAY

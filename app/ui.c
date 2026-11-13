@@ -151,7 +151,7 @@ typedef struct {
                                                    5 HOME's tracks (scene_home.c), 6 a sound page ADSR .. MIX (scene_sound.c),
                                                    7 TEMPO, SCALE, KEYS, FX, SONG (scene_glo.c), 8 LIFE (scene_life.c),
                                                    9 LANES (scene_lanes.c), 10 CHORDS (scene_chords.c),
-                                                   11 TONNETZ (scene_tonnetz.c) */
+                                                   11 TONNETZ (scene_tonnetz.c), 12 ORBITS (scene_orbits.c) */
         q_trow tr[Q_TRACKS];                    /* TRACKS */
         int8_t layer, lmode;                    /* a layer's map instead of the scene: its button + 1; REC in LIVE, SEL in NOTES */
         uint32_t lkeys, hot;                    /* its keys, and the keys pressed */
@@ -2223,6 +2223,8 @@ static void view_now(q_view *v)
             v->scene.anim = 10;                 /* scene_chords.c; ui_frame fills its view */
         if (pid == P_TONNETZ || pid == P_WALK || pid == P_PLAY)
             v->scene.anim = 11;                 /* scene_tonnetz.c; ui_frame fills its view */
+        if (pid == P_ORBITS || pid == P_MOON || pid == P_MOONK)
+            v->scene.anim = 12;                 /* scene_orbits.c; ui_frame fills its view */
         if (pid == P_MARBLES || pid == P_T || pid == P_X) {
             v->scene.anim = 3;
             v->scene.v[0] = t->marbles.spread;
@@ -2699,6 +2701,7 @@ void ui_frame(void)
     static q_laneview lnv;                 /* LANES' */
     static q_chview chv;                   /* CHORDS' */
     static q_tzview tzw;                   /* TONNETZ's */
+    static q_orview orw;                   /* ORBITS' */
     int b;
     ui_input();
     lights();
@@ -2996,6 +2999,27 @@ void ui_frame(void)
                 }
                 tzw.step_ms = 2500u * DIV96[t->div] / ui.p->tempo;
                 tonnetz_frame(&tzw, now);
+            } else if (v.scene.anim == 12) {
+                static const char *const PADS3[3] = {"BD", "SN", "HH"};
+                const q_pattern *t = pat();
+                if (fresh)
+                    orbits_enter();
+                orw.o = t->orbits, orw.kit = (uint8_t)kit();
+                orw.playing = (uint8_t)(v.scene.pos >= 0);
+                orw.n = orw.playing ? audio_orbits(ui.track) : 0;
+                orw.sel = (int8_t)(v.scene.pid == P_MOON || v.scene.pid == P_MOONK ? ui.moon : -1);
+                for (int m = 0; m < 4; m++) {   /* the moons' notes, or pads */
+                    char *o = orw.name[m];
+                    int val = t->orbits.val[m];
+                    if (!kit())
+                        note_name(gen_life_note(t->orbits.note, gen_scale(ui.p), ui.p->tonic, val), o);
+                    else if (val < 3)
+                        o[0] = PADS3[val][0], o[1] = PADS3[val][1], o[2] = 0;
+                    else
+                        o[0] = 'P', int_text(val + 1, o + 1);
+                }
+                orw.step_ms = 2500u * DIV96[t->div] / ui.p->tempo;
+                orbits_frame(&orw, now);
             } else if (v.scene.anim == 7) {
                 static char title[14];
                 int pid = v.scene.pid, k, w;
@@ -3079,6 +3103,8 @@ void ui_frame(void)
                     chords_band(&chv, -BAND_H * b);
                 else if (v.scene.anim == 11)
                     tonnetz_band(&tzw, -BAND_H * b);
+                else if (v.scene.anim == 12)
+                    orbits_band(&orw, -BAND_H * b);
                 else
                     plateau_band(-BAND_H * b);
                 cv_blit(0, HEAD_H + BAND_H * b);

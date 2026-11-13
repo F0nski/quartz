@@ -166,6 +166,8 @@ dans une croche ou une noire.
   STRUM, conduite par VOICE. Détail : `2026-11-13-quartz-chords-design.md`.
 - **TONNETZ** : un accord par mesure qui marche sur le Tonnetz par une séquence de P, L, R (CHAOS, FREE / IN SCALE,
   RETURN), joué comme CHORDS. Détail : `2026-11-13-quartz-tonnetz-design.md`.
+- **ORBITS** : 1 à 4 lunes, chacune sa période, sa phase et sa note (degré ou pad), jouent en passant devant la
+  planète ; accent aux conjonctions. Détail : `2026-11-13-quartz-orbits-design.md`.
 - Étape ultérieure (demandée, non planifiée) : un LEN de 1 à 32 pour GRIDS, sur le 4e encodeur libre de MAP ou de DENS ;
   la boucle repart au pas 1 après LEN, les pas au-delà s'affichent sombres.
 
@@ -175,7 +177,7 @@ dans une croche ou une noire.
 |---|---|
 | ALGORITHM | choisir la piste 1–4 |
 | SELECT (encodeur) | passer d'une page à l'autre dans le domaine courant |
-| PRESET | parcourir ce qui est à l'écran : presets du moteur, type d'insert, pattern… ; dans SEQ, sur un pattern LANES, la ligne éditée |
+| PRESET | parcourir ce qui est à l'écran : presets du moteur, type d'insert, pattern… ; dans SEQ, sur un pattern LANES, la ligne éditée ; sur un pattern ORBITS (page MOON), la lune réglée |
 | K1–K4 | les 4 paramètres de la page ; couleurs fixes bleu, vert, blanc, orange |
 | SEL (bouton) | valider (charger le preset choisi, confirmer une action) ; maintenu : Shift des pas (sélection dans la grille, p-locks en NOTES) |
 | MASTER | volume |
