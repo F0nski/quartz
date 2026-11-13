@@ -1,0 +1,54 @@
+# ORBITS: its 2 pages and their bounds; PRESET picks the moon on MOON, kept within MOONS; no GRID; PAD on a KIT
+wait 600
+tap SEQ
+turn K4 7
+expect src 7
+expect page 1
+spin K2 -127
+expect onote 1
+spin K2 127
+expect onote 127
+spin K3 -9
+expect omoons 1
+spin K3 9
+expect omoons 4
+wait 100
+shot orbits_page1.png
+turn SELECT 1
+expect page 2
+expect osel 0
+turn PRESET 1
+expect osel 1
+spin K1 -40
+expect oper_2 1
+spin K1 40
+expect oper_2 32
+spin K2 -40
+expect opha_2 0
+spin K2 40
+expect opha_2 31
+spin K3 -20
+expect oval_2 0
+spin K3 20
+expect oval_2 15
+turn PRESET 9
+expect osel 3
+wait 100
+shot orbits_page2.png
+turn SELECT 1
+expect page 1
+spin K3 -9
+expect omoons 1
+expect osel 0
+expect pattern 1
+tap REC
+expect badge 0
+tap EDIT
+turn PRESET 20
+expect model 24
+tap SEQ
+turn K2 -5
+expect onote 127
+turn SELECT 1
+wait 100
+shot orbits_kit.png

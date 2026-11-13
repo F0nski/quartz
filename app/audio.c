@@ -168,6 +168,7 @@ int audio_pos(int track) { return seq_pos(&seq, track); }
 void audio_life(int track, q_life_run *out) { __builtin_memcpy(out, (const void *)&seq.g[track].life, sizeof *out); }
 uint32_t audio_lanes(int track) { return seq.g[track].lanes_n; }
 void audio_chords(int track, q_chords_run *out) { __builtin_memcpy(out, (const void *)&seq.g[track].chords, sizeof *out); }
+uint32_t audio_orbits(int track) { return seq.g[track].orbits_n; }
 void audio_tonnetz(int track, q_tonnetz_run *out) { __builtin_memcpy(out, (const void *)&seq.g[track].tonnetz, sizeof *out); }
 uint32_t audio_hits(int track) { return hits[track]; }
 uint32_t audio_kit_hits(int track, int engine) { return kit_hits[track][engine]; }

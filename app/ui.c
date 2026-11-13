@@ -18,7 +18,7 @@
 enum { D_EDIT, D_SEQ, D_GLO, D_HOME, D_ENV, D_LFO, D_ARP, D_FX, ND };
 enum { P_ENGINE, P_SOUND, P_STEPS, P_TEMPO, P_SCALE, P_CPU, P_XY, P_TRACKS, P_SONG, P_GRIDS, P_MAP, P_DENS, P_MARBLES, P_T,
        P_X, P_NOTES, P_LIFE, P_LIFEK, P_SEED, P_EVOL, P_PAD, P_KIT, P_ADSR, P_FILTER, P_LFO, P_ARP, P_INSERT, P_MIX, P_GFX, P_KEYS,
-       P_SN1, P_SN2, P_SN3, P_LANES, P_LENS, P_CHORDS, P_PROG, P_TONNETZ, P_WALK, P_PLAY };            /* NOTES in SEQ: the cursor's step on K1-K4 */
+       P_SN1, P_SN2, P_SN3, P_LANES, P_LENS, P_CHORDS, P_PROG, P_TONNETZ, P_WALK, P_PLAY, P_ORBITS, P_MOON, P_MOONK };            /* NOTES in SEQ: the cursor's step on K1-K4 */
 /* what PRESET sets on a held step; the black keys pick them by family (FAMILY) */
 /* REC: GRID the white keys are SEQ's steps, NOTES they write at a cursor, LIVE they record while playing, ARM the first
    note starts LIVE */
@@ -29,9 +29,9 @@ enum { A_VEL, A_RATCHET, A_PROB, A_COND, A_SLIDE, A_ACCENT, A_NOTE, A_LEN, A_MIC
 static const uint8_t DOMAIN_PAGES[ND][5] = {{P_ENGINE, P_SOUND}, {P_STEPS, P_XY}, {P_TEMPO, P_SCALE, P_KEYS, P_GFX, P_CPU}, {P_TRACKS, P_SONG},
                                                 {P_ADSR, P_FILTER}, {P_LFO}, {P_ARP}, {P_MIX, P_INSERT}};
 static const uint8_t DOMAIN_N[ND] = {2, 1, 5, 2, 2, 1, 1, 2};      /* SEQ: 2 pages while PATH is XY (pages) */
-static const uint8_t GEN_PAGES[6][5] = {{P_GRIDS, P_MAP, P_DENS}, {P_MARBLES, P_T, P_X, P_NOTES}, {P_LIFE, P_SEED, P_EVOL},
+static const uint8_t GEN_PAGES[7][5] = {{P_GRIDS, P_MAP, P_DENS}, {P_MARBLES, P_T, P_X, P_NOTES}, {P_LIFE, P_SEED, P_EVOL},
                                         {P_LANES, P_LENS}, {P_CHORDS, P_PROG},
-                                        {P_TONNETZ, P_WALK, P_PLAY}};
+                                        {P_TONNETZ, P_WALK, P_PLAY}, {P_ORBITS, P_MOON}};
 static const uint8_t KIT_PAGES[5] = {P_PAD, P_KIT};
 static const uint8_t NOTES_PAGES[5] = {P_SN1, P_SN2, P_SN3, P_STEPS, P_XY};
 static const uint8_t DOMAIN_BTN[ND] = {B_EDIT, B_SEQ, B_GLO, B_HOME, B_ENV, B_LFO, B_ARP, B_FX};
@@ -79,6 +79,9 @@ static const q_page PAGE[] = {
     {"TONNETZ", {"DIV", "NOTE", "RATE", "SOURCE"}, {0, 1, 0, 0}, {DIV_N - 1, 127, 4, SRC_N - 1}},
     {"WALK", {"LEN", "CHAOS", "SCALE", "RETURN"}, {1, 0, 0, 0}, {8, 127, 1, 1}},
     {"PLAY", {"STRUM", "VOICE"}, {0, 0}, {7, 1}},
+    {"ORBITS", {"DIV", "NOTE", "MOONS", "SOURCE"}, {0, 1, 1, 0}, {DIV_N - 1, 127, 4, SRC_N - 1}},
+    {"MOON", {"PERIOD", "PHASE", "NOTE"}, {1, 0, 0}, {32, 31, 15}},
+    {"MOON", {"PERIOD", "PHASE", "PAD"}, {1, 0, 0}, {32, 31, 15}},       /* a KIT's: PAD for NOTE */
 };
 
 /* Plaits' registration order (pq.h) */
@@ -98,7 +101,7 @@ static const char *const INS_NAME[IT_N] = {"INSERT OFF", "OVERDRIVE", "WAVEFOLD"
 static const char *const INS_LABEL[IT_N][3] = {{"", "", ""}, {"DRIVE", "TONE", ""}, {"FOLD", "BIAS", "TONE"}, {"BITS", "RATE", ""},
                                                 {"RATE", "DEPTH", ""}, {"RATE", "DEPTH", "FEEDBK"}, {"FREQ", "", ""}, {"NOTE", "FEEDBK", "DAMP"}};
 static const char *const AMODE_NAME[6] = {"OFF", "UP", "DOWN", "UP-DN", "RAND", "ORDER"};
-static const char *const SRC_NAME[SRC_N] = {"STEP", "GRIDS", "MARBLES", "LIFE", "LANES", "CHORDS", "TONNETZ"};
+static const char *const SRC_NAME[SRC_N] = {"STEP", "GRIDS", "MARBLES", "LIFE", "LANES", "CHORDS", "TONNETZ", "ORBITS"};
 /* Marbles' T models, its TGeneratorModel order (gen.c) */
 static const char *const T_MODE_NAME[7] = {"C.BERN", "CLUSTERS", "DRUMS", "I.BERN", "DIVIDER", "3 STATES", "MARKOV"};
 static const char *const PATH_NAME[PATH_N] = {"FWD", "REV", "PING-PONG", "SNAKE", "COLUMNS", "SPIRAL", "RANDOM", "XY"};
@@ -179,6 +182,7 @@ static struct {
     uint8_t erase_notes[8];                    /* the notes of the keys held then, 0 none */
     int lane, cell, cell_key, cell_edited;     /* LANES: the lane edited (L_*); the cell held 1..16, 0 none, its key */
     int cell_lane;                             /* the lane of the cell last touched */
+    int moon;                                  /* ORBITS: the moon MOON sets, 0..moons - 1 */
     int cell_flash;                            /* the cell last touched 1..16 (0 none) and when, for the scene */
     uint32_t cell_ms;
     int layer;                                 /* the layer whose map is shown: its button + 1, 0 none */                               /* ARM: the key that started the playing, played once step 1 is under way (key + 1) */
@@ -208,7 +212,9 @@ static int pages(int d, uint8_t *out)
         __builtin_memcpy(out, GEN_PAGES[t->src - 1], 5);
         if (t->src == SRC_LIFE && kit())
             out[0] = P_LIFEK;
-        return t->src == SRC_TONNETZ ? 3 : t->src == SRC_LANES || t->src == SRC_CHORDS ? 2 : t->src != SRC_MARBLES ? 3 : kit() ? 2 : 4;   /* a KIT has no X section */
+        if (t->src == SRC_ORBITS && kit())
+            out[1] = P_MOONK;
+        return t->src == SRC_TONNETZ ? 3 : t->src == SRC_ORBITS ? 2 : t->src == SRC_LANES || t->src == SRC_CHORDS ? 2 : t->src != SRC_MARBLES ? 3 : kit() ? 2 : 4;   /* a KIT has no X section */
     }
     if (d == D_SEQ && notes_on()) {     /* the cursor's step first, then SEQ's own */
         __builtin_memcpy(out, NOTES_PAGES, 5);
@@ -244,7 +250,7 @@ static int knob_hidden(int pid, int k)
     return (kit() && ((pid == P_GRIDS && (k == 1 || k == 2)) || (pid == P_MARBLES && k == 1) || pid == P_ARP))   /* a KIT has no arp */
            || (pid == P_INSERT && k < 3 && !*INS_LABEL[ui.p->sound[ui.track].itype][k])    /* no role: turns ignored */
            || (pid == P_SN1 && !k && kit())                                                 /* a KIT's pads stay */
-           || (kit() && (pid == P_LANES || pid == P_LENS) && k == 1);                       /* a KIT: no base note, no OCT */
+           || (kit() && (pid == P_LANES || pid == P_LENS || pid == P_ORBITS) && k == 1);                       /* a KIT: no base note, no OCT */
 }
 
 static int knob_get(int pid, int k)
@@ -282,14 +288,24 @@ static int knob_get(int pid, int k)
     case P_LIFEK * 4 + 3:
     case P_LANES * 4 + 3:
     case P_CHORDS * 4 + 3:
-    case P_TONNETZ * 4 + 3: return t->src;
+    case P_TONNETZ * 4 + 3:
+    case P_ORBITS * 4 + 3: return t->src;
     case P_GRIDS * 4:
     case P_MARBLES * 4:
     case P_LIFE * 4:
     case P_LIFEK * 4:
     case P_LANES * 4:
     case P_CHORDS * 4:
-    case P_TONNETZ * 4: return t->div;
+    case P_TONNETZ * 4:
+    case P_ORBITS * 4: return t->div;
+    case P_ORBITS * 4 + 1: return t->orbits.note;
+    case P_ORBITS * 4 + 2: return t->orbits.moons;
+    case P_MOON * 4:
+    case P_MOONK * 4: return t->orbits.per[ui.moon];
+    case P_MOON * 4 + 1:
+    case P_MOONK * 4 + 1: return t->orbits.pha[ui.moon];
+    case P_MOON * 4 + 2:
+    case P_MOONK * 4 + 2: return t->orbits.val[ui.moon];
     case P_TONNETZ * 4 + 1: return t->tonnetz.note;
     case P_TONNETZ * 4 + 2: return t->tonnetz.rate;
     case P_WALK * 4: return t->tonnetz.len;
@@ -434,7 +450,19 @@ static void knob_set(int pid, int k, int v)
     case P_LIFEK * 4:
     case P_LANES * 4:
     case P_CHORDS * 4:
-    case P_TONNETZ * 4: t->div = (uint8_t)v; break;
+    case P_TONNETZ * 4:
+    case P_ORBITS * 4: t->div = (uint8_t)v; break;
+    case P_ORBITS * 4 + 1: t->orbits.note = (uint8_t)v; break;
+    case P_ORBITS * 4 + 2:
+        t->orbits.moons = (uint8_t)v;
+        if (ui.moon >= v) ui.moon = v - 1;   /* fewer moons: the one set among them */
+        break;
+    case P_MOON * 4:
+    case P_MOONK * 4: t->orbits.per[ui.moon] = (uint8_t)v; break;
+    case P_MOON * 4 + 1:
+    case P_MOONK * 4 + 1: t->orbits.pha[ui.moon] = (uint8_t)v; break;
+    case P_MOON * 4 + 2:
+    case P_MOONK * 4 + 2: t->orbits.val[ui.moon] = (uint8_t)v; break;
     case P_TONNETZ * 4 + 1: t->tonnetz.note = (uint8_t)v; break;
     case P_TONNETZ * 4 + 2: t->tonnetz.rate = (uint8_t)v; break;
     case P_WALK * 4: t->tonnetz.len = (uint8_t)v; break;
@@ -475,6 +503,7 @@ static void knob_set(int pid, int k, int v)
     case P_LANES * 4 + 3:
     case P_CHORDS * 4 + 3:
     case P_TONNETZ * 4 + 3:
+    case P_ORBITS * 4 + 3:
         t->src = (uint8_t)v;
         if ((v == SRC_CHORDS || v == SRC_TONNETZ) && !kit() && s->poly < 3)   /* chords need voices: POLY 3 at least */
             s->poly = 3;
@@ -1604,6 +1633,8 @@ void ui_input(void)
         } else if (ui.sel_ref >= 0) {
             attr_turn(&pat()->steps[ui.spage * 16 + ui.sel_ref], ui.attr, e);
             sel_copy();
+        } else if (ui.domain == D_SEQ && pat()->src == SRC_ORBITS && (page_id() == P_MOON || page_id() == P_MOONK)) {   /* the moon set */
+            ui.moon = clamp(ui.moon + e, 0, pat()->orbits.moons - 1);
         } else if (lanes_on()) {        /* the lane edited; a KIT has no OCT */
             ui.lane = clamp(ui.lane + e, 0, L_N - 1);
             if (kit() && ui.lane == L_OCT)
@@ -1629,6 +1660,8 @@ void ui_input(void)
         ui.page[D_SEQ] = 0;
     if (ui.cell && !lanes_on() && !chords_on() && !tonnetz_on())   /* another domain: the cell or chord held lets go, its release does nothing */
         ui.cell = 0;
+    if (ui.moon >= pat()->orbits.moons)         /* fewer moons: the one set among them */
+        ui.moon = pat()->orbits.moons - 1;
     if (kit() && ui.lane == L_OCT)              /* the track became a KIT: no OCT lane */
         ui.lane = L_NOTE;
     kpid = knob_page();
@@ -1769,6 +1802,14 @@ static uint32_t key_lights(uint32_t *mid)
             keys |= (uint32_t)ui.p->scene[i].used << WHITE[8 + i];
     } else if (notes_on()) {                    /* the cursor's step's notes */
         keys = step_keys(&t->steps[ui.cursor - 1]);
+    } else if (ui.domain == D_SEQ && t->src == SRC_ORBITS) {   /* the moons at mid level, lit as they pass */
+        uint32_t n = audio_orbits(ui.track);
+        int hits = pos >= 0 && n && audio_pattern(ui.track) == ui.p->pattern[ui.track] ? gen_orbits_hits(&t->orbits, n - 1) : 0;
+        for (i = 0; i < t->orbits.moons; i++) {
+            *mid |= 1u << WHITE[i];
+            if (hits >> i & 1)
+                keys |= 1u << WHITE[i];
+        }
     } else if (ui.domain == D_SEQ && t->src == SRC_TONNETZ) {   /* the steps at mid level, the one applied lit; held: black keys 1-4 */
         q_tonnetz_run r;
         audio_tonnetz(ui.track, &r);
@@ -1973,6 +2014,15 @@ static void knob_text(int pid, int k, int v, char *b)
         while ((*b++ = *s++) != 0) {}
         return;
     }
+    if ((pid == P_MOON || pid == P_MOONK) && k == 2) {   /* the moon's note, or its pad */
+        static const char *const PADS3[3] = {"BD", "SN", "HH"};
+        if (pid == P_MOONK) {
+            if (v < 3) { const char *s = PADS3[v]; while ((*b++ = *s++) != 0) {} }
+            else { *b++ = 'P'; int_text(v + 1, b); }
+        } else
+            note_name(gen_life_note(pat()->orbits.note, gen_scale(ui.p), ui.p->tonic, v), b);
+        return;
+    }
     if ((pid == P_LIFEK && k == 2) || (pid == P_SEED && k == 2)) {
         const char *s = pid == P_SEED ? (v ? "ON" : "OFF") : v ? "BANDS" : "PADS";
         while ((*b++ = *s++) != 0) {}
@@ -1982,16 +2032,16 @@ static void knob_text(int pid, int k, int v, char *b)
         int_text(1 << v, b);
         return;
     }
-    if ((k == 3 && (pid == P_STEPS || pid == P_GRIDS || pid == P_MARBLES || pid == P_LIFE || pid == P_LIFEK || pid == P_LANES || pid == P_CHORDS || pid == P_TONNETZ)) || (pid == P_T && !k)) {
+    if ((k == 3 && (pid == P_STEPS || pid == P_GRIDS || pid == P_MARBLES || pid == P_LIFE || pid == P_LIFEK || pid == P_LANES || pid == P_CHORDS || pid == P_TONNETZ || pid == P_ORBITS)) || (pid == P_T && !k)) {
         const char *s = pid == P_T ? T_MODE_NAME[v] : SRC_NAME[v];
         while ((*b++ = *s++) != 0) {}
         return;
     }
-    if ((pid == P_GRIDS && k == 2) || (pid == P_NOTES && !k) || (pid == P_LIFE && k == 2) || ((pid == P_LANES || pid == P_CHORDS || pid == P_TONNETZ) && k == 1)) {
+    if ((pid == P_GRIDS && k == 2) || (pid == P_NOTES && !k) || (pid == P_LIFE && k == 2) || ((pid == P_LANES || pid == P_CHORDS || pid == P_TONNETZ || pid == P_ORBITS) && k == 1)) {
         note_name(v, b);
         return;
     }
-    if ((pid == P_STEPS && k > 0) || (pid == P_XY && k & 1) || ((pid == P_GRIDS || pid == P_MARBLES || pid == P_LIFE || pid == P_LIFEK || pid == P_LANES || pid == P_CHORDS || pid == P_TONNETZ) && !k)) {
+    if ((pid == P_STEPS && k > 0) || (pid == P_XY && k & 1) || ((pid == P_GRIDS || pid == P_MARBLES || pid == P_LIFE || pid == P_LIFEK || pid == P_LANES || pid == P_CHORDS || pid == P_TONNETZ || pid == P_ORBITS) && !k)) {
         const char *s = pid == P_STEPS && k == 2 ? PATH_NAME[v] : DIV_NAME[v];
         while ((*b++ = *s++) != 0) {}
         return;
@@ -3234,6 +3284,12 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "tchaos")) *got = t->tonnetz.chaos;
     else if (!strcmp(what, "tscale")) *got = t->tonnetz.scale;
     else if (!strcmp(what, "tret")) *got = t->tonnetz.ret;
+    else if (!strcmp(what, "onote")) *got = t->orbits.note;
+    else if (!strcmp(what, "omoons")) *got = t->orbits.moons;
+    else if (!strcmp(what, "osel")) *got = ui.moon;
+    else if (!strncmp(what, "oper_", 5) && atoi(what + 5) >= 1 && atoi(what + 5) <= 4) *got = t->orbits.per[atoi(what + 5) - 1];
+    else if (!strncmp(what, "opha_", 5) && atoi(what + 5) >= 1 && atoi(what + 5) <= 4) *got = t->orbits.pha[atoi(what + 5) - 1];
+    else if (!strncmp(what, "oval_", 5) && atoi(what + 5) >= 1 && atoi(what + 5) <= 4) *got = t->orbits.val[atoi(what + 5) - 1];
     else if (!strncmp(what, "top_", 4) && atoi(what + 4) >= 1 && atoi(what + 4) <= 8) *got = TZ_OP(&t->tonnetz, atoi(what + 4) - 1);
     else if (!strncmp(what, "cdeg_", 5) && atoi(what + 5) >= 1 && atoi(what + 5) <= 8) *got = CH_DEG(t->chords.ch[atoi(what + 5) - 1]);
     else if (!strncmp(what, "csize_", 6) && atoi(what + 6) >= 1 && atoi(what + 6) <= 8) *got = CH_SIZE(t->chords.ch[atoi(what + 6) - 1]);
