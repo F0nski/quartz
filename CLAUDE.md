@@ -34,7 +34,12 @@ tests/run_tests.sh         # unit tests, then every app/tests/*.txt; ends with "
 app/build/host/quartz_host app/tests/X.txt app/build/host     # one simulator script; shots land in the 2nd arg
 rm -rf app/build/shots && mkdir -p app/build/shots && app/build/host/quartz_host app/tests/manual_shots.txt app/build/shots && cp app/build/shots/*.png app/docs/img/   # the manual's captures
 python3 base/tools/manual_html.py app/docs/MANUAL.md app/build/manual.html --name QUARTZ   # preview the manual
+# the whole site (front page, installer, emulator, manual) in app/build/site, for a release X.Y; needs Emscripten
+source .tools/emsdk/emsdk_env.sh && ./build.sh --release X.Y && ./build.sh --web --release X.Y \
+  && (cd base && python3 tools/make_site.py ../app ../app/build/quartz-X.Y.fwsc X.Y ../app/build/site)
 ```
+
+`base/tools/publish_site.sh` pushes the site to the `gh-pages` branch: only when the author asks.
 
 Install on the author's FM-1, from `~/perso/fm1`:
 `spike-cpu/.tools/venv/bin/python quartz/base/tools/fm1_install.py --yes --classic quartz/app/build/quartz.fwsc`.
