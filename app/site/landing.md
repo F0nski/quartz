@@ -1,6 +1,6 @@
 # QUARTZ
 
-QUARTZ turns the M-VAVE FM-1 into a four-track groovebox. Each track plays one of 21 synth models or a 16-pad drum kit,
+QUARTZ turns the M-VAVE FM-1 into a four-track groovebox. Each track plays one of 24 models (21 synths, 3 drums) or a 16-pad drum kit,
 and each pattern takes its notes from a step sequencer or from one of eight generative sources: a drum map, random
 rhythms, the Game of Life, polymetric lanes, chord progressions, a walk on the Tonnetz, moons on orbits, or an
 improviser that learns what you play. Every page shows an animated scene of what you hear.

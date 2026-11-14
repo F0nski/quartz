@@ -115,7 +115,8 @@ left, as the screen numbers them.
 ![EDIT's ENGINE page on track 2: the header with 2, EDIT and ENGINE, page 1/2; the scene; HARM, TIMB, MORPH and DECAY at 64 in the footer](img/screen-anatomy.png "A page: header, scene, knobs")
 
 - **Header**: the track in a box, the domain and the page (on SEQ, the pattern: `P1 > P2` while the next one waits
-  for the end of the loop), the page's number, and REC's state when it is armed (GRID, NOTES, LIVE, ARM, LISTEN).
+  for the end of the loop), the page's number, and REC's state when it is armed (GRID, NOTES, LIVE; ARM and LISTEN
+  blink).
 - **Scene**: what the page sets, animated. It reacts to every knob of the page and to each note played, in pink.
 - **Footer**: K1–K4, their names and values in their colours. A grey one is not in use on this page.
 
@@ -136,8 +137,8 @@ your presses, so you can look up a shortcut and use it in the same gesture.
 
 A kick on track 1 and a melody on track 2, from a new project.
 
-1. Press EDIT, then turn PRESET until the footer shows the kit: the header says `PAD 1` and the scene shows the kit's
-   three drums.
+1. Press EDIT, then turn PRESET 16 notches, to the kit: the header says `PAD 1` and the scene shows the kit's three
+   drums.
 2. Press SEQ, then REC once. The header shows `GRID`: the white keys are now the 16 steps.
 3. Press white keys 1, 5, 9 and 13. Each one becomes a step with the bass drum (pad 1).
 4. Press PLAY. The kick plays four on the floor; the white keys light as the steps pass.
@@ -514,7 +515,7 @@ The clipboard holds a whole step: notes, velocity, length, functions and p-locks
 | --- | --- |
 | nothing (stopped) | The step sounds. |
 | white keys | Write its notes, a chord up to POLY (the natural notes; for sharps, use NOTES). On a kit, they add or remove pads, four at most. |
-| black keys | Pick a function (below). |
+| black keys | Pick a function (below); 6 and 7 switch SLIDE and ACCENT. |
 | PRESET | Sets the function picked (VEL first). |
 | OCT+ / OCT- | Its length: one step more or less, up to 8 steps. A step written by hand lasts half a step, so the first notch ties it to the next one. |
 | K1–K4 | P-locks of the page shown (below). |
@@ -528,7 +529,8 @@ towards the steps it covers, filled in pink while it sounds.
 ### Step functions
 
 Each black key carries a family of functions: a press picks its first function, another press the next one. PRESET
-sets it.
+sets it. Black keys 6 and 7 are different: they switch SLIDE and ACCENT on or off at once, and PRESET goes on setting
+the function picked before.
 
 | Black key | Function | Values |
 | --- | --- | --- |
@@ -568,7 +570,7 @@ Hold SEL and press steps: each press adds the step to the selection or takes it 
 off. The first one is the reference, whose functions are shown. Still holding SEL:
 
 - a black key and PRESET: every step takes the reference's value, as you turn it (all at PROB 50 %, say);
-- SLIDE and ACCENT: every step takes the opposite of the reference's;
+- black key 6 or 7: SLIDE or ACCENT switches on the reference, and every step takes its new value;
 - K1–K4: the same p-lock on every step;
 - OCT+ / OCT-: each step one step longer or shorter.
 
@@ -626,7 +628,7 @@ REC (short) disarms and the pattern keeps playing. PLAY stops and disarms.
 
 ![REC held: #1 CLEAR, #2 CLEAR LOCKS on the pattern shown, + PLAY for LIVE, TAP for GRID > NOTES > OFF](img/seq-rec-map.png "REC's map")
 
-| REC held + | Not in LIVE | In LIVE |
+| REC held + | Not in LIVE or ARM | In LIVE |
 | --- | --- | --- |
 | PLAY | LIVE, with the count-in or armed | — |
 | black key 1 | CLEAR: empties the pattern shown | — |
@@ -684,8 +686,7 @@ What the generative sources (all but STEP) share:
 
 - They play at the pattern's DIV, with the project's swing. Their notes go through the arpeggiator, the mutes and
   the scenes like a STEP pattern's.
-- A loop is 16 steps (ATLAS 32, FLEET its LEN): a pattern change or a scene waits for its end, and a song entry counts
-  it.
+- A loop is 16 steps (ATLAS 32, FLEET its LEN): a pattern change waits for its end, and a song entry counts it.
 - Without REC, the keys play the track. REC writes nothing in them, except LOOM, CADENCE and LATTICE, which have a
   GRID of their own, and MIMIC, which listens.
 - PRESET always does something useful for the source: each subsection says what.
@@ -767,7 +768,7 @@ cells of the column play, from the bottom up. Every few loops, the grid moves on
 | EVOL | GEN, 1 2 4 8 | MUT, 0–127 | — | — |
 
 - A row is a degree of the scale above NOTE; on a kit, MAP PADS plays pad 1–8 by row, and MAP BANDS plays pads 1, 2
-  and 3 for the bottom, middle and top rows. POLY is how many cells of a column play, at most.
+  and 3 for the bottom, middle and top rows. POLY is how many cells of a column play, at most (three on a kit).
 - **SEED** and DENS make the grid you start from: the same pair always gives the same grid. Turning either sows a new
   grid at the next loop. STOP then PLAY starts again from it.
 - **GEN** is how many loops between two generations; **MUT** adds random cells at each one.
@@ -902,7 +903,7 @@ goes on from there. The result sounds like your phrase, rearranged.
 - **LISTEN**: in SEQ, press REC once. MIMIC goes quiet, the header shows `LISTEN`, and every note you play is learnt,
   with the time until the next one (up to 7 steps; notes played together make a chord). The first note clears the old
   phrase; the phrase keeps the last 32 notes. Press REC again to stop: the time since the last note becomes its gap.
-  Changing pattern, track or source stops LISTEN too.
+  Changing pattern, track, source or domain stops LISTEN too.
 - **ORDER** 1 matches the last note played, 2 the last two (more like the phrase).
 - **DRIFT** is the chance of jumping anywhere in the phrase instead.
 - **LOOP** 1–16 starts the improvisation again every LOOP steps, the same way each time: a riff. FREE never repeats.
@@ -940,9 +941,10 @@ Press GLO for the project's settings, shared by the four tracks.
   from it, and KEYS plays it. MODE: CHROM, MAJOR, MINOR, DORIAN, PHRYG, LYDIAN, MIXO, LOCRIAN, HARM MIN, PENTA,
   MIN PENTA.
 - **QUANT** pulls the notes recorded in LIVE onto the steps: OFF keeps your timing, 100 % puts them on the step.
-- **CLICK**: METRO plays a click while playing, COUNT a bar of count-in before LIVE, BOTH both.
-- **KEYS**: OFF, the keys are a chromatic keyboard. FLEET, on FLEET tracks, and ALL, on every synth track, the white
-  keys play the scale up from the tonic and the black keys are silent. A kit keeps its pads.
+- **CLICK**: METRO plays a click while recording LIVE, COUNT a bar of count-in before LIVE, BOTH both.
+- **KEYS**: OFF, the keys are a chromatic keyboard. ALL: on every synth track, the white keys play the scale up from
+  the tonic and the black keys are silent. FLEET: the same on FLEET tracks only, with their allowed notes. A kit keeps
+  its pads.
 - **FX**: the shared ping-pong delay, its time in steps of the tempo and its feedback; the reverb's size and its
   tone (how much of the highs it keeps).
 - **CPU** shows each core's load, LOST BLOCKS (audio blocks the FM-1 could not compute in time: you hear them as

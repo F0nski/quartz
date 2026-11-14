@@ -258,7 +258,7 @@ tap REC
 expect badge 5
 tapkey w0
 tapkey w2
-wait 300
+wait 800
 shot source-mimic-listen.png
 tap REC
 tap PLAY
