@@ -614,6 +614,12 @@ static void reused_slot_attack_starts_at_zero(void)
     setup();
     P.sound[0].atk = 80;
     audio_live_note(0, 60, 1);
+    P.sound[1].poly = P.sound[2].poly = 2;   /* the other slots busy: the faded one is the only one free */
+    audio_live_note(1, 60, 1);
+    audio_live_note(1, 62, 1);
+    audio_live_note(2, 60, 1);
+    audio_live_note(2, 62, 1);
+    audio_live_note(3, 60, 1);
     block(256);
     int v0 = -1;
     for (int v = 0; v < Q_VOICES; v++) if (pool.v[v].track == 0 && pool.v[v].state == V_ON) v0 = v;
@@ -650,6 +656,62 @@ static void mono_model_change_keeps_its_fade(void)
     block(256);
     assert(render_switches() == 0 && count('n', v0) == 0 && track_on(0) == 1);
     assert(pool.v[v0].state == V_FREE);
+}
+
+/* a note-on taking another track's sounding voice: that voice fades out from its level, then the note strikes on it */
+static void stolen_voice_fades_first(void)
+{
+    setup();
+    six_notes();                        /* every voice on; track 0's 60 the oldest */
+    block(256);
+    int v0 = -1;
+    for (int v = 0; v < Q_VOICES; v++) if (pool.v[v].track == 0 && pool.v[v].note == 60) v0 = v;
+    assert(v0 >= 0);
+    float full = QBUS[0][255];
+    P.sound[2].poly = 2;
+    audio_live_note(2, 64, 1);
+    NLOG = 0;
+    block(32);                          /* half its fade */
+    assert(count('n', v0) == 0 && pool.v[v0].track == 0);
+    assert(QBUS[0][0] == full && QBUS[0][31] < QBUS[0][0]);
+    float mid = QBUS[0][31];
+    block(32);                          /* the rest: silent, freed */
+    assert(count('n', v0) == 0 && pool.v[v0].state == V_FREE);
+    assert(QBUS[0][0] < mid && QBUS[0][31] < QBUS[0][0]);
+    float end = QBUS[0][31];
+    block(32);
+    assert(count('n', v0) == 1 && pool.v[v0].track == 2);
+    assert(QBUS[0][0] < end);           /* track 0's other note alone */
+    assert(count('e', v0) == 1);        /* its engine built anew: what it held of the old note does not come back */
+}
+
+/* a KIT's pad taking the voice its other engine still sounds on: that one fades out first too */
+static void kit_pad_fades_its_other_engine(void)
+{
+    setup();
+    set_model(0, M_KIT);
+    frames(6);
+    audio_live_note(0, KIT_NOTE + 1, 1);   /* SN */
+    audio_live_note(0, KIT_NOTE + 1, 0);
+    P.sound[1].poly = P.sound[2].poly = 2;
+    audio_live_note(1, 60, 1);
+    audio_live_note(1, 62, 1);
+    audio_live_note(2, 60, 1);
+    audio_live_note(2, 62, 1);
+    audio_live_note(3, 60, 1);
+    block(256);
+    block(256);                            /* one engine switch a block: the last note waited for its own */
+    int sn = -1;
+    for (int v = 0; v < Q_VOICES; v++) if (pool.v[v].track == 0) sn = v;
+    assert(sn >= 0 && pool.v[sn].state == V_RELEASED && pool.v[sn].model == 22);
+    for (int v = 0; v < Q_VOICES; v++) assert(pool.v[v].state != V_FREE);
+    audio_live_note(0, KIT_NOTE, 1);       /* BD: no slot on its engine, none free */
+    NLOG = 0;
+    block(32);
+    assert(count('n', sn) == 0 && fading[sn]);
+    block(32);
+    block(32);
+    assert(count('n', sn) == 1 && pool.v[sn].model == 21);
 }
 
 static int track_slot(int t)
@@ -1870,6 +1932,8 @@ int main(void)
     prep_hand_off();
     full_queue_keeps_the_hand_off();
     mono_model_change_keeps_its_fade();
+    stolen_voice_fades_first();
+    kit_pad_fades_its_other_engine();
     lock_reaches_its_voice();
     lock_ends_with_note();
     voice_takes_new_locks();

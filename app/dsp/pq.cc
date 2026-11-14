@@ -110,6 +110,8 @@ extern "C" void pq_set_engine(int v, int model) {
   slots[v]->own_env = model == 2 || model == 3 || model == 4 || model == 19 || model == 20 || (model >= 21 && model <= 23);
   slots[v]->voice.SetEngine(model);
   slots[v]->chr = 0.0f;
+  slots[v]->pos = plaits::kBlockSize;   // the frames computed ahead were the old sound's
+  slots[v]->svf.Init();
 }
 
 extern "C" void pq_set_char(int v, float chr) { slots[v]->chr = chr; }
