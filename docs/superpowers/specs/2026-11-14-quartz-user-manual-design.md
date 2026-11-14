@@ -73,7 +73,7 @@ Avant d'écrire une sous-section, lire la doc d'origine correspondante :
 | Modèles SWEEP … CHLADNI, BASS DRUM, SNARE, HI-HAT | manuel Plaits (Mutable Instruments) |
 | ATLAS | manuel Grids |
 | FLEET (T, X, DEJA VU) | manuel Marbles |
-| Reverb | Clouds ; l'origine de `app/plateau.c` à établir depuis son en-tête |
+| Reverb | Clouds (README : la reverb de Clouds) |
 | COLONY | le Jeu de la vie de Conway |
 | LOOM | Kria (monome, Ansible) |
 | LATTICE | Tonnetz et opérations néo-riemanniennes P, L, R |
