@@ -60,8 +60,9 @@ La règle vaut pour `knob_turn` (le potard) et pour `lock_turn` (un pas tenu, le
 
 Le pied de page (`knob_text`) affiche, pour la page ENGINE et le modèle de la piste :
 
-- accords : `OCT`, `5`, `SUS4`, `M`, `M7`, `M9`, `M11`, `69`, `MAJ9`, `MAJ7`, `MAJ` (l'ordre de `chord_bank.cc`, en
-  capitales : `M` mineur, `MAJ` majeur) ;
+- accords : `OCTAVE`, `FIFTH`, `SUS4`, `M`, `M7`, `M9`, `M11`, `6/9`, `MAJ9`, `MAJ7`, `MAJ` (l'ordre de
+  `chord_bank.cc`, en capitales : `M` mineur, `MAJ` majeur ; `OCTAVE`, `FIFTH`, `6/9` plutôt que `OCT`, `5`, `69`, que
+  `words.tsv` lit déjà autrement ou qui seraient lus ainsi partout) ;
 - arpèges ARCADE : motif `p`, sens `p / 3` (`UP`, `DOWN`, `UP-DN`, `RAND`) et étendue `1 << p % 3` octaves :
   `UP 1`, `UP 2`, `UP 4`, `DOWN 1` … `RAND 4` ;
 - ORATOR : `FORMANT` à 0, `SAM` à 21, `LPC` à 42, la valeur entre deux ; puis `PHONEMES`, `WORDS 1` … `WORDS 5` ;
@@ -107,10 +108,10 @@ nom d'accord dans le pied de page (ajoutée à `app/tests/manual_shots.txt`).
 
 ## 6. Tests
 
-- Test unitaire C++ (`tests/unit/`) : pour chaque cas du tableau de la section 3, chaque milieu passé dans un
-  `HysteresisQuantizer2` initialisé comme dans Plaits donne le cran attendu, quel que soit le cran précédent ; le cran
-  calculé par `ui.c` pour chaque valeur 0–127 est celui de Plaits sans hystérésis.
-- Script simulateur `app/tests/engine_steps.txt` : CHORALE, HARM tourné d'un cran à la fois donne `OCT`, `5`, `SUS4` ;
-  ORATOR, HARM de `LPC` (42) monte à `PHONEMES` puis redescend à `LPC` ; un p-lock de HARM sur un pas tenu avance
-  aussi d'un accord par cran ; HEX A affiche `SOLID BASS` puis `DEEP LOW`.
+- Test unitaire C++ (`tests/unit/engine_steps_test.cc`) : chaque milieu de la section 3, passé dans un
+  `HysteresisQuantizer2` initialisé comme dans Plaits, donne son cran quel que soit le cran précédent.
+- Script simulateur `app/tests/engine_steps.txt` : `ui.c` pose bien ces milieux. CHORALE, HARM un cran à la fois :
+  6, 17, 28 … 119 ; ORATOR, HARM de 42 monte à 49 puis redescend à 42, puis 41 ; un p-lock de HARM sur un pas tenu
+  avance aussi d'un accord par cran ; HEX A et ARCADE TIMB jusqu'à leurs bornes. Les noms (`OCTAVE`, `FIFTH`, `LPC`,
+  `PHONEMES`, `SOLID BASS`, `DEEP LOW`, `UP 2`) se vérifient sur ses captures : `expect` ne lit que des nombres.
 - `tests/run_tests.sh` au complet ; écoute sur le FM-1 au déploiement.
