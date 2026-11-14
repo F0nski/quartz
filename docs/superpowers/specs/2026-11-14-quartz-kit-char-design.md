@@ -51,7 +51,7 @@ ces pads, ou on prend une deuxième piste KIT).
 
 ## 4. L'interface
 
-- Page KIT : K4 = **CHAR**, 0–127, le pad réglé (le dernier joué, ou le pad tenu en EDIT), comme LEVEL sur K3.
+- Page KIT : K4 = **CHAR**, 0–127, le pad réglé (le dernier joué), comme LEVEL sur K3 ; un pad tenu fait passer K1–K4 sur la page PAD.
 - La grille 4 × 4 de la page KIT : dans chaque case, une barre de 2 px en bas, de largeur proportionnelle au CHAR du
   pad, de la couleur de K4 ; rien à CHAR 0. La case du pad réglé garde sa couleur pleine, la barre y reste visible.
   `scene.eng[]` se double d'un `scene.chr[]` rempli au même endroit (`ui.c`).

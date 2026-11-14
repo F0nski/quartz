@@ -311,11 +311,16 @@ static void voice_bytes_reported(void)
 
 // BD (engine 21): CHAR 0 is the sound of old, CHAR 1 the engine's aux, another sound that still plays
 static float e_sum;
+static float wave[4410];
+static unsigned wave_n;
 static void sum_energy(const float *b, unsigned n)
 {
-    for (unsigned i = 0; i < n; i++) e_sum += b[i] * b[i];
+    for (unsigned i = 0; i < n; i++) {
+        e_sum += b[i] * b[i];
+        if (wave_n < 4410) wave[wave_n++] = b[i];
+    }
 }
-static float hit(float chr, bool set, float *energy)
+static float hit(float chr, bool set, float *energy, float *out = 0)
 {
     reset();
     stmlib::Random::Seed(1);              // the drums' noise: the same hit each time
@@ -324,19 +329,25 @@ static float hit(float chr, bool set, float *energy)
     if (set) pq_set_char(0, chr);
     note_on(0, 48.0f, 1.0f);
     e_sum = 0.0f;
+    wave_n = 0;
     float peak = render(0, 4410, sum_energy);   // 100 ms
     *energy = e_sum;
+    if (out) memcpy(out, wave, sizeof(wave));
     return peak;
 }
 
 static void char_mixes_out_and_aux(void)
 {
-    float e_old, e0, e1;
-    float p_old = hit(0.0f, false, &e_old), p0 = hit(0.0f, true, &e0), p1 = hit(1.0f, true, &e1);
-    printf("  char: energy %.2f at 0, %.2f at 1\n", e0, e1);
-    assert(p0 == p_old && e0 == e_old);
+    static float w_old[4410], w0[4410], w1[4410];
+    float e_old, e0, e1, diff = 0.0f;
+    hit(0.0f, false, &e_old, w_old);
+    hit(0.0f, true, &e0, w0);
+    float p1 = hit(1.0f, true, &e1, w1);
+    assert(memcmp(w0, w_old, sizeof(w0)) == 0);
+    for (unsigned i = 0; i < 4410; i++) diff += (w1[i] - w0[i]) * (w1[i] - w0[i]);
+    printf("  char: energy %.2f at 0, %.2f at 1, difference %.2f\n", e0, e1, diff);
     assert(p1 > 0.05f);
-    assert(fabsf(e1 - e0) > 0.01f * e0);
+    assert(diff > 0.25f * e0);            // another waveform, not the same one a little louder
 }
 
 static void char_resets_on_engine_switch(void)

@@ -1066,6 +1066,7 @@ static void kit_pad_char(void)
     block(256);
     set_model(0, 21);                      /* BASS DRUM, the same engine: a synth voice */
     frames(12);
+    for (int i = 0; i < Q_VOICES; i++) chr[i] = -1.0f;   /* unset: the synth's voice must be given 0 */
     audio_live_note(0, 48, 1);
     block(256);
     v = track_slot(0);
