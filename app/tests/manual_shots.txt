@@ -1,0 +1,7 @@
+# The manual's screen captures (app/docs/MANUAL.md, app/site/landing.md):
+#   mkdir -p app/build/shots && app/build/host/quartz_host app/tests/manual_shots.txt app/build/shots && cp app/build/shots/*.png app/docs/img/
+# Each shot is named after the manual's section it illustrates.
+wait 600
+tap HOME
+wait 1500
+shot home.png

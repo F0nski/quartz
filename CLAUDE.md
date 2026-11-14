@@ -32,7 +32,7 @@ Plaits, Grids, Marbles and the Clouds reverb in `app/third_party/`. Licence GPL-
 ./build.sh --host          # app/build/host/quartz_host, the simulator
 tests/run_tests.sh         # unit tests, then every app/tests/*.txt; ends with "all tests ok"
 app/build/host/quartz_host app/tests/X.txt app/build/host     # one simulator script; shots land in the 2nd arg
-app/build/host/quartz_host app/tests/manual_shots.txt app/docs/img   # the manual's screen captures
+mkdir -p app/build/shots && app/build/host/quartz_host app/tests/manual_shots.txt app/build/shots && cp app/build/shots/*.png app/docs/img/   # the manual's captures
 python3 base/tools/manual_html.py app/docs/MANUAL.md app/build/manual.html --name QUARTZ   # preview the manual
 ```
 
