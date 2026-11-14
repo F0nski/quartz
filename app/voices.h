@@ -7,17 +7,19 @@
 /* V_PREP: the main loop builds the slot's engine (audio_prepare); never allocated, never rendered */
 enum { V_FREE, V_ON, V_RELEASED, V_PREP };
 
-/* model: the engine the slot's voice holds, -1 unknown (voices_note_on sets the one the caller switches it to) */
-typedef struct { uint8_t state; int8_t track; uint8_t note; int8_t model; uint32_t age; } q_vslot;
+/* model: the engine the slot's voice holds, -1 unknown (voices_note_on sets the one the caller switches it to).
+ * live: the keyboard's note, 0 the sequencer's: each has its own poly on the track, and its own note-offs */
+typedef struct { uint8_t state; int8_t track; uint8_t note; int8_t model; uint8_t live; uint32_t age; } q_vslot;
 typedef struct { q_vslot v[Q_VOICES]; uint32_t clock; } q_voices;
 
 void voices_init(q_voices *p);
 /* slot 0..5: a free one holding the track's model first, then one holding a model no track wants (bit m of wanted:
- * a track is on model m). Only the track's slots on its model count toward poly: a fading old engine is not its own */
-int  voices_pick(const q_voices *p, int track, int poly, int model, uint32_t wanted);  /* what voices_note_on takes */
-int  voices_note_on(q_voices *p, int track, int note, int poly, int model, uint32_t wanted);
-int  voices_note_off(q_voices *p, int track, int note);            /* released slot, -1 if none */
-int  voices_retarget(q_voices *p, int track, int from, int to);    /* the track's V_ON slot holding from takes to, -1 none */
+ * a track is on model m). Only the track's slots on its model and of the same origin (live) count toward poly: a
+ * fading old engine is not its own */
+int  voices_pick(const q_voices *p, int track, int poly, int model, uint32_t wanted, int live);  /* what voices_note_on takes */
+int  voices_note_on(q_voices *p, int track, int note, int poly, int model, uint32_t wanted, int live);
+int  voices_note_off(q_voices *p, int track, int note, int live);  /* released slot, -1 if none */
+int  voices_retarget(q_voices *p, int track, int from, int to);    /* the track's sequencer V_ON slot holding from takes to, -1 none */
 void voices_free(q_voices *p, int slot);                           /* the renderer reports silence */
 void voices_release_track(q_voices *p, int track);                 /* all its slots -> V_FREE */
 

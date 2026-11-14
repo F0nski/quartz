@@ -1793,6 +1793,23 @@ static void notes_survive_restart(void)
     }
 }
 
+/* a key held on the track playing its pattern, POLY 1: the steps do not take its voice */
+static void held_key_survives_the_pattern(void)
+{
+    setup();
+    for (int k = 0; k < 16; k++) P.pat[0][0].steps[k].flags = SF_ON;
+    audio_play(1);
+    block(256);
+    audio_live_note(0, 72, 1);
+    for (int i = 0; i < 100; i++) block(256);      /* 1.6 s: three steps and more */
+    int held = 0;
+    for (int v = 0; v < Q_VOICES; v++) held += pool.v[v].state == V_ON && pool.v[v].note == 72 && pool.v[v].live;
+    assert(held == 1 && audio_hits(0) > 3);
+    audio_live_note(0, 72, 0);
+    block(256);
+    for (int v = 0; v < Q_VOICES; v++) assert(!(pool.v[v].state == V_ON && pool.v[v].note == 72));
+}
+
 int main(void)
 {
     reverb_on_core2_once_per_block();
@@ -1868,6 +1885,7 @@ int main(void)
     held_and_recorded_or();
     recorded_punch_follows_pattern();
     free_phase_when_stopped();
+    held_key_survives_the_pattern();
     free_phase_carries_on_stop();
     hits_count_note_ons();
     kit_hits_per_engine();

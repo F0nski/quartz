@@ -234,8 +234,9 @@ browses the models from any EDIT page.
 - **DECAY** sets how long a note rings after its gate closes, and the length of the model's own envelope on the models
   that have one (HEX A–C, WIRE, CHLADNI and the drums).
 - **TUNE** transposes the track. **GLIDE** slides from one note to the next; 0 is off.
-- **POLY** is how many notes the track plays at once. The four tracks share six voices; when they are all busy, a
-  new note takes the oldest one.
+- **POLY** is how many notes the track plays at once. The keys get POLY notes of their own beside the pattern's, so
+  a note you hold keeps sounding while the pattern plays (on a kit, a pad still cuts its sound's last hit). The four
+  tracks share six voices; when they are all busy, a new note takes the oldest one.
 
 The model's name shows in the header of ENGINE and SOUND, and under MODEL in SOUND's footer.
 

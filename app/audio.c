@@ -356,10 +356,13 @@ static uint32_t wanted(void)
     return w;
 }
 
-static int needs_switch(int track, int note)
+/* the keyboard's note (step -1) has its own voices beside the sequencer's; a KIT's pad still cuts its engine's */
+static int live(int track, int step) { return step < 0 && rmodel[track] != M_KIT; }
+
+static int needs_switch(int track, int note, int step)
 {
     int m = note_model(track, note);
-    return pool.v[voices_pick(&pool, track, note_poly(track, rmodel[track]), m, wanted())].model != m;
+    return pool.v[voices_pick(&pool, track, note_poly(track, rmodel[track]), m, wanted(), live(track, step))].model != m;
 }
 
 /* step -1: the keyboard's, no locks. A KIT's pad sounds at 48 + its tune */
@@ -367,10 +370,10 @@ static void note_on(int track, int note, int vel, int pat, int step, int accent)
 {
     const q_sound *s = &prj->sound[track];
     q_vparam q;
-    int m = note_model(track, note), sw = needs_switch(track, note), kit = rmodel[track] == M_KIT;
-    int pv = voices_pick(&pool, track, note_poly(track, rmodel[track]), m, wanted());
-    int fresh = pool.v[pv].state == V_FREE || pool.v[pv].track != track;
-    int v = voices_note_on(&pool, track, note, note_poly(track, rmodel[track]), m, wanted());
+    int m = note_model(track, note), sw = needs_switch(track, note, step), kit = rmodel[track] == M_KIT;
+    int pv = voices_pick(&pool, track, note_poly(track, rmodel[track]), m, wanted(), live(track, step));
+    int fresh = pool.v[pv].state == V_FREE || pool.v[pv].track != track || pool.v[pv].live != live(track, step);
+    int v = voices_note_on(&pool, track, note, note_poly(track, rmodel[track]), m, wanted(), live(track, step));
     if (fresh) mod_slot_reset(v);   /* (a retrigger of the track's own voice attacks from its level) */
     fading[v] = 0;                  /* (a fading slot taken: the new note at full level) */
     if (sw) {
@@ -404,7 +407,7 @@ static void event(int track, int note, int vel, int on, int pat, int step, int a
     if (no_pad(track, note))
         return;
     if (on) {
-        if (waits(track) || (switched && needs_switch(track, note))) {
+        if (waits(track) || (switched && needs_switch(track, note, step))) {
             if (n_later < LATER_N)
                 later[n_later++] = (q_later){ (uint8_t)track, (uint8_t)note, (uint8_t)vel, (uint8_t)pat, (uint8_t)accent, (int8_t)step };
         } else {
@@ -413,12 +416,12 @@ static void event(int track, int note, int vel, int on, int pat, int step, int a
         return;
     }
     for (int i = 0; i < n_later; i++)
-        if (later[i].track == track && later[i].note == note) {
+        if (later[i].track == track && later[i].note == note && live(track, later[i].step) == live(track, step)) {
             for (n_later--; i < n_later; i++)
                 later[i] = later[i + 1];
             return;
         }
-    int v = voices_note_off(&pool, track, note);
+    int v = voices_note_off(&pool, track, note, live(track, step));
     if (v >= 0) {
         mod_note_off(v);
         pq_note_off(v);
@@ -431,7 +434,7 @@ static void start_later(void)
     int n = 0, held = 0;
     for (int i = 0; i < n_later; i++) {
         q_later e = later[i];
-        if (!(held >> e.track & 1) && !(switched && needs_switch(e.track, e.note))) {
+        if (!(held >> e.track & 1) && !(switched && needs_switch(e.track, e.note, e.step))) {
             note_on(e.track, e.note, e.vel, e.pat, e.step, e.accent);
         } else {
             held |= 1 << e.track;
