@@ -443,7 +443,7 @@ static void life_generation(q_life_run *l, const q_life *s)
     }
     l->gens++;
     if (!s->mut && (empty || same0 || same1)) {
-        if (s->autos) {                 /* the run's next draw: SEED stays */
+        if (s->autos && s->dens) {      /* the run's next draw: SEED stays (DENS 0 would draw it empty again) */
             l->reseeds++;
             life_draw(l);
             return;

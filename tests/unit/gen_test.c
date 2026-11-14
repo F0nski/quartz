@@ -492,6 +492,15 @@ static void life_auto_reseeds_dead(void)
     }
 }
 
+/* DENS 0 draws an empty grid: AUTO has nothing to draw, so it does not reseed (the seed would flash every generation) */
+static void life_auto_idle_at_dens0(void)
+{
+    q_pattern *pt = life_setup(M_KIT);
+    pt->life.gen = 0; pt->life.autos = 1; pt->life.mut = 0; pt->life.dens = 0;
+    for (int t = 0; t < 4; t++) tour_notes(pt);
+    assert(G.life.reseeds == 0 && alive(G.life.grid) == 0);
+}
+
 static void life_frozen_kept_without_auto(void)
 {
     for (int autos = 0; autos <= 1; autos++) {
@@ -1584,6 +1593,7 @@ int main(void)
     life_seed_repeats();
     life_gen_every_n_tours();
     life_auto_reseeds_dead();
+    life_auto_idle_at_dens0();
     life_frozen_kept_without_auto();
     life_mut_never_stuck();
     life_seed_change_next_tour();
