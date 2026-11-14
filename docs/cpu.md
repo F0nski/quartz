@@ -51,6 +51,10 @@ The pad before the DSP (dsp/cxx_runtime.cc pq_text_pad) was swept from 0 to 3.5 
 1, 512 the best; none got back 5b's 63 %, which was a lucky place. A change to the DSP's or the platform's code moves
 the audio code again: measure, and sweep the pad if needed.
 
+Clang emits a function where it is first named, callees included: a screen function called from app.c or from the
+platform lands before the platform's code and moves the audio interrupt with it (the boot splash's first version moved
+it by 1.2 KB). The render's side reaches the screen only through a pointer the screen's side sets (app.h boot_step).
+
 The unity build's statics are not merged (fm1.toml unity_cflags = -mllvm -enable-global-merge=false): LLVM merged them
 into blocks, and a static added to the screen's code changed how the platform's and the render's code reached theirs,
 moving them by tens of bytes.
