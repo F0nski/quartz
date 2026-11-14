@@ -39,7 +39,9 @@ source .tools/emsdk/emsdk_env.sh && ./build.sh --release X.Y && ./build.sh --web
   && (cd base && python3 tools/make_site.py ../app ../app/build/quartz-X.Y.fwsc X.Y ../app/build/site)
 ```
 
-`base/tools/publish_site.sh` pushes the site to the `gh-pages` branch: only when the author asks.
+`base/tools/publish_site.sh` pushes the site to the `gh-pages` branch (https://f0nski.github.io/quartz/), only when the
+author asks: from `base/`, with emsdk sourced and `JIELI_TOOLCHAIN`, `AC79_SDK` exported (`../.tools/...`), as
+`tools/publish_site.sh ../app X.Y`. Its commit takes the global identity: recommit it with the noreply address.
 
 Install on the author's FM-1, from `~/perso/fm1`:
 `spike-cpu/.tools/venv/bin/python quartz/base/tools/fm1_install.py --yes --classic quartz/app/build/quartz.fwsc`.
@@ -56,7 +58,9 @@ Always `--classic`: the fast install stalls at 3 % on this unit's loader; if it 
   finished.
 - Scenes: flat low-poly 3D, moderate neon, no gradients; editing pages (SEQ) stay a straight, readable grid.
 - One feature = one spec, one plan, one branch; commits are small and say what changes for the player.
-- Git: personal identity f0nski, remote through the `github-f0nski` SSH alias. Never push or merge without asking.
+- Git: the repository is public. Commit as `f0nski <13540044+F0nski@users.noreply.github.com>` (the repo's local
+  config), through the `github-f0nski` SSH alias; no personal address or home path in any tracked file. Never push or
+  merge without asking.
 
 ## Device
 
