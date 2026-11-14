@@ -779,10 +779,12 @@ cells of the column play, from the bottom up. Every few loops, the grid moves on
 
 - A row is a degree of the scale above NOTE; on a kit, MAP PADS plays pad 1–8 by row, and MAP BANDS plays pads 1, 2
   and 3 for the bottom, middle and top rows. POLY is how many cells of a column play, at most (three on a kit).
+  On a kit, a row takes the colour of its pad's engine: BD orange, SN green, HH white.
 - **SEED** and DENS make the grid you start from: the same pair always gives the same grid. Turning either sows a new
   grid at the next loop. STOP then PLAY starts again from it.
 - **GEN** is how many loops between two generations; **MUT** adds random cells at each one.
-- A grid that dies or freezes, with MUT at 0: AUTO ON sows a new one; OFF leaves it.
+- A grid that dies or freezes, with MUT at 0: AUTO ON sows a new one; OFF leaves it. With DENS at 0 the grid stays
+  empty, AUTO or not.
 - Cells born at the last generation play accented.
 - **PRESET** turns SEED: a new grid at the next loop.
 
