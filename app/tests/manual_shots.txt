@@ -205,3 +205,64 @@ press REC
 wait 700
 shot seq-rec-map.png
 release REC
+
+# 9. Sources: a new project, track 1 playing each source in turn
+reboot
+wait 600
+tap SEQ
+tap PLAY
+spin K4 1
+expect src 1
+wait 2500
+shot source-atlas.png
+spin SELECT 1
+wait 300
+shot source-atlas-map.png
+spin SELECT -1
+spin K4 1
+expect src 2
+wait 2500
+shot source-fleet.png
+spin SELECT 1
+wait 300
+shot source-fleet-t.png
+spin SELECT 2
+wait 300
+shot source-fleet-notes.png
+spin SELECT 1
+spin K4 1
+expect src 3
+wait 3000
+shot source-colony.png
+spin K4 1
+expect src 4
+wait 2500
+shot source-loom.png
+tap REC
+wait 300
+shot source-loom-grid.png
+tap REC
+spin K4 1
+expect src 5
+wait 3000
+shot source-cadence.png
+spin K4 1
+expect src 6
+wait 4500
+shot source-lattice.png
+spin K4 1
+expect src 7
+wait 3000
+shot source-moons.png
+spin K4 1
+expect src 8
+wait 4000
+shot source-mimic.png
+tap REC
+expect badge 5
+tapkey w0
+tapkey w2
+wait 300
+shot source-mimic-listen.png
+tap REC
+tap PLAY
