@@ -80,7 +80,7 @@ void plateau_frame(const q_plateau *p, uint32_t hits, uint32_t ms)
         pl.seen = 1;
     } else if (hits != pl.hits) {
         pl.hits = hits;
-        if (p->pos >= 0) {
+        if (p->pos >= 0 && p->c[p->pos].on) {   /* a key played over an empty step: no hit */
             pl.hit_ms = ms;
             pl.hit_cell = p->pos;
         }
@@ -273,14 +273,14 @@ void plateau_band(int32_t oy)
         outline(at(cx - g, cy - g), at(cx + g, cy - g), at(cx + g, cy + g), at(cx - g, cy + g), oy, k < 0.4f ? PL_PINK[1] : PL_PINK[2]);
     }
     for (i = 0; i < 16; i++)            /* the empty steps' squares, flat */
-        if (!pl.v.c[i].on && pl.v.live >> i & 1u)
+        if (!pl.v.c[i].on && (pl.v.live >> i & 1u || i == pl.v.held))   /* held: shown beyond LEN too */
             block(i, oy, held, 0, k);
     for (i = 0; i < 16; i++)            /* the long notes' strips, over the squares, under every block */
-        if (pl.v.c[i].on && pl.v.c[i].len > 8 && pl.v.live >> i & 1u)
+        if (pl.v.c[i].on && pl.v.c[i].len > 8 && (pl.v.live >> i & 1u || i == pl.v.held))
             strip(i, held && i != pl.v.held, oy);
     for (s = 0; s <= 6; s++)            /* far to near */
         for (i = 0; i < 16; i++)
-            if (i % 4 + i / 4 == s && pl.v.c[i].on && pl.v.live >> i & 1u)
+            if (i % 4 + i / 4 == s && pl.v.c[i].on && (pl.v.live >> i & 1u || i == pl.v.held))
                 block(i, oy, held, hit && i == pl.hit_cell, k);
     if (held) {
         held_panel(oy);

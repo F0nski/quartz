@@ -467,7 +467,9 @@ current page of 16 steps as blocks on a 4 x 4 plateau, each with its note on top
   1/4, 1/2 and 1/1; T is a triplet.
 - **SOURCE** changes where the pattern's notes come from (section 9). Each pattern keeps its own steps whatever its
   source.
-- **PATH** is the order the steps play in. A path draws itself on the plateau as arrows.
+- **PATH** is the order the steps play in. A path draws itself on the plateau as arrows. With a LEN under 16, a
+  path takes its first LEN places: SNAKE, COLUMNS and SPIRAL can reach a step beyond LEN, and the plateau lights the
+  steps the path plays.
 
 | PATH | Order |
 | --- | --- |

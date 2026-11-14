@@ -2393,7 +2393,9 @@ static void view_now(q_view *v)
 /* the plateau's view of the SEQ page: its cells, texts and marks, from what the page shows */
 static void plateau_view(const q_view *v, q_plateau *p)
 {
-    int first = v->scene.spage * 16, i, k;
+    int first = v->scene.spage * 16, i, k, n = v->scene.len - first > 16 ? 16 : v->scene.len - first;   /* n: the steps
+                                                                                         of this page LEN plays */
+    int m = v->scene.path == PATH_SNAKE ? 1 : v->scene.path == PATH_COLUMNS ? 2 : v->scene.path == PATH_SPIRAL ? 3 : 0;
     __builtin_memset(p, 0, sizeof *p);
     for (i = 0; i < 16; i++) {
         const q_step *st = &v->scene.st[i];
@@ -2409,19 +2411,18 @@ static void plateau_view(const q_view *v, q_plateau *p)
         else
             for (k = 0; TONIC_NAME[st->note[0] % 12][k]; k++)
                 c->name[k] = TONIC_NAME[st->note[0] % 12][k];
-        if ((v->scene.path == PATH_XY || first + i < v->scene.len) && i % 4 < v->scene.xlen && i / 4 < v->scene.ylen)   /* XY plays
-                                                                                                         its grid whatever LEN */
+        if (v->scene.path == PATH_XY && i % 4 < v->scene.xlen && i / 4 < v->scene.ylen)   /* XY plays its grid whatever LEN */
             p->live |= (uint16_t)(1u << i);
+        else if (v->scene.path != PATH_XY && i < n)     /* the cells the path reaches within LEN (seq.c step_at) */
+            p->live |= (uint16_t)(1u << PATHS[m][i]);
     }
     p->pos = (int8_t)(v->scene.pos >= first && v->scene.pos < first + 16 ? v->scene.pos - first : -1);
     p->cursor = (int8_t)(v->scene.cursor - 1 >= first && v->scene.cursor - 1 < first + 16 ? v->scene.cursor - 1 - first : -1);
-    p->end = (int8_t)(v->scene.path != PATH_XY && v->scene.len - 1 >= first && v->scene.len - 1 < first + 15 ? v->scene.len - 1 - first : -1);
+    p->end = (int8_t)(v->scene.path != PATH_XY && !m && v->scene.len - 1 >= first && v->scene.len - 1 < first + 15 ? v->scene.len - 1 - first : -1);
     p->held = (int8_t)(v->scene.held - 1 >= first && v->scene.held - 1 < first + 16 ? v->scene.held - 1 - first : -1);
     if (v->scene.showpath && v->scene.path != PATH_RANDOM && v->scene.path != PATH_XY) {
-        int m = v->scene.path == PATH_SNAKE ? 1 : v->scene.path == PATH_COLUMNS ? 2 : v->scene.path == PATH_SPIRAL ? 3 : 0;
-        p->npath = 16;
-        for (i = 0; i < 16; i++)
-            p->path[i] = PATHS[m][v->scene.path == PATH_REV ? 15 - i : i];
+        for (i = 0; i < n; i++)
+            p->path[p->npath++] = PATHS[m][v->scene.path == PATH_REV ? n - 1 - i : i];
     }
     if (p->pos >= 0) {
         const q_step *st = &v->scene.st[p->pos];
