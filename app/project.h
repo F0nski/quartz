@@ -112,7 +112,7 @@ enum { PAD_BD, PAD_SN, PAD_HH };                          /* q_pad.engine */
 typedef struct { uint8_t engine; int8_t tune; uint8_t harm, timb, decay, level, chr; } q_pad;
 /* tempo in whole BPM, 40..240; dtime a DIV_*, dfb rsize rtone comp duck 0..127 (the delay and reverb returns, the master's compressor and duck) */
 /* q_project.keys: where the white keys play the scale's notes, the black ones nothing */
-enum { KEYS_OFF, KEYS_MARBLES, KEYS_ALL };
+enum { KEYS_OFF, KEYS_ALL };
 typedef struct {
     uint8_t version; uint16_t tempo;
     uint8_t swing, tonic, mode, quant, click, keys, mute, song_on, nsong;   /* swing 50..75; tonic 0..11; mode 0..10;

@@ -767,7 +767,7 @@ section which notes.
 - **NOTES** page: the keys switch the notes FLEET may play on and off, in any octave; the scene shows the 12 notes.
   By default they are the project's scale.
 - On a kit, t1, t2 and t3 play pads 1, 2 and 3. On a synth track, only the output T OUT plays.
-- GLO's KEYS at FLEET makes the white keys play the allowed notes on FLEET tracks.
+- GLO's KEYS at ALL makes the white keys play the allowed notes on FLEET tracks.
 - **PRESET** draws new loops, at once.
 
 ![FLEET: a squadron of ships over crystals named C to B, LEN 8](img/source-fleet.png "FLEET")
@@ -957,7 +957,7 @@ Press GLO for the project's settings, shared by the four tracks.
 | --- | --- | --- | --- | --- |
 | TEMPO | TEMPO, 40–240 BPM | SWING, 50–75 % | COMP, 0–127 | DUCK, 0–127 |
 | SCALE | TONIC, C to B | MODE | QUANT: OFF, 50 %, 100 % | CLICK: OFF, METRO, COUNT, BOTH |
-| KEYS | IN SCALE: OFF, FLEET, ALL | — | — | — |
+| KEYS | IN SCALE: OFF, ALL | — | — | — |
 | FX | DLY TIME, 1/32 to 1/1 | DLY FB | REV SIZE | REV TONE |
 | CPU | — | — | — | — |
 
@@ -971,9 +971,8 @@ Press GLO for the project's settings, shared by the four tracks.
 - **QUANT** pulls the notes recorded in LIVE onto the steps: OFF keeps your timing, 100 % puts them on the step.
 - **CLICK**: METRO plays a click while recording LIVE, COUNT a bar of count-in before LIVE, BOTH both.
 - **KEYS**: OFF, the keys are a chromatic keyboard. ALL: on every synth track, the white keys play the scale up from
-  the tonic and the black keys are silent. FLEET: the same on FLEET tracks only, with their allowed notes. A kit keeps
-  its pads: on a KIT track, the page numbers the white keys 1–16 and crosses out the black ones. The keys you hold
-  light up pink.
+  the tonic (on FLEET tracks, their allowed notes) and the black keys are silent. A kit keeps its pads: on a KIT
+  track, the page numbers the white keys 1–16 and crosses out the black ones. The keys you hold light up pink.
 - **FX**: the shared ping-pong delay, its time in steps of the tempo and its feedback; the reverb's size and its
   tone (how much of the highs it keeps).
 - **CPU** shows each core's load, LOST BLOCKS (audio blocks the FM-1 could not compute in time: you hear them as

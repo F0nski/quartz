@@ -146,7 +146,7 @@ static const char *const MODE_NAME[11] = {"CHROM", "MAJOR", "MINOR", "DORIAN", "
                                           "HARM MIN", "PENTA", "MIN PENTA"};
 static const char *const QUANT_NAME[3] = {"OFF", "50 %", "100 %"};
 static const char *const CLICK_NAME[4] = {"OFF", "METRO", "COUNT", "BOTH"};
-static const char *const KEYS_NAME[3] = {"OFF", "FLEET", "ALL"};
+static const char *const KEYS_NAME[2] = {"OFF", "ALL"};
 static const char *const ATTR_NAME[A_N] = {"VEL", "RATCHET", "PROB", "COND", "SLIDE", "ACCENT", "NOTE", "LEN", "MICRO"};
 static const uint8_t ATTR_ROW[A_N] = {A_RATCHET, A_VEL, A_PROB, A_COND, A_NOTE, A_LEN, A_MICRO, A_SLIDE, A_ACCENT};
 /* each black key's family of step functions, 0xFF none: a press picks the first, a press again the next (the empty ones
@@ -1347,7 +1347,7 @@ static uint16_t track_scale(void)
 /* KEYS on for the track: its white keys play the scale, the black ones nothing (a KIT keeps its pads) */
 static int keys_in_scale(void)
 {
-    return !kit() && (ui.p->keys == KEYS_ALL || (ui.p->keys == KEYS_MARBLES && pat()->src == SRC_MARBLES));
+    return !kit() && ui.p->keys == KEYS_ALL;
 }
 
 /* KEYS: the white key w (0..15) plays the w-th note of the track's scale up from the tonic in octave 3, -1 past 127
@@ -3286,7 +3286,7 @@ void ui_frame(void)
                     glv.opt[0] = QUANT_NAME, glv.nopt[0] = 3;
                     glv.opt[1] = CLICK_NAME, glv.nopt[1] = 4;
                 } else if (pid == P_KEYS) {
-                    glv.opt[0] = KEYS_NAME, glv.nopt[0] = 3;
+                    glv.opt[0] = KEYS_NAME, glv.nopt[0] = 2;
                 }
                 glv.tonic = ui.p->tonic;
                 glv.mask = SCALE_MASK[ui.p->mode];

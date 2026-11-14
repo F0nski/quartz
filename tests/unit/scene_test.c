@@ -1433,13 +1433,13 @@ static void sound_tests(void)
 /* ---- 5g: the global pages TEMPO, SCALE, KEYS, FX, SONG ---- */
 static const char *const G_NOTES[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
 static const char *const G_QUANT[3] = {"OFF", "50 %", "100 %"}, *const G_CLICK[4] = {"OFF", "METRO", "COUNT", "BOTH"};
-static const char *const G_INS[3] = {"OFF", "FLEET", "ALL"};
+static const char *const G_INS[2] = {"OFF", "ALL"};
 static q_glview GV;
 static void greset(int page)
 {
     memset(&GV, 0, sizeof GV);
     GV.page = (uint8_t)page, GV.pos = -1, GV.notes = G_NOTES;
-    GV.opt[0] = page == GP_KEYS ? G_INS : G_QUANT, GV.nopt[0] = 3;
+    GV.opt[0] = page == GP_KEYS ? G_INS : G_QUANT, GV.nopt[0] = page == GP_KEYS ? 2 : 3;
     GV.opt[1] = G_CLICK, GV.nopt[1] = 4;
     GV.title = "D DORIAN";
     GV.mask = 0x6AD;
@@ -1450,7 +1450,7 @@ static void gkeys(int inscale)      /* KEYS: the white keys' notes, chromatic or
 {
     static const int8_t C[7] = {0, 2, 4, 5, 7, 9, 11}, D[7] = {2, 4, 5, 7, 9, 11, 0};
     greset(GP_KEYS);
-    GV.inscale = (uint8_t)inscale, GV.k[0] = inscale ? 2 : 0;
+    GV.inscale = (uint8_t)inscale, GV.k[0] = inscale ? 1 : 0;
     for (int i = 0; i < 16; i++)
         GV.keyn[i] = inscale ? D[i % 7] : C[i % 7];
 }

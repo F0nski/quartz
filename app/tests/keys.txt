@@ -1,4 +1,4 @@
-# KEYS: the white keys play the scale (ALL, or MARBLES only), no doublons; the black ones nothing; NOTES still edits
+# KEYS: the white keys play the scale (ALL), no doublons; the black ones nothing; NOTES still edits
 wait 600
 expect keys 0
 tap EDIT
@@ -12,7 +12,7 @@ tap GLO
 turn SELECT 2
 expect page 3
 turn K1 2
-expect keys 2
+expect keys 1
 wait 100
 shot glo_keys.png
 tap EDIT
@@ -31,14 +31,6 @@ expect keynote 62
 key 1 down
 key 1 up
 expect keynote 62
-# MARBLES only: a STEP track stays chromatic
-tap GLO
-turn K1 -1
-expect keys 1
-tap EDIT
-key 0 down
-key 0 up
-expect keynote 53
 # the track on MARBLES: its keys follow its allowed notes
 tap SEQ
 turn K4 2
