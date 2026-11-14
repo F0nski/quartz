@@ -106,6 +106,7 @@ static void clamp_project(q_project *p)
             for (int j = 0; j < 3; j++) g->dens[j] = (uint8_t)clampi(g->dens[j], 0, 127);
             m->tout = (uint8_t)clampi(m->tout, 1, 3); m->len = (uint8_t)clampi(m->len, 1, 16);
             m->mode = (uint8_t)clampi(m->mode, 0, 6); m->range = (uint8_t)clampi(m->range, 1, 4);
+            m->gate = (uint8_t)clampi(m->gate, 0, 5);
             m->bias = (uint8_t)clampi(m->bias, 0, 127); m->jitter = (uint8_t)clampi(m->jitter, 0, 127);
             m->dejavu = (uint8_t)clampi(m->dejavu, 0, 127); m->spread = (uint8_t)clampi(m->spread, 0, 127);
             m->xbias = (uint8_t)clampi(m->xbias, 0, 127); m->steps = (uint8_t)clampi(m->steps, 0, 127);

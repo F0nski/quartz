@@ -39,7 +39,7 @@ void project_defaults(q_project *p)
             pt->len = 16; pt->div = DIV_16; pt->path = PATH_FWD;
             pt->xlen = pt->ylen = 4; pt->ydiv = DIV_4;
             pt->grids = (q_grids){ 64, 64, 0, { 64, 64, 64 }, 1, 60 };
-            pt->marbles = (q_marbles){ 1, 8, 0, 64, 0, 0, 64, 64, 0, 48, 2, { 0, 0 } };
+            pt->marbles = (q_marbles){ 1, 8, 0, 64, 0, 0, 64, 64, 0, 48, 2, { 0, 0 }, 2 };
             pt->life = (q_life){ 2, 48, 0, 0, 70, 1, 1, 0 };
             pt->orbits = (q_orbits){ 48, 3, { 8, 6, 5, 3 }, { 0, 0, 0, 0 }, { 0, 2, 4, 7 } };
             pt->mimic = (q_mimic){ 7, 1, 16, 0, 0, { { 60, 2 }, { 62, 1 }, { 64, 1 }, { 67, 2 }, { 64, 1 }, { 62, 1 }, { 60, 4 } } };

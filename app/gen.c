@@ -344,7 +344,8 @@ static int marbles_step(q_gen *g, const q_project *p, int track, const q_pattern
     }
     float j = m->jitter / 127.0f;
     st->flags |= SF_ON | (uint8_t)((ratchet - 1) << 3);
-    st->vel = 100; st->len = 4; st->prob = 20;
+    st->vel = 100; st->prob = 20;
+    st->len = p->sound[track].model == M_KIT ? 4 : (uint8_t)(1 << m->gate);   /* a KIT keeps 4: its X page, GATE's, is hidden */
     st->micro = (int8_t)gen_round((2.0f * x[5] - 1.0f) * j * j * j * j * 11.0f);
     return 0;      /* Marbles has no accent */
 }

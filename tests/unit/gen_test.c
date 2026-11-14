@@ -150,7 +150,7 @@ static q_pattern *msetup(int model, int mode)
     P.sound[0].model = model;
     q_pattern *pt = &P.pat[0][0];
     pt->src = SRC_MARBLES;
-    pt->marbles = (q_marbles){ 2, 5, mode, 64, 0, 0, 64, 64, 0, 60, 2, { 0, 0 } };
+    pt->marbles = (q_marbles){ 2, 5, mode, 64, 0, 0, 64, 64, 0, 60, 2, { 0, 0 }, 2 };
     gen_reset(&G, &R);
     return pt;
 }
@@ -163,6 +163,26 @@ static int kit_pads(const q_step *st)
         for (int s = 0; s < 4; s++)
             if (st->note[s] >= KIT_NOTE && st->note[s] < KIT_NOTE + 3) m |= 1 << (st->note[s] - KIT_NOTE);
     return m;
+}
+
+/* GATE: a synth note lasts 1 << gate eighths of a step; a KIT's stay at 4 */
+static void marbles_gate_sets_len(void)
+{
+    static const uint8_t LEN[6] = { 1, 2, 4, 8, 16, 32 };
+    for (int g = 0; g < 6; g++) {
+        q_pattern *pt = msetup(8, T_COMPLEMENTARY_BERNOULLI);
+        pt->marbles.gate = (uint8_t)g;
+        for (int k = 0; k < 16; k++) {
+            q_step st; int acc;
+            if (played(pt, k, &st, &acc)) assert(st.len == LEN[g]);
+        }
+    }
+    q_pattern *pt = msetup(M_KIT, T_COMPLEMENTARY_BERNOULLI);
+    pt->marbles.gate = 5;
+    q_step st; int acc;
+    assert(played(pt, 0, &st, &acc) && st.len == 4);
+    project_defaults(&P);
+    assert(P.pat[1][3].marbles.gate == 2);
 }
 
 /* DEJA VU 63 and 64 are the frozen centre */
@@ -1569,6 +1589,7 @@ static void marbles_draw_new_loops(void)
 
 int main(void)
 {
+    marbles_gate_sets_len();
     grids_level_matches_step();
     corner_follows_node();
     dens0_silent();
