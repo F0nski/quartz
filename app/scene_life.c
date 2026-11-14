@@ -44,13 +44,12 @@ static int lf_near(const uint16_t g[LIFE_H], int c, int r)
     return n;
 }
 
-/* a row's tones: blue on a synth; on a KIT its pad's (PADS) or its band's (BANDS): BD orange, SN green, HH white */
+/* a row's tones: blue on a synth; on a KIT its pad's engine: BD orange, SN green, HH white */
 static const uint16_t *lf_tones(const q_lview *v, int r)
 {
     if (!v->kit)
         return KBLUE;
-    int i = v->map ? (r < 3 ? 0 : r < 6 ? 1 : 2) : r;
-    return i == 0 ? ORANGE : i == 1 ? KGREEN : i == 2 ? MB_WHITE : KBLUE;
+    return v->eng[r] == PAD_BD ? ORANGE : v->eng[r] == PAD_SN ? KGREEN : MB_WHITE;
 }
 
 /* a flat hexagon in 4 triangles, its facets toned by their side against a light from the top left */

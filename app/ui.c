@@ -2963,6 +2963,7 @@ void ui_frame(void)
                 for (r = 0; r < LIFE_H; r++) {          /* the rows' names: their notes, a KIT's pads or bands */
                     static const char *const PADN[LIFE_H] = {"BD", "SN", "HH", "4", "5", "6", "7", "8"};
                     const char *s = !kit() ? 0 : !t->life.map ? PADN[r] : r == 1 ? "BD" : r == 4 ? "SN" : r == 6 ? "HH" : "";
+                    lfv.eng[r] = ui.p->kit[ui.track][t->life.map ? (r < 3 ? 0 : r < 6 ? 1 : 2) : r].engine;
                     if (s) {
                         char *o = lfv.label[r];
                         while ((*o++ = *s++) != 0) {}

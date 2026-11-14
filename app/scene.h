@@ -93,6 +93,7 @@ typedef struct {
     uint8_t played;            /* bit r: row r plays in col (gen_life_rows) */
     uint8_t poly, autos, gen, mut, kit, map, seed;   /* the pattern's q_life, poly already capped on a KIT */
     char label[LIFE_H][5];     /* the rows' names, row 0 first */
+    uint8_t eng[LIFE_H];       /* a KIT: the engine (PAD_*) of the pad each row plays */
     uint32_t step_ms;          /* a step in ms */
 } q_lview;
 void life_enter(void);                           /* arrival: the counters seen as they are, no animation */
