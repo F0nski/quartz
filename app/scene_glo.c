@@ -123,7 +123,8 @@ static void glo_scale(const q_glview *v, int32_t oy)
 }
 
 /* KEYS: IN SCALE, what it means, and the 16 white keys with the note each plays (in the scale: dark blue, the tonic
-   blue; else ordinary), the black keys where a piano has them, crossed out in the scale; the held key pink */
+   blue; else ordinary; a KIT: its pad numbers), the black keys where a piano has them, crossed out where they play
+   nothing (in the scale, a KIT); the held keys pink */
 static void glo_keys(const q_glview *v, int32_t oy)
 {
     static const char *const SAY[3] = {"CHROMATIC KEYBOARD", "SCALE ON FLEET TRACKS", "SCALE ON EVERY TRACK"};
@@ -131,11 +132,18 @@ static void glo_keys(const q_glview *v, int32_t oy)
     glo_text(120, oy + 42, &FONT_S, SAY[v->k[0]], GL_INK, 0);
     if (v->inscale)
         glo_text(120, oy + 56, &FONT_S, v->title, GL_UI, 0);
+    static const uint8_t W[16] = PLAT_WHITE_KEYS;
+    int mute = v->inscale || v->kit;    /* the black keys play nothing */
     for (int i = 0; i < 16; i++) {      /* 13.5 px a key */
-        int n = v->keyn[i] % 12, hit = v->held >> i & 1, lit = v->inscale && v->keyn[i] >= 0;
+        int n = v->keyn[i] % 12, hit = v->held >> W[i] & 1, lit = v->inscale && !v->kit && v->keyn[i] >= 0;
         int32_t x = 12 + i * 27 / 2;
         uint16_t f = hit ? PINK3[1] : lit ? (n == v->tonic ? HM_BLUE[1] : HM_BLUE[2]) : GL_KEY, ink = hit || !lit ? SP_BAR : GL_INK;
         cv_rect(x + 1, oy + 70, 12, 76, f);
+        if (v->kit) {
+            char l[3] = {(char)(i < 9 ? '1' + i : '1'), (char)(i < 9 ? 0 : '0' + i - 9), 0};
+            glo_text(x + 7, oy + 136, &FONT_XS, l, SP_BAR, 0);
+            continue;
+        }
         if (v->keyn[i] < 0)
             continue;
         char l[2] = {v->notes[n][0], 0};
@@ -147,8 +155,8 @@ static void glo_keys(const q_glview *v, int32_t oy)
         int32_t x = 12 + (i + 1) * 27 / 2 - 4;      /* so none between B and C (gap 3) nor E and F (gap 6) */
         if (i % 7 == 3 || i % 7 == 6)
             continue;
-        cv_rect(x, oy + 70, 9, 44, v->inscale ? C_BLACK : GL_BLACK);
-        if (v->inscale) {
+        cv_rect(x, oy + 70, 9, 44, mute ? C_BLACK : v->held >> (W[i] + 1) & 1 ? PINK3[1] : GL_BLACK);
+        if (mute) {
             cv_line(x + 1, oy + 72, x + 8, oy + 112, SP_WIRE);
             cv_line(x + 8, oy + 72, x + 1, oy + 112, SP_WIRE);
         }

@@ -952,7 +952,8 @@ Press GLO for the project's settings, shared by the four tracks.
 - **CLICK**: METRO plays a click while recording LIVE, COUNT a bar of count-in before LIVE, BOTH both.
 - **KEYS**: OFF, the keys are a chromatic keyboard. ALL: on every synth track, the white keys play the scale up from
   the tonic and the black keys are silent. FLEET: the same on FLEET tracks only, with their allowed notes. A kit keeps
-  its pads.
+  its pads: on a KIT track, the page numbers the white keys 1–16 and crosses out the black ones. The keys you hold
+  light up pink.
 - **FX**: the shared ping-pong delay, its time in steps of the tempo and its feedback; the reverb's size and its
   tone (how much of the highs it keeps).
 - **CPU** shows each core's load, LOST BLOCKS (audio blocks the FM-1 could not compute in time: you hear them as

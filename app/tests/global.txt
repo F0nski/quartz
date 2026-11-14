@@ -22,6 +22,11 @@ key 0 down
 wait 30
 shot glo_keys_held.png
 key 0 up
+# a black key held: pink (KEYS off: it plays a note)
+key b1 down
+wait 30
+shot glo_keys_black.png
+key b1 up
 turn SELECT 1
 expect page 4
 expect anim 7
@@ -34,3 +39,15 @@ turn SELECT 1
 expect anim 7
 wait 100
 shot glo_song.png
+# a KIT track: the white keys are its pads 1-16, the black keys crossed out
+tap EDIT
+spin PRESET -30
+spin PRESET 24
+expect model 24
+tap GLO
+turn SELECT -1
+expect page 3
+key w11 down
+wait 30
+shot glo_keys_kit.png
+key w11 up

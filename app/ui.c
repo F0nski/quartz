@@ -3197,15 +3197,15 @@ void ui_frame(void)
                 glv.mask = SCALE_MASK[ui.p->mode];
                 glv.pos = (int8_t)audio_pos(ui.track);
                 glv.inscale = (uint8_t)keys_in_scale();
+                glv.kit = (uint8_t)kit();
                 glv.held = 0;
                 for (k = 0; k < NKEYS; k++) {
                     if (ui.key_note[k] < 0)
                         continue;
-                    if (pid == P_SCALE)
-                        glv.held |= (uint16_t)(1u << ui.key_note[k] % 12);
-                    for (w = 0; w < 16 && pid == P_KEYS; w++)
-                        if (WHITE[w] == k)
-                            glv.held |= (uint16_t)(1u << w);
+                    if (pid == P_SCALE && ui.key_track[k] == ui.track && !kit())   /* a pad is no pitch */
+                        glv.held |= 1u << ui.key_note[k] % 12;
+                    if (pid == P_KEYS)
+                        glv.held |= 1u << k;
                 }
                 for (w = 0; w < 16; w++)
                     glv.keyn[w] = (int8_t)(glv.inscale ? scale_note(w) : 53 + WHITE[w] + 12 * ui.octave);

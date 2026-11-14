@@ -53,8 +53,8 @@ void sound_band(int32_t oy);
 /* the global pages TEMPO, SCALE, KEYS, FX, SONG (spec 5g): the page, its 4 knobs in ui.c PAGE[]'s ranges; title: the scale ("A LOCRIAN";
    FX: the delay's division); notes: the 12 pitch classes' names from C; opt: the option rows' names (SCALE QUANT, CLICK;
    KEYS IN SCALE); tonic, mask (bit n: n semitones above it); inscale: KEYS' white keys play the scale; pos: the track's
-   step, -1 stopped; held: SCALE the pitch classes held (bit n), KEYS the white keys (bit w); keyn: the MIDI note each white
-   key plays, -1 none; hits: FX the note-ons of all tracks; song: SONG's entries, the cursor and the one playing (1..n) */
+   step, -1 stopped; held: SCALE the track's pitch classes held (bit n), KEYS the keys held (bit k, plat.h's numbering);
+   keyn: the MIDI note each white key plays, -1 none; kit: the track is a KIT (the white keys are its pads); hits: FX the note-ons of all tracks; song: SONG's entries, the cursor and the one playing (1..n) */
 enum { GP_TEMPO, GP_SCALE, GP_KEYS, GP_FX, GP_SONG };
 typedef struct {
     uint8_t page;
@@ -63,10 +63,10 @@ typedef struct {
     const char *const *notes;
     const char *const *opt[2];
     uint8_t nopt[2];
-    uint8_t tonic, inscale;
+    uint8_t tonic, inscale, kit;
     uint16_t mask;
     int8_t pos;
-    uint16_t held;
+    uint32_t held;
     int8_t keyn[16];
     uint32_t hits;
     struct { int8_t n, cursor, playing, on; q_entry e[Q_SONG]; } song;
