@@ -155,3 +155,53 @@ wait 300
 shot shape-punch.png
 key w7 up
 release FX
+
+# 8. Sequencer: a new project, track 1, a few steps on the grid
+reboot
+wait 600
+tap SEQ
+tap REC
+tapkey w0
+tapkey w3
+tapkey w6
+tapkey w10
+tapkey w12
+wait 300
+shot seq-steps.png
+key w6 down
+wait 300
+shot seq-held.png
+tapkey b2
+spin PRESET -10
+wait 200
+shot seq-held-prob.png
+key w6 up
+press SEL
+wait 100
+tapkey w0
+tapkey w3
+wait 300
+shot seq-select.png
+release SEL
+spin K3 2
+expect path 2
+tap PLAY
+wait 1500
+shot seq-path.png
+tap PLAY
+spin K3 5
+expect path 7
+spin SELECT 1
+wait 300
+shot seq-xy.png
+spin SELECT -1
+spin K3 -7
+tap REC
+expect badge 2
+wait 300
+shot seq-notes.png
+tap REC
+press REC
+wait 700
+shot seq-rec-map.png
+release REC
