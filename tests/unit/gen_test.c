@@ -585,6 +585,20 @@ static void life_degrees_clamp(void)
     for (int r = 0; r < LIFE_H; r++) { int n = gen_life_note(127, sc, 0, r); assert(n >= 1 && n <= 127); }
 }
 
+/* near 127 the rows clamp to one note: it plays once, its accent kept if any of its cells is born */
+static void life_no_repeat_at_top(void)
+{
+    q_pattern *pt = life_setup(8);
+    pt->life.gen = 3; pt->life.poly = 4; pt->life.note = 127;
+    q_step st;
+    gen_step(&G, &P, 0, pt, 0, &R, &st);
+    memset(G.life.grid, 0, sizeof G.life.grid); memset(G.life.born, 0, sizeof G.life.born);
+    set_cell(G.life.grid, 1, 0); set_cell(G.life.grid, 1, 1); set_cell(G.life.grid, 1, 2);
+    set_cell(G.life.born, 1, 2);
+    int acc = gen_step(&G, &P, 0, pt, 1, &R, &st);
+    assert(st.note[0] && st.note[1] == 0 && acc == 1);
+}
+
 static void life_notes_kit(void)
 {
     q_pattern *pt = life_setup(M_KIT);
@@ -1576,6 +1590,7 @@ int main(void)
     life_rows_poly();
     life_notes_synth();
     life_degrees_clamp();
+    life_no_repeat_at_top();
     life_notes_kit();
     life_born_accented();
     life_pattern_switch_reseeds();

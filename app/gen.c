@@ -478,11 +478,14 @@ static int life_step(q_gen *g, const q_project *p, int track, const q_pattern *p
     uint8_t rows[4];
     int n = gen_life_rows(s, kit, l->grid, k, rows);
     if (!n) return 0;
+    int nb = 0;
     for (int i = 0; i < n; i++) {
-        int r = rows[i];
-        st->note[i] = (uint8_t)(!kit ? gen_life_note(s->note, gen_scale(p), p->tonic, r)
-                                     : KIT_NOTE + (s->map ? (r < 3 ? 0 : r < 6 ? 1 : 2) : r));
-        if (l->born[r] >> k & 1) acc |= 1 << i;
+        int r = rows[i], j;
+        uint8_t note = (uint8_t)(!kit ? gen_life_note(s->note, gen_scale(p), p->tonic, r)
+                                      : KIT_NOTE + (s->map ? (r < 3 ? 0 : r < 6 ? 1 : 2) : r));
+        for (j = 0; j < nb && st->note[j] != note; j++) {}   /* near 127 rows clamp to one note: once */
+        if (j == nb) st->note[nb++] = note;
+        if (l->born[r] >> k & 1) acc |= 1 << j;
     }
     st->flags |= SF_ON;
     st->vel = 95; st->len = 4; st->prob = 20;
