@@ -1810,6 +1810,24 @@ static void model_gain_matches_levels(void)
     assert(lvl[1] == 0.01f * 0.25f && lvl[0] < 0.6f * lvl[1] && lvl[2] > 2.0f * lvl[1]);
 }
 
+/* POLY 1, a 4-step note at step 0 and the same pitch at step 2: the first note's note-off, moved to step 2, does
+ * not cut the second, which holds to step 6 */
+static void same_pitch_long_notes_not_cut(void)
+{
+    setup();
+    q_pattern *pt = &P.pat[0][0];
+    pt->steps[0].flags = pt->steps[2].flags = SF_ON;
+    pt->steps[0].len = pt->steps[2].len = 32;
+    uint32_t num, den;
+    seq_step_ratio(120, DIV_16, &num, &den);
+    uint32_t spf = num / den, n = 0;
+    audio_play(1);
+    while (n < spf * 5 + spf / 2) { block(256); n += 256; }   /* step 5: past the first note's own end */
+    assert(track_on(0) == 1);
+    while (n < spf * 6 + spf / 2) { block(256); n += 256; }   /* step 6: the second's end */
+    assert(track_on(0) == 0);
+}
+
 /* a key held on the track playing its pattern, POLY 1: the steps do not take its voice */
 static void held_key_survives_the_pattern(void)
 {
@@ -1903,6 +1921,7 @@ int main(void)
     recorded_punch_follows_pattern();
     free_phase_when_stopped();
     held_key_survives_the_pattern();
+    same_pitch_long_notes_not_cut();
     model_gain_matches_levels();
     free_phase_carries_on_stop();
     hits_count_note_ons();
