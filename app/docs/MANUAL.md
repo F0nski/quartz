@@ -39,7 +39,7 @@ an animated *scene* that moves with the sound and with every knob.
 | Track | One of the four parts, 1–4. ALGORITHM picks the current one. |
 | Sound | What a track sounds like: a model (EDIT) shaped by ENV, LFO, ARP and FX. |
 | Pattern | P1–P8, eight per track. A track plays one pattern at a time. |
-| Source | Where a pattern's notes come from: STEP, ATLAS, FLEET, COLONY, LOOM, CADENCE, LATTICE, MOONS or MIMIC. |
+| Source | Where a pattern's notes come from: STEP, ATLAS, FLEET, COLONY, LOOM, CADENCE, LATTICE, MOONS or IMPROV. |
 | Step | One of a STEP pattern's 64 places, 16 per page of the grid. |
 | P-lock | A knob's value stored on a single step. |
 | Scene | The four patterns playing and the mutes, kept together. Eight per project. |
@@ -688,7 +688,7 @@ A scene can switch a track from one source to another, since each pattern has it
 | CADENCE | A chord progression. |
 | LATTICE | A walk from chord to chord on the Tonnetz. |
 | MOONS | Moons on orbits, each playing as it passes. |
-| MIMIC | An improviser that learns a phrase from you. |
+| IMPROV | An improviser that learns a phrase from you. |
 
 What the generative sources (all but STEP) share:
 
@@ -696,12 +696,12 @@ What the generative sources (all but STEP) share:
   the scenes like a STEP pattern's.
 - A loop is 16 steps (ATLAS 32, FLEET its LEN): a pattern change waits for its end, and a song entry counts it.
 - Without REC, the keys play the track. REC writes nothing in them, except LOOM, CADENCE and LATTICE, which have a
-  GRID of their own, and MIMIC, which listens.
+  GRID of their own, and IMPROV, which listens.
 - PRESET always does something useful for the source: each subsection says what.
-- On a synth track, setting SOURCE to CADENCE, LATTICE, MOONS or MIMIC raises POLY to 3 if it is lower, so their
+- On a synth track, setting SOURCE to CADENCE, LATTICE, MOONS or IMPROV raises POLY to 3 if it is lower, so their
   chords sound.
 - COLONY, LOOM, CADENCE, LATTICE and MOONS count in degrees of GLO's scale, up from their NOTE brought into the
-  scale. FLEET has its own allowed notes; ATLAS plays a fixed NOTE; MIMIC plays the notes it learnt.
+  scale. FLEET has its own allowed notes; ATLAS plays a fixed NOTE; IMPROV plays the notes it learnt.
 
 ### STEP
 
@@ -898,33 +898,33 @@ passes the top. Moons with different periods meet now and then: those meetings p
 MOONS is QUARTZ's own. Orbit sequencers such as [Aphelian](https://apps.apple.com/app/aphelian/id1435855056) play
 with the same image.
 
-### MIMIC
+### IMPROV
 
-You play a phrase, MIMIC improvises on it: it picks a place in the phrase where the last notes it played appear, and
+You play a phrase, IMPROV improvises on it: it picks a place in the phrase where the last notes it played appear, and
 goes on from there. The result sounds like your phrase, rearranged.
 
 | Page | K1 | K2 | K3 | K4 |
 | --- | --- | --- | --- | --- |
-| MIMIC | DIV | ORDER, 1–2 | DRIFT, 0–127 | SOURCE |
+| IMPROV | DIV | ORDER, 1–2 | DRIFT, 0–127 | SOURCE |
 | LOOP | LOOP: FREE, 1–16 | — | — | — |
 
-- **LISTEN**: in SEQ, press REC once. MIMIC goes quiet, the header shows `LISTEN`, and every note you play is learnt,
+- **LISTEN**: in SEQ, press REC once. IMPROV goes quiet, the header shows `LISTEN`, and every note you play is learnt,
   with the time until the next one (up to 7 steps; notes played together make a chord). The first note clears the old
   phrase; the phrase keeps the last 32 notes. Press REC again to stop: the time since the last note becomes its gap.
   Changing pattern, track, source or domain stops LISTEN too.
 - **ORDER** 1 matches the last note played, 2 the last two (more like the phrase).
 - **DRIFT** is the chance of jumping anywhere in the phrase instead.
 - **LOOP** 1–16 starts the improvisation again every LOOP steps, the same way each time: a riff. FREE never repeats.
-- The white keys 1–8 show where in the phrase MIMIC is reading, in eighths; in LISTEN, how full the phrase is.
+- The white keys 1–8 show where in the phrase IMPROV is reading, in eighths; in LISTEN, how full the phrase is.
 - A new pattern knows C4 D4 E4 G4 E4 D4 C4.
 - **PRESET** draws again: another improvisation from the same phrase, at once.
 
-![MIMIC: the phrase above (YOU) in four coloured quarters, the improvisation below (MIMIC) scrolling from the NOW line](img/source-mimic.png "MIMIC")
+![IMPROV: the phrase above (YOU) in four coloured quarters, the improvisation below (IMPROV) scrolling from the NOW line](img/source-mimic.png "IMPROV")
 
-![MIMIC in LISTEN: 2 NOTES learnt, F3 and A3](img/source-mimic-listen.png "LISTEN")
+![IMPROV in LISTEN: 2 NOTES learnt, F3 and A3](img/source-mimic-listen.png "LISTEN")
 
 **Inspired by** the [Continuator](https://www.francoispachet.fr/?p=4360) by François Pachet (Sony CSL, 2003), which
-learns a musician's phrases as they play and answers in their style. MIMIC learns one phrase, with ORDER 1 or 2.
+learns a musician's phrases as they play and answers in their style. IMPROV learns one phrase, with ORDER 1 or 2.
 
 ---
 
@@ -996,7 +996,7 @@ QUARTZ is made by f0nski. It stands on the work of others: code it runs, and ide
 | COLONY | The Game of Life (idea) | John Horton Conway, 1970 | — | [Wikipedia](https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life) |
 | LOOM | Kria (idea) | monome | — | [docs](https://monome.org/docs/ansible/kria/) |
 | LATTICE | The Tonnetz and neo-Riemannian theory (idea) | Leonhard Euler; David Lewin, Richard Cohn | — | [Wikipedia](https://en.wikipedia.org/wiki/Neo-Riemannian_theory) |
-| MIMIC | The Continuator (idea) | François Pachet, Sony CSL, 2003 | — | [paper](https://www.francoispachet.fr/?p=4360) |
+| IMPROV | The Continuator (idea) | François Pachet, Sony CSL, 2003 | — | [paper](https://www.francoispachet.fr/?p=4360) |
 | Step functions | Parameter locks, trig conditions, micro timing (idea) | Elektron | — | [Digitakt](https://www.elektron.se/support-downloads/digitakt) |
 | Domains, held-button maps, punch-ins, this guide's shape | The OP-Z (idea) | teenage engineering | — | [guide](https://teenage.engineering/guides/op-z) |
 | CADENCE, MOONS, the scenes | QUARTZ's own | f0nski | GPL-3.0 | — |
@@ -1015,7 +1015,7 @@ Instruments, monome, Elektron or teenage engineering.
 | --- | --- |
 | No sound | MASTER; HOME, the track's mute (HOME held, keys 1–4) and its LVL; FX's MIX LEVEL; ENV's CUTOFF on LP. |
 | A key does nothing | A button may still be held (its map is on the screen). With KEYS at FLEET or ALL, the black keys are silent. |
-| REC does nothing | The pattern is generative: only LOOM, CADENCE and LATTICE have a GRID, and MIMIC listens. To record notes, set SOURCE to STEP. |
+| REC does nothing | The pattern is generative: only LOOM, CADENCE and LATTICE have a GRID, and IMPROV listens. To record notes, set SOURCE to STEP. |
 | The pattern doesn't change | While playing, it waits for the end of the loop (`P1 > P2` in the header). |
 | `STOP TO SAVE` | Stop, then press SAVE. |
 | `LOCKS FULL` | The pattern holds 128 p-locks: clear some (REC held, black key 2 clears them all). |

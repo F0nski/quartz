@@ -151,7 +151,7 @@ void mimic_band(const q_miview *v, int32_t oy)
         cv_rect((int32_t)((i * 733 + 170) / 10 % 240), oy + 4 + (int32_t)((i * 479 + 40) / 10 % 160), 1, 1,
                 i % 4 ? RGB(0x1c, 0x13, 0x40) : RGB(0x3a, 0x2f, 0x63));
     glo_text(8, oy + 21, &FONT_XS, "YOU", MV_MUTE, 2);
-    glo_text(8, oy + MV_IM0 - 6, &FONT_XS, "MIMIC", MV_MUTE, 2);
+    glo_text(8, oy + MV_IM0 - 6, &FONT_XS, "IMPROV", MV_MUTE, 2);
     cv_rect(8, oy + 85, 224, 1, RGB(0x1c, 0x13, 0x40));
     if (m->n) {
         float rh = (float)(MV_PH1 - MV_PH0) / (float)nr, ch = rh - 1.0f < 6.0f ? rh - 1.0f : 6.0f;

@@ -84,7 +84,7 @@ static const q_page PAGE[] = {
     {"MOON", {"PERIOD", "PHASE", "PAD"}, {1, 0, 0}, {32, 31, 15}},       /* a KIT's: PAD for NOTE */
     {"CHORD", {"DEGREE", "SIZE"}, {0, 0}, {6, CS_N - 1}},                 /* the chord under PRESET's cursor */
     {"STEP", {"OP"}, {0}, {3}},                                          /* the TONNETZ step under PRESET's cursor */
-    {"MIMIC", {"DIV", "ORDER", "DRIFT", "SOURCE"}, {0, 1, 0, 0}, {DIV_N - 1, 2, 127, SRC_N - 1}},
+    {"IMPROV", {"DIV", "ORDER", "DRIFT", "SOURCE"}, {0, 1, 0, 0}, {DIV_N - 1, 2, 127, SRC_N - 1}},
     {"LOOP", {"LOOP"}, {0}, {16}},                                       /* 0 FREE */
 };
 
@@ -115,7 +115,7 @@ static const char *const INS_NAME[IT_N] = {"INSERT OFF", "OVERDRIVE", "WAVEFOLD"
 static const char *const INS_LABEL[IT_N][3] = {{"", "", ""}, {"DRIVE", "TONE", ""}, {"FOLD", "BIAS", "TONE"}, {"BITS", "RATE", ""},
                                                 {"RATE", "DEPTH", ""}, {"RATE", "DEPTH", "FEEDBK"}, {"FREQ", "", ""}, {"NOTE", "FEEDBK", "DAMP"}};
 static const char *const AMODE_NAME[6] = {"OFF", "UP", "DOWN", "UP-DN", "RAND", "ORDER"};
-static const char *const SRC_NAME[SRC_N] = {"STEP", "ATLAS", "FLEET", "COLONY", "LOOM", "CADENCE", "LATTICE", "MOONS", "MIMIC"};
+static const char *const SRC_NAME[SRC_N] = {"STEP", "ATLAS", "FLEET", "COLONY", "LOOM", "CADENCE", "LATTICE", "MOONS", "IMPROV"};
 /* Marbles' T models, its TGeneratorModel order (gen.c) */
 static const char *const T_MODE_NAME[7] = {"C.BERN", "CLUSTERS", "DRUMS", "I.BERN", "DIVIDER", "3 STATES", "MARKOV"};
 static const char *const PATH_NAME[PATH_N] = {"FWD", "REV", "PING-PONG", "SNAKE", "COLUMNS", "SPIRAL", "RANDOM", "XY"};
