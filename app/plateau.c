@@ -336,7 +336,7 @@ static int g_on(const q_gview *v, int voice, int step) { return v->level[voice][
 void grids_frame(const q_gview *v, uint32_t ms)
 {
     int i;
-    if (v->pos >= 0 && v->pos < gr.last_pos)   /* a new pass: CHAOS's extras forgotten */
+    if (v->pos < gr.last_pos)           /* a new pass, or stopped: CHAOS's extras forgotten */
         __builtin_memset(gr.extra, 0, sizeof gr.extra);
     gr.last_pos = v->pos;
     for (i = 0; i < G_PEND; i++)        /* the hits that sound now land on the step playing */
@@ -386,7 +386,8 @@ void grids_band(int32_t oy)
         int n = k * 8 + 1;
         pl_pt p = at(0, (float)k + 0.5f);
         t[0] = (char)(n < 10 ? '0' + n : '0' + n / 10), t[1] = (char)(n < 10 ? 0 : '0' + n % 10), t[2] = 0;
-        cv_text((int32_t)p.x - 6 - text_w(&FONT_XS, t), (int32_t)p.y - 7 + oy, &FONT_XS, t, v->pos / 8 == k ? PL_GREEN[0] : PL_LABEL);
+        int32_t x = (int32_t)p.x - 6 - text_w(&FONT_XS, t);
+        cv_text(x < 2 ? 2 : x, (int32_t)p.y - 7 + oy, &FONT_XS, t, v->pos / 8 == k ? PL_GREEN[0] : PL_LABEL);
     }
     for (k = 0; k < 3; k++)
         if (gr.ms - gr.hit[k] < near)
