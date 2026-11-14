@@ -36,7 +36,7 @@ ces pads, ou on prend une deuxième piste KIT).
 - Le rendu de la voix (`pq.cc`) lit `x = out·(1 − chr) + aux·chr` à la place de `out`, dans les deux branches (filtre
   ouvert et filtre calculé). Mélange linéaire : les deux sons partent du même déclenchement, ils sont corrélés.
 - `audio.c` `set_patch` : une voix de KIT reçoit le CHAR de son pad (`chr / 127`), toute autre voix 0. Comme HARM,
-  TIMB et DECAY, il est pris à la note du pad ; tourner CHAR change le pad à son coup suivant.
+  TIMB et DECAY, il passe par `set_patch` : à la note du pad et, tant que la note est tenue, à chaque bloc.
 - Si les deux sons n'ont pas le même niveau, LEVEL du pad compense ; la loi de mélange se juge à l'oreille sur
   l'appareil.
 - Coût : une multiplication-addition par échantillon et par voix. Le code audio bouge dans la flash : mesure CPU en fin
