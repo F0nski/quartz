@@ -112,9 +112,9 @@ left, as the screen numbers them.
 
 ### The screen
 
-![EDIT's ENGINE page on track 2: the header with 2, EDIT and ENGINE, page 1/2; the scene; HARM, TIMB, MORPH and DECAY at 64 in the footer](img/screen-anatomy.png "A page: header, scene, knobs")
+![EDIT's ENGINE page on track 2: the header with 2, EDIT, ENGINE and the model CREST, page 1/2; the scene; HARM, TIMB, MORPH and DECAY at 64 in the footer](img/screen-anatomy.png "A page: header, scene, knobs")
 
-- **Header**: the track in a box, the domain and the page (on SEQ, the pattern: `P1 > P2` while the next one waits
+- **Header**: the track in a box, the domain and the page (on ENGINE and SOUND, the model too; on SEQ, the pattern: `P1 > P2` while the next one waits
   for the end of the loop), the page's number, and REC's state when it is armed (GRID, NOTES, LIVE; ARM and LISTEN
   blink).
 - **Scene**: what the page sets, animated. It reacts to every knob of the page and to each note played, in pink.
@@ -225,7 +225,7 @@ browses the models from any EDIT page.
 | Page | K1 | K2 | K3 | K4 |
 | --- | --- | --- | --- | --- |
 | ENGINE | HARM, 0–127 | TIMB, 0–127 | MORPH, 0–127 | DECAY, 0–127 |
-| SOUND | MODEL, 0–24 | TUNE, −24 to +24 semitones | GLIDE, 0–127 | POLY, 1–4 voices |
+| SOUND | MODEL, by name | TUNE, −24 to +24 semitones | GLIDE, 0–127 | POLY, 1–4 voices |
 
 - **HARM, TIMB, MORPH** do something different on each model: the table below says what.
 - **DECAY** sets how long a note rings after its gate closes, and the length of the model's own envelope on the models
@@ -234,14 +234,14 @@ browses the models from any EDIT page.
 - **POLY** is how many notes the track plays at once. The four tracks share six voices; when they are all busy, a
   new note takes the oldest one.
 
-The footer shows the model's number. Its name shows on HOME's TRACKS page and on the ENV, LFO, ARP and FX pages.
+The model's name shows in the header of ENGINE and SOUND, and under MODEL in SOUND's footer.
 
-![EDIT's SOUND page: MODEL 8, TUNE 0, GLIDE 0, POLY 1](img/sound-sound.png "SOUND")
+![EDIT's SOUND page: CREST in the header, MODEL CREST, TUNE 0, GLIDE 0, POLY 1](img/sound-sound.png "SOUND")
 
 ### Models
 
-The models are Plaits' 24 synthesis models, in Plaits' order, under QUARTZ's own names. Each family has its own
-scene.
+The models are Plaits' 24 synthesis models, in Plaits' order, under QUARTZ's own names. PRESET goes through them in
+the order of the table. Each family has its own scene.
 
 | # | Name | Sound | HARM | TIMB | MORPH | Plaits model |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -311,7 +311,7 @@ its own tuning and settings, and a kit plays up to three pads at once. With KIT,
 | Page | K1 | K2 | K3 | K4 |
 | --- | --- | --- | --- | --- |
 | PAD | TUNE, −24 to +24 | HARM, 0–127 | TIMB, 0–127 | DECAY, 0–127 |
-| KIT | MODEL, 0–24 | ENGINE, BD SN HH | LEVEL, 0–127 | — |
+| KIT | MODEL, by name | ENGINE, BD SN HH | LEVEL, 0–127 | — |
 
 The knobs set the last pad played, named in the header (`PAD 1`). In EDIT, hold a pad: K1–K4 set that pad and PRESET
 changes its engine. KIT's scene is the 16 pads, each with its engine, the one the knobs set lit.

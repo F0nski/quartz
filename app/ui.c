@@ -133,7 +133,7 @@ typedef struct { q_step st; uint8_t nlocks; q_lock lk[16]; } q_clip;   /* a step
 
 /* what is on the screen, part by part: a part is drawn again when its view changes */
 typedef struct {
-    struct { int8_t track, domain, page, n, msg, pat, playing, scene, pad, ltrig, itype, punch, badge, bnum; } head;   /* badge: REC's
+    struct { int8_t track, domain, page, n, msg, pat, playing, scene, pad, ltrig, itype, punch, badge, bnum, model; } head;   /* badge: REC's
                                                                                    state, 1 GRID .. 4 ARM (0 none or ARM's blink off); bnum: NOTES' step */   /* pat: P1..P8 asked; playing: the one playing when it differs, else 0;
                                                                                    pad: a KIT's in EDIT 1..16, else 0;
                                                                                    ltrig: LFO's FREE 1 / TRIG 2, else 0; itype: the insert's, in the page name */
@@ -2153,6 +2153,11 @@ static void knob_text(int pid, int k, int v, char *b)
         while ((*b++ = *s++) != 0) {}
         return;
     }
+    if ((pid == P_SOUND || pid == P_KIT) && !k) {
+        const char *s = MODEL_NAME[v];
+        while ((*b++ = *s++) != 0) {}
+        return;
+    }
     if (pid == P_KIT && k == 1) {
         const char *s = ENGINE_NAME[v];
         while ((*b++ = *s++) != 0) {}
@@ -2254,6 +2259,8 @@ static void view_now(q_view *v)
     v->scene.pid = (int8_t)pid;
     if (pid == P_LFO)
         v->head.ltrig = (int8_t)(ui.p->sound[ui.track].ltrig + 1);
+    if (pid == P_ENGINE || pid == P_SOUND)     /* the model's name after the page's: the footer gives only SOUND's */
+        v->head.model = (int8_t)(ui.p->sound[ui.track].model + 1);
     v->foot.col = 15;
     if (fpid == P_INSERT)
         v->foot.itype = v->head.itype = ui.p->sound[ui.track].itype;
@@ -2481,6 +2488,8 @@ static void draw_head(const q_view *v)
         x = cv_text(x + 10, 7, &FONT_B, v->foot.pid == P_INSERT ? INS_NAME[v->head.itype] : PAGE[v->foot.pid].name, C_AMB);
         if (v->head.ltrig)
             x = cv_text(x + 8, 7, &FONT_B, v->head.ltrig == 2 ? "TRIG" : "FREE", C_AMB);
+        if (v->head.model)
+            x = cv_text(x + 8, 7, &FONT_B, MODEL_NAME[v->head.model - 1], C_WHITE);
         if (v->head.pad) {              /* a KIT: the pad its knobs set */
             if (v->foot.pid != P_PAD)
                 x = cv_text(x + 8, 7, &FONT_B, "PAD", C_AMB);
