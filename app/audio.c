@@ -71,7 +71,7 @@ static int fxl_pos[Q_TRACKS];
 static int duck_at;                 /* the block's first KIT BD note-on, -1 none */
 static volatile uint16_t punch_held;  /* audio_punch's: the main loop writes, the render reads */
 static uint16_t punch_last;         /* the last block's punch-ins */
-static float punch_free;            /* stopped: the bar's position since the punch-ins began */
+static float punch_free;            /* stopped: the bar's position since the punch-ins began, or since the STOP */
 static float clk_c, clk_s, clk_cw, clk_sw, clk_env;   /* the click: a phasor turning by (clk_cw, clk_sw) a frame */
 /* live notes held while recording; now: the render's clock, since audio_setup */
 typedef struct { uint8_t on, track, note, pat, step; int8_t micro; uint32_t t0; } q_held;
@@ -820,6 +820,9 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
         if (punch && !punch_last) punch_free = 0.0f;
         bpos = punch_free;
         for (punch_free += (float)n; punch_free >= 4.0f * fpb; punch_free -= 4.0f * fpb) {}
+    } else {
+        for (punch_free = bpos + (float)n; punch_free >= 4.0f * fpb; punch_free -= 4.0f * fpb) {}   /* the next block's
+                                       place: a STOP with a punch-in held carries on from there, no phase jump */
     }
     punch_last = punch;
     duck_at = -1;

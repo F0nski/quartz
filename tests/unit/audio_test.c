@@ -1652,6 +1652,21 @@ static void free_phase_when_stopped(void)
     audio_punch(0);
 }
 
+/* a STOP with a punch-in held: the free bar carries on from where the playing bar was, not from a stale place */
+static void free_phase_carries_on_stop(void)
+{
+    setup();
+    audio_punch(1);
+    block(256);                             /* stopped: the free bar from the press */
+    audio_play(1);
+    for (int i = 0; i < 20; i++) block(256);
+    float at = QM.bpos;
+    audio_play(0);
+    block(256);
+    assert(fabsf(QM.bpos - (at + 256.0f)) <= 1.0f);
+    audio_punch(0);
+}
+
 /* the scenes' note counter: note-ons that sound, per track; a deferred note-on counts in the block it sounds */
 static void hits_count_note_ons(void)
 {
@@ -1824,6 +1839,7 @@ int main(void)
     held_and_recorded_or();
     recorded_punch_follows_pattern();
     free_phase_when_stopped();
+    free_phase_carries_on_stop();
     hits_count_note_ons();
     kit_hits_per_engine();
     marbles_notes_ahead();
