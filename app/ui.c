@@ -104,6 +104,27 @@ static int model_rank(int m)
     return i;
 }
 static const char *const ENGINE_NAME[3] = {"BD", "SN", "HH"};
+/* what the ENGINE knobs that pick (knob_zone) show: Plaits' chords (chord_bank.cc), m minor and M major as the
+   scenes write them (scene_choir.c, scene_chip.c) */
+static const char *const CHORD_NAME[11] = {"OCTAVE", "FIFTH", "SUS4", "m", "m7", "m9", "m11", "6/9", "M9", "M7", "M"};
+/* ARCADE's arpeggios: Plaits' pattern p, direction p / 3, 1 << p % 3 octaves */
+static const char *const ARP_NAME[12] = {"UP 1", "UP 2", "UP 4", "DOWN 1", "DOWN 2", "DOWN 4", "UP-DN 1", "UP-DN 2",
+                                         "UP-DN 4", "RAND 1", "RAND 2", "RAND 4"};
+static const char *const WORDS_NAME[6] = {"PHONEMES", "WORDS 1", "WORDS 2", "WORDS 3", "WORDS 4", "WORDS 5"};
+/* HEX A-C's presets: the DX7 banks' names (syx_bank_0..2), cleaned; the brands and artists renamed */
+static const char *const HEX_NAME[3][32] = {
+    {"SOLID BASS", "DEEP LOW", "LEADERTAPE", "ACID LINE", "BASS 3", "BILL BASS", "BASS 1", "ELEC BASS", "S.BAS 27.7",
+     "RESONANCES", "SYN-BASS 2", "PRC SYNTH1", "PRISMA 2", "ANALOG 4", "ANALOG A", "ANALOG 6", "BIG POLY", "INSERT 1",
+     "SPIRAL", "TROTTER", "GASHAUS", "RING DING", "PAPAGAYO", "WINEGLASS", "AMYTAL", "VINTAGE 1", "WAVE VOL 1",
+     "WAVE VOL 2", "VINTAGE 3", "VOCODER 2", "SEQUENCE", "BOUNCE 4"},
+    {"E.PIANO 1", "TINES 1", "WINTER EP", "RS-EP C", "EP DELUXE", "CLAV-E.PNO", "SYN-CLAV", "CLAV", "PIANO 5",
+     "GRD PIANO1", "CONCERT", "GUIT ACOUS", "SITAR", "KOTO", "HARPSICH 1", "CLAV 3", "XYLOPHONE", "MARIMBA", "VIBE 1",
+     "GLOKENSPL", "BELL C", "BELLS", "TUB BELLS", "GONG 2", "KETTLE 6", "MID DRM 3", "ORI DRUM 1", "WOOD 6",
+     "LATN DRM 4", "CIMBAL", "SYNDM 25.8", "B.DRM-SNAR"},
+    {"CLICK 124", "TONEWHEEL", "E.ORGAN 3", "60-S ORGAN", "OPTIC 28", "PIPES 1", "PIPES 3", "PIPES 2", "POLY 33",
+     "SOUNDTRACK", "ICE PAD 2", "WAVE PADS", "CLASSIC 2", "SOFT TOUCH", "PLANETS", "CIRRUS", "ENTRIX", "MAL POLY",
+     "TEXTURES 6", "ETHEREAL 5", "AIRY", "BORON A", "CINEMA 1", "STRINGS C", "STRINGS 3", "STRINGS 2", "STRINGS 7",
+     "FULL STRIN", "SYN-ORCH", "BRASS 1", "BRASS 6 BC", "BR TRUMPET"}};
 static const char *const DIV_NAME[DIV_N] = {"1/32", "1/16T", "1/16", "1/8T", "1/8", "1/4T", "1/4", "1/2", "1/1"};
 static const char *const GATE_NAME[6] = {"1/8", "1/4", "1/2", "1", "2", "4"};   /* FLEET's GATE, in steps */
 static const char *const FTYPE_NAME[3] = {"LP", "HP", "BP"};
@@ -148,7 +169,7 @@ typedef struct {
                                                                                    state, 1 GRID .. 4 ARM (0 none or ARM's blink off); bnum: NOTES' step */   /* pat: P1..P8 asked; playing: the one playing when it differs, else 0;
                                                                                    pad: a KIT's in EDIT 1..16, else 0;
                                                                                    ltrig: LFO's FREE 1 / TRIG 2, else 0; itype: the insert's, in the page name */
-    struct { int8_t pid; uint8_t col, hide, itype; int16_t v[4]; } foot;           /* col: the knobs shown in colour, the rest in grey (a lock page);
+    struct { int8_t pid; uint8_t col, hide, itype, model; int16_t v[4]; } foot;           /* col: the knobs shown in colour, the rest in grey (a lock page);
                                                        itype: the INSERT page's insert, else 0 */
     struct {
         int8_t pid, spage, cursor, pos, len, path, held, attr, showpath, xlen, ylen, src;   /* a generator: pos its rank, len its loop */
@@ -2089,8 +2110,21 @@ static void life_run(const q_pattern *t, q_life_run *out)
     gen_life_seed(out, t->life.seed, t->life.dens);
 }
 
-static void knob_text(int pid, int k, int v, char *b)
+static void knob_text(int pid, int k, int v, int model, char *b)
 {
+    float start, width;
+    int n = knob_zone(model, pid, k, &start, &width);
+    if (n) {                                            /* a knob that picks: its choice's name */
+        int c = knob_choice(v, start, width, n);
+        const char *s = model == 15 ? WORDS_NAME[c] : model <= 4 ? HEX_NAME[model - 2][c] : k ? ARP_NAME[c] : CHORD_NAME[c];
+        if (model == 15 && v < start) {                 /* ORATOR's blend: its synths at the poles, the value between */
+            if (v % 21)
+                return int_text(v, b);
+            s = v == 0 ? "FORMANT" : v == 21 ? "SAM" : "LPC";
+        }
+        while ((*b++ = *s++) != 0) {}
+        return;
+    }
     if (pid >= P_SN1 && pid <= P_SN3) {                 /* as a held step's panel shows it: a step with v in every field */
         int a = SN_ATTR[pid - P_SN1][k];
         q_step st = {{(uint8_t)v}, (uint8_t)v, (uint8_t)v, (uint8_t)v, (uint8_t)cond_value(v),
@@ -2320,6 +2354,7 @@ static void view_now(q_view *v)
     if (ui.domain == D_EDIT && kit())
         v->head.pad = (int8_t)(ui.pad + 1);
     v->foot.pid = (int8_t)fpid;
+    v->foot.model = ui.p->sound[ui.track].model;
     v->scene.pid = (int8_t)pid;
     if (pid == P_LFO)
         v->head.ltrig = (int8_t)(ui.p->sound[ui.track].ltrig + 1);
@@ -2842,7 +2877,7 @@ static void draw_foot(const q_view *v)
         if (!lb || v->foot.hide >> k & 1u)
             continue;
         cv_text(x, 5, &FONT_XS, lb, c);
-        knob_text(v->foot.pid, k, v->foot.v[k], t);
+        knob_text(v->foot.pid, k, v->foot.v[k], v->foot.model, t);
         if (text_w(&FONT_B, t) <= 54)
             cv_text(x, 20, &FONT_B, t, c);
         else                            /* a long name keeps to its column */

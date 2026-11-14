@@ -10,6 +10,8 @@ spin K1 1
 expect harm 74
 spin K1 -20
 expect harm 6
+wait 100
+shot es-chord.png
 spin K1 1
 expect harm 17
 spin K1 1
@@ -23,6 +25,8 @@ spin K2 -20
 expect timb 5
 spin K2 1
 expect timb 16
+wait 100
+shot es-arp.png
 spin K2 20
 expect timb 122
 # ORATOR (15): HARM plain over the blend of its synths (0-42), then the 6 word banks
@@ -32,12 +36,16 @@ spin K1 -1
 expect harm 100
 spin K1 -5
 expect harm 42
+wait 100
+shot es-lpc.png
 spin K1 -1
 expect harm 41
 spin K1 1
 expect harm 42
 spin K1 1
 expect harm 49
+wait 100
+shot es-phonemes.png
 spin K1 -1
 expect harm 42
 spin K1 3
@@ -57,6 +65,8 @@ spin K1 -40
 expect harm 2
 spin K1 1
 expect harm 6
+wait 100
+shot es-hex.png
 spin K1 40
 expect harm 123
 # CREST (8): a plain knob
@@ -76,6 +86,8 @@ tap REC
 key 0 down
 spin K1 1
 expect lockharm_1 17
+wait 100
+shot es-lock.png
 spin K1 1
 expect lockharm_1 28
 key 0 up

@@ -232,8 +232,8 @@ browses the models from any EDIT page.
 
 - **HARM, TIMB, MORPH** do something different on each model: the table below says what.
 - Where HARM picks one of a few choices (a preset on HEX A–C, a chord on CHORALE, ENSEMBLE and ARCADE, a word bank on
-  ORATOR past its blend of synths, from 43), each detent moves to the next choice; so does TIMB on ARCADE (its
-  arpeggio).
+  ORATOR past its blend of synths, from 43), each detent moves to the next choice and the footer shows its name; so
+  does TIMB on ARCADE (its arpeggio).
 - **DECAY** sets how long a note rings after its gate closes, and the length of the model's own envelope on the models
   that have one (HEX A–C, WIRE, CHLADNI and the drums).
 - **TUNE** transposes the track. **GLIDE** slides from one note to the next; 0 is off.
@@ -258,17 +258,17 @@ drums play at about the same loudness: QUARTZ evens out Plaits' own levels, whic
 |  | KINK | Phase distortion | Distortion frequency | Amount | Asymmetry | Phase distortion (1.2) |
 |  | PRISM | A triangle shaped and folded | Waveshape | Fold | Asymmetry | Waveshaper |
 | FM | MOON | Two sine operators | Ratio | Modulation index | Feedback | 2-operator FM |
-|  | HEX A | 6-operator FM, basses and synths | Preset, 1 of 32 | Modulator levels | Envelope stretch | 6-op FM, bank 1 (1.2) |
-|  | HEX B | 6-operator FM, keys, plucks, percussion | Preset | Modulator levels | Envelope stretch | 6-op FM, bank 2 (1.2) |
-|  | HEX C | 6-operator FM, organs, pads, strings, brass | Preset | Modulator levels | Envelope stretch | 6-op FM, bank 3 (1.2) |
+|  | HEX A | 6-operator FM, basses and synths | Preset, 1 of 32, by name | Modulator levels | Envelope stretch | 6-op FM, bank 1 (1.2) |
+|  | HEX B | 6-operator FM, keys, plucks, percussion | Preset, by name | Modulator levels | Envelope stretch | 6-op FM, bank 2 (1.2) |
+|  | HEX C | 6-operator FM, organs, pads, strings, brass | Preset, by name | Modulator levels | Envelope stretch | 6-op FM, bank 3 (1.2) |
 | Tables | PIPE | Wavetables, 4 banks of 8 x 8 | Bank | Row | Column | Wavetable |
 |  | BOWL | A path read on a 2D terrain | Terrain | Path radius | Path offset | Wave terrain (1.2) |
 | Spectral | FACETS | Harmonics added up | Spectral bumps | Main harmonic | Bump shape | Additive |
 |  | POLLEN | Formants from sine segments | Formant ratio | Formant frequency | Width and shape | Granular formant |
-| Chords | CHORALE | Four-note chords | Chord | Inversion | Waveform | Chords |
-|  | ENSEMBLE | String machine with filter and chorus | Chord | Chorus and filter | Waveform | String machine (1.2) |
-|  | ARCADE | Square-wave chords and arpeggios | Chord | Arpeggio or inversion | Pulse width, sync | Chiptune (1.2) |
-| Voice | ORATOR | Vowels and words | Vowels, then word banks | Voice size | Phoneme or word | Speech |
+| Chords | CHORALE | Four-note chords | Chord, 1 of 11: OCTAVE, FIFTH, SUS4, m, m7, m9, m11, 6/9, M9, M7, M | Inversion | Waveform | Chords |
+|  | ENSEMBLE | String machine with filter and chorus | Chord, as CHORALE | Chorus and filter | Waveform | String machine (1.2) |
+|  | ARCADE | Square-wave chords and arpeggios | Chord, as CHORALE | Arpeggio: UP, DOWN, UP-DN or RAND over 1, 2 or 4 octaves | Pulse width, sync | Chiptune (1.2) |
+| Voice | ORATOR | Vowels and words | FORMANT, SAM and LPC blended (0–42), then PHONEMES, WORDS 1–5 | Voice size | Phoneme or word | Speech |
 | Noise | CROWD | Eight sawtooths in a swarm | Pitch spread | Density | Grain duration | Swarm |
 |  | STATIC | Clocked noise through a filter | Low-pass to high-pass | Clock | Resonance | Filtered noise |
 |  | GLITTER | Dust through resonators | Frequency spread | Density | Filter type | Particle noise |
@@ -302,6 +302,8 @@ The scenes, by family:
 ![CHLADNI: a faceted figure in green and blue](img/sound-chladni.png "CHLADNI")
 
 ![ORATOR: a low-poly head](img/sound-orator.png "ORATOR")
+
+![CHORALE: a choir of androids; HARM shows the chord m9](img/sound-chorale.png "CHORALE")
 
 ![BOWL: a rider in a wire bowl](img/sound-bowl.png "BOWL")
 

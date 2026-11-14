@@ -60,9 +60,9 @@ La règle vaut pour `knob_turn` (le potard) et pour `lock_turn` (un pas tenu, le
 
 Le pied de page (`knob_text`) affiche, pour la page ENGINE et le modèle de la piste :
 
-- accords : `OCTAVE`, `FIFTH`, `SUS4`, `M`, `M7`, `M9`, `M11`, `6/9`, `MAJ9`, `MAJ7`, `MAJ` (l'ordre de
-  `chord_bank.cc`, en capitales : `M` mineur, `MAJ` majeur ; `OCTAVE`, `FIFTH`, `6/9` plutôt que `OCT`, `5`, `69`, que
-  `words.tsv` lit déjà autrement ou qui seraient lus ainsi partout) ;
+- accords : `OCTAVE`, `FIFTH`, `SUS4`, `m`, `m7`, `m9`, `m11`, `6/9`, `M9`, `M7`, `M` (l'ordre de `chord_bank.cc` ;
+  `m` mineur, `M` majeur, comme les scènes CHORALE et ARCADE les écrivent au-dessus du pied de page ; `OCTAVE`,
+  `FIFTH`, `6/9` plutôt que `OCT`, `5`, `69`, que `words.tsv` lit déjà autrement ou qui seraient lus ainsi partout) ;
 - arpèges ARCADE : motif `p`, sens `p / 3` (`UP`, `DOWN`, `UP-DN`, `RAND`) et étendue `1 << p % 3` octaves :
   `UP 1`, `UP 2`, `UP 4`, `DOWN 1` … `RAND 4` ;
 - ORATOR : `FORMANT` à 0, `SAM` à 21, `LPC` à 42, la valeur entre deux ; puis `PHONEMES`, `WORDS 1` … `WORDS 5` ;

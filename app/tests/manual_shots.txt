@@ -92,7 +92,14 @@ key w7 down
 wait 700
 shot sound-orator.png
 key w7 up
-spin PRESET -6
+spin PRESET -3
+expect model 14
+expect harm 64
+key w7 down
+wait 700
+shot sound-chorale.png
+key w7 up
+spin PRESET -3
 expect model 5
 key w7 down
 wait 700
