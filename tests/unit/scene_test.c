@@ -879,6 +879,15 @@ static void choir_tests(void)
     assert(cr.n == 2);
     sframe(14, -1, 0, 127, 64, 64, 0, 0, 0, 720000);     /* OCT, three inversions: both at 24 */
     assert(cr.n == 2 && cr.h[0] == cr.h[1]);
+    /* the chord Plaits plays (harm * 1.02 in 11 zones), as the footer names it: 103 is M7, 115 M */
+    sframe(14, -1, 103, 0, 64, 64, 0, 0, 0, 720000);
+    assert(cr.chord == 9);
+    sframe(14, -1, 115, 0, 64, 64, 0, 0, 0, 720000);
+    assert(cr.chord == 10);
+    sframe(7, -1, 115, 0, 64, 64, 0, 0, 0, 720000);
+    assert(ch.chord == 10);
+    sframe(7, -1, 127, 0, 64, 64, 0, 0, 0, 720000);
+    assert(ch.chord == 10);
     /* a note during the conductor's beat: his hand goes on, no jump */
     scene_enter();
     sframe(14, -1, 64, 64, 64, 64, 0, 0, 0, 730000);

@@ -113,18 +113,18 @@ static const char *const ARP_NAME[12] = {"UP 1", "UP 2", "UP 4", "DOWN 1", "DOWN
 static const char *const WORDS_NAME[6] = {"PHONEMES", "WORDS 1", "WORDS 2", "WORDS 3", "WORDS 4", "WORDS 5"};
 /* HEX A-C's presets: the DX7 banks' names (syx_bank_0..2), cleaned; the brands and artists renamed */
 static const char *const HEX_NAME[3][32] = {
-    {"SOLID BASS", "DEEP LOW", "LEADERTAPE", "ACID LINE", "BASS 3", "BILL BASS", "BASS 1", "ELEC BASS", "S.BAS 27.7",
-     "RESONANCES", "SYN-BASS 2", "PRC SYNTH1", "PRISMA 2", "ANALOG 4", "ANALOG A", "ANALOG 6", "BIG POLY", "INSERT 1",
-     "SPIRAL", "TROTTER", "GASHAUS", "RING DING", "PAPAGAYO", "WINEGLASS", "AMYTAL", "VINTAGE 1", "WAVE VOL 1",
-     "WAVE VOL 2", "VINTAGE 3", "VOCODER 2", "SEQUENCE", "BOUNCE 4"},
-    {"E.PIANO 1", "TINES 1", "WINTER EP", "RS-EP C", "EP DELUXE", "CLAV-E.PNO", "SYN-CLAV", "CLAV", "PIANO 5",
-     "GRD PIANO1", "CONCERT", "GUIT ACOUS", "SITAR", "KOTO", "HARPSICH 1", "CLAV 3", "XYLOPHONE", "MARIMBA", "VIBE 1",
-     "GLOKENSPL", "BELL C", "BELLS", "TUB BELLS", "GONG 2", "KETTLE 6", "MID DRM 3", "ORI DRUM 1", "WOOD 6",
-     "LATN DRM 4", "CIMBAL", "SYNDM 25.8", "B.DRM-SNAR"},
-    {"CLICK 124", "TONEWHEEL", "E.ORGAN 3", "60-S ORGAN", "OPTIC 28", "PIPES 1", "PIPES 3", "PIPES 2", "POLY 33",
-     "SOUNDTRACK", "ICE PAD 2", "WAVE PADS", "CLASSIC 2", "SOFT TOUCH", "PLANETS", "CIRRUS", "ENTRIX", "MAL POLY",
-     "TEXTURES 6", "ETHEREAL 5", "AIRY", "BORON A", "CINEMA 1", "STRINGS C", "STRINGS 3", "STRINGS 2", "STRINGS 7",
-     "FULL STRIN", "SYN-ORCH", "BRASS 1", "BRASS 6 BC", "BR TRUMPET"}};
+    {"SOLID BAS", "DEEP LOW", "LEADTAPE", "ACID LINE", "BASS 3", "BILL BASS", "BASS 1", "ELEC BASS", "S.BAS 27.7",
+     "RESONANT", "SYNBASS 2", "PRC SYN 1", "PRISMA 2", "ANALOG 4", "ANALOG A", "ANALOG 6", "BIG POLY", "INSERT 1",
+     "SPIRAL", "TROTTER", "GASHAUS", "RING DING", "PAPAGAYO", "WINE GLAS", "AMYTAL", "VINTAGE 1", "WAVE V1",
+     "WAVE V2", "VINTAGE 3", "VOCODER 2", "SEQUENCE", "BOUNCE 4"},
+    {"E.PIANO 1", "TINES 1", "WINTER EP", "RS-EP C", "EP DELUXE", "CLAV EP", "SYN-CLAV", "CLAV", "PIANO 5",
+     "GRAND 1", "CONCERT", "AC GUITAR", "SITAR", "KOTO", "HARPSI 1", "CLAV 3", "XYLO", "MARIMBA", "VIBE 1",
+     "GLOCKEN", "BELL C", "BELLS", "TUB BELLS", "GONG 2", "KETTLE 6", "MID DRM 3", "ORI DRUM 1", "WOOD 6",
+     "LATIN 4", "CIMBAL", "SYN DM 25", "BD-SNARE"},
+    {"CLICK 124", "DRAWBAR", "E.ORGAN 3", "60S ORG", "OPTIC 28", "PIPES 1", "PIPES 3", "PIPES 2", "POLY 33",
+     "SCORE", "ICE PAD 2", "WAVE PAD", "CLASSIC 2", "SOFT TCH", "PLANETS", "CIRRUS", "ENTRIX", "MAL POLY",
+     "TEXTURE 6", "ETHER 5", "AIRY", "BORON A", "CINEMA 1", "STRINGS C", "STRINGS 3", "STRINGS 2", "STRINGS 7",
+     "FULL STR", "SYN-ORCH", "BRASS 1", "BRASS 6 BC", "TRUMPET"}};
 static const char *const DIV_NAME[DIV_N] = {"1/32", "1/16T", "1/16", "1/8T", "1/8", "1/4T", "1/4", "1/2", "1/1"};
 static const char *const GATE_NAME[6] = {"1/8", "1/4", "1/2", "1", "2", "4"};   /* FLEET's GATE, in steps */
 static const char *const FTYPE_NAME[3] = {"LP", "HP", "BP"};
@@ -686,6 +686,8 @@ static int knob_step(int model, int pid, int k, int v, int d)
     else if ((c = knob_choice(v, start, width, n) + d) < 0 && start > 0.f)
         return (int)start + c + 1;              /* down out of the banks: 42 (LPC), then the detents left */
     c = c < 0 ? 0 : c > n - 1 ? n - 1 : c;
+    if (v >= start && c == knob_choice(v, start, width, n))   /* past an end: the value stays (127 does not drop) */
+        return v;
     return (int)__builtin_roundf(start + (c + 0.5f) * width);
 }
 
@@ -3443,6 +3445,14 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "tune")) *got = s->tune;
     else if (!strcmp(what, "harm")) *got = s->harm;
     else if (!strcmp(what, "timb")) *got = s->timb;
+    else if (!strcmp(what, "names_wide")) {    /* the ENGINE choices' names wider than a footer column, at its least font */
+        int i;
+        for (*got = 0, i = 0; i < 96; i++)
+            *got += text_w(&FONT_XS, HEX_NAME[i / 32][i % 32]) > 54;
+        for (i = 0; i < 12; i++)
+            *got += text_w(&FONT_XS, ARP_NAME[i]) > 54 || (i < 11 && text_w(&FONT_XS, CHORD_NAME[i]) > 54) ||
+                    (i < 6 && text_w(&FONT_XS, WORDS_NAME[i]) > 54);
+    }
     else if (!strcmp(what, "atk")) *got = s->atk;
     else if (!strcmp(what, "dec")) *got = s->dec;
     else if (!strcmp(what, "sus")) *got = s->sus;

@@ -50,6 +50,7 @@ Le cran d'une valeur `v` : `floor((v - start) / width)`, borné à 0..n-1.
 Tourner de `d` crans :
 - dans une zone à crans, la valeur va au milieu du cran `k + d`, borné à 0..n-1 ; une valeur qui n'est pas un milieu
   (un projet fait avant) part de son cran ;
+- au-delà d'un bout (le cran borné est déjà celui de la valeur), la valeur ne bouge pas : 127 sur HEX reste 127 ;
 - ORATOR HARM, de 0 à 42 : `v + d`, comme aujourd'hui ; au-delà de 42, la valeur va au milieu du premier cran (49) ;
   depuis le premier cran, un cran vers le bas ramène à 42 ;
 - les autres potards ne changent pas.
@@ -94,6 +95,12 @@ sont renommés :
 | C | CARLOS 2 | CLASSIC 2 |
 | C | VANGELIS 1 | CINEMA 1 |
 | C | Etherial5a | ETHEREAL 5 |
+
+Un nom plus large qu'une colonne du pied de page (54 px, même en `FONT_XS`) est raccourci : SOLID BAS, LEADTAPE,
+RESONANT, SYNBASS 2, PRC SYN 1, WINE GLAS, WAVE V1, WAVE V2 ; CLAV EP, GRAND 1, AC GUITAR, HARPSI 1, XYLO, GLOCKEN,
+LATIN 4, SYN DM 25, BD-SNARE ; DRAWBAR, 60S ORG, SCORE, WAVE PAD, SOFT TCH, TEXTURE 6, ETHER 5, FULL STR, TRUMPET.
+
+Les scènes CHORALE/ENSEMBLE et ARCADE prennent l'accord comme Plaits et le pied de page (`harm * 1.02` en 11 zones).
 
 L'instantané du pied de page (`q_view.foot`) porte le modèle de la piste, pour que `knob_text` choisisse le nom. Un nom
 trop large pour sa colonne passe déjà en police plus petite (`draw_foot`). La barre sous la valeur suit toujours `v`.

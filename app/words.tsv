@@ -219,18 +219,18 @@ WORDS 2	words 2
 WORDS 3	words 3
 WORDS 4	words 4
 WORDS 5	words 5
-SOLID BASS	solid bass
+SOLID BAS	solid bass
 DEEP LOW	deep low
-LEADERTAPE	leader tape
+LEADTAPE	lead tape
 ACID LINE	acid line
 BASS 3	bass 3
 BILL BASS	bill bass
 BASS 1	bass 1
 ELEC BASS	electric bass
 S.BAS 27.7	synth bass 27.7
-RESONANCES	resonances
-SYN-BASS 2	synth bass 2
-PRC SYNTH1	percussive synth 1
+RESONANT	resonant
+SYNBASS 2	synth bass 2
+PRC SYN 1	percussive synth 1
 PRISMA 2	prisma 2
 ANALOG 4	analog 4
 ANALOG A	analog A
@@ -241,11 +241,11 @@ TROTTER	trotter
 GASHAUS	gashaus
 RING DING	ring ding
 PAPAGAYO	papagayo
-WINEGLASS	wineglass
+WINE GLAS	wineglass
 AMYTAL	amytal
 VINTAGE 1	vintage 1
-WAVE VOL 1	wave volume 1
-WAVE VOL 2	wave volume 2
+WAVE V1	wave volume 1
+WAVE V2	wave volume 2
 VINTAGE 3	vintage 3
 VOCODER 2	vocoder 2
 SEQUENCE	sequence
@@ -255,21 +255,21 @@ TINES 1	tines 1
 WINTER EP	winter electric piano
 RS-EP C	R S electric piano C
 EP DELUXE	electric piano deluxe
-CLAV-E.PNO	clav electric piano
+CLAV EP	clav electric piano
 SYN-CLAV	synth clav
 CLAV	clav
 PIANO 5	piano 5
-GRD PIANO1	grand piano 1
+GRAND 1	grand piano 1
 CONCERT	concert
-GUIT ACOUS	acoustic guitar
+AC GUITAR	acoustic guitar
 SITAR	sitar
 KOTO	koto
-HARPSICH 1	harpsichord 1
+HARPSI 1	harpsichord 1
 CLAV 3	clav 3
-XYLOPHONE	xylophone
+XYLO	xylophone
 MARIMBA	marimba
 VIBE 1	vibes 1
-GLOKENSPL	glockenspiel
+GLOCKEN	glockenspiel
 BELL C	bell C
 BELLS	bells
 TUB BELLS	tubular bells
@@ -278,30 +278,30 @@ KETTLE 6	kettle drum 6
 MID DRM 3	mid drum 3
 ORI DRUM 1	oriental drum 1
 WOOD 6	wood 6
-LATN DRM 4	latin drum 4
+LATIN 4	latin drum 4
 CIMBAL	cimbalom
-SYNDM 25.8	synth drum 25.8
-B.DRM-SNAR	bass drum snare
+SYN DM 25	synth drum 25
+BD-SNARE	bass drum snare
 CLICK 124	click 124
-TONEWHEEL	tonewheel
+DRAWBAR	drawbar
 E.ORGAN 3	electric organ 3
-60-S ORGAN	sixties organ
+60S ORG	sixties organ
 OPTIC 28	optic 28
 PIPES 1	pipes 1
 PIPES 3	pipes 3
 PIPES 2	pipes 2
 POLY 33	poly 33
-SOUNDTRACK	soundtrack
+SCORE	score
 ICE PAD 2	ice pad 2
-WAVE PADS	wave pads
+WAVE PAD	wave pad
 CLASSIC 2	classic 2
-SOFT TOUCH	soft touch
+SOFT TCH	soft touch
 PLANETS	planets
 CIRRUS	cirrus
 ENTRIX	entrix
 MAL POLY	mal poly
-TEXTURES 6	textures 6
-ETHEREAL 5	ethereal 5
+TEXTURE 6	texture 6
+ETHER 5	ether 5
 AIRY	airy
 BORON A	boron A
 CINEMA 1	cinema 1
@@ -309,11 +309,11 @@ STRINGS C	strings C
 STRINGS 3	strings 3
 STRINGS 2	strings 2
 STRINGS 7	strings 7
-FULL STRIN	full strings
+FULL STR	full strings
 SYN-ORCH	synth orchestra
 BRASS 1	brass 1
 BRASS 6 BC	brass 6 B C
-BR TRUMPET	brass trumpet
+TRUMPET	trumpet
 PAD	pad
 LEVEL	level
 CHAR	character

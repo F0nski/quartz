@@ -76,11 +76,30 @@ spin K1 -1
 expect harm 122
 spin K1 1
 expect harm 123
+# past the ends a detent leaves the value: 127 stays on HEX A, 0 on CHORALE
+spin K1 4
+expect harm 127
+spin PRESET 5
+expect model 2
+spin K1 1
+expect harm 127
+spin K1 -1
+expect harm 119
+spin PRESET -5
+expect model 8
+spin K1 -127
+expect harm 0
+spin PRESET 12
+expect model 14
+spin K1 -1
+expect harm 0
+spin PRESET -12
+expect model 8
 # a held step's p-lock on CHORALE moves one chord too
 spin PRESET 12
 expect model 14
 spin K1 -20
-expect harm 6
+expect harm 0
 tap SEQ
 tap REC
 key 0 down
@@ -91,3 +110,4 @@ shot es-lock.png
 spin K1 1
 expect lockharm_1 28
 key 0 up
+expect names_wide 0

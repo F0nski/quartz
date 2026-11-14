@@ -58,7 +58,9 @@ void choir_frame(const q_sview *v, uint32_t ms)
     cr.since = (float)(ms - sc.hit_ms[0]) * 0.001f;
     float heat = cr.since < 3.0f ? fm_expf(-cr.since / (0.05f + 0.4f * k[3])) : 0.0f;
     cr.hot = heat > 0.4f;
-    cr.chord = v->k[0] * 11 / 128;
+    cr.chord = v->k[0] * 1122 / 12700;     /* Plaits' chord: harm * 1.02 in 11 zones (chord_bank.h), as the footer */
+    if (cr.chord > 10)
+        cr.chord = 10;
     int inv = v->k[1] * 4 / 128;
     cr.n = CR_CHORD[cr.chord][2] < 0 ? 2 : CR_CHORD[cr.chord][3] < 0 ? 3 : 4;
     for (int i = 0; i < cr.n; i++)

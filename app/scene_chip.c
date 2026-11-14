@@ -61,7 +61,9 @@ void chip_frame(const q_sview *v, uint32_t ms)
     float t = (float)(ms % 3600000u) * 0.001f, z;
     p3_cam cam = {0.08f * fm_sinf(0.3f * t), 0.2f, 3.4f, 1.6f, 210.0f, 96.0f};
     ch.t = t;
-    ch.chord = v->k[0] * 11 / 128;
+    ch.chord = v->k[0] * 1122 / 12700;     /* Plaits' chord: harm * 1.02 in 11 zones (chord_bank.h), as the footer */
+    if (ch.chord > 10)
+        ch.chord = 10;
     ch.mode = v->k[1] * 4 / 128;
     ch.n = CH_CHORD[ch.chord][2] < 0 ? 2 : CH_CHORD[ch.chord][3] < 0 ? 3 : 4;
     float W = 0.1f + 0.3f * (1.0f - (float)v->k[2] / 127.0f);
