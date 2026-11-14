@@ -134,7 +134,10 @@ void QVoice::SetEngine(int model) {
   engine_->LoadUserData(
       model >= 2 && model <= 4 ? fm_patches_table[model - 2] : NULL);
   engine_->Reset();
-  out_post_processor_.Reset();
+  // The LPG too: its envelope, gain and filter held the old sound.
+  lpg_envelope_.Init();
+  out_post_processor_.Init();
+  aux_post_processor_.Init();
 }
 
 void QVoice::Render(

@@ -83,6 +83,20 @@ static void engine_switch_while_sounding(void)
     assert(peak > 0.01f);       // still sounding: the switch keeps the envelope and the gate
 }
 
+// A switch builds the voice anew: nothing of the sound before comes out, not even the frames it had computed ahead
+static void engine_switch_drops_old_sound(void)
+{
+    reset();
+    pq_set_engine(0, 8);
+    pq_set_patch(0, 0.5f, 0.5f, 0.5f, 1.0f, 0.0f);
+    note_on(0, 48.0f, 1.0f);
+    assert(render(0, 4001) > 0.1f);     // 4001: part way through a Plaits block
+    note_off(0);
+    mod_slot_reset(0);                  // as audio.c before another note on the slot
+    pq_set_engine(0, 8);
+    assert(render(0, 24) < 0.001f);
+}
+
 // Crossings per second over the next seconds of voice v.
 static float frequency(int v, float seconds)
 {
@@ -370,6 +384,7 @@ int main(void)
 {
     pitch_is_right();
     all_models_sound();
+    engine_switch_drops_old_sound();
     engine_switch_while_sounding();
     glide_slides_between_notes();
     glide_to_keeps_envelope();

@@ -401,12 +401,14 @@ static void fade_out(int v, float step)
     fstep[v] = step;
 }
 
-/* The slot the note-on would take sounds for another track or origin, or fades: the note waits for it to have
- * faded out (a cut is a click). Starts that fade */
+/* The slot the note-on would take sounds for another track, origin or engine (a KIT's), or fades: the note waits
+ * for it to have faded out (a cut is a click). Starts that fade */
 static int steals(int track, int note, int step)
 {
-    int v = voices_pick(&pool, track, note_poly(track, rmodel[track]), note_model(track, note), wanted(), live(track, step));
-    if (!sounding(v) || (!fading[v] && pool.v[v].track == track && pool.v[v].live == live(track, step)))
+    int m = note_model(track, note);
+    int v = voices_pick(&pool, track, note_poly(track, rmodel[track]), m, wanted(), live(track, step));
+    if (!sounding(v) || (!fading[v] && pool.v[v].track == track && pool.v[v].live == live(track, step) &&
+                         pool.v[v].model == m))
         return 0;
     if (!fading[v])
         fade_out(v, 1.0f / STEAL_FADE);
@@ -916,6 +918,8 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
     }
     for (int v = 0; v < Q_VOICES; v++)
         if ((fading[v] && fade[v] == 0) || (pool.v[v].state == V_RELEASED && pq_silent(v))) {
+            if (fading[v])
+                pool.v[v].model = -1;   /* its engine still holds the sound cut: built anew before a note */
             voices_free(&pool, v);
             fading[v] = 0;
         }
