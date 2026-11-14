@@ -627,6 +627,47 @@ static void knob_set(int pid, int k, int v)
     ui.dirty = 1;
 }
 
+/* the ENGINE knobs that pick (a preset, a chord, an arpeggio, a word bank): n choices from start, width wide each, as
+   Plaits' quantizers cut them (six_op_engine.cc, chord_bank.cc, chiptune_engine.cc, speech_engine.cc); 0 a plain knob */
+static int knob_zone(int model, int pid, int k, float *start, float *width)
+{
+    *start = 0.f;
+    if (pid != P_ENGINE)
+        return 0;
+    if (!k && model >= 2 && model <= 4)                         /* HEX A-C: 32 presets */
+        return *width = 127.f / 32.f / 1.02f, 32;
+    if (!k && (model == 6 || model == 7 || model == 14))       /* ENSEMBLE, ARCADE, CHORALE: 11 chords */
+        return *width = 127.f / 11.f / 1.02f, 11;
+    if (k == 1 && model == 7)                                  /* ARCADE: 12 arpeggios */
+        return *width = 127.f / 12.f, 12;
+    if (!k && model == 15) {                                   /* ORATOR: the synths' blend up to 42, then 6 banks */
+        *start = 127.f / 3.f;
+        return *width = 127.f / 6.f / 1.65f, 6;
+    }
+    return 0;
+}
+
+static int knob_choice(int v, float start, float width, int n)
+{
+    int c = (int)__builtin_floorf((v - start) / width);
+    return c < 0 ? 0 : c > n - 1 ? n - 1 : c;
+}
+
+/* v turned d detents: one choice a detent on a knob that picks, at its zone's middle; v + d on a plain one */
+static int knob_step(int model, int pid, int k, int v, int d)
+{
+    float start, width;
+    int n = knob_zone(model, pid, k, &start, &width), c;
+    if (!n || (start > 0.f && v < start && v + d < start))   /* ORATOR's blend of synths stays plain */
+        return v + d;
+    if (start > 0.f && v < start)               /* up out of the blend: the detents left past 42 from the first bank */
+        c = d - ((int)start - v) - 1;
+    else if ((c = knob_choice(v, start, width, n) + d) < 0 && start > 0.f)
+        return (int)start + c + 1;              /* down out of the banks: 42 (LPC), then the detents left */
+    c = c < 0 ? 0 : c > n - 1 ? n - 1 : c;
+    return (int)__builtin_roundf(start + (c + 0.5f) * width);
+}
+
 static void knob_turn(int pid, int k, int d)
 {
     const q_page *pg = &PAGE[pid];
@@ -635,7 +676,8 @@ static void knob_turn(int pid, int k, int d)
         return;
     if (pid == P_SONG && k < 3 && !ui.entry)    /* no entries: nothing to edit */
         return;
-    v = clamp(knob_get(pid, k) + d, pg->min[k], pid == P_SONG && !k ? ui.p->nsong : pg->max[k]);
+    v = clamp(knob_step(ui.p->sound[ui.track].model, pid, k, knob_get(pid, k), d), pg->min[k],
+              pid == P_SONG && !k ? ui.p->nsong : pg->max[k]);
     if (v != knob_get(pid, k))
         knob_set(pid, k, v);
 }
@@ -874,7 +916,8 @@ static void lock_turn(int step, int k, int d)
     int pid = lock_pid(), param = lock_param(k), locked, v;
     if (!d || param < 0 || knob_hidden(pid, k))
         return;
-    v = clamp(lock_value(t, step, k, &locked) + d, PAGE[pid].min[k], PAGE[pid].max[k]);
+    v = clamp(knob_step(ui.p->sound[ui.track].model, pid, k, lock_value(t, step, k, &locked), d), PAGE[pid].min[k],
+              PAGE[pid].max[k]);
     ui.edited = 1;                      /* a knob turned on a held step is an edit, the lock fitting or not */
     if (lock_set(t, step, param, v)) {
         ui.locks_until = plat_ms() + MSG_MS;
@@ -3364,6 +3407,7 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "poly")) *got = s->poly;
     else if (!strcmp(what, "tune")) *got = s->tune;
     else if (!strcmp(what, "harm")) *got = s->harm;
+    else if (!strcmp(what, "timb")) *got = s->timb;
     else if (!strcmp(what, "atk")) *got = s->atk;
     else if (!strcmp(what, "dec")) *got = s->dec;
     else if (!strcmp(what, "sus")) *got = s->sus;

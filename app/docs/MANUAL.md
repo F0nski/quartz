@@ -231,6 +231,9 @@ browses the models from any EDIT page.
 | SOUND | MODEL, by name, by family | TUNE, −24 to +24 semitones | GLIDE, 0–127 | POLY, 1–4 voices |
 
 - **HARM, TIMB, MORPH** do something different on each model: the table below says what.
+- Where HARM picks one of a few choices (a preset on HEX A–C, a chord on CHORALE, ENSEMBLE and ARCADE, a word bank on
+  ORATOR past its blend of synths, from 43), each detent moves to the next choice; so does TIMB on ARCADE (its
+  arpeggio).
 - **DECAY** sets how long a note rings after its gate closes, and the length of the model's own envelope on the models
   that have one (HEX A–C, WIRE, CHLADNI and the drums).
 - **TUNE** transposes the track. **GLIDE** slides from one note to the next; 0 is off.

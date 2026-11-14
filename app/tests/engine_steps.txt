@@ -1,0 +1,81 @@
+# ENGINE's knobs that pick (ui.c knob_zone): one choice a detent, at the middle of the zone Plaits plays it in
+wait 600
+tap EDIT
+expect page 1
+# CHORALE (14): HARM through the 11 chords
+spin PRESET 12
+expect model 14
+expect harm 64
+spin K1 1
+expect harm 74
+spin K1 -20
+expect harm 6
+spin K1 1
+expect harm 17
+spin K1 1
+expect harm 28
+spin K1 20
+expect harm 119
+# ARCADE (7): TIMB through the 12 arpeggios
+spin PRESET 2
+expect model 7
+spin K2 -20
+expect timb 5
+spin K2 1
+expect timb 16
+spin K2 20
+expect timb 122
+# ORATOR (15): HARM plain over the blend of its synths (0-42), then the 6 word banks
+spin PRESET 1
+expect model 15
+spin K1 -1
+expect harm 100
+spin K1 -5
+expect harm 42
+spin K1 -1
+expect harm 41
+spin K1 1
+expect harm 42
+spin K1 1
+expect harm 49
+spin K1 -1
+expect harm 42
+spin K1 3
+expect harm 74
+spin K1 -4
+expect harm 41
+spin K1 2
+expect harm 49
+spin K1 -1
+expect harm 42
+spin K1 20
+expect harm 113
+# HEX A (2): HARM through the 32 presets
+spin PRESET -10
+expect model 2
+spin K1 -40
+expect harm 2
+spin K1 1
+expect harm 6
+spin K1 40
+expect harm 123
+# CREST (8): a plain knob
+spin PRESET -5
+expect model 8
+spin K1 -1
+expect harm 122
+spin K1 1
+expect harm 123
+# a held step's p-lock on CHORALE moves one chord too
+spin PRESET 12
+expect model 14
+spin K1 -20
+expect harm 6
+tap SEQ
+tap REC
+key 0 down
+spin K1 1
+expect lockharm_1 17
+spin K1 1
+expect lockharm_1 28
+key 0 up
