@@ -1,4 +1,4 @@
-# The manual's recipes (docs/manual/sequencer-entry.html), as they read
+# The manual's recipes (app/docs/MANUAL.md, section 8), as they read
 wait 600
 # a kick on the 4 beats: the pad played disarmed, then GRID and short presses on steps 1, 5, 9, 13 (track 1 as a KIT)
 tap EDIT
