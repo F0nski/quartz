@@ -652,6 +652,32 @@ static void mono_model_change_keeps_its_fade(void)
     assert(pool.v[v0].state == V_FREE);
 }
 
+/* a note-on taking another track's sounding voice: that voice fades out from its level, then the note strikes on it */
+static void stolen_voice_fades_first(void)
+{
+    setup();
+    six_notes();                        /* every voice on; track 0's 60 the oldest */
+    block(256);
+    int v0 = -1;
+    for (int v = 0; v < Q_VOICES; v++) if (pool.v[v].track == 0 && pool.v[v].note == 60) v0 = v;
+    assert(v0 >= 0);
+    float full = QBUS[0][255];
+    P.sound[2].poly = 2;
+    audio_live_note(2, 64, 1);
+    NLOG = 0;
+    block(32);                          /* half its fade */
+    assert(count('n', v0) == 0 && pool.v[v0].track == 0);
+    assert(QBUS[0][0] == full && QBUS[0][31] < QBUS[0][0]);
+    float mid = QBUS[0][31];
+    block(32);                          /* the rest: silent, freed */
+    assert(count('n', v0) == 0 && pool.v[v0].state == V_FREE);
+    assert(QBUS[0][0] < mid && QBUS[0][31] < QBUS[0][0]);
+    float end = QBUS[0][31];
+    block(32);
+    assert(count('n', v0) == 1 && pool.v[v0].track == 2);
+    assert(QBUS[0][0] < end);           /* track 0's other note alone */
+}
+
 static int track_slot(int t)
 {
     for (int v = 0; v < Q_VOICES; v++) if (pool.v[v].track == t && pool.v[v].state != V_FREE) return v;
@@ -1870,6 +1896,7 @@ int main(void)
     prep_hand_off();
     full_queue_keeps_the_hand_off();
     mono_model_change_keeps_its_fade();
+    stolen_voice_fades_first();
     lock_reaches_its_voice();
     lock_ends_with_note();
     voice_takes_new_locks();

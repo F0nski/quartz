@@ -17,6 +17,7 @@
 #define EV_ALL (CMD_N + Q_TRACKS * SEQ_QUEUE + EV_MAX + 2 * Q_TRACKS * ARP_OUT)   /* the main loop's keys and the
                                      * stop's note-offs, the sequencer's, each track's arp's (two runs at most) */
 #define LATER_N 16                  /* note-ons waiting for an engine switch: beyond, a note-on is dropped */
+#define STEAL_FADE 64               /* frames: a voice taken from another track fades out over them (1.5 ms) first */
 #define HELD_N 8                    /* live notes held, followed for the overdub */
 #define REC_N 32                    /* recorded notes waiting for the main loop, a power of two */
 #define PREP_WAIT (-2)              /* prep_slot: asked, the render has not answered */
@@ -41,7 +42,8 @@ static q_project *prj;
 static uint8_t rmodel[Q_TRACKS];
 static q_seq seq;
 static q_voices pool;
-static uint8_t fading[Q_VOICES];    /* a model change: faded out over this block, then freed */
+static uint8_t fading[Q_VOICES];    /* a model change, a stolen voice: faded out, then freed at the block's end */
+static float fade[Q_VOICES], fstep[Q_VOICES];   /* its level left, 1 down to 0, and its fall a frame */
 /* one engine switch per block in the render: the note-ons needing another wait here, in order */
 typedef struct { uint8_t track, note, vel, pat, accent; int8_t step; } q_later;   /* step -1: the keyboard's */
 static q_later later[LATER_N];
@@ -375,7 +377,6 @@ static void note_on(int track, int note, int vel, int pat, int step, int accent)
     int fresh = pool.v[pv].state == V_FREE || pool.v[pv].track != track || pool.v[pv].live != live(track, step);
     int v = voices_note_on(&pool, track, note, note_poly(track, rmodel[track]), m, wanted(), live(track, step));
     if (fresh) mod_slot_reset(v);   /* (a retrigger of the track's own voice attacks from its level) */
-    fading[v] = 0;                  /* (a fading slot taken: the new note at full level) */
     if (sw) {
         pq_set_engine(v, m);
         switched = 1;
@@ -392,6 +393,26 @@ static void note_on(int track, int note, int vel, int pat, int step, int accent)
         kit_hits[track][prj->kit[track][vpad[v]].engine]++;
 }
 
+static void fade_out(int v, float step)
+{
+    pool.v[v].state = V_RELEASED;   /* no note-off nor note-on lands on it */
+    fading[v] = 1;
+    fade[v] = 1;
+    fstep[v] = step;
+}
+
+/* The slot the note-on would take sounds for another track or origin, or fades: the note waits for it to have
+ * faded out (a cut is a click). Starts that fade */
+static int steals(int track, int note, int step)
+{
+    int v = voices_pick(&pool, track, note_poly(track, rmodel[track]), note_model(track, note), wanted(), live(track, step));
+    if (!sounding(v) || (!fading[v] && pool.v[v].track == track && pool.v[v].live == live(track, step)))
+        return 0;
+    if (!fading[v])
+        fade_out(v, 1.0f / STEAL_FADE);
+    return 1;
+}
+
 static int waits(int track)
 {
     for (int i = 0; i < n_later; i++)
@@ -400,14 +421,14 @@ static int waits(int track)
     return 0;
 }
 
-/* A note-on needing a switch once this block made one waits for the next block, and the track's next note-ons
- * wait behind it, in order. A note-off for a waiting note-on cancels it; the others go to the voices. */
+/* A note-on needing a switch once this block made one, or stealing a voice, waits for the next block, and the
+ * track's next note-ons wait behind it, in order. A note-off for a waiting note-on cancels it; the others go to the voices. */
 static void event(int track, int note, int vel, int on, int pat, int step, int accent)
 {
     if (no_pad(track, note))
         return;
     if (on) {
-        if (waits(track) || (switched && needs_switch(track, note, step))) {
+        if (waits(track) || (switched && needs_switch(track, note, step)) || steals(track, note, step)) {
             if (n_later < LATER_N)
                 later[n_later++] = (q_later){ (uint8_t)track, (uint8_t)note, (uint8_t)vel, (uint8_t)pat, (uint8_t)accent, (int8_t)step };
         } else {
@@ -434,7 +455,8 @@ static void start_later(void)
     int n = 0, held = 0;
     for (int i = 0; i < n_later; i++) {
         q_later e = later[i];
-        if (!(held >> e.track & 1) && !(switched && needs_switch(e.track, e.note, e.step))) {
+        if (!(held >> e.track & 1) && !(switched && needs_switch(e.track, e.note, e.step)) &&
+            !steals(e.track, e.note, e.step)) {
             note_on(e.track, e.note, e.vel, e.pat, e.step, e.accent);
         } else {
             held |= 1 << e.track;
@@ -666,11 +688,9 @@ static void commands(void)
         } else if (c.kind == CMD_MODEL) {
             int n = 0;
             rmodel[c.track] = prj->sound[c.track].model;
-            for (int v = 0; v < Q_VOICES; v++)   /* released, no longer V_ON: no note-off nor note-on lands on them */
-                if (sounding(v) && pool.v[v].track == c.track) {
-                    pool.v[v].state = V_RELEASED;
-                    fading[v] = 1;
-                }
+            for (int v = 0; v < Q_VOICES; v++)   /* over this block */
+                if (sounding(v) && pool.v[v].track == c.track)
+                    fade_out(v, inv_n);
             for (int i = 0; i < n_later; i++)    /* its waiting note-ons would have been faded out too */
                 if (later[i].track != c.track)
                     later[n++] = later[i];
@@ -726,17 +746,25 @@ static void commands(void)
 static void render_voices(int from, float (*b)[APP_BLOCK], float *tmp)
 {
     for (int v = from; v < from + 3; v++) {
-        if (!sounding(v))
+        if (!sounding(v) || (fading[v] && fade[v] == 0))
             continue;
         float g = gain[v], dg = 0;
-        if (fading[v]) {            /* down to 0 at the block's end */
-            dg = -g * inv_n;
-            g += dg * (float)seg_pos;
+        uint32_t len = seg_len;
+        if (fading[v]) {            /* down to 0 from where it got to */
+            uint32_t left = (uint32_t)(fade[v] / fstep[v] + 0.5f);
+            dg = -g * fstep[v];
+            g *= fade[v];
+            if (len >= left) {
+                len = left;
+                fade[v] = 0;
+            } else {
+                fade[v] -= fstep[v] * (float)len;
+            }
         }
         __builtin_memset(tmp, 0, seg_len * sizeof *tmp);
         pq_render(v, tmp, seg_len);
         float *out = b[pool.v[v].track] + seg_pos;
-        for (uint32_t i = 0; i < seg_len; i++, g += dg)
+        for (uint32_t i = 0; i < len; i++, g += dg)
             out[i] += tmp[i] * g;
     }
 }
@@ -887,7 +915,7 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
         pos += seg_len;
     }
     for (int v = 0; v < Q_VOICES; v++)
-        if (fading[v] || (pool.v[v].state == V_RELEASED && pq_silent(v))) {
+        if ((fading[v] && fade[v] == 0) || (pool.v[v].state == V_RELEASED && pq_silent(v))) {
             voices_free(&pool, v);
             fading[v] = 0;
         }
