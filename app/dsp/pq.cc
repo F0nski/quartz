@@ -32,6 +32,7 @@ struct Slot {
   float target;          // note the glide heads to
   float note;            // the glided note, without the LFO's pitch offset
   float harm, timb, morph;   // the patch's values, before the LFO's offsets
+  float chr;             // out to aux: a KIT pad's CHAR (pq_set_char), 0 for the synths
   float vel;
   float env;             // the ADSR at the last block
   bool own_env;          // the engine has its own envelope: the gate sets the level, not the ADSR
@@ -44,6 +45,12 @@ struct Slot {
 // no C++ static constructors, and the engines' vtables need them.
 alignas(Slot) char storage[PQ_VOICES][sizeof(Slot)] __attribute__((section(".pool")));
 Slot* slots[PQ_VOICES];
+
+// a frame in [-1, 1): the main output, or toward the aux by chr
+inline float mix(const plaits::QVoice::Frame& f, float chr) {
+  const float out = static_cast<float>(f.out);
+  return (out + chr * (static_cast<float>(f.aux) - out)) * (1.0f / 32768.0f);
+}
 
 }  // namespace
 
@@ -64,6 +71,7 @@ extern "C" void pq_init(void) {
     s.patch.timbre = 0.5f;
     s.patch.morph = 0.5f;
     s.harm = s.timb = s.morph = 0.5f;
+    s.chr = 0.0f;
     s.patch.frequency_modulation_amount = 0.0f;
     s.patch.timbre_modulation_amount = 0.0f;
     s.patch.morph_modulation_amount = 0.0f;
@@ -101,7 +109,10 @@ extern "C" void pq_set_engine(int v, int model) {
   slots[v]->patch.engine = model;
   slots[v]->own_env = model == 2 || model == 3 || model == 4 || model == 19 || model == 20 || (model >= 21 && model <= 23);
   slots[v]->voice.SetEngine(model);
+  slots[v]->chr = 0.0f;
 }
+
+extern "C" void pq_set_char(int v, float chr) { slots[v]->chr = chr; }
 
 extern "C" void pq_set_patch(int v, float harm, float timb, float morph, float decay, float glide) {
   Slot& s = *slots[v];
@@ -149,13 +160,13 @@ extern "C" void pq_render(int v, float* out, unsigned n) {
       // LP, CUTOFF 127, RES 0 (the default) passes all the sound: not computed, a big share of the voices' time
       if (m.type == FT_LP && m.cutoff >= 0.45f && m.res <= 0.5f) {
         for (size_t k = 0; k < plaits::kBlockSize; ++k) {
-          const float y = static_cast<float>(s.block[k].out) * (1.0f / 32768.0f) * m.gain;
+          const float y = mix(s.block[k], s.chr) * m.gain;
           s.out[k] = y > 1.0f ? 1.0f : y < -1.0f ? -1.0f : y;
         }
       } else {
         s.svf.set_f_q<stmlib::FREQUENCY_ACCURATE>(m.cutoff, m.res);
         for (size_t k = 0; k < plaits::kBlockSize; ++k) {
-          const float x = static_cast<float>(s.block[k].out) * (1.0f / 32768.0f);
+          const float x = mix(s.block[k], s.chr);
           const float y = (m.type == FT_HP ? s.svf.Process<stmlib::FILTER_MODE_HIGH_PASS>(x)
                          : m.type == FT_BP ? s.svf.Process<stmlib::FILTER_MODE_BAND_PASS>(x)
                          : s.svf.Process<stmlib::FILTER_MODE_LOW_PASS>(x)) * m.gain;

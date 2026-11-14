@@ -5,6 +5,7 @@
 #include "pq.h"
 #include "mod.h"
 #include "project.h"
+#include "stmlib/utils/random.h"
 
 static const float kRate = 44117.647f;
 static const unsigned kBlock = 256;
@@ -308,6 +309,52 @@ static void voice_bytes_reported(void)
     assert(pq_voice_bytes() <= 24576);
 }
 
+// BD (engine 21): CHAR 0 is the sound of old, CHAR 1 the engine's aux, another sound that still plays
+static float e_sum;
+static void sum_energy(const float *b, unsigned n)
+{
+    for (unsigned i = 0; i < n; i++) e_sum += b[i] * b[i];
+}
+static float hit(float chr, bool set, float *energy)
+{
+    reset();
+    stmlib::Random::Seed(1);              // the drums' noise: the same hit each time
+    pq_set_engine(0, 21);
+    pq_set_patch(0, 0.5f, 0.5f, 0.5f, 0.5f, 0.0f);
+    if (set) pq_set_char(0, chr);
+    note_on(0, 48.0f, 1.0f);
+    e_sum = 0.0f;
+    float peak = render(0, 4410, sum_energy);   // 100 ms
+    *energy = e_sum;
+    return peak;
+}
+
+static void char_mixes_out_and_aux(void)
+{
+    float e_old, e0, e1;
+    float p_old = hit(0.0f, false, &e_old), p0 = hit(0.0f, true, &e0), p1 = hit(1.0f, true, &e1);
+    printf("  char: energy %.2f at 0, %.2f at 1\n", e0, e1);
+    assert(p0 == p_old && e0 == e_old);
+    assert(p1 > 0.05f);
+    assert(fabsf(e1 - e0) > 0.01f * e0);
+}
+
+static void char_resets_on_engine_switch(void)
+{
+    float e0;
+    hit(0.0f, true, &e0);
+    reset();
+    stmlib::Random::Seed(1);
+    pq_set_engine(0, 21);
+    pq_set_char(0, 1.0f);
+    pq_set_engine(0, 21);                 // the switch forgets CHAR
+    pq_set_patch(0, 0.5f, 0.5f, 0.5f, 0.5f, 0.0f);
+    note_on(0, 48.0f, 1.0f);
+    e_sum = 0.0f;
+    render(0, 4410, sum_energy);
+    assert(e_sum == e0);
+}
+
 int main(void)
 {
     pitch_is_right();
@@ -324,6 +371,8 @@ int main(void)
     filter_extremes_stay_finite();
     defaults_match_old_level();
     voice_bytes_reported();
+    char_mixes_out_and_aux();
+    char_resets_on_engine_switch();
     printf("pq_test ok\n");
     return 0;
 }

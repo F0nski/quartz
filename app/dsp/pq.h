@@ -1,5 +1,5 @@
 /* The six Plaits voices (pq.cc), one engine each, behind a C interface.
- * Threading: every call for voice v (pq_set_engine, pq_set_patch, pq_note_on, pq_note_off, pq_glide_to) must be
+ * Threading: every call for voice v (pq_set_engine, pq_set_patch, pq_set_char, pq_note_on, pq_note_off, pq_glide_to) must be
  * serialized with pq_render(v), never run while the other core renders that voice. */
 #pragma once
 
@@ -15,6 +15,7 @@ extern "C" {
 void pq_init(void);                                   /* builds the 6 voices, model 8 */
 void pq_set_engine(int v, int model);                 /* 0..23 in Plaits' registration order; resets the voice */
 void pq_set_patch(int v, float harm, float timb, float morph, float decay, float glide); /* 0..1 */
+void pq_set_char(int v, float chr);                   /* a drum's mix, 0..1: 0 its main output, 1 its aux (the synthetic drum) */
 void pq_note_on(int v, float note, float vel);        /* MIDI note (tune included), vel 0..1 */
 void pq_note_off(int v);                              /* the gate falls; the level follows the ADSR's release (mod_note_off) */
 void pq_glide_to(int v, float note);                  /* new pitch, no trigger: slides over the voice's glide */
