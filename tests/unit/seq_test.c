@@ -1551,8 +1551,18 @@ static void source_back_restarts_generator(void)
     assert(S.g[0].chords.n % 16 == (uint32_t)(S.t[0].k + 1) % 16);   /* the counter on the tour's rank again */
 }
 
+/* pads 10-12 (BD2, SN2, CH2) play the synthetic drums, the others the analog ones */
+static void kit_default_char(void)
+{
+    project_defaults(&P);
+    for (int t = 0; t < Q_TRACKS; t++)
+        for (int k = 0; k < Q_PADS; k++)
+            assert(P.kit[t][k].chr == (k >= 9 && k <= 11 ? 127 : 0));
+}
+
 int main(void)
 {
+    kit_default_char();
     marbles_timing_unchanged();
     marbles_notes_known_a_step_ahead();
     grids_notes_in_ring();

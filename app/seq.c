@@ -1,12 +1,12 @@
 /* No libc headers: the device builds the app's C freestanding, so the compiler's builtins stand in. */
 #include "seq.h"
 
-/* the default kit: BD SN CH OH RIM CLAP TOM x3 / TOM BD2 SN2 CH2 CONGA COWBELL SHAKER RIDE */
+/* the default kit: BD SN CH OH RIM CLAP TOM x3 / TOM, the synthetic BD SN CH, CONGA COWBELL SHAKER RIDE */
 static const q_pad KIT_DEFAULT[Q_PADS] = {
     { PAD_BD, -12, 72, 50, 70, 127 }, { PAD_SN, 0, 50, 60, 50, 100 }, { PAD_HH, 0, 50, 127, 20, 90 },
     { PAD_HH, 0, 50, 127, 90, 90 }, { PAD_SN, 12, 100, 100, 10, 90 }, { PAD_SN, -5, 110, 30, 40, 100 },
     { PAD_BD, -5, 10, 40, 60, 100 }, { PAD_BD, 0, 10, 40, 55, 100 }, { PAD_BD, 5, 10, 40, 50, 100 },
-    { PAD_BD, -10, 90, 80, 40, 110 }, { PAD_SN, 3, 80, 40, 70, 100 }, { PAD_HH, 7, 30, 127, 15, 90 },
+    { PAD_BD, -10, 90, 80, 40, 110, 127 }, { PAD_SN, 3, 80, 40, 70, 100, 127 }, { PAD_HH, 7, 30, 127, 15, 90, 127 },
     { PAD_BD, 12, 5, 60, 40, 100 }, { PAD_HH, 19, 10, 90, 15, 80 }, { PAD_HH, 0, 60, 10, 25, 80 },
     { PAD_HH, -5, 80, 50, 110, 80 },
 };

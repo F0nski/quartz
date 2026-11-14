@@ -8,7 +8,7 @@
 #define Q_LOCKS 128
 #define Q_SCENES 8
 #define Q_SONG 32
-#define Q_VERSION 12                /* q_project.version: the saved layout */
+#define Q_VERSION 13                /* q_project.version: the saved layout */
 #define Q_PADS 16
 #define M_KIT 24                   /* q_sound.model: the 16-pad kit */
 #define KIT_NOTE 36                /* a KIT's note: KIT_NOTE + pad */
@@ -107,7 +107,8 @@ typedef struct {
     uint8_t itype, i1, i2, i3, imix, dsend, rsend; int8_t pan;
 } q_sound;
 enum { PAD_BD, PAD_SN, PAD_HH };                          /* q_pad.engine */
-typedef struct { uint8_t engine; int8_t tune; uint8_t harm, timb, decay, level; } q_pad;   /* tune -24..24; the rest 0..127 */
+/* tune -24..24; the rest 0..127; chr: 0 the engine's analog sound, 127 its synthetic one (Plaits' aux) */
+typedef struct { uint8_t engine; int8_t tune; uint8_t harm, timb, decay, level, chr; } q_pad;
 /* tempo in whole BPM, 40..240; dtime a DIV_*, dfb rsize rtone comp duck 0..127 (the delay and reverb returns, the master's compressor and duck) */
 /* q_project.keys: where the white keys play the scale's notes, the black ones nothing */
 enum { KEYS_OFF, KEYS_MARBLES, KEYS_ALL };

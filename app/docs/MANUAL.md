@@ -323,7 +323,7 @@ changes its engine. KIT's scene is the 16 pads, each with its engine, the one th
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Default | Bass drum | Snare | Closed hat | Open hat | Rim | Clap | Low tom | Mid tom |
 | **Pad** | **9** | **10** | **11** | **12** | **13** | **14** | **15** | **16** |
-| Default | High tom | Bass drum 2 | Snare 2 | Closed hat 2 | Conga | Cowbell | Shaker | Ride |
+| Default | High tom | Synth bass drum | Synth snare | Synth hat | Conga | Cowbell | Shaker | Ride |
 
 ![The PAD page: the kit's BD, SN and HH, TUNE -12, HARM 72, TIMB 50, DECAY 70](img/sound-pad.png "PAD, pad 1")
 

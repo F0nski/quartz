@@ -339,11 +339,13 @@ static void set_patch(int v, const q_sound *s)
     if (vpad[v] >= 0) {
         const q_pad *pd = &prj->kit[pool.v[v].track][vpad[v]];
         pq_set_patch(v, pd->harm / 127.0f, pd->timb / 127.0f, pd->decay / 127.0f, 0.5f, 0);
+        pq_set_char(v, pd->chr / 127.0f);
         return;
     }
     pq_set_patch(v, param(v, LK_HARM, s->harm) / 127.0f, param(v, LK_TIMB, s->timb) / 127.0f,
                  param(v, LK_MORPH, s->morph) / 127.0f, param(v, LK_DECAY, s->decay) / 127.0f,
                  param(v, LK_GLIDE, s->glide) / 127.0f);
+    pq_set_char(v, 0.0f);
 }
 
 static uint32_t wanted(void)

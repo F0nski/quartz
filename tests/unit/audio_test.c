@@ -42,6 +42,8 @@ void pq_set_patch(int v, float h, float t, float m, float d, float g)
     patch[v][0] = h; patch[v][1] = t; patch[v][2] = m; patch[v][3] = d; patch[v][4] = g;
     logc('p', v, h, 0);
 }
+static float chr[PQ_VOICES];          /* the last pq_set_char of each voice */
+void pq_set_char(int v, float c) { chr[v] = c; }
 void pq_glide_to(int v, float note) { logc('g', v, note, 0); }
 void pq_note_on(int v, float note, float vel) { (void)vel; logc('n', v, note, 0); }
 void pq_note_off(int v) { logc('f', v, 0, 0); }
@@ -1045,6 +1047,31 @@ static void kit_three_engines_together(void)
     assert(seen == 7);
 }
 
+/* a pad's CHAR reaches its voice; a synth's voice is back at 0 */
+static void kit_pad_char(void)
+{
+    kit_setup();
+    audio_live_note(0, KIT_NOTE + 9, 1);   /* pad 10: the synthetic BD, CHAR 127 */
+    block(256);
+    int v = track_slot(0);
+    assert(v >= 0 && chr[v] == 1.0f);
+    audio_live_note(0, KIT_NOTE + 9, 0);
+    block(256);
+    P.kit[0][0].chr = 64;
+    audio_live_note(0, KIT_NOTE, 1);       /* pad 1 */
+    block(256);
+    v = track_slot(0);
+    assert(v >= 0 && chr[v] == 64 / 127.0f);
+    audio_live_note(0, KIT_NOTE, 0);
+    block(256);
+    set_model(0, 21);                      /* BASS DRUM, the same engine: a synth voice */
+    frames(12);
+    audio_live_note(0, 48, 1);
+    block(256);
+    v = track_slot(0);
+    assert(v >= 0 && chr[v] == 0.0f);
+}
+
 static void kit_pad_patch(void)
 {
     kit_setup();
@@ -1809,6 +1836,7 @@ int main(void)
     kit_choke_same_engine();
     kit_three_engines_together();
     kit_pad_patch();
+    kit_pad_char();
     kit_engine_change_while_sounding();
     kit_prepares_its_engines();
     kit_legato_strikes();
