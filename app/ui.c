@@ -93,6 +93,16 @@ static const char *const MODEL_NAME[M_KIT + 1] = {
     "SWEEP", "KINK", "HEX A", "HEX B", "HEX C", "BOWL", "ENSEMBLE", "ARCADE",
     "CREST", "PRISM", "MOON", "POLLEN", "FACETS", "PIPE", "CHORALE", "ORATOR",
     "CROWD", "STATIC", "GLITTER", "WIRE", "CHLADNI", "BASS DRUM", "SNARE", "HI-HAT", "KIT"};
+/* the order PRESET and MODEL go through the models, by family (analog, FM, tables, spectral, chords, voice, noise,
+   physical, drums); the project keeps Plaits' number */
+static const uint8_t MODEL_ORDER[M_KIT + 1] = {8, 0, 1, 9, 10, 2, 3, 4, 13, 5, 12, 11, 14, 6, 7, 15, 16, 17, 18, 19, 20,
+                                               21, 22, 23, 24};
+static int model_rank(int m)
+{
+    int i;
+    for (i = 0; i < M_KIT && MODEL_ORDER[i] != m; i++) {}
+    return i;
+}
 static const char *const ENGINE_NAME[3] = {"BD", "SN", "HH"};
 static const char *const DIV_NAME[DIV_N] = {"1/32", "1/16T", "1/16", "1/8T", "1/8", "1/4T", "1/4", "1/2", "1/1"};
 static const char *const FTYPE_NAME[3] = {"LP", "HP", "BP"};
@@ -283,7 +293,7 @@ static int knob_get(int pid, int k)
     case P_ENGINE * 4 + 2: return s->morph;
     case P_ENGINE * 4 + 3: return s->decay;
     case P_SOUND * 4:
-    case P_KIT * 4: return s->model;
+    case P_KIT * 4: return model_rank(s->model);
     case P_SOUND * 4 + 1: return s->tune;
     case P_SOUND * 4 + 2: return s->glide;
     case P_SOUND * 4 + 3: return s->poly;
@@ -451,7 +461,7 @@ static void knob_set(int pid, int k, int v)
     case P_ENGINE * 4 + 2: s->morph = (uint8_t)v; break;
     case P_ENGINE * 4 + 3: s->decay = (uint8_t)v; break;
     case P_SOUND * 4:
-    case P_KIT * 4: s->model = (uint8_t)v; audio_track_model(ui.track); break;
+    case P_KIT * 4: s->model = MODEL_ORDER[v]; audio_track_model(ui.track); break;
     case P_SOUND * 4 + 1: s->tune = (int8_t)v; break;
     case P_SOUND * 4 + 2: s->glide = (uint8_t)v; break;
     case P_SOUND * 4 + 3: s->poly = (uint8_t)v; break;
@@ -2154,7 +2164,7 @@ static void knob_text(int pid, int k, int v, char *b)
         return;
     }
     if ((pid == P_SOUND || pid == P_KIT) && !k) {
-        const char *s = MODEL_NAME[v];
+        const char *s = MODEL_NAME[MODEL_ORDER[v]];
         while ((*b++ = *s++) != 0) {}
         return;
     }

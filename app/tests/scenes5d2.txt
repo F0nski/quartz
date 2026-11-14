@@ -2,7 +2,7 @@
 # dancefloor (SWARM 16, NOISE 17, PARTICLE 18)
 wait 600
 tap EDIT
-turn PRESET -2
+turn PRESET 13
 expect model 6
 wait 100
 expect scene3d 1
@@ -16,7 +16,7 @@ key 6 down
 wait 60
 shot choir_stringmach.png
 key 6 up
-turn PRESET 8
+turn PRESET -1
 expect model 14
 wait 100
 expect scene3d 1
@@ -27,7 +27,7 @@ expect scene3d 1
 turn SELECT -1
 expect page 1
 shot choir_chords.png
-turn PRESET 2
+turn PRESET 4
 expect model 16
 wait 100
 expect scene3d 1

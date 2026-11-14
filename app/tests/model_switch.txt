@@ -6,7 +6,7 @@ wait 100
 expect active 1
 tap EDIT
 turn SELECT 1
-turn K1 9
+turn K1 17
 wait 200
 expect model 17
 expect active 0

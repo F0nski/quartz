@@ -19,16 +19,16 @@ wait 600
 expect active >0
 tap EDIT
 turn SELECT 1
-turn K1 12
+turn K1 20
 wait 50
 turn ALGO -1
-turn K1 12
+turn K1 20
 wait 50
 turn ALGO -1
-turn K1 5
+turn K1 8
 wait 50
 turn ALGO -1
-turn K1 -3
+turn K1 9
 expect model 5
 wait 2500
 expect playing 1

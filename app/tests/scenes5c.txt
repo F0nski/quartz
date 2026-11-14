@@ -1,7 +1,7 @@
 # The step 5c scenes: SPEECH, MODAL and a single drum on ENGINE and SOUND; a KIT on PAD, not on its KIT page
 wait 600
 tap EDIT
-turn PRESET 7
+turn PRESET 15
 expect model 15
 wait 100
 expect scene3d 1

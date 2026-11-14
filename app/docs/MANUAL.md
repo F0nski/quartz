@@ -137,7 +137,7 @@ your presses, so you can look up a shortcut and use it in the same gesture.
 
 A kick on track 1 and a melody on track 2, from a new project.
 
-1. Press EDIT, then turn PRESET 16 notches, to the kit: the header says `PAD 1` and the scene shows the kit's three
+1. Press EDIT, then turn PRESET to the end, to the kit: the header says `PAD 1` and the scene shows the kit's three
    drums.
 2. Press SEQ, then REC once. The header shows `GRID`: the white keys are now the 16 steps.
 3. Press white keys 1, 5, 9 and 13. Each one becomes a step with the bass drum (pad 1).
@@ -225,7 +225,7 @@ browses the models from any EDIT page.
 | Page | K1 | K2 | K3 | K4 |
 | --- | --- | --- | --- | --- |
 | ENGINE | HARM, 0–127 | TIMB, 0–127 | MORPH, 0–127 | DECAY, 0–127 |
-| SOUND | MODEL, by name | TUNE, −24 to +24 semitones | GLIDE, 0–127 | POLY, 1–4 voices |
+| SOUND | MODEL, by name, by family | TUNE, −24 to +24 semitones | GLIDE, 0–127 | POLY, 1–4 voices |
 
 - **HARM, TIMB, MORPH** do something different on each model: the table below says what.
 - **DECAY** sets how long a note rings after its gate closes, and the length of the model's own envelope on the models
@@ -240,36 +240,36 @@ The model's name shows in the header of ENGINE and SOUND, and under MODEL in SOU
 
 ### Models
 
-The models are Plaits' 24 synthesis models, in Plaits' order, under QUARTZ's own names. PRESET goes through them in
+The models are Plaits' 24 synthesis models under QUARTZ's own names, sorted by family: PRESET goes through them in
 the order of the table. Each family has its own scene.
 
-| # | Name | Sound | HARM | TIMB | MORPH | Plaits model |
+| Family | Name | Sound | HARM | TIMB | MORPH | Plaits model |
 | --- | --- | --- | --- | --- | --- | --- |
-| 0 | SWEEP | Classic waves through a resonant filter | Resonance and filter slope | Cutoff | Waveform and sub | Virtual analog with VCF (1.2) |
-| 1 | KINK | Phase distortion | Distortion frequency | Amount | Asymmetry | Phase distortion (1.2) |
-| 2 | HEX A | 6-operator FM, basses and synths | Preset, 1 of 32 | Modulator levels | Envelope stretch | 6-op FM, bank 1 (1.2) |
-| 3 | HEX B | 6-operator FM, keys, plucks, percussion | Preset | Modulator levels | Envelope stretch | 6-op FM, bank 2 (1.2) |
-| 4 | HEX C | 6-operator FM, organs, pads, strings, brass | Preset | Modulator levels | Envelope stretch | 6-op FM, bank 3 (1.2) |
-| 5 | BOWL | A path read on a 2D terrain | Terrain | Path radius | Path offset | Wave terrain (1.2) |
-| 6 | ENSEMBLE | String machine with filter and chorus | Chord | Chorus and filter | Waveform | String machine (1.2) |
-| 7 | ARCADE | Square-wave chords and arpeggios | Chord | Arpeggio or inversion | Pulse width, sync | Chiptune (1.2) |
-| 8 | CREST | Two classic analog waveforms | Detune | Pulse to sync | Triangle to saw | Virtual analog |
-| 9 | PRISM | A triangle shaped and folded | Waveshape | Fold | Asymmetry | Waveshaper |
-| 10 | MOON | Two sine operators | Ratio | Modulation index | Feedback | 2-operator FM |
-| 11 | POLLEN | Formants from sine segments | Formant ratio | Formant frequency | Width and shape | Granular formant |
-| 12 | FACETS | Harmonics added up | Spectral bumps | Main harmonic | Bump shape | Additive |
-| 13 | PIPE | Wavetables, 4 banks of 8 x 8 | Bank | Row | Column | Wavetable |
-| 14 | CHORALE | Four-note chords | Chord | Inversion | Waveform | Chords |
-| 15 | ORATOR | Vowels and words | Vowels, then word banks | Voice size | Phoneme or word | Speech |
-| 16 | CROWD | Eight sawtooths in a swarm | Pitch spread | Density | Grain duration | Swarm |
-| 17 | STATIC | Clocked noise through a filter | Low-pass to high-pass | Clock | Resonance | Filtered noise |
-| 18 | GLITTER | Dust through resonators | Frequency spread | Density | Filter type | Particle noise |
-| 19 | WIRE | A plucked string | Inharmonicity | Brightness | Decay | Inharmonic string |
-| 20 | CHLADNI | A struck resonant body | Material | Brightness | Decay | Modal resonator |
-| 21 | BASS DRUM | Analog bass drum | Attack and drive | Brightness | Decay | Bass drum |
-| 22 | SNARE | Analog snare | Tone to noise | Drum modes | Decay | Snare drum |
-| 23 | HI-HAT | Analog hi-hat | Metal to noise | High-pass | Decay | Hi-hat |
-| 24 | KIT | 16 drum pads (below) | — | — | — | — |
+| Analog | CREST | Two classic analog waveforms | Detune | Pulse to sync | Triangle to saw | Virtual analog |
+|  | SWEEP | Classic waves through a resonant filter | Resonance and filter slope | Cutoff | Waveform and sub | Virtual analog with VCF (1.2) |
+|  | KINK | Phase distortion | Distortion frequency | Amount | Asymmetry | Phase distortion (1.2) |
+|  | PRISM | A triangle shaped and folded | Waveshape | Fold | Asymmetry | Waveshaper |
+| FM | MOON | Two sine operators | Ratio | Modulation index | Feedback | 2-operator FM |
+|  | HEX A | 6-operator FM, basses and synths | Preset, 1 of 32 | Modulator levels | Envelope stretch | 6-op FM, bank 1 (1.2) |
+|  | HEX B | 6-operator FM, keys, plucks, percussion | Preset | Modulator levels | Envelope stretch | 6-op FM, bank 2 (1.2) |
+|  | HEX C | 6-operator FM, organs, pads, strings, brass | Preset | Modulator levels | Envelope stretch | 6-op FM, bank 3 (1.2) |
+| Tables | PIPE | Wavetables, 4 banks of 8 x 8 | Bank | Row | Column | Wavetable |
+|  | BOWL | A path read on a 2D terrain | Terrain | Path radius | Path offset | Wave terrain (1.2) |
+| Spectral | FACETS | Harmonics added up | Spectral bumps | Main harmonic | Bump shape | Additive |
+|  | POLLEN | Formants from sine segments | Formant ratio | Formant frequency | Width and shape | Granular formant |
+| Chords | CHORALE | Four-note chords | Chord | Inversion | Waveform | Chords |
+|  | ENSEMBLE | String machine with filter and chorus | Chord | Chorus and filter | Waveform | String machine (1.2) |
+|  | ARCADE | Square-wave chords and arpeggios | Chord | Arpeggio or inversion | Pulse width, sync | Chiptune (1.2) |
+| Voice | ORATOR | Vowels and words | Vowels, then word banks | Voice size | Phoneme or word | Speech |
+| Noise | CROWD | Eight sawtooths in a swarm | Pitch spread | Density | Grain duration | Swarm |
+|  | STATIC | Clocked noise through a filter | Low-pass to high-pass | Clock | Resonance | Filtered noise |
+|  | GLITTER | Dust through resonators | Frequency spread | Density | Filter type | Particle noise |
+| Physical | WIRE | A plucked string | Inharmonicity | Brightness | Decay | Inharmonic string |
+|  | CHLADNI | A struck resonant body | Material | Brightness | Decay | Modal resonator |
+| Drums | BASS DRUM | Analog bass drum | Attack and drive | Brightness | Decay | Bass drum |
+|  | SNARE | Analog snare | Tone to noise | Drum modes | Decay | Snare drum |
+|  | HI-HAT | Analog hi-hat | Metal to noise | High-pass | Decay | Hi-hat |
+|  | KIT | 16 drum pads (below) | — | — | — | — |
 
 On the drums, HEX A–C, WIRE and CHLADNI, the model makes its own envelope: ENV's ADSR then shapes only the filter.
 

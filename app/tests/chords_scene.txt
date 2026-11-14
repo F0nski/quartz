@@ -23,7 +23,8 @@ wait 1500
 shot chords_strum.png
 tap PLAY
 tap EDIT
-turn PRESET 20
+spin PRESET -30
+spin PRESET 24
 expect model 24
 tap SEQ
 tap PLAY

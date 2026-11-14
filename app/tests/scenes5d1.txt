@@ -2,7 +2,8 @@
 # TERRAIN 5, WAVETABLE 13), the crystal garden (GRAIN FORM 11, ADDITIVE 12), the platforms (CHIPTUNE 7)
 wait 600
 tap EDIT
-turn PRESET -30
+spin PRESET -30
+spin PRESET 1
 expect model 0
 wait 100
 expect scene3d 1
@@ -10,12 +11,14 @@ key 6 down
 wait 80
 shot crests_vavcf.png
 key 6 up
-turn PRESET 1
+spin PRESET -30
+spin PRESET 2
 expect model 1
 wait 100
 expect scene3d 1
 shot crests_phasedist.png
-turn PRESET 4
+spin PRESET -30
+spin PRESET 9
 expect model 5
 wait 100
 expect scene3d 1
@@ -23,7 +26,8 @@ key 6 down
 wait 80
 shot bowl_terrain.png
 key 6 up
-turn PRESET 2
+spin PRESET -30
+spin PRESET 14
 expect model 7
 wait 100
 expect scene3d 1
@@ -31,22 +35,25 @@ key 6 down
 wait 150
 shot platforms.png
 key 6 up
-turn PRESET 1
+spin PRESET -30
 expect model 8
 wait 100
 expect scene3d 1
 shot crests_va.png
-turn PRESET 1
+spin PRESET -30
+spin PRESET 3
 expect model 9
 wait 100
 expect scene3d 1
 shot crests_waveshape.png
-turn PRESET 2
+spin PRESET -30
+spin PRESET 11
 expect model 11
 wait 100
 expect scene3d 1
 shot garden_grainform.png
-turn PRESET 1
+spin PRESET -30
+spin PRESET 10
 expect model 12
 wait 100
 expect scene3d 1
@@ -54,7 +61,8 @@ key 6 down
 wait 80
 shot garden_additive.png
 key 6 up
-turn PRESET 1
+spin PRESET -30
+spin PRESET 8
 expect model 13
 wait 100
 expect scene3d 1

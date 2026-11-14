@@ -8,7 +8,7 @@ shot home.png
 
 # 4. Quick start: a kick on track 1, a melody on track 2
 tap EDIT
-spin PRESET 16
+spin PRESET 24
 expect model 24
 wait 300
 shot quick-kit.png
@@ -74,13 +74,13 @@ spin SELECT 1
 wait 300
 shot sound-sound.png
 spin SELECT -1
-spin PRESET -6
+spin PRESET 5
 expect model 2
 key w7 down
 wait 500
 shot sound-hex.png
 key w7 up
-spin PRESET 18
+spin PRESET 15
 expect model 20
 key w7 down
 wait 500
@@ -92,13 +92,13 @@ key w7 down
 wait 700
 shot sound-orator.png
 key w7 up
-spin PRESET -10
+spin PRESET -6
 expect model 5
 key w7 down
 wait 700
 shot sound-bowl.png
 key w7 up
-spin PRESET 19
+spin PRESET 15
 expect model 24
 tapkey w0
 wait 300

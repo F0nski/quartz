@@ -20,7 +20,8 @@ wait 600
 shot lanes_len.png
 tap PLAY
 tap EDIT
-turn PRESET 20
+spin PRESET -30
+spin PRESET 24
 expect model 24
 tap SEQ
 tap PLAY

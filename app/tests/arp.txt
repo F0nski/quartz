@@ -37,7 +37,8 @@ expect peak_db_max -50
 # a KIT has no arp
 turn ALGO 1
 tap EDIT
-turn PRESET 20
+spin PRESET -30
+spin PRESET 24
 expect model 24
 tap ARP
 turn K1 1

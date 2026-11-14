@@ -38,7 +38,8 @@ turn SELECT 1
 expect page 1
 # a KIT: NOTE and OCT LEN do nothing
 tap EDIT
-turn PRESET 20
+spin PRESET -30
+spin PRESET 24
 expect model 24
 tap SEQ
 expect page 1

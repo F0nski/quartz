@@ -1,7 +1,8 @@
 # KIT: its EDIT pages, a pad held and the knobs, pads in steps, the generators' knobs it hides
 wait 600
 tap EDIT
-turn PRESET 20
+spin PRESET -30
+spin PRESET 24
 expect model 24
 expect page 1
 expect pad 1

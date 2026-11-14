@@ -1,0 +1,16 @@
+# PRESET on EDIT goes through the models by family (ui.c MODEL_ORDER); the saved number stays Plaits'
+wait 600
+tap EDIT
+expect model 8
+spin PRESET 1
+expect model 0
+spin PRESET 3
+expect model 10
+spin PRESET 1
+expect model 2
+spin PRESET 20
+expect model 24
+spin PRESET -24
+expect model 8
+spin PRESET -1
+expect model 8
