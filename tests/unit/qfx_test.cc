@@ -919,8 +919,45 @@ static void tempo_frozen_while_held(void)
     }
 }
 
+// WAVEFOLD: FOLD 0 leaves a sine almost clean, and at any FOLD the level stays near the input's (no jump)
+static void fold_gentle_and_level(void)
+{
+    static float b[kBlock];
+    const float amps[3] = {0.1f, 0.3f, 0.6f};
+    const int folds[3] = {0, 64, 127};
+    for (int a = 0; a < 3; a++)
+        for (int f = 0; f < 3; f++) {
+            double si = 0, so = 0, diff = 0;
+            qfx_init();
+            for (unsigned blk = 0, i0 = 0; blk < 64; blk++, i0 += kBlock) {
+                for (unsigned i = 0; i < kBlock; i++) b[i] = amps[a] * sinf(6.2831853f * 110.0f * (i0 + i) / kRate);
+                float in[kBlock];
+                memcpy(in, b, sizeof in);
+                qfx_insert(0, IT_FOLD, folds[f], 64, 127, 127, b, kBlock);
+                if (blk < 32) continue;             // settled
+                for (unsigned i = 0; i < kBlock; i++) {
+                    si += in[i] * in[i], so += b[i] * b[i];
+                    float d = fabsf(b[i] - in[i]);
+                    if (d > diff) diff = d;
+                }
+            }
+            double db = 10.0 * log10(so / si);
+            if (db < -3.0 || db > 2.0) {
+                printf("fold %d amp %.1f: %.1f dB\n", folds[f], amps[a], db);
+                assert(0);
+            }
+            if (folds[f] == 0 && diff > 0.1 * amps[a]) {
+                printf("fold 0 amp %.1f: not clean, %.3f\n", amps[a], diff);
+                assert(0);
+            }
+            if (folds[f] == 127)
+                assert(diff > 0.3 * amps[a]);         // and it still folds
+        }
+}
+
 int main(void)
 {
+    fold_gentle_and_level();
     off_is_identity();
     each_type_changes_signal();
     inserts_stay_finite();

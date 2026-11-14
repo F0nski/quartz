@@ -38,6 +38,7 @@ struct Track {
   float phase;         // LFO or ring modulator, in cycles
   float ap[4];         // PHASER's all-pass states
   float last;          // PHASER's feedback sample
+  float fg;            // WAVEFOLD's level gain, the input's RMS over the output's
   unsigned wpos;       // delay line write position
   plaits::Overdrive od;
   plaits::SampleRateReducer srr;
@@ -119,6 +120,7 @@ void reset(int t, int type) {
   Track& s = *tracks[t];
   s.type = type;
   s.lp = s.phase = s.last = 0.0f;
+  s.fg = 1.0f;
   for (int i = 0; i < 4; ++i) s.ap[i] = 0.0f;
   s.wpos = 0;
   s.od.Init();
@@ -142,14 +144,30 @@ void tone(Track& s, int k, float* x, unsigned n) {
 
 // Folds x * gain + bias with Plaits' lut_fold, which spans an input of +-1 around index 0.5 (the
 // WAVESHAPING engine's gain never exceeds 0.49): the input is first reflected into +-1 so that
-// the high gains fold more instead of leaving the table.
-void fold(float gain, float bias, float* x, unsigned n) {
+// the high gains fold more instead of leaving the table. The table's slope at its centre is ~19.6,
+// so a gain of 0.05 leaves the sound almost clean. A folded sound sits near full scale whatever its
+// input: the output is brought back to the input's RMS, measured per block, the gain eased in
+// over the block (one square root a block).
+// the table's zero: lut_fold[256], one before the middle of lut_fold + 1 (0.5 there gave 0.078, a DC offset)
+const float kFoldMid = 0.5f - 1.0f / 512.0f;
+void fold(Track& s, float gain, float bias, float* x, unsigned n) {
+  float si = 0.0f, so = 0.0f;
   for (unsigned i = 0; i < n; ++i) {
+    si += x[i] * x[i];
     float u = x[i] * gain + bias + 1.0f;
     u -= 4.0f * fm_floorf(u * 0.25f);   // into [0, 4)
     u = u < 2.0f ? u - 1.0f : 3.0f - u;
-    x[i] = stmlib::InterpolateHermite(plaits::lut_fold + 1, 0.5f + 0.49f * u, 512.0f);
+    x[i] = stmlib::InterpolateHermite(plaits::lut_fold + 1, kFoldMid + 0.49f * u, 512.0f);
+    so += x[i] * x[i];
   }
+  float target = s.fg;
+  if (si > 1e-9f * n) {                 // silence keeps the last gain
+    target = fm_sqrtf(si / (so + 1e-12f));
+    if (target > 2.0f) target = 2.0f;
+  }
+  const float g0 = s.fg, g1 = s.fg + 0.5f * (target - s.fg), dg = (g1 - g0) / n;
+  for (unsigned i = 0; i < n; ++i) x[i] *= g0 + dg * i;
+  s.fg = g1;
 }
 
 void crush(Track& s, int p1, int p2, float* x, unsigned n) {
@@ -703,7 +721,7 @@ extern "C" void qfx_insert(int t, int type, int p1, int p2, int p3, int mix, flo
   const float m = mix / 127.0f;
   const float lfo = e(0.05f, 5.0f, p1) / kSr;
   const float overdrive = 0.5f + 0.5f * p1 / 127.0f;   // 0.5: Overdrive's near-unity point
-  const float fold_gain = e(1.0f, 16.0f, p1), fold_bias = (p2 - 64) / 64.0f;
+  const float fold_gain = e(0.05f, 2.0f, p1), fold_bias = 0.1f * (p2 - 64) / 64.0f;
   const float chorus_depth = 8.0f * p2 / 127.0f;
   const float octaves = 5.0f * p2 / 127.0f, phaser_fb = 0.9f * p3 / 127.0f;
   const float ring_inc = e(20.0f, 5000.0f, p1) / kSr;
@@ -717,7 +735,7 @@ extern "C" void qfx_insert(int t, int type, int p1, int p2, int p3, int mix, flo
     for (unsigned i = 0; i < k; ++i) dry[i] = x[i];
     switch (type) {
       case IT_DRIVE: s.od.Process(overdrive, x, k); tone(s, p2, x, k); break;
-      case IT_FOLD: fold(fold_gain, fold_bias, x, k); tone(s, p3, x, k); break;
+      case IT_FOLD: fold(s, fold_gain, fold_bias, x, k); tone(s, p3, x, k); break;
       case IT_CRUSH: crush(s, p1, p2, x, k); break;
       case IT_CHORUS: chorus(s, t, lfo, chorus_depth, x, k); break;
       case IT_PHASER: phaser(s, lfo, octaves, phaser_fb, x, k); break;

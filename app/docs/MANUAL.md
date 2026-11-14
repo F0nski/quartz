@@ -395,6 +395,9 @@ track. The scenes show the model's name and draw what the knobs set.
 On INSERT, PRESET picks the insert's type, shown as the page's name. K4 MIX blends it with the dry sound: 0 is dry
 only, 127 is the effect only. The three other knobs keep their values when you change the type.
 
+WAVEFOLD starts almost clean at FOLD 0 and folds more as you turn it; its level follows the dry sound's, so folding
+changes the tone, not the volume. BIAS makes the folds uneven.
+
 | Type | K1 | K2 | K3 |
 | --- | --- | --- | --- |
 | INSERT OFF | — | — | — |
