@@ -146,6 +146,8 @@ A kick on track 1 and a melody on track 2, from a new project.
 6. Play four notes. They fill steps 1 to 4, and you hear them as the loop comes round.
 7. Press REC to disarm. Now try the knobs on EDIT, ENV and FX, or turn SEQ's SOURCE to another source.
 
+![EDIT with the KIT: PAD 1 in the header, the kit's BD, SN and HH](img/quick-kit.png "Step 1: the kit")
+
 ![Track 1 on the grid: four blocks marked 1 on steps 1, 5, 9 and 13, GRID in the header](img/quick-grid.png "Step 3: the kick on the grid")
 
 ![Track 2 in NOTES: blocks F, A, C, F on steps 1 to 4, NOTES 5 in the header](img/quick-notes.png "Step 6: the melody written in NOTES")
@@ -804,6 +806,8 @@ cell a step; with different lengths they drift apart, and the melody takes a lon
 
 ![LOOM: the five lanes small on top, TRIG big below with LEN 7](img/source-loom.png "LOOM")
 
+![LOOM in GRID: GRID in the header, the TRIG lane's cells on the white keys](img/source-loom-grid.png "LOOM, on the grid")
+
 **Inspired by** [Kria](https://monome.org/docs/ansible/kria/) by monome (for Ansible and the grid): a step sequencer
 whose trigger, note, octave and duration have loops of their own lengths. LOOM adds a velocity lane, and its lanes are
 always independent.
@@ -918,8 +922,93 @@ learns a musician's phrases as they play and answers in their style. MIMIC learn
 
 ## 10. Global
 
+Press GLO for the project's settings, shared by the four tracks.
+
+| Page | K1 | K2 | K3 | K4 |
+| --- | --- | --- | --- | --- |
+| TEMPO | TEMPO, 40–240 BPM | SWING, 50–75 % | COMP, 0–127 | DUCK, 0–127 |
+| SCALE | TONIC, C to B | MODE | QUANT: OFF, 50 %, 100 % | CLICK: OFF, METRO, COUNT, BOTH |
+| KEYS | IN SCALE: OFF, FLEET, ALL | — | — | — |
+| FX | DLY TIME, 1/32 to 1/1 | DLY FB | REV SIZE | REV TONE |
+| CPU | — | — | — | — |
+
+- **SWING** delays every other step; 50 % is straight.
+- **COMP** compresses the whole mix; 0 is off. A limiter always protects the output.
+- **DUCK** lowers the synth tracks and the effects on each bass drum pad of a KIT track, up to −24 dB, like a
+  sidechain; 0 is off.
+- **TONIC** and **MODE** make the project's scale. The generative sources count their degrees in it, FLEET starts
+  from it, and KEYS plays it. MODE: CHROM, MAJOR, MINOR, DORIAN, PHRYG, LYDIAN, MIXO, LOCRIAN, HARM MIN, PENTA,
+  MIN PENTA.
+- **QUANT** pulls the notes recorded in LIVE onto the steps: OFF keeps your timing, 100 % puts them on the step.
+- **CLICK**: METRO plays a click while playing, COUNT a bar of count-in before LIVE, BOTH both.
+- **KEYS**: OFF, the keys are a chromatic keyboard. FLEET, on FLEET tracks, and ALL, on every synth track, the white
+  keys play the scale up from the tonic and the black keys are silent. A kit keeps its pads.
+- **FX**: the shared ping-pong delay, its time in steps of the tempo and its feedback; the reverb's size and its
+  tone (how much of the highs it keeps).
+- **CPU** shows each core's load, LOST BLOCKS (audio blocks the FM-1 could not compute in time: you hear them as
+  clicks), the voices in use, the effects' share and the screen's frame rate.
+
+![GLO's TEMPO page: 120 BPM, SWING 50 %, COMP and DUCK bars](img/glo-tempo.png "TEMPO")
+
+![GLO's SCALE page: C MAJOR on a keyboard, QUANT 100 %, CLICK OFF](img/glo-scale.png "SCALE")
+
+![GLO's KEYS page: IN SCALE OFF, CHROMATIC KEYBOARD](img/glo-keys.png "KEYS")
+
+![GLO's FX page: the delay's echoes at 1/8, FB 40, and the reverb's tail, SIZE 80, TONE 64](img/glo-fx.png "FX")
+
+![GLO's CPU page: CORE 1, CORE 2, LOST BLOCKS, VOICES, BYTES/VOICE, CORE 2 STACK, EFFECTS, SCENE FPS](img/glo-cpu.png "CPU")
+
+---
+
+
 ## 11. Saving
+
+QUARTZ keeps one project: the four tracks, their patterns and sounds, the scenes, the song and the global settings.
+
+- Press SAVE while stopped to write it to the FM-1. The FM-1 loads it when it starts.
+- While playing, SAVE only shows `STOP TO SAVE`: writing to the flash would stall the sound.
+- Nothing is saved on its own: turning the FM-1 off loses what changed since the last SAVE.
+- A new project (SAVE held, black key 1 twice) replaces the one in memory; the saved one stays until the next SAVE.
+
+---
+
 
 ## 12. Credits and inspirations
 
+QUARTZ is made by f0nski. It stands on the work of others: code it runs, and ideas it borrows.
+
+| QUARTZ | Origin | By | Licence | Link |
+| --- | --- | --- | --- | --- |
+| The 24 models | Plaits, with firmware 1.2's models | Mutable Instruments (Emilie Gillet) | MIT | [manual](https://pichenettes.github.io/mutable-instruments-documentation/modules/plaits/manual/) |
+| ATLAS | Grids' drum map and pattern generator | Mutable Instruments (Emilie Gillet) | GPL-3.0 | [manual](https://pichenettes.github.io/mutable-instruments-documentation/modules/grids/manual/) |
+| FLEET | Marbles' t models, X draws and DEJA VU | Mutable Instruments (Emilie Gillet) | MIT | [manual](https://pichenettes.github.io/mutable-instruments-documentation/modules/marbles/manual/) |
+| The reverb | Clouds' reverb | Mutable Instruments (Emilie Gillet) | MIT | [manual](https://pichenettes.github.io/mutable-instruments-documentation/modules/clouds/manual/) |
+| COLONY | The Game of Life (idea) | John Horton Conway, 1970 | — | [Wikipedia](https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life) |
+| LOOM | Kria (idea) | monome | — | [docs](https://monome.org/docs/ansible/kria/) |
+| LATTICE | The Tonnetz and neo-Riemannian theory (idea) | Leonhard Euler; David Lewin, Richard Cohn | — | [Wikipedia](https://en.wikipedia.org/wiki/Neo-Riemannian_theory) |
+| MIMIC | The Continuator (idea) | François Pachet, Sony CSL, 2003 | — | [paper](https://www.francoispachet.fr/?p=4360) |
+| Step functions | Parameter locks, trig conditions, micro timing (idea) | Elektron | — | [Digitakt](https://www.elektron.se/support-downloads/digitakt) |
+| Domains, held-button maps, punch-ins, this guide's shape | The OP-Z (idea) | teenage engineering | — | [guide](https://teenage.engineering/guides/op-z) |
+| CADENCE, MOONS, the scenes | QUARTZ's own | f0nski | GPL-3.0 | — |
+| The platform | fm1-base, on felucca-bsp | Charles Vestal; Leo Kuroshita (Hügelton Instruments) | MPL-2.0 | [fm1-base](https://github.com/charlesvestal/fm1-base) |
+
+QUARTZ itself is free software under the GPL-3.0-or-later; its [source](https://github.com/F0nski/quartz) holds the
+licences of each part. M-VAVE and FM-1 are trademarks of their owners; QUARTZ is not affiliated with M-VAVE, Mutable
+Instruments, monome, Elektron or teenage engineering.
+
+---
+
+
 ## 13. Troubleshooting
+
+| Problem | What to check |
+| --- | --- |
+| No sound | MASTER; HOME, the track's mute (HOME held, keys 1–4) and its LVL; FX's MIX LEVEL; ENV's CUTOFF on LP. |
+| A key does nothing | A button may still be held (its map is on the screen). With KEYS at FLEET or ALL, the black keys are silent. |
+| REC does nothing | The pattern is generative: only LOOM, CADENCE and LATTICE have a GRID, and MIMIC listens. To record notes, set SOURCE to STEP. |
+| The pattern doesn't change | While playing, it waits for the end of the loop (`P1 > P2` in the header). |
+| `STOP TO SAVE` | Stop, then press SAVE. |
+| `LOCKS FULL` | The pattern holds 128 p-locks: clear some (REC held, black key 2 clears them all). |
+| Clicks in the sound | GLO's CPU page: LOST BLOCKS counts them. Lower POLY, use lighter models than HEX A–C or CHLADNI on several tracks, or fewer inserts. |
+| The project is gone after an update | The new version saves projects differently and starts from a new one (section 2). |
+| Back to the stock firmware | The installer's last section writes M-VAVE's firmware back. |

@@ -1,5 +1,5 @@
 # The manual's screen captures (app/docs/MANUAL.md, app/site/landing.md):
-#   mkdir -p app/build/shots && app/build/host/quartz_host app/tests/manual_shots.txt app/build/shots && cp app/build/shots/*.png app/docs/img/
+#   rm -rf app/build/shots && mkdir -p app/build/shots && app/build/host/quartz_host app/tests/manual_shots.txt app/build/shots && cp app/build/shots/*.png app/docs/img/
 # Each shot is named after the manual's section it illustrates.
 wait 600
 tap HOME
@@ -215,10 +215,6 @@ spin K4 1
 expect src 1
 wait 2500
 shot source-atlas.png
-spin SELECT 1
-wait 300
-shot source-atlas-map.png
-spin SELECT -1
 spin K4 1
 expect src 2
 wait 2500
@@ -265,4 +261,25 @@ tapkey w2
 wait 300
 shot source-mimic-listen.png
 tap REC
+tap PLAY
+
+# 10. Global: GLO's five pages, playing
+reboot
+wait 600
+tap GLO
+tap PLAY
+wait 600
+shot glo-tempo.png
+spin SELECT 1
+wait 300
+shot glo-scale.png
+spin SELECT 1
+wait 300
+shot glo-keys.png
+spin SELECT 1
+wait 300
+shot glo-fx.png
+spin SELECT 1
+wait 600
+shot glo-cpu.png
 tap PLAY
