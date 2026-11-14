@@ -13,6 +13,11 @@
                                            grows, the audio's code keeps its place in the flash and in the caches */
 #endif
 void app_redraw(void);
+#define APP_SPLASH                       /* the boot screen: scene_splash.c */
+void app_splash(void);
+extern void (*boot_step)(int n);        /* the boot screen at step n (0..2), from app_init. Set by app_splash: app.c
+                                            names no screen function, which would place the screen's code (and move the
+                                            platform's audio code) before the platform's (docs/cpu.md) */
 #define APP_BLOCK 256u                   /* frames per audio block: 5.8 ms at 44.1 kHz */
 #define APP_CANVAS_PX (240u * 83u)       /* the widest strip drawn: a scene band (ui.c BAND_H); the pool keeps the rest */
 

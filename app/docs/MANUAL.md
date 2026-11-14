@@ -64,6 +64,9 @@ install stops early, add `--classic` and run it again: it resumes where it stopp
 
 To go back to the stock firmware, use the installer's last section, which writes M-VAVE's own firmware back.
 
+At power-on, a quartz crystal lights up facet by facet while QUARTZ loads the project, then the voices, then the
+screen.
+
 > An update can change how projects are saved. While QUARTZ is still young, the project saved by an older version
 > is then not loaded, and you start from a new project. Note down anything you want to keep.
 

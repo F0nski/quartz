@@ -1,0 +1,167 @@
+<title>QUARTZ Splash Screens</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+/* Layout: a short lead, then three live 240x240 device screens side by side (one per direction), each with its notes. */
+:root {
+  --bg: #efedf5; --fg: #1c1830; --muted: #5d5873; --line: #d9d5e6; --device: #151320; --hot: #d4247a; --panel: #e4e1ee;
+  --display: "Chakra Petch", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --line: #2a2440; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --line: #2a2440; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 48px }
+main { max-width: 1000px; margin: 0 auto; display: grid; gap: 22px }
+h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; line-height: 1.1; margin: 0; text-transform: uppercase; letter-spacing: .02em; text-wrap: balance }
+h1 em { font-style: normal; color: var(--hot) }
+.lead { color: var(--muted); max-width: 70ch; margin: 8px 0 0 }
+.bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center }
+button { font-family: var(--display); font-size: .85rem; letter-spacing: .06em; text-transform: uppercase; color: var(--fg);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 14px; cursor: pointer }
+button:focus-visible { outline: 2px solid var(--hot); outline-offset: 2px }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px }
+figure { margin: 0; display: grid; gap: 6px; align-content: start; min-width: 0 }
+canvas { width: 100%; max-width: 100%; aspect-ratio: 1; background: #000; border: 12px solid var(--device); border-radius: 16px; box-sizing: border-box; image-rendering: pixelated }
+h3 { font-family: var(--display); font-size: 1rem; margin: 0; text-transform: uppercase; letter-spacing: .04em }
+figcaption p { margin: 2px 0 0; font-size: .88rem; color: var(--muted); max-width: 65ch }
+figcaption b { color: var(--fg); font-weight: 600 }
+.note { font-size: .88rem; color: var(--muted); max-width: 75ch; margin: 0 }
+</style>
+
+<main>
+  <header>
+    <h1>Démarrage <em>trois idées</em></h1>
+    <p class="lead">L'écran affiché pendant que le FM-1 charge le projet et prépare les voix, à la place de l'écran crème de fm1-base. Chaque maquette rejoue un démarrage : trois étapes (PROJECT, VOICES, SCENES) qui font avancer la progression, puis l'écran reste une seconde avant de repartir.</p>
+  </header>
+  <div class="bar"><button id="replay" type="button">Rejouer le démarrage</button></div>
+
+  <section class="grid">
+    <figure><canvas id="crystal" width="240" height="240"></canvas><figcaption><h3>1. Le cristal</h3>
+      <p>Un cristal de quartz taillé, six pans et une pointe, en aplats roses et violets sur la nuit. <b>QUARTZ</b> dessous, la tagline, et une barre fine en bas. Chaque étape finie allume une facette de plus.</p></figcaption></figure>
+    <figure><canvas id="cluster" width="240" height="240"></canvas><figcaption><h3>2. La géode</h3>
+      <p>Quatre cristaux, un par piste, posés sur le sol filaire des scènes, sous un soleil taillé. Ils s'allument un par un pendant le chargement (le quatrième quand tout est prêt). Le nom en haut, comme un titre de borne d'arcade.</p></figcaption></figure>
+    <figure><canvas id="shards" width="240" height="240"></canvas><figcaption><h3>3. Les éclats</h3>
+      <p>Le nom en grandes lettres taillées en deux tons, sur une ligne d'horizon. Dessous, les quatre socles de HOME, qui montent à chaque étape. Le plus sobre et le plus lisible.</p></figcaption></figure>
+  </section>
+
+  <p class="note">Faisabilité : l'écran se dessine avec le moteur 3D plat de QUARTZ (p3d) ou des polygones simples, une fois avant le chargement, puis une fois par étape pendant <code>app_init</code> (projet lu, voix prêtes, première image). Aucune animation continue, pour ne pas ralentir le démarrage.</p>
+</main>
+
+<script>
+const TAU = Math.PI * 2;
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const NIGHT = "#07041a", NIGHT2 = "#120a33", WIRE = "#2a1d55", INK = "#f4f1ff", MUTE = "#8b84a8";
+const PINK = ["#ffb8dc", "#ff2f8e", "#8a1050"], VIO = ["#c9b8ff", "#7a5cff", "#3a2690"], BLUE = ["#8fb4ff", "#3a6dff", "#1c3590"];
+const K = [BLUE, ["#8ff5c8", "#22d58e", "#0f6d48"], ["#ffffff", "#c9c3e4", "#6f6890"], ["#ffc196", "#ff7a2e", "#a3410c"]];
+const STEPS = ["PROJECT", "VOICES", "SCENES"];
+const font = (px, w = 700) => `${w} ${px}px "Chakra Petch", sans-serif`;
+const poly = (c, pts, fill) => { c.fillStyle = fill; c.beginPath(); pts.forEach(([x, y]) => c.lineTo(x, y)); c.closePath(); c.fill(); };
+const center = (c, s, y, px, col, w) => { c.font = font(px, w); c.fillStyle = col; c.textAlign = "center"; c.fillText(s, 120, y); c.textAlign = "left"; };
+
+/* the boot as the device would see it: 0 before anything, then 1, 2, 3 steps done; a cycle of ~3.2 s */
+let t0 = performance.now();
+const stepAt = (ms) => ms < 500 ? 0 : ms < 1100 ? 1 : ms < 1700 ? 2 : 3;
+
+function sky(c) {
+  c.fillStyle = NIGHT; c.fillRect(0, 0, 240, 240);
+  c.fillStyle = MUTE;
+  [[18, 22], [60, 12], [200, 30], [170, 14], [222, 64], [34, 70], [96, 40], [140, 26]].forEach(([x, y]) => c.fillRect(x, y, 1, 1));
+}
+function status(c, n, y) {
+  const label = n < 3 ? STEPS[n] : "READY";
+  c.font = font(10, 500); c.fillStyle = n < 3 ? MUTE : PINK[0]; c.textAlign = "center"; c.fillText(label, 120, y); c.textAlign = "left";
+}
+
+/* 1. one hexagonal crystal: three body faces and three tip facets, lit facet by facet */
+function crystal(c, n) {
+  sky(c);
+  const cx = 120, top = 26, tipY = 58, baseY = 128, w = 34;
+  const L = cx - w, R = cx + w, ML = cx - w * 0.42, MR = cx + w * 0.42;
+  const faces = [
+    { p: [[L, tipY], [ML, tipY + 6], [ML, baseY + 6], [L, baseY]], col: VIO },
+    { p: [[ML, tipY + 6], [MR, tipY + 6], [MR, baseY + 6], [ML, baseY + 6]], col: PINK },
+    { p: [[MR, tipY + 6], [R, tipY], [R, baseY], [MR, baseY + 6]], col: VIO },
+    { p: [[L, tipY], [cx, top], [ML, tipY + 6]], col: PINK },
+    { p: [[ML, tipY + 6], [cx, top], [MR, tipY + 6]], col: PINK },
+    { p: [[MR, tipY + 6], [cx, top], [R, tipY]], col: VIO },
+  ];
+  const lit = [0, 2, 4, 6][n];   /* facets lit so far: 0, 2, 4, then all six */
+  faces.forEach((f, i) => poly(c, f.p, i < lit ? f.col[i % 3 === 1 ? 0 : 1] : f.col[2]));
+  c.strokeStyle = WIRE; c.lineWidth = 1;
+  /* floor shadow */
+  poly(c, [[L - 6, baseY + 10], [R + 6, baseY + 10], [R - 2, baseY + 14], [L + 2, baseY + 14]], WIRE);
+  center(c, "QUARTZ", 172, 30, INK);
+  center(c, "A FOUR-TRACK GROOVEBOX", 190, 10, MUTE, 500);
+  c.fillStyle = WIRE; c.fillRect(40, 212, 160, 2);
+  c.fillStyle = PINK[1]; c.fillRect(40, 212, 160 * n / 3, 2);
+  status(c, n, 228);
+}
+
+/* 2. four crystals on the scenes' wire floor under a cut sun */
+function cluster(c, n) {
+  sky(c);
+  /* cut sun: bands of a disc */
+  for (let i = 0; i < 6; i++) {
+    const y = 92 + i * 6, h = 4 - (i > 2 ? 1 : 0), r = 34;
+    const dy = y - 120, half = Math.sqrt(Math.max(0, r * r - dy * dy));
+    c.fillStyle = i < 3 ? PINK[0] : PINK[1]; c.fillRect(120 - half, y, half * 2, h);
+  }
+  /* floor */
+  c.fillStyle = NIGHT2; c.fillRect(0, 126, 240, 114);
+  c.strokeStyle = WIRE; c.lineWidth = 1;
+  for (let i = 0; i < 7; i++) { const y = 126 + Math.pow(i / 6, 1.8) * 114; c.beginPath(); c.moveTo(0, y); c.lineTo(240, y); c.stroke(); }
+  for (let i = -6; i <= 6; i++) { c.beginPath(); c.moveTo(120 + i * 6, 126); c.lineTo(120 + i * 44, 240); c.stroke(); }
+  /* crystals: one per track, lit one per step, the 4th when ready */
+  const xs = [42, 94, 146, 198], hs = [52, 70, 60, 46];
+  xs.forEach((x, i) => {
+    const on = i < n || (n === 3 && i === 3), col = on ? K[i] : [WIRE, "#1d1440", "#140d30"];
+    const b = 196, h = hs[i], w = 13;
+    poly(c, [[x - w, b - h + 12], [x, b - h + 16], [x, b], [x - w, b - 4]], col[1]);
+    poly(c, [[x, b - h + 16], [x + w, b - h + 12], [x + w, b - 4], [x, b]], col[2]);
+    poly(c, [[x - w, b - h + 12], [x, b - h], [x + w, b - h + 12], [x, b - h + 16]], col[0]);
+  });
+  center(c, "QUARTZ", 46, 34, INK);
+  status(c, n, 228);
+}
+
+/* 3. the name in two-tone cut letters on a horizon, HOME's four pedestals rising */
+function shards(c, n) {
+  sky(c);
+  c.fillStyle = NIGHT2; c.fillRect(0, 120, 240, 120);
+  c.fillStyle = PINK[1]; c.fillRect(0, 120, 240, 1);
+  /* the name: light upper half, shaded lower half, cut on a slant */
+  c.save();
+  c.font = font(44); c.textAlign = "center";
+  c.beginPath(); c.moveTo(0, 0); c.lineTo(240, 0); c.lineTo(240, 82); c.lineTo(0, 92); c.closePath(); c.clip();
+  c.fillStyle = INK; c.fillText("QUARTZ", 120, 108);
+  c.restore();
+  c.save();
+  c.font = font(44); c.textAlign = "center";
+  c.beginPath(); c.moveTo(0, 92); c.lineTo(240, 82); c.lineTo(240, 120); c.lineTo(0, 120); c.closePath(); c.clip();
+  c.fillStyle = VIO[0]; c.fillText("QUARTZ", 120, 108);
+  c.restore();
+  /* pedestals: hexagonal blocks rising per step */
+  for (let i = 0; i < 4; i++) {
+    const x = 39 + i * 54, base = 196, rise = Math.min(n, 3) / 3 * 26 * (i < n + 1 ? 1 : 0.4), top = base - 10 - rise;
+    const col = K[i];
+    poly(c, [[x - 18, top + 6], [x, top + 12], [x, base], [x - 18, base - 6]], col[1]);
+    poly(c, [[x, top + 12], [x + 18, top + 6], [x + 18, base - 6], [x, base]], col[2]);
+    poly(c, [[x - 18, top + 6], [x, top], [x + 18, top + 6], [x, top + 12]], col[0]);
+    c.font = font(10, 700); c.fillStyle = INK; c.textAlign = "center"; c.fillText(String(i + 1), x, base + 14); c.textAlign = "left";
+  }
+  status(c, n, 228);
+}
+
+const views = [["crystal", crystal], ["cluster", cluster], ["shards", shards]].map(([id, f]) => [document.getElementById(id).getContext("2d"), f]);
+function frame(now) {
+  const ms = reduce ? 3000 : (now - t0) % 3200;
+  const n = stepAt(ms);
+  views.forEach(([c, f]) => f(c, n));
+  if (!reduce) requestAnimationFrame(frame);
+}
+document.getElementById("replay").addEventListener("click", () => { t0 = performance.now(); if (reduce) views.forEach(([c, f]) => f(c, 3)); });
+document.fonts.ready.then(() => requestAnimationFrame(frame));
+requestAnimationFrame(frame);
+</script>

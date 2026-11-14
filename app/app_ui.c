@@ -3,6 +3,7 @@
  * the audio interrupt's and the DSP's keep their place in the flash, and how they fit the caches (docs/cpu.md); in the
  * simulator at the end of app.c. Nothing before calls into it: clang places a function where it is first named. */
 #include "p3d.c"
+#include "scene_splash.c"
 #include "scene.c"
 #include "scene_va.c"
 #include "scene_wave.c"

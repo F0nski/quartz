@@ -1,0 +1,8 @@
+# The boot screen (scene_splash.c): the crystal, its facets lit two by two as the boot goes on, the name, the bar
+wait 600
+splash 0
+shot splash_0.png
+splash 1
+shot splash_1.png
+splash 2
+shot splash_2.png

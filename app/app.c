@@ -9,12 +9,17 @@
 #include "audio.c"
 #include "store.c"
 static uint8_t booted;
+void (*boot_step)(int n);
 static q_project project PLAT_POOL;   /* too big for the core's RAM: the 336 KB pool */
 
 void app_init(void)
 {
     store_load(&project);
+    if (boot_step)
+        boot_step(1);
     audio_setup(&project);
+    if (boot_step)
+        boot_step(2);
     booted = 1;
 }
 
@@ -26,7 +31,12 @@ void app_say(const char *a, const char *b) { (void)a; (void)b; }
 /* "update_refused": what device/main_fm1.c does for an update that commits nothing */
 int app_host_cmd(const char *cmd, const char *a, const char *b, const char *c, const char *d)
 {
-    (void)a, (void)b, (void)c, (void)d;
+    (void)b, (void)c, (void)d;
+    if (!strcmp(cmd, "splash")) {      /* "splash N": the boot screen at step N, which the simulator never shows */
+        app_splash();
+        boot_step(atoi(a));
+        return 1;
+    }
     if (strcmp(cmd, "update_refused"))
         return 0;
     app_panic();
