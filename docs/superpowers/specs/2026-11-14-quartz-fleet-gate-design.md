@@ -29,8 +29,8 @@ sur un KIT, et les pads sont percussifs) ; un p-lock de GATE (FLEET n'a pas de p
 
 ## 3. Le son
 
-- `marbles_step` écrit `st->len = (uint8_t)(1 << m->gate)` à la place de `4`, sur une piste synthé comme sur un KIT
-  (sur un KIT, `gate` reste à sa valeur par défaut : rien ne change).
+- `marbles_step` écrit `st->len = (uint8_t)(1 << m->gate)` à la place de `4` sur une piste synthé ; sur un KIT, `len`
+  reste 4 quel que soit `gate` (un `gate` réglé avant de passer la piste en KIT ne change pas ses notes).
 - Une note répétée en ratchet garde la règle existante du séquenceur (`seq.c` : plus de 8 huitièmes avec un ratchet
   ramène la longueur à 8).
 - Aucun code audio ne change.
@@ -41,8 +41,8 @@ sur un KIT, et les pads sont percussifs) ; un p-lock de GATE (FLEET n'a pas de p
   `t->marbles.gate` dans les deux `switch` des pages, comme LEN sur la page FLEET.
 - Valeur affichée : `1/8`, `1/4`, `1/2`, `1`, `2`, `4`, par une table de noms dans `ui.c`, à côté des autres tables de
   valeurs.
-- Scène FLEET : le cristal touché par un tir reste allumé (sa couleur vive) pendant toute la durée de la note,
-  `gate` × la durée d'un pas / 8, au lieu du flash fixe de 150 ms d'aujourd'hui. `q_mview` reçoit `gate` à côté de
+- Scène FLEET : le cristal touché par un tir et son nom restent roses pendant toute la durée de la note,
+  `1 << gate` huitièmes de pas, 40 ms au moins, au lieu des 450 ms (cristal) et 150 ms (nom) fixes d'avant. `q_mview` reçoit `gate` à côté de
   `len`, et `step_ms` y est déjà.
 - `words.tsv` : `GATE` existe déjà (page ARP) ; ajouter `1/8`, `1/4` et `1/2` (« one eighth », « one quarter »,
   « one half »).

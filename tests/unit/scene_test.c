@@ -160,6 +160,21 @@ static int count_px_from(uint16_t c, int b0)    /* in the bands from b0: band 1 
 }
 static int count_px(uint16_t c) { return count_px_from(c, 0); }
 
+/* a hit crystal stays pink for its note's length (GATE), from 1/8 of a step: 125 ms steps */
+static void marbles_lit_follows_gate(void)
+{
+    mreset();
+    MV.gate = 0;                    /* 1/8: 16 ms, the 40 ms floor */
+    mframe(0);
+    assert(marbles_pink(39) && !marbles_pink(200));
+    MV.gate = 3;                    /* 1 step */
+    mframe(0);
+    assert(marbles_pink(124) && !marbles_pink(200));
+    MV.gate = 5;                    /* 4 steps */
+    mframe(0);
+    assert(marbles_pink(499) && !marbles_pink(500));
+}
+
 static void marble_lands_in_its_bin(void)
 {
     int n;
@@ -2567,6 +2582,7 @@ int main(void)
     steps_dims_crystals();
     budget_under_300();
     six_marbles_max();
+    marbles_lit_follows_gate();
     deja_vu_orange();
     lands_when_it_sounds();
     kit_engine_flashes_alone();
