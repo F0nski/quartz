@@ -166,6 +166,8 @@ on their pedestals, with the pattern each plays and its model, and its knobs are
 | --- | --- | --- | --- | --- |
 | TRACKS | LVL 1: track 1's level, 0–127 | LVL 2 | LVL 3 | LVL 4 |
 
+![HOME's TRACKS page: the four tracks on neon pedestals, each with P1 and CREST, LVL 1 to 4 at 100](img/home.png "TRACKS")
+
 To mute a track, hold HOME and press white key 1–4. A muted track's pedestal goes dark and its key goes out.
 
 ### Patterns

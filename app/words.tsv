@@ -274,3 +274,119 @@ DELAY THROW	delay throw
 FREEZE	freeze
 STUTTER	stutter
 STUT GATE	stutter gate
+COLONY	colony
+LOOM	loom
+CADENCE	cadence
+LATTICE	lattice
+MOONS	moons
+MIMIC	mimic
+PADS	pads
+BANDS	bands
+SEED	seed
+AUTO	auto
+EVOL	evolution
+GEN	generations
+MUT	mutation
+EXTINCT	extinct
+FROZEN	frozen
+LENS	lengths
+TRIG LEN	trigger length
+NOTE LEN	note length
+OCT LEN	octave length
+DUR LEN	duration length
+VEL LEN	velocity length
+DUR	duration
+SET THE CELL	set the cell
+WRITES ITS NOTE	writes its note
+PROG	progression
+CHORD	chord
+DEGREE	degree
+SIZE	size
+STRUM	strum
+ROOT	root
+SMOOTH	smooth
+TRIAD	triad
+SEVENTH	seventh
+SUS2	sus two
+SUS4	sus four
+1/BAR	once a bar
+2/BAR	twice a bar
+4/BAR	four a bar
+8/BAR	eight a bar
+16/BAR	sixteen a bar
+I	one
+II	two
+III	three
+IV	four
+V	five
+VI	six
+VII	seven
+NO CHORDS ON A KIT	no chords on a kit
+WALK	walk
+RETURN	return
+OP	operation
+P	parallel
+L	leading tone
+R	relative
+-	keep
+PERIOD	period
+PHASE	phase
+DRIFT	drift
+LOOP	loop
+LISTEN	listen
+YOU	you
+NOW	now
+GRID	grid
+LIVE	live
+ARM	armed
+CLEAR	clear
+CLEAR LOCKS	clear locks
+ON THE PATTERN SHOWN	on the pattern shown
+AS THE PLAYHEAD PASSES	as the playhead passes
+LIVE: COUNT-IN OR ARMED	live: count-in or armed
+GRID > NOTES > OFF	grid, notes, off
+ERASES ITS NOTE	erases its note
+EVERY STEP	every step
+TAP	tap
+HOLD	hold
+NOTHING ON RELEASE	nothing on release
+LET GO	let go
+EVERY PUNCH-IN STOPS	every punch-in stops
+KEY	key
+LATCH ITS NOTE	latch its note
+SELECT THE STEP	select the step
+ITS FUNCTIONS	its functions
+SET ON ALL	set on all
+LOCK ALL	lock all
+THEIR LENGTHS	their lengths
+CURSOR THERE	cursor there
+LOCK THE STEP	lock the step
+LOCK PAGE	lock page
+STORE THE SCENE	store the scene
+NEW PROJECT	new project
+AGAIN: ERASE	again: erase
+SONG ON	song on
+SONG OFF	song off
+LVL 1	level 1
+LVL 2	level 2
+LVL 3	level 3
+LVL 4	level 4
+INSERT	insert
+BAND-PASS	band pass
+CHROMATIC KEYBOARD	chromatic keyboard
+SCALE ON FLEET TRACKS	scale on fleet tracks
+SCALE ON EVERY TRACK	scale on every track
+CORE 2 STACK	core 2 stack
+SCENE FPS	scene frames per second
+MUTE T1	mute track 1
+MUTE T2	mute track 2
+MUTE T3	mute track 3
+MUTE T4	mute track 4
+SONG + S1	add scene 1 to the song
+SONG + S2	add scene 2 to the song
+SONG + S3	add scene 3 to the song
+SONG + S4	add scene 4 to the song
+SONG + S5	add scene 5 to the song
+SONG + S6	add scene 6 to the song
+SONG + S7	add scene 7 to the song
+SONG + S8	add scene 8 to the song
