@@ -106,3 +106,52 @@ shot sound-pad.png
 spin SELECT 1
 wait 300
 shot sound-kit.png
+
+# 7. Shaping: a new project, track 1 playing a held note
+reboot
+wait 600
+tap ENV
+key w7 down
+wait 500
+shot shape-adsr.png
+spin SELECT 1
+wait 300
+shot shape-filter.png
+key w7 up
+tap LFO
+spin K4 -3
+key w7 down
+wait 500
+shot shape-lfo.png
+key w7 up
+tap ARP
+spin K1 1
+key w0 down
+key w2 down
+key w4 down
+wait 900
+shot shape-arp.png
+key w0 up
+key w2 up
+key w4 up
+spin K1 -1
+tap FX
+key w7 down
+wait 400
+shot shape-mix.png
+key w7 up
+spin SELECT 1
+spin PRESET 5
+expect itype 5
+key w7 down
+wait 400
+shot shape-insert.png
+key w7 up
+spin PRESET -5
+press FX
+wait 600
+key w7 down
+wait 300
+shot shape-punch.png
+key w7 up
+release FX

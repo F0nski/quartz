@@ -326,6 +326,122 @@ changes its engine. KIT's scene is the 16 pads, each with its engine, the one th
 
 ## 7. Shaping
 
+Each voice goes through Plaits' low-pass gate, which follows the envelope, then a filter. The track then goes through
+its insert effect, its level and its pan, and sends to the shared delay and reverb. Everything on these pages is per
+track. The scenes show the model's name and draw what the knobs set.
+
+### ENV
+
+| Page | K1 | K2 | K3 | K4 |
+| --- | --- | --- | --- | --- |
+| ADSR | ATTACK | DECAY | SUSTAIN | RELEASE |
+| FILTER | TYPE: LP, HP, BP | CUTOFF | RES | ENV AMT, −64 to +63 |
+
+- ATTACK, DECAY and RELEASE go from 1 ms to 10 s. SUSTAIN is the level held while the note is on.
+- The ADSR sets the voice's level, scaled by the velocity. On the models with their own envelope (HEX A–C, WIRE,
+  CHLADNI, the drums and the KIT), it only moves the filter.
+- CUTOFF goes from 20 Hz to 20 kHz; 127 on LP lets everything through. RES goes up to the edge of self-oscillation.
+- ENV AMT is how far the ADSR moves the cutoff, up to eight octaves either way. An accented step moves it 1.5 times as
+  far (section 8).
+
+![ENV's ADSR page: the envelope drawn as blocks, ATTACK 0, DECAY 64, SUSTAIN 127, RELEASE 20](img/shape-adsr.png "ADSR")
+
+![ENV's FILTER page: LOW-PASS, the cutoff as a wall](img/shape-filter.png "FILTER")
+
+### LFO
+
+| Page | K1 | K2 | K3 | K4 |
+| --- | --- | --- | --- | --- |
+| LFO | SHAPE: SIN, TRI, SAW, SQR, S&H | RATE | DEPTH, −64 to +63 | DEST |
+
+- RATE first offers 12 speeds in time with the tempo (8 BAR, 4 BAR, 2 BAR, 1 BAR, 1/2, 1/4, 1/4T, 1/8, 1/8T, 1/16,
+  1/16T, 1/32), then free speeds from 0.05 Hz to 30 Hz.
+- DEST: HARM, TIMB, MORPH, PITCH (±12 semitones), CUTOFF (±5 octaves), RES or LEVEL. The LFO adds to the value set
+  on the page, or to its p-lock.
+- PRESET switches FREE and TRIG, shown in the header. FREE runs on its own, and a synced rate starts with the bar at
+  PLAY. TRIG starts the shape again on each note.
+- S&H takes a new random value each cycle.
+
+![The LFO page: LFO FREE in the header, the shape drawn, SIN, 1/4, DEPTH 0, DEST TIMB](img/shape-lfo.png "LFO")
+
+### ARP
+
+| Page | K1 | K2 | K3 | K4 |
+| --- | --- | --- | --- | --- |
+| ARP | MODE: OFF, UP, DOWN, UP-DN, RAND, ORDER | OCT, 1–4 | DIV, 1/32 to 1/1 | GATE, 5–100 % |
+
+- The arpeggiator plays the notes held, from the keys or from the steps: a chord on a step is arpeggiated for as long
+  as the step lasts. A single note is repeated, over OCT octaves.
+- UP-DN does not repeat the top and bottom notes. ORDER follows the order the notes came in.
+- It runs at its own DIV, in time with the tempo but without swing. GATE is how long each note lasts.
+- **Latch**: hold ARP and press keys. Their notes stay in the arpeggio after you let go, until you press a key without
+  ARP.
+- A KIT track ignores the arpeggiator.
+
+![The ARP page: three notes held, as bars of their pitch, UP, OCT 1, 1/16, GATE 50 %](img/shape-arp.png "ARP")
+
+### FX
+
+| Page | K1 | K2 | K3 | K4 |
+| --- | --- | --- | --- | --- |
+| MIX | DELAY send | REVERB send | PAN, −64 to +63 | LEVEL |
+| INSERT | depends on the type | depends on the type | depends on the type | MIX |
+
+On INSERT, PRESET picks the insert's type, shown as the page's name. K4 MIX blends it with the dry sound: 0 is dry
+only, 127 is the effect only. The three other knobs keep their values when you change the type.
+
+| Type | K1 | K2 | K3 |
+| --- | --- | --- | --- |
+| INSERT OFF | — | — | — |
+| OVERDRIVE | DRIVE | TONE | — |
+| WAVEFOLD | FOLD | BIAS | TONE |
+| BITCRUSH | BITS, 16 to 2 | RATE, 44.1 kHz to 500 Hz | — |
+| CHORUS | RATE, 0.05 to 5 Hz | DEPTH | — |
+| PHASER | RATE, 0.05 to 5 Hz | DEPTH | FEEDBK |
+| RING MOD | FREQ, 20 Hz to 5 kHz | — | — |
+| COMB | NOTE, F1 and up | FEEDBK | DAMP |
+
+The delay and the reverb are shared by the four tracks; DELAY and REVERB set how much of the track goes to each.
+They are set on GLO's FX page (section 10): the delay is a ping-pong in time with the tempo, the reverb is Clouds'.
+
+![FX's MIX page: DELAY, REVERB and PAN as gems, the level as a fader](img/shape-mix.png "MIX")
+
+![The INSERT page with PHASER: its waves, RATE 0.51 Hz, DEPTH 64, FEEDBK 64, MIX 127](img/shape-insert.png "INSERT, PHASER")
+
+### Punch-ins
+
+Hold FX and press white keys: each one is an effect on the whole mix, for as long as you hold its key. Several can
+be held together. Its name shows in the header; let go of FX and they all stop.
+
+| Key | Punch-in | What it does |
+| --- | --- | --- |
+| 1–4 | LOOP 1/8, LOOP 1/12, LOOP 1/16, LOOP 1/32 | Repeats the last slice of that length, started on the beat grid. |
+| 5 | TAPE STOP | Slows down to a stop over a beat, pitch falling, then silence. |
+| 6 | LOW-PASS | A low-pass at 400 Hz. |
+| 7 | HIGH-PASS | A high-pass at 1.5 kHz. |
+| 8 | SWEEP | A resonant low-pass sweeping down and up once a bar. |
+| 9 | BITCRUSH | 6 bits. |
+| 10 | DOWNSAMPLE | 4 kHz. |
+| 11 | GATE 1/16 | Cuts every other sixteenth. |
+| 12 | AUTO-PAN | Left to right and back once a beat. |
+| 13 | DELAY THROW | Sends the whole mix into the delay; the echoes go on after you let go. |
+| 14 | FREEZE | Holds the reverb's tail; it fades when you let go. |
+| 15 | STUTTER | Repeats faster each beat: 1/8, 1/16, 1/32, then 1/64. |
+| 16 | STUT GATE | Repeats 1/64 slices, each cut in half. |
+
+While recording LIVE on a STEP pattern, the punch-ins you hold are written on the steps they cross (section 8), and
+play back with the pattern.
+
+![FX held with key 8 pressed: the 16 punch-ins named, SWEEP in pink](img/shape-punch.png "FX held: the punch-ins")
+
+**Inspired by** the [OP-Z's punch-in effects](https://teenage.engineering/guides/op-z/punch-in-effects): a held key
+for a momentary effect on the mix, recorded with the pattern. QUARTZ's are its own set of sixteen. The reverb is
+[Clouds'](https://pichenettes.github.io/mutable-instruments-documentation/modules/clouds/manual/) by Mutable
+Instruments.
+
+---
+
+
 ## 8. Sequencer
 
 ## 9. Sources
