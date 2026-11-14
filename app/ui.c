@@ -60,7 +60,7 @@ static const q_page PAGE[] = {
     {"SEED", {"SEED", "DENS", "AUTO"}, {0, 0, 0}, {127, 127, 1}},
     {"EVOL", {"GEN", "MUT"}, {0, 0}, {3, 127}},
     {"PAD", {"TUNE", "HARM", "TIMB", "DECAY"}, {-24, 0, 0, 0}, {24, 127, 127, 127}},
-    {"KIT", {"MODEL", "ENGINE", "LEVEL"}, {0, 0, 0}, {M_KIT, 2, 127}},
+    {"KIT", {"MODEL", "ENGINE", "LEVEL", "CHAR"}, {0, 0, 0, 0}, {M_KIT, 2, 127, 127}},
     {"ADSR", {"ATTACK", "DECAY", "SUSTAIN", "RELEASE"}, {0, 0, 0, 0}, {127, 127, 127, 127}},
     {"FILTER", {"TYPE", "CUTOFF", "RES", "ENV AMT"}, {0, 0, 0, -64}, {2, 127, 127, 63}},
     {"LFO", {"SHAPE", "RATE", "DEPTH", "DEST"}, {0, 0, -64, 0}, {4, LRATE_SYNC + 63, 63, 6}},
@@ -158,6 +158,7 @@ typedef struct {
         int16_t v[4];
         uint8_t model, pad;                     /* pad: KIT, the pad its knobs set */
         uint8_t eng[Q_PADS];                    /* KIT: the pads' engines */
+        uint8_t chr[Q_PADS];                    /* KIT: the pads' CHAR */
         q_step st[16];
         int32_t cpu[8];                         /* the CPU page's numbers as shown; core 2 -1: OFF */
         uint8_t anim;                           /* an animated scene, redrawn as it moves: 0 none, 1 the sound's scene (v: its ENGINE
@@ -386,6 +387,7 @@ static int knob_get(int pid, int k)
     case P_PAD * 4 + 3: return pd->decay;
     case P_KIT * 4 + 1: return pd->engine;
     case P_KIT * 4 + 2: return pd->level;
+    case P_KIT * 4 + 3: return pd->chr;
     case P_ADSR * 4: return s->atk;
     case P_ADSR * 4 + 1: return s->dec;
     case P_ADSR * 4 + 2: return s->sus;
@@ -568,6 +570,7 @@ static void knob_set(int pid, int k, int v)
     case P_PAD * 4 + 3: pd->decay = (uint8_t)v; break;
     case P_KIT * 4 + 1: pd->engine = (uint8_t)v; break;     /* the render takes it at the pad's next hit */
     case P_KIT * 4 + 2: pd->level = (uint8_t)v; break;
+    case P_KIT * 4 + 3: pd->chr = (uint8_t)v; break;
     case P_ADSR * 4: s->atk = (uint8_t)v; break;
     case P_ADSR * 4 + 1: s->dec = (uint8_t)v; break;
     case P_ADSR * 4 + 2: s->sus = (uint8_t)v; break;
@@ -2310,7 +2313,7 @@ static void view_now(q_view *v)
     } else if (pid == P_KIT) {
         v->scene.pad = (uint8_t)ui.pad;
         for (k = 0; k < Q_PADS; k++)
-            v->scene.eng[k] = ui.p->kit[ui.track][k].engine;
+            v->scene.eng[k] = ui.p->kit[ui.track][k].engine, v->scene.chr[k] = ui.p->kit[ui.track][k].chr;
     } else if (pid == P_STEPS || pid == P_XY || (pid >= P_SN1 && pid <= P_SN3)) {
         v->scene.anim = 2;
         v->scene.spage = (int8_t)ui.spage;
@@ -2697,6 +2700,8 @@ static void draw_scene(const q_view *v, int32_t oy)
             const char *n = ENGINE_NAME[v->scene.eng[i]];
             cv_rect(x, y, 54, 33, i == v->scene.pad ? C_HI : C_LINE);
             cv_text(x + (54 - text_w(&FONT_T, n)) / 2, y + 20, &FONT_T, n, i == v->scene.pad ? C_BLACK : C_GRAY);
+            if (v->scene.chr[i])        /* CHAR: a bar under the name, 1 already shows */
+                cv_rect(x, y + 31, (54 * v->scene.chr[i] + 126) / 127, 2, i == v->scene.pad ? C_BLACK : KCOL[3]);
         }
         break;
     case P_GRIDS:
@@ -3500,6 +3505,7 @@ int ui_expect(const char *what, int *got)
         else if (!strncmp(what, "padharm_", 8)) *got = pd->harm;
         else if (!strncmp(what, "padengine_", 10)) *got = pd->engine;
         else if (!strncmp(what, "padlevel_", 9)) *got = pd->level;
+        else if (!strncmp(what, "padchar_", 8)) *got = pd->chr;
         else
             return 0;
     } else if (!strncmp(what, "stepnotes_", 10) && m >= 1 && m <= Q_STEPS) {

@@ -314,10 +314,14 @@ its own tuning and settings, and a kit plays up to three pads at once. With KIT,
 | Page | K1 | K2 | K3 | K4 |
 | --- | --- | --- | --- | --- |
 | PAD | TUNE, −24 to +24 | HARM, 0–127 | TIMB, 0–127 | DECAY, 0–127 |
-| KIT | MODEL, by name | ENGINE, BD SN HH | LEVEL, 0–127 | — |
+| KIT | MODEL, by name | ENGINE, BD SN HH | LEVEL, 0–127 | CHAR, 0–127 |
 
 The knobs set the last pad played, named in the header (`PAD 1`). In EDIT, hold a pad: K1–K4 set that pad and PRESET
-changes its engine. KIT's scene is the 16 pads, each with its engine, the one the knobs set lit.
+changes its engine. KIT's scene is the 16 pads, each with its engine, the one the knobs set lit, and a bar under each
+pad that shows its CHAR.
+
+CHAR mixes the two sounds each drum engine makes: 0 the analog one, 127 a synthetic take on the same drum (on HH, a
+ring-modulated noise instead of metallic squares), between them a blend.
 
 | Pad | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -327,7 +331,7 @@ changes its engine. KIT's scene is the 16 pads, each with its engine, the one th
 
 ![The PAD page: the kit's BD, SN and HH, TUNE -12, HARM 72, TIMB 50, DECAY 70](img/sound-pad.png "PAD, pad 1")
 
-![The KIT page: the 16 pads with their engines, pad 1 lit](img/sound-kit.png "KIT")
+![The KIT page: the 16 pads with their engines, pad 1 lit, a CHAR bar under pads 10–12](img/sound-kit.png "KIT")
 
 ---
 

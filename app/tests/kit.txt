@@ -24,6 +24,19 @@ turn SELECT 1
 expect page 2
 turn K3 -10
 expect padlevel_4 80
+# K4 CHAR sets the last pad played
+turn K4 20
+expect padchar_4 20
+expect padchar_1 0
+expect padchar_10 127
+key w0 down
+key w0 up
+turn K4 5
+expect padchar_1 5
+expect padchar_4 20
+key w3 down
+key w3 up
+expect pad 4
 wait 100
 shot kit_page.png
 turn SELECT 1
