@@ -751,13 +751,20 @@ static void job2(uint32_t arg)
     sum2 += plat_ticks24() - t0;
 }
 
+/* each model's level at its default settings, CREST's as the reference (K-weighted loudness, the loudest 100 ms of a
+ * held note 48 at velocity 100): Plaits' own output levels differ by up to 20 dB. Applied after the voice's clamp, so a
+ * raised drum keeps its peaks */
+static const float MODEL_GAIN[M_KIT] = {
+    1.14f, 0.70f, 0.79f, 1.15f, 1.30f, 1.05f, 2.48f, 0.52f, 1.00f, 1.04f, 0.82f, 1.23f,
+    1.14f, 1.88f, 0.91f, 1.57f, 1.40f, 0.88f, 2.69f, 5.01f, 1.60f, 1.26f, 2.21f, 2.57f};
+
 static void render_segment(void)
 {
     uint32_t tw;
     int two = 0, r = 0, need2 = 0;
     for (int v = 0; v < Q_VOICES; v++)
         if (sounding(v)) {
-            gain[v] = 0.25f;        /* the track's LEVEL is qfx's */
+            gain[v] = 0.25f * MODEL_GAIN[pool.v[v].model];   /* the track's LEVEL is qfx's */
             if (vpad[v] >= 0)
                 gain[v] *= prj->kit[pool.v[v].track][vpad[v]].level / 127.0f;
             need2 |= v >= 3;

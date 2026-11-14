@@ -1089,7 +1089,7 @@ static void kit_pad_patch(void)
     for (int i = 0; i < NLOG; i++) if (LOG[i].op == 'n') assert(LOG[i].a == 48.0f + 12.0f);
     assert(count('n', v) == 1);
     block(256);
-    int32_t g = (int32_t)(0.01f * (float)(v + 1) * (90 / 127.0f * 0.25f) * 8388607.0f);
+    int32_t g = (int32_t)(0.01f * (float)(v + 1) * (90 / 127.0f * 0.25f * MODEL_GAIN[22]) * 8388607.0f);
     assert(LR[0] - g <= 1 && g - LR[0] <= 1);
 }
 
@@ -1793,6 +1793,23 @@ static void notes_survive_restart(void)
     }
 }
 
+/* a voice is scaled by its model's level: ARCADE's square below CREST, a SNARE above */
+static void model_gain_matches_levels(void)
+{
+    float lvl[3];
+    static const int M[3] = { 7, 8, 22 };
+    for (int k = 0; k < 3; k++) {
+        setup();
+        set_model(0, M[k]);
+        for (int i = 0; i < 4; i++) block(256);
+        audio_live_note(0, 60, 1);
+        block(256);
+        block(256);
+        lvl[k] = QBUS[0][0] / (float)(track_slot(0) + 1);   /* the double renders 0.01 * (slot + 1) */
+    }
+    assert(lvl[1] == 0.01f * 0.25f && lvl[0] < 0.6f * lvl[1] && lvl[2] > 2.0f * lvl[1]);
+}
+
 /* a key held on the track playing its pattern, POLY 1: the steps do not take its voice */
 static void held_key_survives_the_pattern(void)
 {
@@ -1886,6 +1903,7 @@ int main(void)
     recorded_punch_follows_pattern();
     free_phase_when_stopped();
     held_key_survives_the_pattern();
+    model_gain_matches_levels();
     free_phase_carries_on_stop();
     hits_count_note_ons();
     kit_hits_per_engine();

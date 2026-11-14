@@ -245,7 +245,8 @@ The model's name shows in the header of ENGINE and SOUND, and under MODEL in SOU
 ### Models
 
 The models are Plaits' 24 synthesis models under QUARTZ's own names, sorted by family: PRESET goes through them in
-the order of the table. Each family has its own scene.
+the order of the table. Each family has its own scene. At their default settings, the models and the kit's three
+drums play at about the same loudness: QUARTZ evens out Plaits' own levels, which differ by up to 20 dB.
 
 | Family | Name | Sound | HARM | TIMB | MORPH | Plaits model |
 | --- | --- | --- | --- | --- | --- | --- |
