@@ -212,6 +212,118 @@ replace the project with a new one. The old one is still in the FM-1 until you p
 
 ## 6. Sound
 
+Press EDIT. The ENGINE page sets the model's own four controls, SOUND picks the model and how it is played. PRESET
+browses the models from any EDIT page.
+
+![EDIT's ENGINE page with CREST: a ship flying over crests that carry the waveform](img/sound-engine.png "ENGINE, with the model's scene")
+
+| Page | K1 | K2 | K3 | K4 |
+| --- | --- | --- | --- | --- |
+| ENGINE | HARM, 0–127 | TIMB, 0–127 | MORPH, 0–127 | DECAY, 0–127 |
+| SOUND | MODEL, 0–24 | TUNE, −24 to +24 semitones | GLIDE, 0–127 | POLY, 1–4 voices |
+
+- **HARM, TIMB, MORPH** do something different on each model: the table below says what.
+- **DECAY** sets how long a note rings after its gate closes, and the length of the model's own envelope on the models
+  that have one (HEX A–C, WIRE, CHLADNI and the drums).
+- **TUNE** transposes the track. **GLIDE** slides from one note to the next; 0 is off.
+- **POLY** is how many notes the track plays at once. The four tracks share six voices; when they are all busy, a
+  new note takes the oldest one.
+
+The footer shows the model's number. Its name shows on HOME's TRACKS page and on the ENV, LFO, ARP and FX pages.
+
+![EDIT's SOUND page: MODEL 8, TUNE 0, GLIDE 0, POLY 1](img/sound-sound.png "SOUND")
+
+### Models
+
+The models are Plaits' 24 synthesis models, in Plaits' order, under QUARTZ's own names. Each family has its own
+scene.
+
+| # | Name | Sound | HARM | TIMB | MORPH | Plaits model |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0 | SWEEP | Classic waves through a resonant filter | Resonance and filter slope | Cutoff | Waveform and sub | Virtual analog with VCF (1.2) |
+| 1 | KINK | Phase distortion | Distortion frequency | Amount | Asymmetry | Phase distortion (1.2) |
+| 2 | HEX A | 6-operator FM, basses and synths | Preset, 1 of 32 | Modulator levels | Envelope stretch | 6-op FM, bank 1 (1.2) |
+| 3 | HEX B | 6-operator FM, keys, plucks, percussion | Preset | Modulator levels | Envelope stretch | 6-op FM, bank 2 (1.2) |
+| 4 | HEX C | 6-operator FM, organs, pads, strings, brass | Preset | Modulator levels | Envelope stretch | 6-op FM, bank 3 (1.2) |
+| 5 | BOWL | A path read on a 2D terrain | Terrain | Path radius | Path offset | Wave terrain (1.2) |
+| 6 | ENSEMBLE | String machine with filter and chorus | Chord | Chorus and filter | Waveform | String machine (1.2) |
+| 7 | ARCADE | Square-wave chords and arpeggios | Chord | Arpeggio or inversion | Pulse width, sync | Chiptune (1.2) |
+| 8 | CREST | Two classic analog waveforms | Detune | Pulse to sync | Triangle to saw | Virtual analog |
+| 9 | PRISM | A triangle shaped and folded | Waveshape | Fold | Asymmetry | Waveshaper |
+| 10 | MOON | Two sine operators | Ratio | Modulation index | Feedback | 2-operator FM |
+| 11 | POLLEN | Formants from sine segments | Formant ratio | Formant frequency | Width and shape | Granular formant |
+| 12 | FACETS | Harmonics added up | Spectral bumps | Main harmonic | Bump shape | Additive |
+| 13 | PIPE | Wavetables, 4 banks of 8 x 8 | Bank | Row | Column | Wavetable |
+| 14 | CHORALE | Four-note chords | Chord | Inversion | Waveform | Chords |
+| 15 | ORATOR | Vowels and words | Vowels, then word banks | Voice size | Phoneme or word | Speech |
+| 16 | CROWD | Eight sawtooths in a swarm | Pitch spread | Density | Grain duration | Swarm |
+| 17 | STATIC | Clocked noise through a filter | Low-pass to high-pass | Clock | Resonance | Filtered noise |
+| 18 | GLITTER | Dust through resonators | Frequency spread | Density | Filter type | Particle noise |
+| 19 | WIRE | A plucked string | Inharmonicity | Brightness | Decay | Inharmonic string |
+| 20 | CHLADNI | A struck resonant body | Material | Brightness | Decay | Modal resonator |
+| 21 | BASS DRUM | Analog bass drum | Attack and drive | Brightness | Decay | Bass drum |
+| 22 | SNARE | Analog snare | Tone to noise | Drum modes | Decay | Snare drum |
+| 23 | HI-HAT | Analog hi-hat | Metal to noise | High-pass | Decay | Hi-hat |
+| 24 | KIT | 16 drum pads (below) | — | — | — | — |
+
+On the drums, HEX A–C, WIRE and CHLADNI, the model makes its own envelope: ENV's ADSR then shapes only the filter.
+
+The scenes, by family:
+
+| Models | Scene |
+| --- | --- |
+| SWEEP, KINK, CREST, PRISM | A ship flies over crests that carry the waveform and fires at the next crest on each note. |
+| HEX A–C, MOON | A cut planet with a ring; ships in orbit fire at it on each note, and MORPH tilts the ring. |
+| BOWL, PIPE | A rider in a neon bowl (BOWL) or a half-pipe whose walls carry the wave (PIPE). |
+| ENSEMBLE, CHORALE | A choir of androids, one per voice, on steps as high as their notes. |
+| ARCADE | A cube robot hops from block to block, one block per note of the chord. |
+| POLLEN, FACETS | A garden of crystal flowers, one per harmonic. |
+| ORATOR | A low-poly head that speaks. |
+| CROWD, STATIC, GLITTER | A neon dancefloor whose tiles the grains light. |
+| WIRE | An acrobat on a laser rope that rings under each hop. |
+| CHLADNI | A Chladni figure of the body's modes. |
+| BASS DRUM, SNARE, HI-HAT, KIT | The kit's three drums, struck as they play. |
+
+![HEX A: a planet with a ring, ships around it](img/sound-hex.png "HEX A")
+
+![CHLADNI: a faceted figure in green and blue](img/sound-chladni.png "CHLADNI")
+
+![ORATOR: a low-poly head](img/sound-orator.png "ORATOR")
+
+![BOWL: a rider in a wire bowl](img/sound-bowl.png "BOWL")
+
+**Inspired by** [Plaits](https://pichenettes.github.io/mutable-instruments-documentation/modules/plaits/manual/)
+by Mutable Instruments (Emilie Gillet), with the eight models of its
+[firmware 1.2](https://pichenettes.github.io/mutable-instruments-documentation/modules/plaits/firmware/). QUARTZ runs
+Plaits' own code. It adds to it what a module gets from its patch: notes and velocity from the keys and the
+sequencer, up to four voices per track, GLIDE, an ADSR, a filter, an LFO, an arpeggiator and effects.
+
+### KIT
+
+KIT turns the track into 16 drum pads on the white keys. Each pad is one of Plaits' three drums (BD, SN or HH) with
+its own tuning and settings, and a kit plays up to three pads at once. With KIT, EDIT has two pages:
+
+| Page | K1 | K2 | K3 | K4 |
+| --- | --- | --- | --- | --- |
+| PAD | TUNE, −24 to +24 | HARM, 0–127 | TIMB, 0–127 | DECAY, 0–127 |
+| KIT | MODEL, 0–24 | ENGINE, BD SN HH | LEVEL, 0–127 | — |
+
+The knobs set the last pad played, named in the header (`PAD 1`). In EDIT, hold a pad: K1–K4 set that pad and PRESET
+changes its engine. KIT's scene is the 16 pads, each with its engine, the one the knobs set lit.
+
+| Pad | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Default | Bass drum | Snare | Closed hat | Open hat | Rim | Clap | Low tom | Mid tom |
+| **Pad** | **9** | **10** | **11** | **12** | **13** | **14** | **15** | **16** |
+| Default | High tom | Bass drum 2 | Snare 2 | Closed hat 2 | Conga | Cowbell | Shaker | Ride |
+
+![The PAD page: the kit's BD, SN and HH, TUNE -12, HARM 40, TIMB 50, DECAY 60](img/sound-pad.png "PAD, pad 1")
+
+![The KIT page: the 16 pads with their engines, pad 1 lit](img/sound-kit.png "KIT")
+
+---
+
+
 ## 7. Shaping
 
 ## 8. Sequencer

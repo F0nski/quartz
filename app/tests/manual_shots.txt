@@ -61,3 +61,48 @@ spin SELECT 1
 wait 600
 shot home-song.png
 tap PLAY
+
+# 6. Sound: a new project (nothing was saved), track 1
+reboot
+wait 600
+tap EDIT
+key w7 down
+wait 400
+shot sound-engine.png
+key w7 up
+spin SELECT 1
+wait 300
+shot sound-sound.png
+spin SELECT -1
+spin PRESET -6
+expect model 2
+key w7 down
+wait 500
+shot sound-hex.png
+key w7 up
+spin PRESET 18
+expect model 20
+key w7 down
+wait 500
+shot sound-chladni.png
+key w7 up
+spin PRESET -5
+expect model 15
+key w7 down
+wait 700
+shot sound-orator.png
+key w7 up
+spin PRESET -10
+expect model 5
+key w7 down
+wait 700
+shot sound-bowl.png
+key w7 up
+spin PRESET 19
+expect model 24
+tapkey w0
+wait 300
+shot sound-pad.png
+spin SELECT 1
+wait 300
+shot sound-kit.png
