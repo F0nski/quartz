@@ -2889,7 +2889,7 @@ void ui_frame(void)
                 for (k = 0; k < n; k++)
                     marbles_drop(notes[k], now, now + in[k]);
                 mv = (q_mview){t->marbles.tout, t->marbles.mode, t->marbles.bias, t->marbles.jitter, t->marbles.dejavu,
-                               t->marbles.spread, t->marbles.xbias, t->marbles.len, v.scene.pos, v.scene.notes,
+                               t->marbles.spread, t->marbles.xbias, t->marbles.len, t->marbles.gate, v.scene.pos, v.scene.notes,
                                gen_kept(v.scene.notes, ui.p->tonic, t->marbles.steps),
                                2500u * DIV96[t->div] / ui.p->tempo};   /* a step in ms: a bar is 240000 / tempo, in 96ths */
                 marbles_frame(&mv, now);

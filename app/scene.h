@@ -75,7 +75,7 @@ void glo_frame(const q_glview *v, uint32_t ms);
 void glo_band(const q_glview *v, int32_t oy);
 
 /* MARBLES (spec 5b, 3): a fleet firing on the notes' crystals in a canyon; a shot lands when its note sounds */
-typedef struct { uint8_t tout, mode, bias, jitter, dejavu, spread, xbias, len; int8_t pos; uint16_t allowed, kept;
+typedef struct { uint8_t tout, mode, bias, jitter, dejavu, spread, xbias, len, gate; int8_t pos; uint16_t allowed, kept;
                  uint32_t step_ms; } q_mview;
 int  marbles_bin(uint16_t allowed, int note, int *nbins);   /* the crystal of note's pitch class (nearest allowed one) */
 void marbles_enter(void);                                   /* no shot in flight, history kept */

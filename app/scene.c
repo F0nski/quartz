@@ -762,6 +762,13 @@ static void box3(float x, float y, float sx, float sy, float h, const uint16_t *
     p3d_tri(x, y - sy - h, x, y + sy - h, x - sx, y - h, z + 0.5f, T[0]);
 }
 
+/* how long a hit crystal stays lit: its note's length (GATE, 1 << gate eighths of a step), at least a visible blink */
+static uint32_t marbles_lit(void)
+{
+    uint32_t l = (1u << mb.v.gate) * mb.v.step_ms / 8u;
+    return l < 40u ? 40u : l;
+}
+
 void marbles_frame(const q_mview *v, uint32_t ms)
 {
     float t = (float)(ms % 3600000u) * 0.001f, f;
@@ -830,7 +837,7 @@ void marbles_frame(const q_mview *v, uint32_t ms)
             float grow = h < 100u ? 0.0f : h < 450u ? (float)(h - 100u) / 350.0f : 1.0f, sz = (8.0f + (float)mb.hist[i] * 0.8f) * grow;
             if (sz > 0.5f) {
                 p3_pose pose = {t * 1.4f + (float)i, 0.15f, sz, x, (float)MB_CY - ped - 11.0f, 20.0f};
-                p3d_mesh(&crystal, &pose, h < 450u ? PINK3 : T);
+                p3d_mesh(&crystal, &pose, h < 450u || h < marbles_lit() ? PINK3 : T);
             }
             if (h < 450u) {             /* shards flying out and falling back */
                 static const int8_t SH[6][2] = {{-12, -22}, {14, -26}, {-4, -30}, {22, -14}, {-24, -12}, {8, -18}};
@@ -928,7 +935,7 @@ void marbles_band(int32_t oy)
     for (i = 0, k = 0; k < 12; k++) {   /* the notes' names, the dropped ones as outlines */
         if (!(mb.v.allowed >> k & 1u))
             continue;
-        int on = mb.v.kept >> k & 1u, hot = mb.ms - mb.hit[i] < 150u;
+        int on = mb.v.kept >> k & 1u, hot = mb.ms - mb.hit[i] < marbles_lit();
         float x = crystal_x(i, n);
         if (!on) {
             float ped = 2.0f, cy = (float)MB_CY - ped - 11.0f + (float)oy;

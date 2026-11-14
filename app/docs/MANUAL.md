@@ -755,7 +755,8 @@ section which notes.
 - **X**: each note is drawn between NOTE and RANGE octaves above it. SPREAD sets how widely, X BIAS leans low or
   high, and STEPS keeps only the strongest notes of the scale as it goes up (the tonic, then the fifth, the third…).
 - **GATE** is how long each note lasts, in steps (1/2 by default). Past one step, the notes overlap: they ring
-  together up to POLY. A ratcheted note stays within one step.
+  together up to POLY. A ratcheted note stays within one step. In the scene, the crystal a note hits stays lit for
+  as long as the note lasts.
 - **DEJA VU**: at 0, every draw is new. Towards the middle, the draws repeat as a loop of LEN steps; above, the loop
   is played in a shuffled order.
 - **NOTES** page: the keys switch the notes FLEET may play on and off, in any octave; the scene shows the 12 notes.
