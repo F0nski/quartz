@@ -25,7 +25,9 @@ Critères :
 
 Hors périmètre : CHAR sur les modèles seuls BASS DRUM, SNARE et HI-HAT (leurs 8 boutons sont pris) ; un p-lock de
 CHAR (les locks ne s'appliquent pas aux pads) ; ne plus post-traiter `aux` dans les voix qui ne l'utilisent pas (un
-gain CPU possible, à part) ; LEVEL qui ne change pas visiblement la grille (écart existant, signalé seulement).
+gain CPU possible, à part) ; LEVEL qui ne change pas visiblement la grille (écart existant, signalé seulement) ; un
+choix de pads pour ATLAS et FLEET (ils jouent les pads 1, 2 et 3 : pour les entendre synthétiques, on monte le CHAR de
+ces pads, ou on prend une deuxième piste KIT).
 
 ## 2. Le son
 
