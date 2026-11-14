@@ -53,7 +53,7 @@ static const q_page PAGE[] = {
     {"DENS", {"DENS 1", "DENS 2", "DENS 3"}, {0, 0, 0}, {127, 127, 127}},
     {"FLEET", {"DIV", "T OUT", "LEN", "SOURCE"}, {0, 1, 1, 0}, {DIV_N - 1, 3, 16, SRC_N - 1}},
     {"T", {"MODE", "BIAS", "JITTER", "DEJA VU"}, {0, 0, 0, 0}, {6, 127, 127, 127}},
-    {"X", {"SPREAD", "X BIAS", "STEPS"}, {0, 0, 0}, {127, 127, 127}},
+    {"X", {"SPREAD", "X BIAS", "STEPS", "GATE"}, {0, 0, 0, 0}, {127, 127, 127, 5}},
     {"NOTES", {"NOTE", "RANGE"}, {1, 1}, {127, 4}},
     {"COLONY", {"DIV", "POLY", "NOTE", "SOURCE"}, {0, 1, 1, 0}, {DIV_N - 1, 4, 127, SRC_N - 1}},
     {"COLONY", {"DIV", "POLY", "MAP", "SOURCE"}, {0, 1, 0, 0}, {DIV_N - 1, 4, 1, SRC_N - 1}},     /* a KIT's: MAP for NOTE */
@@ -105,6 +105,7 @@ static int model_rank(int m)
 }
 static const char *const ENGINE_NAME[3] = {"BD", "SN", "HH"};
 static const char *const DIV_NAME[DIV_N] = {"1/32", "1/16T", "1/16", "1/8T", "1/8", "1/4T", "1/4", "1/2", "1/1"};
+static const char *const GATE_NAME[6] = {"1/8", "1/4", "1/2", "1", "2", "4"};   /* FLEET's GATE, in steps */
 static const char *const FTYPE_NAME[3] = {"LP", "HP", "BP"};
 static const char *const LSHAPE_NAME[5] = {"SIN", "TRI", "SAW", "SQR", "S&H"};
 static const char *const LRATE_NAME[LRATE_SYNC] = {"8 BAR", "4 BAR", "2 BAR", "1 BAR", "1/2", "1/4", "1/4T", "1/8", "1/8T",
@@ -379,6 +380,7 @@ static int knob_get(int pid, int k)
     case P_X * 4: return t->marbles.spread;
     case P_X * 4 + 1: return t->marbles.xbias;
     case P_X * 4 + 2: return t->marbles.steps;
+    case P_X * 4 + 3: return t->marbles.gate;
     case P_NOTES * 4: return t->marbles.note;
     case P_NOTES * 4 + 1: return t->marbles.range;
     case P_PAD * 4: return pd->tune;
@@ -562,6 +564,7 @@ static void knob_set(int pid, int k, int v)
     case P_X * 4: t->marbles.spread = (uint8_t)v; break;
     case P_X * 4 + 1: t->marbles.xbias = (uint8_t)v; break;
     case P_X * 4 + 2: t->marbles.steps = (uint8_t)v; break;
+    case P_X * 4 + 3: t->marbles.gate = (uint8_t)v; break;
     case P_NOTES * 4: t->marbles.note = (uint8_t)v; break;
     case P_NOTES * 4 + 1: t->marbles.range = (uint8_t)v; break;
     case P_PAD * 4: pd->tune = (int8_t)v; break;
@@ -2152,6 +2155,11 @@ static void knob_text(int pid, int k, int v, char *b)
         int_text(1 << v, b);
         return;
     }
+    if (pid == P_X && k == 3) {
+        const char *s = GATE_NAME[v];
+        while ((*b++ = *s++) != 0) {}
+        return;
+    }
     if ((k == 3 && (pid == P_STEPS || pid == P_GRIDS || pid == P_MARBLES || pid == P_LIFE || pid == P_LIFEK || pid == P_LANES || pid == P_CHORDS || pid == P_TONNETZ || pid == P_ORBITS || pid == P_MIMIC)) || (pid == P_T && !k)) {
         const char *s = pid == P_T ? T_MODE_NAME[v] : SRC_NAME[v];
         while ((*b++ = *s++) != 0) {}
@@ -3435,6 +3443,7 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "gy")) *got = t->grids.y;
     else if (!strcmp(what, "gdens1")) *got = t->grids.dens[0];
     else if (!strcmp(what, "mlen")) *got = t->marbles.len;
+    else if (!strcmp(what, "mgate")) *got = t->marbles.gate;
     else if (!strcmp(what, "mnotes")) *got = t->marbles.notes[0] | t->marbles.notes[1] << 8;
     else if (!strcmp(what, "mdejavu")) *got = t->marbles.dejavu;
     else if (!strcmp(what, "mmode")) *got = t->marbles.mode;

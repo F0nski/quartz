@@ -746,7 +746,7 @@ section which notes.
 | --- | --- | --- | --- | --- |
 | FLEET | DIV | T OUT, 1–3 | LEN, 1–16 | SOURCE |
 | T | MODE | BIAS | JITTER | DEJA VU |
-| X | SPREAD | X BIAS | STEPS | — |
+| X | SPREAD | X BIAS | STEPS | GATE, 1/8 to 4 steps |
 | NOTES | NOTE | RANGE, 1–4 octaves | — | — |
 
 - **T**: each step, t2 plays and t1 and t3 are drawn by MODE: C.BERN (one or the other, a coin toss), CLUSTERS,
@@ -754,6 +754,8 @@ section which notes.
   t1 or t3; JITTER shifts the notes in time, up to almost half a step.
 - **X**: each note is drawn between NOTE and RANGE octaves above it. SPREAD sets how widely, X BIAS leans low or
   high, and STEPS keeps only the strongest notes of the scale as it goes up (the tonic, then the fifth, the third…).
+- **GATE** is how long each note lasts, in steps (1/2 by default). Past one step, the notes overlap: they ring
+  together up to POLY. A ratcheted note stays within one step.
 - **DEJA VU**: at 0, every draw is new. Towards the middle, the draws repeat as a loop of LEN steps; above, the loop
   is played in a shuffled order.
 - **NOTES** page: the keys switch the notes FLEET may play on and off, in any octave; the scene shows the 12 notes.
@@ -765,6 +767,8 @@ section which notes.
 ![FLEET: a squadron of ships over crystals named C to B, LEN 8](img/source-fleet.png "FLEET")
 
 ![FLEET's T page: MODE C.BERN, BIAS 64, JITTER 0, DEJA VU 0](img/source-fleet-t.png "T")
+
+![FLEET's X page: SPREAD, X BIAS, STEPS and GATE 1/2](img/source-fleet-x.png "X")
 
 ![FLEET's NOTES page: the 12 notes as keys, the seven of C major lit](img/source-fleet-notes.png "NOTES")
 

@@ -270,6 +270,9 @@ HIGH-PASS	high pass
 SWEEP	sweep
 DOWNSAMPLE	downsample
 GATE 1/16	gate one sixteenth
+1/8	one eighth
+1/4	one quarter
+1/2	one half
 AUTO-PAN	auto pan
 DELAY THROW	delay throw
 FREEZE	freeze

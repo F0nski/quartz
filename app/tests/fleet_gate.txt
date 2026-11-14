@@ -1,0 +1,25 @@
+# FLEET's GATE: K4 of the X page, 0..5 (1/8 to 4 steps); a KIT has no X page
+wait 600
+tap SEQ
+turn K4 2
+expect src 2
+turn SELECT 2
+expect page 3
+expect mgate 2
+spin K4 1
+expect mgate 3
+spin K4 5
+expect mgate 5
+spin K4 -6
+expect mgate 0
+# on a KIT: FLEET has 2 pages, X is not one of them
+tap EDIT
+spin PRESET -30
+spin PRESET 24
+expect model 24
+tap SEQ
+expect page 1
+turn SELECT 1
+expect page 2
+turn SELECT 1
+expect page 1
