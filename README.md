@@ -18,4 +18,4 @@ files in `.tools/sdk` (from the `amitv87/fw-AC79_AIoT_SDK` mirror, tag `AC79NN_S
 ## License
 
 QUARTZ is GPL-3.0-or-later (`LICENSE`). It includes Mutable Instruments Grids (GPL-3.0, the drum map in
-`app/third_party/grids/`), Plaits, Marbles and the Clouds reverb (MIT) and builds on fm1-base (MPL-2.0).
+`app/third_party/grids/`), Plaits, Marbles and the Clouds reverb (MIT) and builds on fm1-base (MPL-2.0). The files in `patches/` change fm1-base's files and are MPL-2.0 like them.
