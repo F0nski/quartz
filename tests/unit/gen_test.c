@@ -1359,6 +1359,25 @@ static void mimic_chord(void)
     assert(mplay(pt, 2, o) == 3 && o[0] == 60 && o[1] == 64 && o[2] == 67);
 }
 
+/* a chord whose places hold the same note (or, on a kit, the same pad) plays it once */
+static void mimic_chord_no_repeat(void)
+{
+    static const uint8_t n[3] = { 64, 60, 60 }, g[3] = { 0, 0, 1 };   /* after place 1, place 2 or 0: a note already on */
+    q_pattern *pt = mimic_setup(8, n, g, 3);
+    uint8_t o[4];
+    for (int s = 0; s < 8; s++) {
+        pt->mimic.seed = (uint8_t)s;
+        memset(&G, 0, sizeof G);
+        assert(mplay(pt, 0, o) == 2 && o[0] == 64 && o[1] == 60);
+    }
+    static const uint8_t k[2] = { 60, 76 }, kg[2] = { 0, 1 };
+    static const uint8_t same[2] = { 60, 60 }, z[2] = { 0, 0 };   /* nothing but one note, all chord: no endless walk */
+    pt = mimic_setup(8, same, z, 2);
+    assert(mplay(pt, 0, o) == 1 && o[0] == 60);
+    pt = mimic_setup(M_KIT, k, kg, 2);
+    assert(mplay(pt, 0, o) == 1 && o[0] == KIT_NOTE + 8);
+}
+
 static void mimic_all_chord(void)
 {
     static const uint8_t n[5] = { 60, 62, 64, 65, 67 }, g[5] = { 0 };
@@ -1608,6 +1627,7 @@ int main(void)
     mimic_defaults();
     mimic_in_order();
     mimic_chord();
+    mimic_chord_no_repeat();
     mimic_all_chord();
     mimic_order2();
     mimic_fallback();

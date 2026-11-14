@@ -792,19 +792,22 @@ static int mimic_step(q_gen *g, const q_project *p, int track, const q_pattern *
         r->wait--;
         return 0;
     }
-    int kit = p->sound[track].model == M_KIT, nb = 0, jump;
+    int kit = p->sound[track].model == M_KIT, nb = 0, ne = 0, jump;
     r->jumps = 0;
     do {
         int e = mimic_next(m, r, &jump);
         if (!nb) r->from = r->cur;
         r->prev = r->cur, r->cur = (int8_t)e;
-        int note = m->ev[e][0];
-        st->note[nb] = (uint8_t)(kit ? KIT_NOTE + ((note - KIT_NOTE) % 16 + 16) % 16 : note);
-        r->last[nb] = (uint8_t)e, r->jumps |= (uint8_t)(jump << nb);
+        int note = m->ev[e][0], k;
+        note = kit ? KIT_NOTE + ((note - KIT_NOTE) % 16 + 16) % 16 : note;
         r->wait = m->ev[e][1];
+        for (k = 0; k < nb && st->note[k] != note; k++) {}
+        if (k < nb) continue;           /* already on the step: once (the walk still moves on) */
+        st->note[nb] = (uint8_t)note;
+        r->last[nb] = (uint8_t)e, r->jumps |= (uint8_t)(jump << nb);
         nb++;
-    } while (!r->wait && nb < 4);
-    if (!r->wait) r->wait = 1;          /* 4 notes on the step: the next one on the next step */
+    } while (!r->wait && ++ne < 4);
+    if (!r->wait) r->wait = 1;          /* 4 events on the step: the next one on the next step */
     r->nlast = (uint8_t)nb, r->at = n;
     st->flags = SF_ON; st->len = 4; st->vel = 100; st->prob = 20;
     return 0;
