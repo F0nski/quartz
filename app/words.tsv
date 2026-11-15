@@ -498,6 +498,9 @@ AGAIN: ERASE	again: erase
 RANDOM PAGE	random page
 RANDOM ALL	random all
 RANDOM MODEL	random model
+RND PAGE	random page
+RND ALL	random all
+RND MODEL	random model
 SONG ON	song on
 SONG OFF	song off
 LVL 1	level 1

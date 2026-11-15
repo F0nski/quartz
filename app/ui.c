@@ -2055,8 +2055,12 @@ static uint32_t layer_keys(int b)
             keys |= 1u << WHITE[i];
         return keys;
     case B_REC:
-        if (ui.rec != R_LIVE)
-            return 1u << BLACK[0] | 1u << BLACK[1];
+        if (ui.rec != R_LIVE) {         /* CLEAR, CLEAR LOCKS, and RANDOM's keys where they act */
+            keys = 1u << BLACK[0] | 1u << BLACK[1];
+            for (i = 5; i < 8; i++)
+                keys |= (uint32_t)dice_on(i) << BLACK[i];
+            return keys;
+        }
     }
     return (1u << NKEYS) - 1u;          /* every key: ARP's latch, SEL on the grid, REC's erasing in LIVE */
 }
@@ -2786,6 +2790,7 @@ static void layer_combo(int32_t y, const char *btn, const char *s)
 static void draw_layer(const q_view *v, int32_t oy)
 {
     static const uint8_t AFTER[11] = {0, 1, 2, 4, 5, 7, 8, 9, 11, 12, 14};   /* the white key each black one follows */
+    static const char *const RND_TAG[3] = {"#6", "#7", "#8"}, *const RND_NAME[3] = {"RND PAGE", "RND ALL", "RND MODEL"};
     static const char *const SEL_NAME[5] = {"SELECT THE STEP", "ITS FUNCTIONS", "SET ON ALL", "LOCK ALL", "THEIR LENGTHS"};
     const char *names[16], *tags[16], *combo[3][2] = {{0}};
     char nb[16][12], tb[16][4];
@@ -2870,6 +2875,9 @@ static void draw_layer(const q_view *v, int32_t oy)
         } else {
             tags[n] = "#1", names[n++] = "CLEAR";
             tags[n] = "#2", names[n++] = "CLEAR LOCKS";
+            for (i = 0; i < 3; i++)     /* RANDOM's keys lit (layer_keys) */
+                if (v->scene.lkeys >> BLACK[5 + i] & 1u)
+                    tags[n] = RND_TAG[i], names[n++] = RND_NAME[i];
             combo[0][0] = "+ PLAY", combo[0][1] = "LIVE: COUNT-IN OR ARMED";
             combo[1][0] = "TAP", combo[1][1] = "GRID > NOTES > OFF";
             combo[2][0] = "HOLD", combo[2][1] = "NOTHING ON RELEASE";

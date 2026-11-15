@@ -101,7 +101,7 @@ screen.
 | SAVE | Saves the project (stopped only). | White keys 1–8 add a scene to the song; black key 1 twice starts a new project. |
 | SEL | On SONG, removes the entry shown. | Selects steps on the grid (section 8). |
 | PLAY | Starts or stops every track. | — |
-| REC | Arms the recording (section 8). | Black key 1 clears the pattern, black key 2 its p-locks. With PLAY: records live. |
+| REC | Arms the recording (section 8). | Black key 1 clears the pattern, black key 2 its p-locks, black keys 6–8 draw at random (section 8). With PLAY: records live. |
 | OCT- / OCT+ | The keyboard's octave, −2 to +2. On the grid: the page of steps. | — |
 
 A short press is a press released before 0.4 s with nothing else pressed meanwhile. A button held longer does not do
@@ -648,7 +648,7 @@ REC (short) disarms and the pattern keeps playing. PLAY stops and disarms.
 
 ### REC held
 
-![REC held: #1 CLEAR, #2 CLEAR LOCKS on the pattern shown, + PLAY for LIVE, TAP for GRID > NOTES > OFF](img/seq-rec-map.png "REC's map")
+![REC held: #1 CLEAR, #2 CLEAR LOCKS on the pattern shown, #6 RND PAGE, #7 RND ALL, + PLAY for LIVE, TAP for GRID > NOTES > OFF](img/seq-rec-map.png "REC's map")
 
 | REC held + | Not in LIVE or ARM | In LIVE |
 | --- | --- | --- |
@@ -659,6 +659,43 @@ REC (short) disarms and the pattern keeps playing. PLAY stops and disarms.
 | OCT- | — | clears every step crossed |
 
 A CLEAR cannot be undone.
+
+### Random
+
+![REC held on EDIT: #6 RND PAGE, #7 RND ALL and #8 RND MODEL lit beside CLEAR; RANDOM PAGE in the header](img/seq-random.png "REC's map on EDIT, after black key 6")
+
+Hold REC and press a black key of the second group of three to draw values at random, on any page:
+
+| REC held + | Draws |
+| --- | --- |
+| black key 6 (RND PAGE) | the knobs of the page shown; on CHORD, STEP (LATTICE) and MOON, the item under PRESET's cursor too |
+| black key 7 (RND ALL) | the knobs of every page of the domain shown; in SEQ, the source's content too (below) |
+| black key 8 (RND MODEL) | another model, on EDIT only (a synth may become a KIT, and back) |
+
+Each knob is drawn anywhere in its range; a knob that picks (a preset, a chord, an arpeggio) lands on a whole choice.
+The header shows `RANDOM PAGE`, `RANDOM ALL` or `RANDOM MODEL`. To try another model with new settings: black key 8,
+then black key 7.
+
+Never drawn, so that a draw never silences the track nor changes what it is:
+
+| Knob | Why |
+| --- | --- |
+| SOURCE | it would change the source, and so the pages being drawn |
+| MODEL | black key 8 draws it |
+| SOUND's POLY | the number of voices |
+| MIX's and KIT's LEVEL | the track could go silent or clip |
+| TEMPO | the whole project's speed |
+| HOME (TRACKS, SONG) | the mix and the arrangement, not the sound |
+
+In SEQ, black key 7 also draws the source's content:
+
+- STEP: a new pattern on the new LEN. The steps and their p-locks are cleared, then each step is lit at a density drawn
+  between 25 and 75 %, as a step made by hand, with a note of the project's scale between C3 and C5 (a KIT: one of
+  the 16 pads) and a velocity from 60 to 127.
+- CADENCE: the 8 chords. LATTICE: the 8 steps. MOONS: every moon. LOOM: every cell of every lane.
+
+The other sources have only their knobs. The keys do nothing (unlit on the map) in LIVE, where REC held erases notes;
+with a step, a selection or a cell held, where the knobs set those; on HOME. A draw cannot be undone.
 
 ### Recipes
 
