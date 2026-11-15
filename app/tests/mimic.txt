@@ -1,4 +1,4 @@
-# MIMIC: its 2 pages and their bounds; PRESET draws again (SEED); the default phrase
+# MIMIC: its 2 pages and their bounds; PRESET draws again (SEED); no phrase by default
 wait 600
 tap SEQ
 expect poly 1
@@ -6,9 +6,7 @@ turn K4 8
 expect src 8
 expect poly 3
 expect page 1
-expect mn 7
-expect mnote_4 67
-expect mgap_7 4
+expect mn 0
 spin K2 -9
 expect morder 1
 spin K2 9

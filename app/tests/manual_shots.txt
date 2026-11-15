@@ -269,6 +269,22 @@ wait 3000
 shot source-moons.png
 spin K4 1
 expect src 8
+tap REC
+tapkey w4
+wait 250
+tapkey w5
+wait 125
+tapkey w6
+wait 125
+tapkey w8
+wait 250
+tapkey w6
+wait 125
+tapkey w5
+wait 125
+tapkey w4
+wait 500
+tap REC
 wait 4000
 shot source-mimic.png
 tap REC

@@ -983,7 +983,7 @@ goes on from there. The result sounds like your phrase, rearranged.
 - **DRIFT** is the chance of jumping anywhere in the phrase instead.
 - **LOOP** 1–16 starts the improvisation again every LOOP steps, the same way each time: a riff. FREE never repeats.
 - The white keys 1–8 show where in the phrase IMPROV is reading, in eighths; in LISTEN, how full the phrase is.
-- A new pattern knows C4 D4 E4 G4 E4 D4 C4.
+- A new pattern has no phrase: IMPROV stays silent and the screen says `REC TO TEACH`.
 - **PRESET** draws again: another improvisation from the same phrase, at once.
 
 ![IMPROV: the phrase above (YOU) in four coloured quarters, the improvisation below (IMPROV) scrolling from the NOW line](img/source-mimic.png "IMPROV")

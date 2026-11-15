@@ -214,6 +214,7 @@ void mimic_band(const q_miview *v, int32_t oy)
         }
     }
     p3d_draw(oy);
+    if (!m->n && !v->listen) glo_text(120, oy + (MV_PH0 + MV_PH1) / 2, &FONT_XS, "REC TO TEACH", MV_TXT, 0);
     float hx;
     if (m->n && mv_head(v, &hx)) {              /* the reading head */
         cv_rect((int32_t)hx - 1, oy + MV_PH0 - 2, 2, MV_PH1 - MV_PH0 + 4, PINK3[1]);

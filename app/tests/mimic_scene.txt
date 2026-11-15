@@ -3,6 +3,25 @@ wait 600
 tap SEQ
 turn K4 8
 expect anim 13
+wait 100
+shot mimic_empty.png
+tap REC
+tapkey w4
+wait 250
+tapkey w5
+wait 125
+tapkey w6
+wait 125
+tapkey w8
+wait 250
+tapkey w6
+wait 125
+tapkey w5
+wait 125
+tapkey w4
+wait 500
+tap REC
+expect mn 7
 tap PLAY
 wait 2500
 shot mimic_play.png

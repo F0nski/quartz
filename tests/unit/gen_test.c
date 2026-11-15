@@ -1357,6 +1357,9 @@ static q_pattern *mimic_setup(int model, const uint8_t *notes, const uint8_t *ga
     return pt;
 }
 
+/* a 7-note phrase: C4 D4 E4 G4 E4 D4 C4 */
+static const uint8_t M7_NOTE[7] = { 60, 62, 64, 67, 64, 62, 60 }, M7_GAP[7] = { 2, 1, 1, 2, 1, 1, 4 };
+
 /* the notes step k plays; their number */
 static int mplay(q_pattern *pt, int k, uint8_t out[4])
 {
@@ -1372,9 +1375,7 @@ static void mimic_defaults(void)
 {
     const q_mimic *m = &mimic_setup(8, 0, 0, 0)->mimic;
     assert(sizeof(q_mimic) == 69);
-    static const uint8_t n[7] = { 60, 62, 64, 67, 64, 62, 60 }, g[7] = { 2, 1, 1, 2, 1, 1, 4 };
-    assert(m->n == 7 && m->order == 1 && m->drift == 16 && m->loop == 0 && m->seed == 0);
-    for (int i = 0; i < 7; i++) assert(m->ev[i][0] == n[i] && m->ev[i][1] == g[i]);
+    assert(m->n == 0 && m->order == 1 && m->drift == 16 && m->loop == 0 && m->seed == 0);
 }
 
 static void mimic_in_order(void)
@@ -1465,7 +1466,7 @@ static void mimic_fallback(void)
 
 static void mimic_drift(void)
 {
-    q_pattern *pt = mimic_setup(8, 0, 0, 0);
+    q_pattern *pt = mimic_setup(8, M7_NOTE, M7_GAP, 7);
     pt->mimic.drift = 127;
     unsigned places = 0;
     int jumped = 0;
@@ -1488,7 +1489,7 @@ static void mimic_run(q_pattern *pt, int steps, uint8_t *notes)
 
 static void mimic_loop(void)
 {
-    q_pattern *pt = mimic_setup(8, 0, 0, 0);
+    q_pattern *pt = mimic_setup(8, M7_NOTE, M7_GAP, 7);
     pt->mimic.drift = 64; pt->mimic.loop = 8;
     uint8_t a[24];
     mimic_run(pt, 24, a);
@@ -1497,7 +1498,7 @@ static void mimic_loop(void)
 
 static void mimic_seed(void)
 {
-    q_pattern *pt = mimic_setup(8, 0, 0, 0);
+    q_pattern *pt = mimic_setup(8, M7_NOTE, M7_GAP, 7);
     pt->mimic.drift = 64; pt->mimic.seed = 5;
     uint8_t a[64], b[64], c[64];
     mimic_run(pt, 64, a);
@@ -1518,7 +1519,7 @@ static void mimic_seed(void)
 
 static void mimic_silent(void)
 {
-    q_pattern *pt = mimic_setup(8, 0, 0, 0);
+    q_pattern *pt = mimic_setup(8, M7_NOTE, M7_GAP, 7);
     uint8_t o[4];
     G.mimic.listen = 1;
     for (int k = 0; k < 16; k++) assert(mplay(pt, k, o) == 0);
@@ -1546,7 +1547,7 @@ static void mimic_kit(void)
 
 static void mimic_shrunk(void)
 {
-    q_pattern *pt = mimic_setup(8, 0, 0, 0);
+    q_pattern *pt = mimic_setup(8, M7_NOTE, M7_GAP, 7);
     pt->mimic.drift = 0;
     uint8_t o[4];
     for (int k = 0; k < 40 && G.mimic.cur != 6; k++) mplay(pt, k, o);
