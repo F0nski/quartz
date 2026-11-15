@@ -1,0 +1,112 @@
+# RANDOM: REC held + black key 6 draws the page's knobs, black key 7 every page of the domain (in SEQ the source's
+# content too), black key 8 another model (EDIT only); SOURCE, MODEL, LEVEL, POLY and TEMPO are never drawn
+wait 600
+# black key 6 on ENGINE: HARM drawn within its range; MODEL, LEVEL, POLY kept; the message; REC not armed
+tap EDIT
+spin K1 127
+expect harm 127
+press REC
+key b5 down
+key b5 up
+release REC
+expect harm <127
+expect timb <128
+expect model 8
+expect level 100
+expect poly 1
+expect msg_random 1
+expect rec 0
+expect dirty 1
+# black key 6 on SOUND: TUNE within -24..24, MODEL and POLY kept
+turn SELECT 1
+press REC
+key b5 down
+key b5 up
+release REC
+expect tune >-25
+expect tune <25
+expect model 8
+expect poly 1
+# black key 8 on EDIT: another model (WIRE: the host is deterministic)
+press REC
+key b7 down
+key b7 up
+release REC
+expect msg_random 3
+expect model 19
+wait 1600
+# black key 8 out of EDIT: nothing
+tap ENV
+press REC
+key b7 down
+key b7 up
+release REC
+expect msg_random 0
+# HOME: nothing
+tap HOME
+press REC
+key b5 down
+key b5 up
+release REC
+expect msg_random 0
+expect level 100
+# HEX A: HARM lands on a preset's middle, as a detent does: a detent there and back gives it again
+tap EDIT
+spin PRESET -14
+expect model 2
+turn SELECT -1
+press REC
+key b5 down
+key b5 up
+release REC
+expect harm 80
+turn K1 1
+turn K1 -1
+expect harm 80
+# a step held on the grid: nothing (the knobs set its p-locks)
+wait 1600
+tap SEQ
+tap REC
+expect rec 1
+key w0 down
+press REC
+key b5 down
+key b5 up
+release REC
+key w0 up
+expect msg_random 0
+expect stepon_1 1
+tap REC
+tap REC
+expect rec 0
+# armed: drawn (REC held does nothing else there)
+tap EDIT
+tap REC
+expect rec 2
+press REC
+tap PLAY
+release REC
+expect rec 4
+press REC
+key b5 down
+key b5 up
+release REC
+expect msg_random 1
+expect rec 4
+tap PLAY
+tap PLAY
+expect playing 0
+# LIVE: REC held + black key 6 erases its note, draws nothing
+tap EDIT
+tap PLAY
+press REC
+tap PLAY
+release REC
+expect rec 3
+wait 1600
+press REC
+key b5 down
+key b5 up
+release REC
+expect msg_random 0
+tap PLAY
