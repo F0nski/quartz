@@ -209,6 +209,8 @@ static struct {
     int8_t key_note[NKEYS], key_track[NKEYS];  /* what each held key sounds, for its note-off; -1 none */
     uint32_t btn, keys, msg_until, locks_until, path_until, punch_until;
     uint32_t wipe_until;                       /* SAVE held, black key 1 pressed once: a second press before it erases the project */
+    uint32_t rng, rnd_until;                   /* RANDOM: its xorshift; its message shown until rnd_until */
+    int rnd_kind;                              /* the message: 1 RANDOM PAGE, 2 RANDOM ALL, 3 RANDOM MODEL */
     uint32_t down_ms[NB], used;                /* when each button went down; used: bit b, a key or button came while b was held */
     q_clip clip;                               /* the grid's clipboard, common to the tracks: the last step cut or chord played */
     uint8_t preview[4];
@@ -1390,6 +1392,139 @@ static void preview_off(void)
     __builtin_memset(ui.preview, 0, sizeof ui.preview);
 }
 
+/* RANDOM (REC held + black keys 6-8): 0..n - 1 */
+static uint32_t dice_rand(uint32_t n)
+{
+    ui.rng ^= ui.rng << 13;
+    ui.rng ^= ui.rng >> 17;
+    ui.rng ^= ui.rng << 5;
+    return ui.rng % n;
+}
+
+/* the page's knobs drawn within their range; a knob that picks lands on a choice's middle, as a detent does; never the
+   ones that change what the track is or how loud it plays */
+static void dice_page(int pid)
+{
+    const q_page *pg = &PAGE[pid];
+    float start, width;
+    int k, n, v;
+    for (k = 0; k < 4; k++) {
+        if (!pg->label[k] || knob_hidden(pid, k))   /* INSERT: its labels come from INS_LABEL; a knob with no role is hidden */
+            continue;
+        switch (pid * 4 + k) {          /* MODEL, POLY (the voices), LEVEL, TEMPO, STEPS' LEN and PATH */
+        case P_SOUND * 4: case P_SOUND * 4 + 3: case P_KIT * 4: case P_KIT * 4 + 2: case P_MIX * 4 + 3: case P_TEMPO * 4:
+        case P_STEPS * 4: case P_STEPS * 4 + 2:   /* LEN: dice_all's own; PATH: XY could freeze the pattern on a step */
+            continue;
+        }
+        if (k == 3 && (pid == P_STEPS || pid == P_GRIDS || pid == P_MARBLES || pid == P_LIFE || pid == P_LIFEK ||
+                       pid == P_LANES || pid == P_CHORDS || pid == P_TONNETZ || pid == P_ORBITS || pid == P_MIMIC))   /* SOURCE */
+            continue;
+        v = pg->min[k] + (int)dice_rand((uint32_t)(pg->max[k] - pg->min[k] + 1));
+        if ((n = knob_zone(ui.p->sound[ui.track].model, pid, k, &start, &width)) && v >= start)
+            v = (int)__builtin_roundf(start + (knob_choice(v, start, width, n) + 0.5f) * width);
+        knob_set(pid, k, v);
+    }
+}
+
+/* STEP: the steps from..to - 1 cleared with their p-locks, then those within LEN lit at a density drawn, as a step made
+   by hand, with a note of the scale between 48 and 72 (a KIT: a pad) */
+static void dice_steps(int from, int to)
+{
+    q_pattern *t = pat();
+    uint16_t m = gen_scale(ui.p);
+    int nn = 0, n, i, c, d;
+    for (n = 48; n <= 72; n++)
+        nn += m >> n % 12 & 1;
+    for (i = from; i < to; i++)
+        step_clear(t, i);
+    d = 25 + (int)dice_rand(51);
+    for (i = from; i < to && i < t->len; i++) {
+        q_step *s = &t->steps[i];
+        if ((int)dice_rand(100) >= d)
+            continue;
+        step_default(s);
+        if (kit()) {
+            s->note[0] = (uint8_t)(KIT_NOTE + dice_rand(16));
+        } else {
+            for (c = (int)dice_rand((uint32_t)nn), n = 48; !(m >> n % 12 & 1) || c--; n++) {}
+            s->note[0] = (uint8_t)n;
+        }
+        s->vel = (uint8_t)(60 + dice_rand(68));
+        step_on(s);
+    }
+}
+
+/* every page of the domain shown, then in SEQ the source's content */
+static void dice_all(void)
+{
+    q_pattern *t = pat();
+    uint8_t id[5];
+    int i, c, l, keep;
+    for (i = 0; i < pages(ui.domain, id); i++)      /* the cursor's pages: the content below; XY: kept, as PATH */
+        if (id[i] != P_CHORD && id[i] != P_TZSTEP && id[i] != P_MOON && id[i] != P_MOONK && id[i] != P_XY)
+            dice_page(id[i]);
+    if (ui.domain != D_SEQ)
+        return;
+    switch (t->src) {
+    case SRC_STEP:                      /* a new pattern, its pages full */
+        knob_set(P_STEPS, 0, 16 * (1 + (int)dice_rand(Q_STEPS / 16)));
+        dice_steps(0, Q_STEPS);
+        break;
+    case SRC_CHORDS:                    /* each of the 8 chords, PRESET's cursor back after */
+        keep = ui.chcur;
+        for (ui.chcur = 0; ui.chcur < 8; ui.chcur++)
+            dice_page(P_CHORD);
+        ui.chcur = keep;
+        break;
+    case SRC_TONNETZ:
+        keep = ui.tzcur;
+        for (ui.tzcur = 0; ui.tzcur < 8; ui.tzcur++)
+            dice_page(P_TZSTEP);
+        ui.tzcur = keep;
+        break;
+    case SRC_ORBITS:
+        keep = ui.moon;
+        for (ui.moon = 0; ui.moon < t->orbits.moons; ui.moon++)
+            dice_page(kit() ? P_MOONK : P_MOON);
+        ui.moon = keep;
+        break;
+    case SRC_LANES:                     /* every cell; a KIT has no OCT lane */
+        for (l = 0; l < L_N; l++)
+            for (c = 0; c < 16 && !(kit() && l == L_OCT); c++)
+                lanes_set(&t->lanes, l, c, (int)dice_rand(LANE_MAX[l] + 1u));
+        break;
+    }
+}
+
+/* black key b (5, 6, 7: keys 6, 7, 8) acts now: not on HOME, in LIVE (REC held erases there), nor with a step, a
+   selection or a cell held (the knobs set those); the model on EDIT only */
+static int dice_on(int b)
+{
+    if (ui.domain == D_HOME || ui.rec == R_LIVE || ui.held || ui.sel_ref >= 0 || ui.cell)
+        return 0;
+    return b != 7 || ui.domain == D_EDIT;
+}
+
+static void dice(int b)
+{
+    ui.rng ^= plat_ms() | 1u;
+    if (!ui.rng)
+        ui.rng = 1;
+    if (b == 5 && ui.domain == D_SEQ && pat()->src == SRC_STEP && (knob_page() == P_STEPS || knob_page() == P_XY)) {
+        dice_steps(ui.spage * 16, ui.spage * 16 + 16);   /* the grid's page of steps shown */
+    } else if (b == 5) {
+        dice_page(knob_page());
+    } else if (b == 6) {
+        dice_all();
+    } else if (b == 7) {            /* always another model, a KIT among them */
+        int r = model_rank(ui.p->sound[ui.track].model);
+        knob_set(kit() ? P_KIT : P_SOUND, 0, (r + 1 + (int)dice_rand(M_KIT)) % (M_KIT + 1));
+    }
+    ui.rnd_kind = b - 4;
+    ui.rnd_until = plat_ms() + MSG_MS;
+    ui.dirty = 1;
+}
+
 static void key_down(int k)
 {
     q_pattern *t = pat();
@@ -1439,6 +1574,12 @@ static void key_down(int k)
         return;
     }
     if (ui.btn >> B_REC & 1u) {         /* REC held: the first black key empties the pattern shown, the second its p-locks */
+        for (b = 5; b < 8 && BLACK[b] != k; b++) {}
+        if (b < 8) {                    /* RANDOM: armed too */
+            if (dice_on(b))
+                dice(b);
+            return;
+        }
         if (ui.rec == R_ARM)            /* (armed: nothing, the first note comes once REC is let go) */
             return;
         if (k == BLACK[0])
@@ -1928,8 +2069,12 @@ static uint32_t layer_keys(int b)
             keys |= 1u << WHITE[i];
         return keys;
     case B_REC:
-        if (ui.rec != R_LIVE)
-            return 1u << BLACK[0] | 1u << BLACK[1];
+        if (ui.rec != R_LIVE) {         /* CLEAR, CLEAR LOCKS, and RANDOM's keys where they act */
+            keys = 1u << BLACK[0] | 1u << BLACK[1];
+            for (i = 5; i < 8; i++)
+                keys |= (uint32_t)dice_on(i) << BLACK[i];
+            return keys;
+        }
     }
     return (1u << NKEYS) - 1u;          /* every key: ARP's latch, SEL on the grid, REC's erasing in LIVE */
 }
@@ -2345,7 +2490,8 @@ static void view_now(q_view *v)
     v->head.domain = (int8_t)ui.domain;
     v->head.page = (int8_t)ui.page[ui.domain];
     v->head.n = (int8_t)domain_n(ui.domain);
-    v->head.msg = plat_ms() < ui.msg_until ? 1 : plat_ms() < ui.locks_until ? 2 : plat_ms() < ui.wipe_until ? 3 : 0;
+    v->head.msg = plat_ms() < ui.msg_until ? 1 : plat_ms() < ui.locks_until ? 2 : plat_ms() < ui.wipe_until ? 3 :
+                  plat_ms() < ui.rnd_until ? 3 + ui.rnd_kind : 0;
     v->head.pat = (int8_t)(ui.p->pattern[ui.track] + 1);
     v->head.scene = (int8_t)ui.msg_scene;
     v->head.punch = (int8_t)(plat_ms() < ui.punch_until ? ui.msg_punch : 0);
@@ -2570,7 +2716,8 @@ static void draw_head(const q_view *v)
     cv_text(6 + (20 - text_w(&FONT_B, t)) / 2, 7, &FONT_B, t, C_BLACK);
     x = cv_text(34, 7, &FONT_B, DOMAIN_NAME[v->head.domain], C_WHITE);
     if (v->head.msg)
-        cv_text(x + 10, 7, &FONT_B, v->head.msg == 1 ? "STOP TO SAVE" : v->head.msg == 2 ? "LOCKS FULL" : "AGAIN: ERASE", KCOL[3]);
+        cv_text(x + 10, 7, &FONT_B, v->head.msg == 1 ? "STOP TO SAVE" : v->head.msg == 2 ? "LOCKS FULL" : v->head.msg == 3 ? "AGAIN: ERASE"
+                : v->head.msg == 4 ? "RANDOM PAGE" : v->head.msg == 5 ? "RANDOM ALL" : "RANDOM MODEL", KCOL[3]);
     else if (v->head.punch)
         cv_text(x + 10, 7, &FONT_B, PUNCH_NAME[v->head.punch - 1], C_AMB);
     else if (v->head.domain == D_HOME && v->head.scene) {       /* the scene asked, until it starts */
@@ -2657,6 +2804,7 @@ static void layer_combo(int32_t y, const char *btn, const char *s)
 static void draw_layer(const q_view *v, int32_t oy)
 {
     static const uint8_t AFTER[11] = {0, 1, 2, 4, 5, 7, 8, 9, 11, 12, 14};   /* the white key each black one follows */
+    static const char *const RND_TAG[3] = {"#6", "#7", "#8"}, *const RND_NAME[3] = {"RND PAGE", "RND ALL", "RND MODEL"};
     static const char *const SEL_NAME[5] = {"SELECT THE STEP", "ITS FUNCTIONS", "SET ON ALL", "LOCK ALL", "THEIR LENGTHS"};
     const char *names[16], *tags[16], *combo[3][2] = {{0}};
     char nb[16][12], tb[16][4];
@@ -2741,6 +2889,9 @@ static void draw_layer(const q_view *v, int32_t oy)
         } else {
             tags[n] = "#1", names[n++] = "CLEAR";
             tags[n] = "#2", names[n++] = "CLEAR LOCKS";
+            for (i = 0; i < 3; i++)     /* RANDOM's keys lit (layer_keys) */
+                if (v->scene.lkeys >> BLACK[5 + i] & 1u)
+                    tags[n] = RND_TAG[i], names[n++] = RND_NAME[i];
             combo[0][0] = "+ PLAY", combo[0][1] = "LIVE: COUNT-IN OR ARMED";
             combo[1][0] = "TAP", combo[1][1] = "GRID > NOTES > OFF";
             combo[2][0] = "HOLD", combo[2][1] = "NOTHING ON RELEASE";
@@ -3527,6 +3678,7 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "dirty")) *got = ui.dirty;
     else if (!strcmp(what, "msg_stop_to_save")) *got = plat_ms() < ui.msg_until;
     else if (!strcmp(what, "msg_wipe")) *got = plat_ms() < ui.wipe_until;
+    else if (!strcmp(what, "msg_random")) *got = plat_ms() < ui.rnd_until ? ui.rnd_kind : 0;
     else if (!strcmp(what, "active")) *got = (int)audio_load().active;
     else if (!strcmp(what, "src")) *got = t->src;
     else if (!strcmp(what, "gx")) *got = t->grids.x;

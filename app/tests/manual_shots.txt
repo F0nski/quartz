@@ -212,6 +212,13 @@ press REC
 wait 700
 shot seq-rec-map.png
 release REC
+tap EDIT
+press REC
+wait 700
+tapkey b5
+wait 100
+shot seq-random.png
+release REC
 
 # 9. Sources: a new project, track 1 playing each source in turn
 reboot
