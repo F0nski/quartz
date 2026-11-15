@@ -47,7 +47,9 @@ an animated *scene* that moves with the sound and with every knob.
 | Project | Everything above, the tempo, the scale and the effects. QUARTZ keeps one project. |
 
 **Inspired by** the [OP-Z](https://teenage.engineering/guides/op-z) by teenage engineering: one button per domain,
-held buttons that turn the keys into shortcuts, punch-in effects, and the shape of this guide.
+held buttons that turn the keys into shortcuts, punch-in effects, and the shape of this guide. The scenes' look, flat
+low-poly shapes and neon wireframes over a dark grid, is inspired by [Rez](https://en.wikipedia.org/wiki/Rez_%28video_game%29)
+(United Game Artists, 2001).
 
 ---
 
@@ -312,7 +314,9 @@ The scenes, by family:
 by Mutable Instruments (Emilie Gillet), with the eight models of its
 [firmware 1.2](https://pichenettes.github.io/mutable-instruments-documentation/modules/plaits/firmware/). QUARTZ runs
 Plaits' own code. It adds to it what a module gets from its patch: notes and velocity from the keys and the
-sequencer, up to four voices per track, GLIDE, an ADSR, a filter, an LFO, an arpeggiator and effects.
+sequencer, up to four voices per track, GLIDE, an ADSR, a filter, an LFO, an arpeggiator and effects. CHLADNI's name
+and scene come from [Chladni figures](https://en.wikipedia.org/wiki/Ernst_Chladni#Chladni_figures) (Ernst Chladni,
+1787): the patterns sand draws on a vibrating plate.
 
 ### KIT
 
@@ -499,6 +503,9 @@ current page of 16 steps as blocks on a 4 x 4 plateau, each with its note on top
 ![PATH PING-PONG while playing: the step playing in pink, STEP 13 above the plateau](img/seq-path.png "A path, playing")
 
 ![The XY page: X LEN 4, X DIV 1/16, Y LEN 4, Y DIV 1/4](img/seq-xy.png "XY")
+
+**Inspired by** [René](https://www.makenoisemusic.com/modules/rene) by Make Noise: a 4 x 4 grid of notes walked by
+two clocks, one along X and one along Y.
 
 ### Playing, writing, recording
 
@@ -1057,14 +1064,17 @@ QUARTZ is made by f0nski. It stands on the work of others: code it runs, and ide
 | LOOM | Kria (idea) | monome | — | [docs](https://monome.org/docs/ansible/kria/) |
 | LATTICE | The Tonnetz and neo-Riemannian theory (idea) | Leonhard Euler; David Lewin, Richard Cohn | — | [Wikipedia](https://en.wikipedia.org/wiki/Neo-Riemannian_theory) |
 | IMPROV | The Continuator (idea) | François Pachet, Sony CSL, 2003 | — | [paper](https://www.francoispachet.fr/?p=4360) |
+| PATH XY | René's X and Y clocks (idea) | Make Noise | — | [René](https://www.makenoisemusic.com/modules/rene) |
 | Step functions | Parameter locks, trig conditions, micro timing (idea) | Elektron | — | [Digitakt](https://www.elektron.se/support-downloads/digitakt) |
 | Domains, held-button maps, punch-ins, this guide's shape | The OP-Z (idea) | teenage engineering | — | [guide](https://teenage.engineering/guides/op-z) |
+| The scenes' look | Rez (idea) | United Game Artists (Tetsuya Mizuguchi), 2001 | — | [Wikipedia](https://en.wikipedia.org/wiki/Rez_%28video_game%29) |
+| CHLADNI's name and scene | Chladni figures (idea) | Ernst Chladni, 1787 | — | [Wikipedia](https://en.wikipedia.org/wiki/Ernst_Chladni#Chladni_figures) |
 | CADENCE, MOONS, the scenes | QUARTZ's own | f0nski | GPL-3.0 | — |
 | The platform | fm1-base, on felucca-bsp | Charles Vestal; Leo Kuroshita (Hügelton Instruments) | MPL-2.0 | [fm1-base](https://github.com/charlesvestal/fm1-base) |
 
 QUARTZ itself is free software under the GPL-3.0-or-later; its [source](https://github.com/F0nski/quartz) holds the
 licences of each part. M-VAVE and FM-1 are trademarks of their owners; QUARTZ is not affiliated with M-VAVE, Mutable
-Instruments, monome, Elektron or teenage engineering.
+Instruments, monome, Make Noise, Elektron or teenage engineering.
 
 ---
 
