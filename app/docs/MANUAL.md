@@ -668,7 +668,7 @@ Hold REC and press a black key of the second group of three to draw values at ra
 
 | REC held + | Draws |
 | --- | --- |
-| black key 6 (RND PAGE) | the knobs of the page shown; on CHORD, STEP (LATTICE) and MOON, the item under PRESET's cursor too |
+| black key 6 (RND PAGE) | the knobs of the page shown; on CHORD, STEP (LATTICE) and MOON, the item under PRESET's cursor too; on a STEP pattern, the 16 steps of the grid's page shown (OCT- / OCT+), nothing else |
 | black key 7 (RND ALL) | the knobs of every page of the domain shown; in SEQ, the source's content too (below) |
 | black key 8 (RND MODEL) | another model, on EDIT only (a synth may become a KIT, and back) |
 
@@ -685,13 +685,15 @@ Never drawn, so that a draw never silences the track nor changes what it is:
 | SOUND's POLY | the number of voices |
 | MIX's and KIT's LEVEL | the track could go silent or clip |
 | TEMPO | the whole project's speed |
+| STEPS' LEN and PATH, the XY page | LEN comes with black key 7's new pattern; an XY path could hold the pattern on one step |
 | HOME (TRACKS, SONG) | the mix and the arrangement, not the sound |
 
 In SEQ, black key 7 also draws the source's content:
 
-- STEP: a new pattern on the new LEN. The steps and their p-locks are cleared, then each step is lit at a density drawn
-  between 25 and 75 %, as a step made by hand, with a note of the project's scale between C3 and C5 (a KIT: one of
-  the 16 pads) and a velocity from 60 to 127.
+- STEP: a new pattern, DIV drawn and LEN 16, 32, 48 or 64 (whole pages of the grid); PATH and the XY page are kept.
+  The steps and their p-locks are cleared, then each step is lit at a density drawn between 25 and 75 %, as a step
+  made by hand, with a note of the project's scale between C3 and C5 (a KIT: one of the 16 pads) and a velocity from
+  60 to 127. Black key 6 does the same on the grid's page shown only: keep the pages you like, draw the others again.
 - CADENCE: the 8 chords. LATTICE: the 8 steps. MOONS: every moon. LOOM: every cell of every lane.
 
 The other sources have only their knobs. The keys do nothing (unlit on the map) in LIVE, where REC held erases notes;

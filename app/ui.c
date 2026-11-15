@@ -1411,8 +1411,9 @@ static void dice_page(int pid)
     for (k = 0; k < 4; k++) {
         if (!pg->label[k] || knob_hidden(pid, k))   /* INSERT: its labels come from INS_LABEL; a knob with no role is hidden */
             continue;
-        switch (pid * 4 + k) {          /* MODEL, POLY (the voices), LEVEL, TEMPO */
+        switch (pid * 4 + k) {          /* MODEL, POLY (the voices), LEVEL, TEMPO, STEPS' LEN and PATH */
         case P_SOUND * 4: case P_SOUND * 4 + 3: case P_KIT * 4: case P_KIT * 4 + 2: case P_MIX * 4 + 3: case P_TEMPO * 4:
+        case P_STEPS * 4: case P_STEPS * 4 + 2:   /* LEN: dice_all's own; PATH: XY could freeze the pattern on a step */
             continue;
         }
         if (k == 3 && (pid == P_STEPS || pid == P_GRIDS || pid == P_MARBLES || pid == P_LIFE || pid == P_LIFEK ||
@@ -1425,42 +1426,50 @@ static void dice_page(int pid)
     }
 }
 
-/* every page of the domain shown (counted again each turn: PATH may bring XY), then in SEQ the source's content */
+/* STEP: the steps from..to - 1 cleared with their p-locks, then those within LEN lit at a density drawn, as a step made
+   by hand, with a note of the scale between 48 and 72 (a KIT: a pad) */
+static void dice_steps(int from, int to)
+{
+    q_pattern *t = pat();
+    uint16_t m = gen_scale(ui.p);
+    int nn = 0, n, i, c, d;
+    for (n = 48; n <= 72; n++)
+        nn += m >> n % 12 & 1;
+    for (i = from; i < to; i++)
+        step_clear(t, i);
+    d = 25 + (int)dice_rand(51);
+    for (i = from; i < to && i < t->len; i++) {
+        q_step *s = &t->steps[i];
+        if ((int)dice_rand(100) >= d)
+            continue;
+        step_default(s);
+        if (kit()) {
+            s->note[0] = (uint8_t)(KIT_NOTE + dice_rand(16));
+        } else {
+            for (c = (int)dice_rand((uint32_t)nn), n = 48; !(m >> n % 12 & 1) || c--; n++) {}
+            s->note[0] = (uint8_t)n;
+        }
+        s->vel = (uint8_t)(60 + dice_rand(68));
+        step_on(s);
+    }
+}
+
+/* every page of the domain shown, then in SEQ the source's content */
 static void dice_all(void)
 {
     q_pattern *t = pat();
     uint8_t id[5];
-    int i, c, l, keep, d;
-    for (i = 0; i < pages(ui.domain, id); i++)
-        if (id[i] != P_CHORD && id[i] != P_TZSTEP && id[i] != P_MOON && id[i] != P_MOONK)   /* the content below */
+    int i, c, l, keep;
+    for (i = 0; i < pages(ui.domain, id); i++)      /* the cursor's pages: the content below; XY: kept, as PATH */
+        if (id[i] != P_CHORD && id[i] != P_TZSTEP && id[i] != P_MOON && id[i] != P_MOONK && id[i] != P_XY)
             dice_page(id[i]);
     if (ui.domain != D_SEQ)
         return;
     switch (t->src) {
-    case SRC_STEP: {                    /* a new pattern: the steps lit at a density drawn, a note of the scale or a pad */
-        uint16_t m = gen_scale(ui.p);
-        int nn = 0, n;
-        for (n = 48; n <= 72; n++)
-            nn += m >> n % 12 & 1;
-        for (i = 0; i < Q_STEPS; i++)
-            step_clear(t, i);
-        d = 25 + (int)dice_rand(51);
-        for (i = 0; i < t->len; i++) {
-            q_step *s = &t->steps[i];
-            if ((int)dice_rand(100) >= d)
-                continue;
-            step_default(s);
-            if (kit()) {
-                s->note[0] = (uint8_t)(KIT_NOTE + dice_rand(16));
-            } else {
-                for (c = (int)dice_rand((uint32_t)nn), n = 48; !(m >> n % 12 & 1) || c--; n++) {}
-                s->note[0] = (uint8_t)n;
-            }
-            s->vel = (uint8_t)(60 + dice_rand(68));
-            step_on(s);
-        }
+    case SRC_STEP:                      /* a new pattern, its pages full */
+        knob_set(P_STEPS, 0, 16 * (1 + (int)dice_rand(Q_STEPS / 16)));
+        dice_steps(0, Q_STEPS);
         break;
-    }
     case SRC_CHORDS:                    /* each of the 8 chords, PRESET's cursor back after */
         keep = ui.chcur;
         for (ui.chcur = 0; ui.chcur < 8; ui.chcur++)
@@ -1501,7 +1510,9 @@ static void dice(int b)
     ui.rng ^= plat_ms() | 1u;
     if (!ui.rng)
         ui.rng = 1;
-    if (b == 5) {
+    if (b == 5 && ui.domain == D_SEQ && pat()->src == SRC_STEP && (knob_page() == P_STEPS || knob_page() == P_XY)) {
+        dice_steps(ui.spage * 16, ui.spage * 16 + 16);   /* the grid's page of steps shown */
+    } else if (b == 5) {
         dice_page(knob_page());
     } else if (b == 6) {
         dice_all();

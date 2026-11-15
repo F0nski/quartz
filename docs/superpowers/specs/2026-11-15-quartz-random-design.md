@@ -22,7 +22,7 @@ REC tenu, une noire du deuxième groupe de trois (`BLACK[5..7]`, fa#, sol#, la# 
 
 | Touche | Nom (carte de REC) | Message d'en-tête | Ce qui est tiré |
 |---|---|---|---|
-| noire 6 | `RND PAGE` | `RANDOM PAGE` | les encodeurs de la page affichée ; sur CHORD, STEP (TONNETZ) et MOON, l'élément sous le curseur de PRESET |
+| noire 6 | `RND PAGE` | `RANDOM PAGE` | les encodeurs de la page affichée ; sur CHORD, STEP (TONNETZ) et MOON, l'élément sous le curseur de PRESET ; sur STEPS et XY d'un pattern STEP, les 16 pas de la page de grille affichée (OCT-/OCT+), rien d'autre |
 | noire 7 | `RND ALL` | `RANDOM ALL` | les encodeurs de toutes les pages du domaine affiché ; en SEQ, en plus, tout le contenu de la source (section 5) |
 | noire 8 | `RND MODEL` | `RANDOM MODEL` | un MODEL, sur EDIT seulement (synthé : SOUND ; KIT : KIT) |
 
@@ -49,6 +49,7 @@ la page PAD tire le pad sélectionné (`ui.pad`).
 | MIX | LEVEL | piste muette ou saturée |
 | KIT | LEVEL | idem |
 | TEMPO | TEMPO | le projet entier change de vitesse |
+| STEPS | LEN, PATH (et la page XY) | LEN : la noire 7 seule, parmi 16/32/48/64 ; PATH : XY figerait le pattern |
 | TRACKS, SONG (HOME) | tous | le mixage et l'arrangement, pas du son |
 | CPU | — | rien à tirer |
 
@@ -71,8 +72,10 @@ leurs fichiers).
 
 Les encodeurs des pages d'abord, puis le contenu :
 
-- **STEP** : LEN, DIV et PATH tirés, puis les 64 pas vidés avec leurs p-locks (`step_clear`, comme REC + noire 1).
-  Une densité est tirée entre 25 % et 75 % ; chaque pas de 1 à LEN s'allume avec cette probabilité, aux valeurs d'un
+- **STEP** : DIV tiré, LEN parmi 16, 32, 48 et 64 (des pages de grille pleines), puis les 64 pas vidés avec leurs p-locks
+  (`step_clear`, comme REC + noire 1). PATH et la page XY ne sont pas tirés : XY avec X LEN et Y LEN à 1 figerait le
+  pattern sur un pas.
+  Une densité est tirée entre 25 % et 75 % ; chaque pas de 1 à LEN (noire 6 : de la page de grille, dans LEN) s'allume avec cette probabilité, aux valeurs d'un
   pas posé à la main (`step_default` : durée d'un demi-pas, probabilité 100 %, pas de condition, ratchet, slide ni
   accent), avec :
   - une note : synthé, une note de la gamme du projet (`gen_scale`) entre 48 et 72 ; KIT, `KIT_NOTE` + un pad 0–15 ;

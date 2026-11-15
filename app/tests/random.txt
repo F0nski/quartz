@@ -163,36 +163,63 @@ release REC
 expect tempo 120
 expect swing >49
 expect swing <76
-# SEQ, STEP: a p-lock first; then a new pattern: no p-locks, steps lit within LEN, notes in the scale's 48..72
+# SEQ, STEP, black key 6: the grid's page of steps shown, nothing else (LEN 32; step 1 and its p-lock on page 1 kept)
 tap SEQ
+spin K1 16
+expect len 32
 tap REC
-key w2 down
+tap OCT-
+wait 50
+tap OCT-
+wait 50
+tap OCT-
+wait 50
+expect spage 1
+key w0 down
 turn K1 20
-key w2 up
+key w0 up
 expect locks 1
+tap OCT+
+expect spage 2
+tapkey w15
+expect stepon_32 1
+press REC
+key b5 down
+key b5 up
+release REC
+expect msg_random 1
+expect rec 1
+expect len 32
+expect div 2
+expect path 0
+expect stepon_1 1
+expect locks 1
+expect stepon_2 0
+expect stepon_16 0
+expect stepon_17 1
+expect stepon_18 0
+expect nsteps_on 13
+# black key 7: the whole pattern; LEN one of 16, 32, 48, 64; PATH kept; the p-locks gone
 tap REC
 tap REC
 expect rec 0
+wait 1600
 press REC
 key b6 down
 key b6 up
 release REC
 expect msg_random 2
 expect src 0
+expect path 0
 expect locks 0
-expect nsteps_on >0
-expect len >0
-expect len <65
+expect len 48
+expect nsteps_on 36
 expect stepon_2 1
 expect stepnote_2 >47
 expect stepnote_2 <73
 expect stepvel_2 >59
-expect stepon_3 1
-expect stepnote_3 >47
-expect stepnote_3 <73
-expect stepvel_3 >59
-expect stepon_7 0
-# (the host is deterministic: the values pinned are the draws, off the defaults: CSIZE 0, OP 0, PERIOD 8, NOTE cell 0)
+expect stepon_49 0
+# (the host is deterministic: the values pinned are the draws, off the defaults: DEGREE 0, OP 0, PERIOD 8, NOTE cell 0)
 # CHORDS: the 8 chords drawn within their ranges, PRESET's cursor back (here PROG's LEN drawn 2: on the last)
 turn K4 5
 expect src 5
@@ -206,8 +233,8 @@ release REC
 expect msg_random 2
 expect src 5
 expect cdeg_1 <7
-expect cdeg_8 <7
-expect csize_8 2
+expect cdeg_8 3
+expect csize_8 <4
 expect chcur 1
 # TONNETZ: the 8 steps' ops
 turn K4 1
@@ -220,7 +247,7 @@ key b6 up
 release REC
 expect src 6
 expect top_1 <4
-expect top_8 1
+expect top_8 2
 expect tzcur 1
 # MOONS: each moon's period and phase within their ranges
 turn K4 1
@@ -233,7 +260,7 @@ expect src 7
 expect omoons >0
 expect omoons <5
 expect oper_1 >0
-expect oper_1 23
+expect oper_1 20
 expect opha_1 <32
 expect osel 0
 # LANES: every cell within its lane's range
@@ -245,7 +272,7 @@ key b6 up
 release REC
 expect src 4
 expect lv_0_16 <2
-expect lv_1_16 8
+expect lv_1_16 6
 expect lv_2_16 <5
 expect lv_3_16 <5
 expect lv_4_16 <4
