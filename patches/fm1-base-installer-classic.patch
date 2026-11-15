@@ -1,0 +1,14 @@
+diff --git a/web/installer.html b/web/installer.html
+index 22808aa..576016b 100644
+--- a/web/installer.html
++++ b/web/installer.html
+@@ -407,7 +407,8 @@ $("stockfile").addEventListener("change", async (e) => {
+ const PICKED = "fm1-ports";
+ let picked = [];
+ try { picked = JSON.parse(localStorage.getItem(PICKED) || "[]").filter((x) => typeof x === "string"); } catch (_) { /* none */ }
+-const updater = (midi, lg) => { const up = new Updater(midi, lg); picked.forEach((n) => up.allow(n)); return up; };
++// always the classic install: the fast one stops at its first written sector on some FM-1s (the loader shows USB LOST)
++const updater = (midi, lg) => { const up = new Updater(midi, lg); up.classic = true; picked.forEach((n) => up.allow(n)); return up; };
+ /* and the ports an FM-1 answered the screen reader's HELLO on (Updater.answering: an fm1-base firmware under any name),
+    kept as picks */
+ function remember(names) {

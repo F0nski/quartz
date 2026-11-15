@@ -14,7 +14,7 @@ if [ ! -f "$AC79_SDK/cpu/wl82/tools/uboot.boot" ]; then
     exit 1
 fi
 
-# fm1-base patches: libm and compiler-rt for the C++ DSP on the device; the DSP's place in the flash (o2_first)
+# fm1-base patches: libm and compiler-rt for the C++ DSP on the device; the DSP's place in the flash (o2_first); the web installer always classic
 for p in patches/*.patch; do
     git -C base apply --reverse --check "../$p" 2>/dev/null ||
         git -C base apply "../$p" || {
