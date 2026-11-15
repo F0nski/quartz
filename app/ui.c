@@ -707,61 +707,6 @@ static void knob_turn(int pid, int k, int d)
         knob_set(pid, k, v);
 }
 
-/* RANDOM (REC held + black keys 6-8): 0..n - 1 */
-static uint32_t dice_rand(uint32_t n)
-{
-    ui.rng ^= ui.rng << 13;
-    ui.rng ^= ui.rng >> 17;
-    ui.rng ^= ui.rng << 5;
-    return ui.rng % n;
-}
-
-/* the page's knobs drawn within their range; a knob that picks lands on a choice's middle, as a detent does; never the
-   ones that change what the track is or how loud it plays */
-static void dice_page(int pid)
-{
-    static const char *const KEEP[4] = {"SOURCE", "MODEL", "LEVEL", "TEMPO"};
-    const q_page *pg = &PAGE[pid];
-    float start, width;
-    int k, i, n, v;
-    for (k = 0; k < 4; k++) {
-        if (!pg->label[k] || !*pg->label[k] || knob_hidden(pid, k) || (pid == P_SOUND && k == 3))   /* POLY: the voices */
-            continue;
-        for (i = 0; i < 4 && strcmp(pg->label[k], KEEP[i]); i++) {}
-        if (i < 4)
-            continue;
-        v = pg->min[k] + (int)dice_rand((uint32_t)(pg->max[k] - pg->min[k] + 1));
-        if ((n = knob_zone(ui.p->sound[ui.track].model, pid, k, &start, &width)) && v >= start)
-            v = (int)__builtin_roundf(start + (knob_choice(v, start, width, n) + 0.5f) * width);
-        knob_set(pid, k, v);
-    }
-}
-
-/* black key b (5, 6, 7: keys 6, 7, 8) acts now: not on HOME, in LIVE (REC held erases there), nor with a step, a
-   selection or a cell held (the knobs set those); the model on EDIT only */
-static int dice_on(int b)
-{
-    if (ui.domain == D_HOME || ui.rec == R_LIVE || ui.held || ui.sel_ref >= 0 || ui.cell)
-        return 0;
-    return b != 7 || ui.domain == D_EDIT;
-}
-
-static void dice(int b)
-{
-    ui.rng ^= plat_ms() | 1u;
-    if (!ui.rng)
-        ui.rng = 1;
-    if (b == 5) {
-        dice_page(knob_page());
-    } else if (b == 7) {            /* always another model, a KIT among them */
-        int r = model_rank(ui.p->sound[ui.track].model);
-        knob_set(kit() ? P_KIT : P_SOUND, 0, (r + 1 + (int)dice_rand(M_KIT)) % (M_KIT + 1));
-    }
-    ui.rnd_kind = b - 4;
-    ui.rnd_until = plat_ms() + MSG_MS;
-    ui.dirty = 1;
-}
-
 /* ------------------------------------------------------------------ input --- */
 static void rec_set(int r);
 static void sel_clear(void);
@@ -1445,6 +1390,125 @@ static void preview_off(void)
     for (i = 0; i < 4 && ui.preview[i]; i++)
         audio_live_note(ui.track, ui.preview[i], 0);
     __builtin_memset(ui.preview, 0, sizeof ui.preview);
+}
+
+/* RANDOM (REC held + black keys 6-8): 0..n - 1 */
+static uint32_t dice_rand(uint32_t n)
+{
+    ui.rng ^= ui.rng << 13;
+    ui.rng ^= ui.rng >> 17;
+    ui.rng ^= ui.rng << 5;
+    return ui.rng % n;
+}
+
+/* the page's knobs drawn within their range; a knob that picks lands on a choice's middle, as a detent does; never the
+   ones that change what the track is or how loud it plays */
+static void dice_page(int pid)
+{
+    static const char *const KEEP[4] = {"SOURCE", "MODEL", "LEVEL", "TEMPO"};
+    const q_page *pg = &PAGE[pid];
+    float start, width;
+    int k, i, n, v;
+    for (k = 0; k < 4; k++) {
+        if (!pg->label[k] || !*pg->label[k] || knob_hidden(pid, k) || (pid == P_SOUND && k == 3))   /* POLY: the voices */
+            continue;
+        for (i = 0; i < 4 && strcmp(pg->label[k], KEEP[i]); i++) {}
+        if (i < 4)
+            continue;
+        v = pg->min[k] + (int)dice_rand((uint32_t)(pg->max[k] - pg->min[k] + 1));
+        if ((n = knob_zone(ui.p->sound[ui.track].model, pid, k, &start, &width)) && v >= start)
+            v = (int)__builtin_roundf(start + (knob_choice(v, start, width, n) + 0.5f) * width);
+        knob_set(pid, k, v);
+    }
+}
+
+/* every page of the domain shown (counted again each turn: PATH may bring XY), then in SEQ the source's content */
+static void dice_all(void)
+{
+    q_pattern *t = pat();
+    uint8_t id[5];
+    int i, c, l, keep, d;
+    for (i = 0; i < pages(ui.domain, id); i++)
+        if (id[i] != P_CHORD && id[i] != P_TZSTEP && id[i] != P_MOON && id[i] != P_MOONK)   /* the content below */
+            dice_page(id[i]);
+    if (ui.domain != D_SEQ)
+        return;
+    switch (t->src) {
+    case SRC_STEP: {                    /* a new pattern: the steps lit at a density drawn, a note of the scale or a pad */
+        uint16_t m = gen_scale(ui.p);
+        int nn = 0, n;
+        for (n = 48; n <= 72; n++)
+            nn += m >> n % 12 & 1;
+        for (i = 0; i < Q_STEPS; i++)
+            step_clear(t, i);
+        d = 25 + (int)dice_rand(51);
+        for (i = 0; i < t->len; i++) {
+            q_step *s = &t->steps[i];
+            if ((int)dice_rand(100) >= d)
+                continue;
+            step_default(s);
+            if (kit()) {
+                s->note[0] = (uint8_t)(KIT_NOTE + dice_rand(16));
+            } else {
+                for (c = (int)dice_rand((uint32_t)nn), n = 48; !(m >> n % 12 & 1) || c--; n++) {}
+                s->note[0] = (uint8_t)n;
+            }
+            s->vel = (uint8_t)(60 + dice_rand(68));
+            step_on(s);
+        }
+        break;
+    }
+    case SRC_CHORDS:                    /* each of the 8 chords, PRESET's cursor back after */
+        keep = ui.chcur;
+        for (ui.chcur = 0; ui.chcur < 8; ui.chcur++)
+            dice_page(P_CHORD);
+        ui.chcur = keep;
+        break;
+    case SRC_TONNETZ:
+        keep = ui.tzcur;
+        for (ui.tzcur = 0; ui.tzcur < 8; ui.tzcur++)
+            dice_page(P_TZSTEP);
+        ui.tzcur = keep;
+        break;
+    case SRC_ORBITS:
+        keep = ui.moon;
+        for (ui.moon = 0; ui.moon < t->orbits.moons; ui.moon++)
+            dice_page(kit() ? P_MOONK : P_MOON);
+        ui.moon = keep;
+        break;
+    case SRC_LANES:                     /* every cell; a KIT has no OCT lane */
+        for (l = 0; l < L_N; l++)
+            for (c = 0; c < 16 && !(kit() && l == L_OCT); c++)
+                lanes_set(&t->lanes, l, c, (int)dice_rand(LANE_MAX[l] + 1u));
+        break;
+    }
+}
+
+/* black key b (5, 6, 7: keys 6, 7, 8) acts now: not on HOME, in LIVE (REC held erases there), nor with a step, a
+   selection or a cell held (the knobs set those); the model on EDIT only */
+static int dice_on(int b)
+{
+    if (ui.domain == D_HOME || ui.rec == R_LIVE || ui.held || ui.sel_ref >= 0 || ui.cell)
+        return 0;
+    return b != 7 || ui.domain == D_EDIT;
+}
+
+static void dice(int b)
+{
+    ui.rng ^= plat_ms() | 1u;
+    if (!ui.rng)
+        ui.rng = 1;
+    if (b == 5) {
+        dice_page(knob_page());
+    } else if (b == 6) {
+        dice_all();
+    } else if (b == 7) {            /* always another model, a KIT among them */
+        int r = model_rank(ui.p->sound[ui.track].model);
+        knob_set(kit() ? P_KIT : P_SOUND, 0, (r + 1 + (int)dice_rand(M_KIT)) % (M_KIT + 1));
+    }
+    ui.rnd_kind = b - 4;
+    ui.rnd_until = plat_ms() + MSG_MS;
+    ui.dirty = 1;
 }
 
 static void key_down(int k)

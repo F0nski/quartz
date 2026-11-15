@@ -110,3 +110,130 @@ key b5 up
 release REC
 expect msg_random 0
 tap PLAY
+# black key 7 on EDIT: ENGINE and SOUND drawn; MODEL and POLY kept
+wait 1600
+tap EDIT
+press REC
+key b6 down
+key b6 up
+release REC
+expect msg_random 2
+expect model 2
+expect poly 1
+expect tune >-25
+expect tune <25
+# ENV: ADSR and FILTER within their ranges
+tap ENV
+press REC
+key b6 down
+key b6 up
+release REC
+expect atk <128
+expect rel <128
+expect ftype <3
+expect envamt >-65
+expect envamt <64
+# FX: MIX drawn, LEVEL and the insert's type kept
+tap FX
+press REC
+key b6 down
+key b6 up
+release REC
+expect level 100
+expect itype 0
+expect pan >-65
+expect pan <64
+# GLO: TEMPO kept, SWING drawn within 50..75
+tap GLO
+press REC
+key b6 down
+key b6 up
+release REC
+expect tempo 120
+expect swing >49
+expect swing <76
+# SEQ, STEP: a p-lock first; then a new pattern: no p-locks, steps lit within LEN, notes in the scale's 48..72
+tap SEQ
+tap REC
+key w2 down
+turn K1 20
+key w2 up
+expect locks 1
+tap REC
+tap REC
+expect rec 0
+press REC
+key b6 down
+key b6 up
+release REC
+expect msg_random 2
+expect src 0
+expect locks 0
+expect nsteps_on >0
+expect len >0
+expect len <65
+expect stepon_4 1
+expect stepnote_4 >47
+expect stepnote_4 <73
+expect stepvel_4 >59
+expect stepon_7 1
+expect stepnote_7 >47
+expect stepnote_7 <73
+expect stepvel_7 >59
+# (the host is deterministic: the values pinned are the draws, all off the defaults 0, 0, 0, 8, 0)
+# CHORDS: the 8 chords drawn within their ranges, PRESET's cursor back on the third
+turn K4 5
+expect src 5
+turn PRESET 2
+expect chcur 2
+wait 1600
+press REC
+key b6 down
+key b6 up
+release REC
+expect msg_random 2
+expect src 5
+expect cdeg_1 <7
+expect cdeg_8 6
+expect csize_8 1
+expect chcur 2
+# TONNETZ: the 8 steps' ops
+turn K4 1
+expect src 6
+turn PRESET 1
+expect tzcur 1
+press REC
+key b6 down
+key b6 up
+release REC
+expect src 6
+expect top_1 <4
+expect top_8 3
+expect tzcur 1
+# MOONS: each moon's period and phase within their ranges
+turn K4 1
+expect src 7
+press REC
+key b6 down
+key b6 up
+release REC
+expect src 7
+expect omoons >0
+expect omoons <5
+expect oper_1 >0
+expect oper_1 26
+expect opha_1 <32
+expect osel 0
+# LANES: every cell within its lane's range
+turn K4 -3
+expect src 4
+press REC
+key b6 down
+key b6 up
+release REC
+expect src 4
+expect lv_0_16 <2
+expect lv_1_16 13
+expect lv_2_16 <5
+expect lv_3_16 <5
+expect lv_4_16 <4
