@@ -1405,15 +1405,18 @@ static uint32_t dice_rand(uint32_t n)
    ones that change what the track is or how loud it plays */
 static void dice_page(int pid)
 {
-    static const char *const KEEP[4] = {"SOURCE", "MODEL", "LEVEL", "TEMPO"};
     const q_page *pg = &PAGE[pid];
     float start, width;
-    int k, i, n, v;
+    int k, n, v;
     for (k = 0; k < 4; k++) {
-        if (!pg->label[k] || !*pg->label[k] || knob_hidden(pid, k) || (pid == P_SOUND && k == 3))   /* POLY: the voices */
+        if (!pg->label[k] || knob_hidden(pid, k))   /* INSERT: its labels come from INS_LABEL; a knob with no role is hidden */
             continue;
-        for (i = 0; i < 4 && strcmp(pg->label[k], KEEP[i]); i++) {}
-        if (i < 4)
+        switch (pid * 4 + k) {          /* MODEL, POLY (the voices), LEVEL, TEMPO */
+        case P_SOUND * 4: case P_SOUND * 4 + 3: case P_KIT * 4: case P_KIT * 4 + 2: case P_MIX * 4 + 3: case P_TEMPO * 4:
+            continue;
+        }
+        if (k == 3 && (pid == P_STEPS || pid == P_GRIDS || pid == P_MARBLES || pid == P_LIFE || pid == P_LIFEK ||
+                       pid == P_LANES || pid == P_CHORDS || pid == P_TONNETZ || pid == P_ORBITS || pid == P_MIMIC))   /* SOURCE */
             continue;
         v = pg->min[k] + (int)dice_rand((uint32_t)(pg->max[k] - pg->min[k] + 1));
         if ((n = knob_zone(ui.p->sound[ui.track].model, pid, k, &start, &width)) && v >= start)

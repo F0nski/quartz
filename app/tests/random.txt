@@ -143,6 +143,17 @@ expect level 100
 expect itype 0
 expect pan >-65
 expect pan <64
+# INSERT, OVERDRIVE: DRIVE and TONE drawn (their labels come from the insert's type), MIX too
+turn SELECT 1
+turn PRESET 1
+expect itype 1
+expect i1 64
+press REC
+key b5 down
+key b5 up
+release REC
+expect itype 1
+expect i1 51
 # GLO: TEMPO kept, SWING drawn within 50..75
 tap GLO
 press REC
@@ -172,16 +183,17 @@ expect locks 0
 expect nsteps_on >0
 expect len >0
 expect len <65
-expect stepon_4 1
-expect stepnote_4 >47
-expect stepnote_4 <73
-expect stepvel_4 >59
-expect stepon_7 1
-expect stepnote_7 >47
-expect stepnote_7 <73
-expect stepvel_7 >59
-# (the host is deterministic: the values pinned are the draws, all off the defaults 0, 0, 0, 8, 0)
-# CHORDS: the 8 chords drawn within their ranges, PRESET's cursor back on the third
+expect stepon_2 1
+expect stepnote_2 >47
+expect stepnote_2 <73
+expect stepvel_2 >59
+expect stepon_3 1
+expect stepnote_3 >47
+expect stepnote_3 <73
+expect stepvel_3 >59
+expect stepon_7 0
+# (the host is deterministic: the values pinned are the draws, off the defaults: CSIZE 0, OP 0, PERIOD 8, NOTE cell 0)
+# CHORDS: the 8 chords drawn within their ranges, PRESET's cursor back (here PROG's LEN drawn 2: on the last)
 turn K4 5
 expect src 5
 turn PRESET 2
@@ -194,9 +206,9 @@ release REC
 expect msg_random 2
 expect src 5
 expect cdeg_1 <7
-expect cdeg_8 6
-expect csize_8 1
-expect chcur 2
+expect cdeg_8 <7
+expect csize_8 2
+expect chcur 1
 # TONNETZ: the 8 steps' ops
 turn K4 1
 expect src 6
@@ -208,7 +220,7 @@ key b6 up
 release REC
 expect src 6
 expect top_1 <4
-expect top_8 3
+expect top_8 1
 expect tzcur 1
 # MOONS: each moon's period and phase within their ranges
 turn K4 1
@@ -221,7 +233,7 @@ expect src 7
 expect omoons >0
 expect omoons <5
 expect oper_1 >0
-expect oper_1 26
+expect oper_1 23
 expect opha_1 <32
 expect osel 0
 # LANES: every cell within its lane's range
@@ -233,7 +245,7 @@ key b6 up
 release REC
 expect src 4
 expect lv_0_16 <2
-expect lv_1_16 13
+expect lv_1_16 8
 expect lv_2_16 <5
 expect lv_3_16 <5
 expect lv_4_16 <4
