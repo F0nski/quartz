@@ -21,7 +21,8 @@ Plaits, Grids, Marbles and the Clouds reverb in `app/third_party/`. Licence GPL-
 - `app/tests/*.txt`: host simulator scripts (`tap`, `turn`, `key`, `wait`, `expect`, `shot`; syntax in
   `base/host/plat_host.c`'s header). `tests/unit/`: C and C++ unit tests.
 - `tools/device/`: device CPU measurement over USB (`measure.sh`, `worst_case.py`, `snap.py`).
-- `docs/superpowers/specs/`, `docs/superpowers/plans/`: one spec and one plan per feature, in French.
+- `docs/superpowers/specs/`, `docs/superpowers/plans/`: one spec and one plan per feature, in French; local only
+  (git-ignored).
   `docs/screens/`: HTML mockups of the screens.
 - `patches/`: changes applied to `base/` by `build.sh`; `base/` itself is never edited.
 
