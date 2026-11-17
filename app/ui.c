@@ -165,7 +165,7 @@ typedef struct { q_step st; uint8_t nlocks; q_lock lk[16]; } q_clip;   /* a step
 
 /* what is on the screen, part by part: a part is drawn again when its view changes */
 typedef struct {
-    struct { int8_t track, domain, page, n, msg, pat, playing, scene, pad, ltrig, itype, punch, badge, bnum, model; } head;   /* badge: REC's
+    struct { int8_t track, domain, page, n, msg, pat, playing, scene, pad, ltrig, itype, punch, badge, bnum, model; uint8_t bpm; } head;   /* badge: REC's
                                                                                    state, 1 GRID .. 4 ARM (0 none or ARM's blink off); bnum: NOTES' step */   /* pat: P1..P8 asked; playing: the one playing when it differs, else 0;
                                                                                    pad: a KIT's in EDIT 1..16, else 0;
                                                                                    ltrig: LFO's FREE 1 / TRIG 2, else 0; itype: the insert's, in the page name */
@@ -211,6 +211,8 @@ static struct {
     uint32_t wipe_until;                       /* SAVE held, black key 1 pressed once: a second press before it erases the project */
     uint32_t rng, rnd_until;                   /* RANDOM: its xorshift; its message shown until rnd_until */
     int rnd_kind;                              /* the message: 1 RANDOM PAGE, 2 RANDOM ALL, 3 RANDOM MODEL */
+    uint32_t tap_ms[4], tap_until;             /* TAP TEMPO: the last taps' times (ntap of them); its message until tap_until */
+    int ntap;
     uint32_t down_ms[NB], used;                /* when each button went down; used: bit b, a key or button came while b was held */
     q_clip clip;                               /* the grid's clipboard, common to the tracks: the last step cut or chord played */
     uint8_t preview[4];
@@ -1525,11 +1527,34 @@ static void dice(int b)
     ui.dirty = 1;
 }
 
+/* TAP TEMPO (GLO held, black key 1): from the 2nd tap, the mean gap of the last 4 taps; a gap over 2 s starts again */
+static void tap_tempo(void)
+{
+    uint32_t now = plat_ms(), span;
+    if (ui.ntap && now - ui.tap_ms[ui.ntap - 1] > 2000u)
+        ui.ntap = 0;
+    if (ui.ntap == 4)                   /* the oldest drops out */
+        for (ui.ntap = 0; ui.ntap < 3; ui.ntap++)
+            ui.tap_ms[ui.ntap] = ui.tap_ms[ui.ntap + 1];
+    ui.tap_ms[ui.ntap++] = now;
+    if (ui.ntap < 2)
+        return;
+    span = now - ui.tap_ms[0];
+    ui.p->tempo = (uint16_t)clamp((int)((60000u * (uint32_t)(ui.ntap - 1) + span / 2) / span), 40, 240);
+    ui.tap_until = now + MSG_MS;
+    ui.dirty = 1;
+}
+
 static void key_down(int k)
 {
     q_pattern *t = pat();
     q_step *s = 0;
     int note = 53 + k + 12 * ui.octave, w, b, i;
+    if (ui.btn >> B_GLO & 1u) {         /* GLO held: black key 1 taps the tempo, the other keys nothing */
+        if (k == BLACK[0])
+            tap_tempo();
+        return;
+    }
     for (w = 0; w < 16 && WHITE[w] != k; w++) {}
     if (w < 16 && ui.homedown) {
         home_key(w);
@@ -2021,7 +2046,7 @@ static uint32_t scale_keys(void)
 
 /* the buttons that lay a layer on the keys, and the one whose map is shown: held over HOLD_MS with nothing pressed
    before the map came, then kept while it is held (SEL only on the grid and in NOTES); -1 none */
-static const uint8_t LAYER_BTN[7] = {B_HOME, B_FX, B_SAVE, B_SEQ, B_ARP, B_SEL, B_REC};
+static const uint8_t LAYER_BTN[8] = {B_HOME, B_FX, B_SAVE, B_SEQ, B_ARP, B_SEL, B_REC, B_GLO};
 #define B_CELL NB                       /* a LANES cell held long: its layer, no button's */
 static int layer_shown(void)
 {
@@ -2029,7 +2054,7 @@ static int layer_shown(void)
     if (ui.layer && ui.btn >> (ui.layer - 1) & 1u && (ui.layer - 1 != B_SEL || !(ui.used >> B_SEL & 1u)))   /* SEL's gives
                                                                                        the plateau back at its first key */
         return ui.layer - 1;
-    for (i = 0; i < 7; i++) {
+    for (i = 0; i < 8; i++) {
         b = LAYER_BTN[i];
         if (long_held(b) && !(ui.used >> b & 1u) && (b != B_SEL || grid_on() || notes_on()) && (b != B_REC || ui.rec != R_ARM))
             return b;
@@ -2045,6 +2070,8 @@ static uint32_t layer_keys(int b)
     uint32_t keys = 0;
     int i;
     switch (b) {
+    case B_GLO:                         /* TAP TEMPO */
+        return 1u << BLACK[0];
     case B_HOME:                        /* the mutes, the scenes */
         for (i = 0; i < 16; i++)
             keys |= (uint32_t)(i < Q_TRACKS || i >= 8) << WHITE[i];
@@ -2491,7 +2518,8 @@ static void view_now(q_view *v)
     v->head.page = (int8_t)ui.page[ui.domain];
     v->head.n = (int8_t)domain_n(ui.domain);
     v->head.msg = plat_ms() < ui.msg_until ? 1 : plat_ms() < ui.locks_until ? 2 : plat_ms() < ui.wipe_until ? 3 :
-                  plat_ms() < ui.rnd_until ? 3 + ui.rnd_kind : 0;
+                  plat_ms() < ui.rnd_until ? 3 + ui.rnd_kind : plat_ms() < ui.tap_until ? 7 : 0;
+    v->head.bpm = (uint8_t)ui.p->tempo;
     v->head.pat = (int8_t)(ui.p->pattern[ui.track] + 1);
     v->head.scene = (int8_t)ui.msg_scene;
     v->head.punch = (int8_t)(plat_ms() < ui.punch_until ? ui.msg_punch : 0);
@@ -2717,7 +2745,12 @@ static void draw_head(const q_view *v)
     x = cv_text(34, 7, &FONT_B, DOMAIN_NAME[v->head.domain], C_WHITE);
     if (v->head.msg)
         cv_text(x + 10, 7, &FONT_B, v->head.msg == 1 ? "STOP TO SAVE" : v->head.msg == 2 ? "LOCKS FULL" : v->head.msg == 3 ? "AGAIN: ERASE"
-                : v->head.msg == 4 ? "RANDOM PAGE" : v->head.msg == 5 ? "RANDOM ALL" : "RANDOM MODEL", KCOL[3]);
+                : v->head.msg == 4 ? "RANDOM PAGE" : v->head.msg == 5 ? "RANDOM ALL" : v->head.msg == 6 ? "RANDOM MODEL" : "TAP",
+                KCOL[3]);
+    if (v->head.msg == 7) {             /* TAP and the tempo */
+        int_text(v->head.bpm, t);
+        cv_text(x + 10 + text_w(&FONT_B, "TAP") + 4, 7, &FONT_B, t, KCOL[3]);
+    }
     else if (v->head.punch)
         cv_text(x + 10, 7, &FONT_B, PUNCH_NAME[v->head.punch - 1], C_AMB);
     else if (v->head.domain == D_HOME && v->head.scene) {       /* the scene asked, until it starts */
@@ -2866,6 +2899,10 @@ static void draw_layer(const q_view *v, int32_t oy)
         break;
     case B_ARP:
         tags[n] = "KEY", names[n++] = "LATCH ITS NOTE";
+        break;
+    case B_GLO:
+        tags[n] = "#1", names[n++] = "TAP TEMPO";
+        combo[0][0] = "2 TAPS", combo[0][1] = "SET THE BPM";
         break;
     case B_SEL:
         if (v->scene.lmode) {           /* NOTES: the knobs set the step without SEL */
@@ -3679,6 +3716,7 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "msg_stop_to_save")) *got = plat_ms() < ui.msg_until;
     else if (!strcmp(what, "msg_wipe")) *got = plat_ms() < ui.wipe_until;
     else if (!strcmp(what, "msg_random")) *got = plat_ms() < ui.rnd_until ? ui.rnd_kind : 0;
+    else if (!strcmp(what, "msg_tap")) *got = plat_ms() < ui.tap_until;
     else if (!strcmp(what, "active")) *got = (int)audio_load().active;
     else if (!strcmp(what, "src")) *got = t->src;
     else if (!strcmp(what, "gx")) *got = t->grids.x;

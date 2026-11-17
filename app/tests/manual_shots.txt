@@ -316,3 +316,13 @@ spin SELECT 1
 wait 600
 shot glo-cpu.png
 tap PLAY
+# GLO held: the map, black key 1 tapped twice 600 ms apart
+spin SELECT -4
+press GLO
+wait 500
+tapkey b0
+wait 510
+tapkey b0
+wait 100
+shot glo-tap.png
+release GLO

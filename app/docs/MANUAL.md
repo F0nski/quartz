@@ -98,7 +98,7 @@ screen.
 | ARP | The arpeggiator. | The notes you press stay in the arpeggio after you let go (latch). |
 | FX | The track's effects: MIX, INSERT. | The white keys are the 16 punch-ins. |
 | SEQ | The pattern: STEPS, then its source's pages. | White keys 1–8 pick the track's pattern. |
-| GLO | The project: TEMPO, SCALE, KEYS, FX, CPU. | — |
+| GLO | The project: TEMPO, SCALE, KEYS, FX, CPU. | Black key 1 taps the tempo (section 10). |
 | HOME | The four tracks and the song: TRACKS, SONG. | White keys 1–4 mute the tracks, 9–16 are the scenes. |
 | SAVE | Saves the project (stopped only). | White keys 1–8 add a scene to the song; black key 1 twice starts a new project. |
 | SEL | On SONG, removes the entry shown. | Selects steps on the grid (section 8). |
@@ -126,11 +126,12 @@ left, as the screen numbers them.
 - **Footer**: K1–K4, their names and values in their colours. A grey one is not in use on this page.
 
 Messages show in the header for a moment: `STOP TO SAVE` (SAVE while playing), `LOCKS FULL` (no room for another
-p-lock in the pattern), `AGAIN: ERASE` (press again to start a new project), or the name of a punch-in.
+p-lock in the pattern), `AGAIN: ERASE` (press again to start a new project), `TAP 120` (the tempo just tapped),
+or the name of a punch-in.
 
 ### Held buttons show their map
 
-Hold HOME, FX, SAVE, SEQ, ARP, SEL or REC for more than 0.4 s: the scene makes room for a map of the keys. The keys
+Hold HOME, FX, SAVE, SEQ, ARP, SEL, REC or GLO for more than 0.4 s: the scene makes room for a map of the keys. The keys
 that have a role are lit and named, and the combinations with other buttons are listed under them. The map follows
 your presses, so you can look up a shortcut and use it in the same gesture.
 
@@ -1008,6 +1009,10 @@ Press GLO for the project's settings, shared by the four tracks.
 | FX | DLY TIME, 1/32 to 1/1 | DLY FB | REV SIZE | REV TONE |
 | CPU | — | — | — | — |
 
+- **TAP TEMPO**: hold GLO and tap black key 1 on the beat, from any page. From the second tap, TEMPO follows the
+  mean gap of your last four taps, in whole BPM, 40–240; the header shows `TAP` and the tempo. A pause over 2 s
+  starts the count again. While playing, only the speed changes: the patterns go on from the step they are at. The
+  other keys do nothing while GLO is held.
 - **SWING** delays every other step; 50 % is straight.
 - **COMP** compresses the whole mix; 0 is off. A limiter always protects the output.
 - **DUCK** lowers the synth tracks and the effects on each bass drum pad of a KIT track, up to −24 dB, like a
@@ -1026,6 +1031,8 @@ Press GLO for the project's settings, shared by the four tracks.
   clicks), the voices in use, the effects' share and the screen's frame rate.
 
 ![GLO's TEMPO page: 120 BPM, SWING 50 %, COMP and DUCK bars](img/glo-tempo.png "TEMPO")
+
+![GLO held: black key 1 named TAP TEMPO, 2 TAPS to set the BPM; TAP 100 in the header](img/glo-tap.png "TAP TEMPO")
 
 ![GLO's SCALE page: C MAJOR on a keyboard, QUANT 100 %, CLICK OFF](img/glo-scale.png "SCALE")
 

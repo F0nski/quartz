@@ -1,0 +1,66 @@
+# TAP TEMPO: GLO held, black key 1 tapped; from the 2nd tap the tempo is the mean gap of the last 4 taps, in whole BPM,
+# 40-240; a gap over 2 s starts again. The other keys do nothing while GLO is held. (tapkey takes 90 ms.)
+wait 600
+press GLO
+wait 500
+expect layer 6
+shot tap_tempo_map.png
+tapkey b0
+expect tempo 120
+wait 510
+tapkey b0
+expect tempo 100
+expect msg_tap 1
+shot tap_tempo_msg.png
+wait 510
+tapkey b0
+wait 510
+tapkey b0
+expect tempo 100
+# the 5th tap: the oldest drops out, 3 gaps of 600, 600 and 300 ms, 500 on average
+wait 210
+tapkey b0
+expect tempo 120
+release GLO
+# a gap over 2 s: the next tap is a first one
+press GLO
+wait 2100
+tapkey b0
+expect tempo 120
+wait 210
+tapkey b0
+expect tempo 200
+# bounds
+wait 2100
+tapkey b0
+wait 60
+tapkey b0
+expect tempo 240
+wait 2100
+tapkey b0
+wait 1810
+tapkey b0
+expect tempo 40
+# the other keys play nothing while GLO is held
+wait 2100
+tapkey w0
+tapkey b1
+expect active 0
+expect tempo 40
+release GLO
+wait 1600
+expect msg_tap 0
+tapkey w0
+expect active >0
+# playing: only the speed changes, the loop goes on
+wait 500
+tap PLAY
+wait 1000
+press GLO
+tapkey b0
+wait 410
+tapkey b0
+expect tempo 120
+expect playing 1
+release GLO
+tap PLAY
