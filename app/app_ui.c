@@ -31,10 +31,39 @@ void app_ui_init(void)
     ui_init(&project);
 }
 
+/* The CPU probe, for tools/device/probe.py: while a screen reader listens (its HELLO, every 2 s), once a second on
+ * channel 16: CC 102 core 1 %, 103 core 2 %, 104-106 LOST BLOCKS (7 bits each, low first), 107 the mutes, 108 the
+ * voices sounding, 109-120 each track's model, source (its pattern's) and poly, 121-123 the voices stolen. Silent
+ * otherwise: nothing goes to a DAW. In the screen's code: the audio's code keeps its place in the flash */
+static void cpu_probe(void)
+{
+    static uint32_t last;
+    uint32_t now = plat_ms(), v[22], n = 0;
+    ann_tick(now);                  /* (the platform does not call it: a reader gone quiet would keep the probe on) */
+    if (!ann_on() || now - last < 1000u)
+        return;
+    last = now;
+    q_load l = audio_load();
+    v[n++] = l.core1_pct > 127 ? 127 : l.core1_pct;
+    v[n++] = l.core2_pct > 127 ? 127 : l.core2_pct;
+    for (int k = 0; k < 3; k++) v[n++] = l.xruns >> 7 * k & 127u;
+    v[n++] = project.mute & 127u;
+    v[n++] = l.active;
+    for (int t = 0; t < Q_TRACKS; t++) {
+        v[n++] = project.sound[t].model;
+        v[n++] = project.pat[t][project.pattern[t]].src;
+        v[n++] = project.sound[t].poly;
+    }
+    for (int k = 0; k < 3; k++) v[n++] = l.steals >> 7 * k & 127u;
+    for (uint32_t i = 0; i < n; i++)
+        plat_midi_send(0x0Bu | 0xBFu << 8 | (102u + i) << 16 | v[i] << 24, TO_USB);
+}
+
 void app_frame(void)
 {
     audio_prepare();                /* after boot and after a model or poly change: the engines, outside the render */
     ui_frame();
+    cpu_probe();
 }
 void app_input_only(void) { ui_input(); }
 void app_redraw(void) { ui_redraw(); }

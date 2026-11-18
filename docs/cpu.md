@@ -59,6 +59,12 @@ The unity build's statics are not merged (fm1.toml unity_cflags = -mllvm -enable
 into blocks, and a static added to the screen's code changed how the platform's and the render's code reached theirs,
 moving them by tens of bytes.
 
+The firmware's CPU probe gives the readings without the screen: tools/device/probe.py SECS prints both cores'
+load, LOST BLOCKS and the voices stolen per second, the voices sounding, the mutes and each track's model, source and
+poly (`--mutes MASK` sets the mutes first). The probe (app_ui.c cpu_probe) sends them as CCs on channel 16 only while
+a screen reader listens, which probe.py's HELLO makes it do: a DAW gets nothing otherwise. The mirror test build below
+no longer fits the RAM. A setup sent with fm1_remote.py can lose a turn: check it in probe.py's tracks line.
+
 Since 5d1 the setup is tools/device/worst_case.py, the readings tools/device/measure.sh (a mirror test build, the CPU
 page captured over USB). These figures come from a test build with the screen mirror (FM1B_MIRROR=1 FM1B_POOL_SPARE=0 ./build.sh), the setup
 played and the CPU page read over USB (base/tools/fm1_remote.py, fm1_mirror.py).
