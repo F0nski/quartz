@@ -685,6 +685,24 @@ static void stolen_voice_fades_first(void)
     assert(count('e', v0) == 1);        /* its engine built anew: what it held of the old note does not come back */
 }
 
+/* the voices taken from another track are counted (the CPU probe's), once each; a model change's fades are not */
+static void steals_counted(void)
+{
+    setup();
+    uint32_t n0 = audio_load().steals;
+    six_notes();
+    block(256);
+    P.sound[2].poly = 2;
+    audio_live_note(2, 64, 1);
+    block(32);
+    block(32);
+    block(32);
+    assert(audio_load().steals == n0 + 1);
+    audio_track_model(1);
+    block(256);
+    assert(audio_load().steals == n0 + 1);
+}
+
 /* a KIT's pad taking the voice its other engine still sounds on: that one fades out first too */
 static void kit_pad_fades_its_other_engine(void)
 {
@@ -1933,6 +1951,7 @@ int main(void)
     full_queue_keeps_the_hand_off();
     mono_model_change_keeps_its_fade();
     stolen_voice_fades_first();
+    steals_counted();
     kit_pad_fades_its_other_engine();
     lock_reaches_its_voice();
     lock_ends_with_note();

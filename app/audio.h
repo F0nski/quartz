@@ -6,7 +6,8 @@
 
 /* The render (audio.c): sequencer -> voice pool -> Plaits voices, 0..2 on core 1, 3..5 on core 2.
  * Everything but app_render is called from the main loop; commands reach the render at its next block. */
-typedef struct { uint32_t core1_pct, core2_pct, xruns, active; int cpu2; uint32_t cpu2_stack, fx_pct; } q_load;   /* fx_pct: qfx_block's part of core 1 */
+/* fx_pct: qfx_block's part of core 1; steals: the voices taken from another track since the start */
+typedef struct { uint32_t core1_pct, core2_pct, xruns, active; int cpu2; uint32_t cpu2_stack, fx_pct, steals; } q_load;
 typedef struct { uint8_t track, pat, step, note, vel, len; int8_t micro; } q_rec;   /* a note overdubbed: q_step's */
 
 void audio_setup(q_project *p);                         /* app_init, before the audio starts (fm1-base has its own audio_init) */

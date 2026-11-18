@@ -104,6 +104,7 @@ static int rev_done;                /* this block's qfx_reverb has run */
 
 static uint32_t sum1, sum2, sumfx, sum_budget;
 static volatile uint32_t pct1, pct2, pctfx;
+static volatile uint32_t nsteals;   /* voices taken from another track (audio_load) */
 
 /* 0: full. The UI cannot send 32 commands within a block: a note-off still fits. The last place is kept for the
  * hand-back, of which the ring holds one at most (the next comes after the render answered the request behind it):
@@ -219,7 +220,7 @@ static int sounding(int v) { return pool.v[v].state == V_ON || pool.v[v].state =
 
 q_load audio_load(void)
 {
-    q_load l = { pct1, pct2, plat_xruns(), 0, plat_cpu2_on(), plat_cpu2_stack(), pctfx };
+    q_load l = { pct1, pct2, plat_xruns(), 0, plat_cpu2_on(), plat_cpu2_stack(), pctfx, nsteals };
     for (int v = 0; v < Q_VOICES; v++)
         l.active += (uint32_t)sounding(v);
     return l;
@@ -410,8 +411,10 @@ static int steals(int track, int note, int step)
     if (!sounding(v) || (!fading[v] && pool.v[v].track == track && pool.v[v].live == live(track, step) &&
                          pool.v[v].model == m))
         return 0;
-    if (!fading[v])
+    if (!fading[v]) {
         fade_out(v, 1.0f / STEAL_FADE);
+        nsteals++;
+    }
     return 1;
 }
 
