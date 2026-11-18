@@ -16,7 +16,7 @@ core's load and LOST BLOCKS; a step is validated only with zero lost blocks in i
 | Step 5a: MODAL and 6-OP A (POLY 3 each, 6 voices), delay, reverb, two PHASER, COMP, the planet on ENGINE (29 fps) | 64 % / 43 % (effects 12 %) | 0 |
 | Steps 5b and 5c, scripted over USB (below): MODAL and 6-OP A, POLY 3, a 3-note chord on each of 16 steps, delay, reverb, two PHASER, COMP; 5b's firmware | 61-64 % / 46-48 % | 0 |
 | The same, 5c's firmware as first built (the audio code moved in the flash) | 74-84 % / 53-65 % | 2-8 a minute, scene or not |
-| The same, 5c with the audio code placed (o2_first, the screen's code last, a 512-byte pad), MODAL on ENGINE (20 fps) | 70-75 % / 58-63 % | 0 in 3 minutes |
+| The same, 5c with the audio code placed (o2_first, the screen's code last), MODAL on ENGINE (20 fps) | 70-75 % / 58-63 % | 0 in 3 minutes |
 | Step 5d1 (the statics unmerged, the screen's code last), track 1 MODAL on ENGINE (21 fps) | 75 % / 63 % | 0 |
 | The same, track 1 VA VCF: the crests (25 fps) | 64 % / 46 % | 0 |
 | The same, track 1 WAVETABLE: the bowl (23 fps) | 61 % / 48 % | 0 |
@@ -31,6 +31,7 @@ core's load and LOST BLOCKS; a step is validated only with zero lost blocks in i
 | The same session, the ENV page (no scene), 45 s | 81 % / 57 % | 1 |
 | Step 5f, the same worst case on the ENV FILTER page: the harmonics (20 fps), two 45 s windows | 74 % / 65 % | 0 |
 | Step 5g, the same worst case on GLO's TEMPO page: the flat bar (27 fps), 45 s | 81 % / 58 % | 0 |
+| 0.7, probe.py over 30 s, twice: tracks 2 and 3 MODAL POLY 3 on LATTICE and MOONS, a KIT on ATLAS, PHASER on both, sends full, COMP | 86 % / 63 % | 0.2-0.4 a second |
 
 One Plaits voice costs 5 to 11 % of a core for the light models, 12 to 16 % for the common ones and 20 to 21 % for
 ADDITIVE and MODAL; the cost is linear in voices and the second core halves the wall time. The generators run once
@@ -47,9 +48,9 @@ Where the audio code sits in the XIP flash changes its cost through the caches (
 added in front of 5b's DSP raised the render from 63 % to 78 % of core 1. So the audio's code keeps a fixed place
 (fm1.toml o2_first, patches/fm1-base-layout.patch): the DSP linked first and its tables from a 4 KiB boundary, then the
 platform's and the render's code, the screen's code last (app.h APP_LATE, app_ui.c): adding scenes no longer moves it.
-The pad before the DSP (dsp/cxx_runtime.cc pq_text_pad) was swept from 0 to 3.5 KB in 512-byte steps: 68-83 % of core
-1, 512 the best; none got back 5b's 63 %, which was a lucky place. A change to the DSP's or the platform's code moves
-the audio code again: measure, and sweep the pad if needed.
+A 512-byte pad in front of the DSP changes nothing (MODAL x 6 with a KIT and the effects, probe.py: 86 % / 63 % with or
+without): the spread from one session to the next (68-83 % of core 1 on the same build) is the measurement's. A change
+to the DSP's or the platform's code moves the audio code: measure it.
 
 Clang emits a function where it is first named, callees included: a screen function called from app.c or from the
 platform lands before the platform's code and moves the audio interrupt with it (the boot splash's first version moved
