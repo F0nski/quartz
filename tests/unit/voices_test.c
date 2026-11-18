@@ -211,8 +211,31 @@ static void keyboard_has_its_own_poly(void)
     assert(voices_note_off(&V, 0, 74, 1) == k);
 }
 
+/* no slot free nor released: a note takes its own track's oldest note (a KIT's other engine) before another track's */
+static void steals_own_track_first(void)
+{
+    voices_init(&V);
+    for (int t = 1; t < 3; t++)                          /* the chords first: older than the KIT's hits */
+        for (int k = 0; k < 2; k++) voices_note_on(&V, t, 60 + k, 2, 8, 0, 0);
+    int bd = voices_note_on(&V, 0, 36, 1, 21, 0, 0);    /* track 0, a KIT: BD then SN */
+    int sn = voices_note_on(&V, 0, 37, 1, 22, 0, 0);
+    assert(sn != bd);
+    for (int v = 0; v < Q_VOICES; v++) assert(V.v[v].state == V_ON);
+    assert(voices_pick(&V, 0, 1, 23, 0, 0) == bd);       /* HH: the KIT's oldest, not track 1's older chord note */
+    voices_note_off(&V, 1, 61, 0);                       /* a released tail goes first, whatever its track */
+    int tail = -1;
+    for (int v = 0; v < Q_VOICES; v++) if (V.v[v].state == V_RELEASED) tail = v;
+    assert(voices_pick(&V, 0, 1, 23, 0, 0) == tail);
+    assert(voices_pick(&V, 3, 1, 8, 0, 0) == tail);
+    voices_note_on(&V, 3, 50, 1, 8, 0, 0);               /* no own note, nothing released: the global oldest */
+    int oldest = 0;
+    for (int v = 1; v < Q_VOICES; v++) if (V.v[v].age < V.v[oldest].age) oldest = v;
+    assert(voices_pick(&V, 4, 1, 8, 0, 0) == oldest);
+}
+
 int main(void)
 {
+    steals_own_track_first();
     mono_retriggers_same_slot();
     poly_uses_own_slots();
     balances_cores();

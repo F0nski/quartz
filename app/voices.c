@@ -49,6 +49,7 @@ int voices_pick(const q_voices *p, int track, int poly, int model, uint32_t want
         if (slot < 0) slot = first_free(p, first, -1, 0);
         if (slot < 0) slot = oldest(p, V_RELEASED, -1, model, 0);
         if (slot < 0) slot = oldest(p, V_RELEASED, -1, -1, 0);
+        if (slot < 0) slot = oldest(p, V_ON, track, -1, live);   /* its own (a KIT's other engine) before another track's */
         if (slot < 0) slot = oldest(p, V_ON, -1, -1, 0);
     }
     return slot;

@@ -147,6 +147,17 @@ static void six_notes(void)
     audio_live_note(1, 62, 1);
 }
 
+/* every voice on tracks 0 and 1 (POLY 3), track 0's 60 the oldest: a note on track 2, with none of its own sounding,
+ * takes another track's */
+static void six_notes_two_tracks(void)
+{
+    P.sound[0].poly = P.sound[1].poly = 3;
+    for (int k = 0; k < 3; k++) {
+        audio_live_note(0, 60 + 2 * k, 1);
+        audio_live_note(1, 60 + 2 * k, 1);
+    }
+}
+
 static void cores_get_their_voices(void)
 {
     setup();
@@ -662,13 +673,12 @@ static void mono_model_change_keeps_its_fade(void)
 static void stolen_voice_fades_first(void)
 {
     setup();
-    six_notes();                        /* every voice on; track 0's 60 the oldest */
+    six_notes_two_tracks();
     block(256);
     int v0 = -1;
     for (int v = 0; v < Q_VOICES; v++) if (pool.v[v].track == 0 && pool.v[v].note == 60) v0 = v;
     assert(v0 >= 0);
     float full = QBUS[0][255];
-    P.sound[2].poly = 2;
     audio_live_note(2, 64, 1);
     NLOG = 0;
     block(32);                          /* half its fade */
@@ -685,19 +695,19 @@ static void stolen_voice_fades_first(void)
     assert(count('e', v0) == 1);        /* its engine built anew: what it held of the old note does not come back */
 }
 
-/* the voices taken from another track are counted (the CPU probe's), once each; a model change's fades are not */
+/* the voices taken from a sounding note are counted (the CPU probe's), once each, and apart those cutting another
+ * track's held note; a model change's fades are not */
 static void steals_counted(void)
 {
     setup();
-    uint32_t n0 = audio_load().steals;
-    six_notes();
+    uint32_t n0 = audio_load().steals, c0 = audio_load().cuts;
+    six_notes_two_tracks();
     block(256);
-    P.sound[2].poly = 2;
     audio_live_note(2, 64, 1);
     block(32);
     block(32);
     block(32);
-    assert(audio_load().steals == n0 + 1);
+    assert(audio_load().steals == n0 + 1 && audio_load().cuts == c0 + 1);   /* track 0's held 60 */
     audio_track_model(1);
     block(256);
     assert(audio_load().steals == n0 + 1);
@@ -1082,6 +1092,27 @@ static void legato_while_tied_note_waits(void)
     audio_play(0);
     block(256);
     assert(track_on(0) == 0);
+}
+
+/* every voice busy, the KIT holding SN: its HH takes the KIT's own SN (a steal), not a chord's held note (a cut) */
+static void kit_takes_its_own_voice_first(void)
+{
+    setup();
+    set_model(0, M_KIT);
+    P.sound[1].poly = P.sound[2].poly = 3;
+    frames(12);
+    for (int k = 0; k < 3; k++) audio_live_note(1, 60 + 2 * k, 1);
+    for (int k = 0; k < 2; k++) audio_live_note(2, 48 + 2 * k, 1);
+    block(256);
+    audio_live_note(0, KIT_NOTE + 1, 1);   /* SN: the sixth voice */
+    for (int i = 0; i < 4; i++) block(256);
+    int sn = track_slot(0);
+    assert(sn >= 0 && pool.v[sn].model == 22);
+    uint32_t c0 = audio_load().cuts;
+    audio_live_note(0, KIT_NOTE + 2, 1);   /* CH */
+    for (int i = 0; i < 4; i++) block(256);
+    assert(pool.v[sn].track == 0 && pool.v[sn].model == 23 && audio_load().cuts == c0);
+    assert(track_on(1) == 3 && track_on(2) == 2);
 }
 
 /* a KIT on track 0, its three engines built by the main loop */
@@ -1952,6 +1983,7 @@ int main(void)
     mono_model_change_keeps_its_fade();
     stolen_voice_fades_first();
     steals_counted();
+    kit_takes_its_own_voice_first();
     kit_pad_fades_its_other_engine();
     lock_reaches_its_voice();
     lock_ends_with_note();

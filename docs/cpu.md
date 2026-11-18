@@ -60,7 +60,7 @@ into blocks, and a static added to the screen's code changed how the platform's 
 moving them by tens of bytes.
 
 The firmware's CPU probe gives the readings without the screen: tools/device/probe.py SECS prints both cores'
-load, LOST BLOCKS and the voices stolen per second, the voices sounding, the mutes and each track's model, source and
+load, LOST BLOCKS, the voices stolen and the held notes of another track cut per second, the voices sounding, the mutes and each track's model, source and
 poly (`--mutes MASK` sets the mutes first). The probe (app_ui.c cpu_probe) sends them as CCs on channel 16 only while
 a screen reader listens, which probe.py's HELLO makes it do: a DAW gets nothing otherwise. The mirror test build below
 no longer fits the RAM. A setup sent with fm1_remote.py can lose a turn: check it in probe.py's tracks line.

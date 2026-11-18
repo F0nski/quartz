@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """probe.py [--mutes MASK] SECS: read the FM-1's CPU probe (app_ui.c cpu_probe) for SECS seconds and print the cores'
-load, LOST BLOCKS and the voices stolen per second, the mutes, the voices sounding and each track's model, source and
+load, LOST BLOCKS, the voices stolen and the held notes of another track cut per second, the mutes, the voices sounding and each track's model, source and
 poly. The probe speaks only while a screen reader listens: this sends the reader's HELLO every 2 s, its BYE at the
 end.
 --mutes MASK: first set the mutes to MASK (bit t: track t + 1 muted), through HOME held and white keys 1-4.
@@ -15,7 +15,7 @@ import mido
 HELLO = [0x7D, 0x53, 0x52, 1, 1]   # the screen reader's HELLO (base/device/announce.c)
 BYE = [0x7D, 0x53, 0x52, 2]        # and its BYE: the probe stops at once
 WHITE = [0, 2, 4, 6]               # white keys 1-4: fm1_remote.py's key numbers
-N = 22                             # CC 102..123
+N = 25                             # CC 102..126
 
 
 def frames(inp, out, secs):
@@ -66,10 +66,10 @@ def main():
     secs = len(rows) - 1
     print('tracks', ' | '.join('model %d src %d poly %d' % (r[109 + 3 * t], r[110 + 3 * t], r[111 + 3 * t])
                                for t in range(4)))
-    print('mutes %d  core1 %.0f%%  core2 %.0f%%  voices max %d  lost/s %.1f  stolen/s %.1f' % (
+    print('mutes %d  core1 %.0f%%  core2 %.0f%%  voices max %d  lost/s %.1f  stolen/s %.1f  cuts/s %.1f' % (
         r[107], sum(x[102] for x in rows) / len(rows), sum(x[103] for x in rows) / len(rows),
         max(x[108] for x in rows), (word(r, 104) - word(rows[0], 104)) / secs,
-        (word(r, 121) - word(rows[0], 121)) / secs))
+        (word(r, 121) - word(rows[0], 121)) / secs, (word(r, 124) - word(rows[0], 124)) / secs))
 
 
 if __name__ == '__main__':

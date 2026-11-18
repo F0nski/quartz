@@ -33,12 +33,13 @@ void app_ui_init(void)
 
 /* The CPU probe, for tools/device/probe.py: while a screen reader listens (its HELLO, every 2 s), once a second on
  * channel 16: CC 102 core 1 %, 103 core 2 %, 104-106 LOST BLOCKS (7 bits each, low first), 107 the mutes, 108 the
- * voices sounding, 109-120 each track's model, source (its pattern's) and poly, 121-123 the voices stolen. Silent
+ * voices sounding, 109-120 each track's model, source (its pattern's) and poly, 121-123 the voices stolen, 124-126
+ * those that cut another track's held note. Silent
  * otherwise: nothing goes to a DAW. In the screen's code: the audio's code keeps its place in the flash */
 static void cpu_probe(void)
 {
     static uint32_t last;
-    uint32_t now = plat_ms(), v[22], n = 0;
+    uint32_t now = plat_ms(), v[25], n = 0;
     ann_tick(now);                  /* (the platform does not call it: a reader gone quiet would keep the probe on) */
     if (!ann_on() || now - last < 1000u)
         return;
@@ -55,6 +56,7 @@ static void cpu_probe(void)
         v[n++] = project.sound[t].poly;
     }
     for (int k = 0; k < 3; k++) v[n++] = l.steals >> 7 * k & 127u;
+    for (int k = 0; k < 3; k++) v[n++] = l.cuts >> 7 * k & 127u;
     for (uint32_t i = 0; i < n; i++)
         plat_midi_send(0x0Bu | 0xBFu << 8 | (102u + i) << 16 | v[i] << 24, TO_USB);
 }
