@@ -35,6 +35,7 @@ struct Slot {
   float chr;             // out to aux: a KIT pad's CHAR (pq_set_char), 0 for the synths
   float vel;
   float env;             // the ADSR at the last block
+  bool open;             // the last block skipped the filter (LP wide open)
   bool own_env;          // the engine has its own envelope: the gate sets the level, not the ADSR
   float glide;           // one-pole coefficient per block (1: immediate)
   unsigned quiet;        // frames since the output last exceeded kSilence, up to kSilentFrames
@@ -93,6 +94,7 @@ extern "C" void pq_init(void) {
     s.env = 0.0f;
     s.own_env = false;
     s.svf.Init();
+    s.open = false;
     s.glide = 1.0f;
     s.quiet = kSilentFrames;
   }
@@ -151,9 +153,19 @@ extern "C" void pq_render(int v, float* out, unsigned n) {
       // A retrigger holds the trigger low for one block so that the voice sees a rising edge.
       s.mod.trigger = s.gate && !s.retrigger ? 1.0f : 0.0f;
       s.retrigger = false;
-      s.voice.Render(s.patch, s.mod, s.block, plaits::kBlockSize);
       // LP, CUTOFF 127, RES 0 (the default) passes all the sound: not computed, a big share of the voices' time
-      if (m.type == FT_LP && m.cutoff >= 0.45f && m.res <= 0.5f) {
+      const bool open = m.type == FT_LP && m.cutoff >= 0.45f && m.res <= 0.5f;
+      if (s.open && !open) {
+        // The filter resumes (the ADSR or the LFO closes it): its state is the sound it filtered before it opened,
+        // a click. The wide-open filter run over the last block, still in s.block, brings it to the sound playing.
+        s.svf.set_f_q<stmlib::FREQUENCY_ACCURATE>(0.45f, 0.5f);
+        for (size_t k = 0; k < plaits::kBlockSize; ++k) {
+          s.svf.Process<stmlib::FILTER_MODE_LOW_PASS>(mix(s.block[k], s.chr));
+        }
+      }
+      s.open = open;
+      s.voice.Render(s.patch, s.mod, s.block, plaits::kBlockSize);
+      if (open) {
         for (size_t k = 0; k < plaits::kBlockSize; ++k) {
           const float y = mix(s.block[k], s.chr) * m.gain;
           s.out[k] = y > 1.0f ? 1.0f : y < -1.0f ? -1.0f : y;

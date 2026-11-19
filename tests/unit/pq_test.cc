@@ -301,6 +301,49 @@ static void filter_extremes_stay_finite(void)
     assert(peak <= 1.0f);
 }
 
+// A note, its release, a second note with p; fills `played` (kPlayed samples). Model 0 has no sharp edge, which
+// a wide-open filter would still soften: the sounds differ only where the filter resumes.
+static const unsigned kPlayed = 512 * kBlock;    // 3 s
+static float played[kPlayed];
+static unsigned at;
+static void keep(const float *b, unsigned n) { memcpy(played + at, b, n * sizeof(float)); at += n; }
+static void play_twice(const q_vparam &p)
+{
+    start(0, 0, p, 36.0f, 1.0f);
+    for (at = 0; at < kPlayed; ) {
+        if (at == kPlayed / 4) note_off(0);
+        if (at == kPlayed / 2) note_on(0, 36.0f, 1.0f);
+        mod_set(0, &p, 120);
+        render(0, kBlock, keep);
+    }
+}
+
+// CUTOFF open skips the filter; when the ADSR closes it again, it resumes from the sound playing, not from the one
+// it filtered before it opened (a click). RES 1 never skips it and sounds the same: the reference.
+static float filter_gap(q_vparam p)
+{
+    static float ref[kPlayed];
+    p.res = 1;
+    play_twice(p);
+    memcpy(ref, played, sizeof ref);
+    p.res = 0;
+    play_twice(p);
+    float gap = 0.0f;
+    for (unsigned i = 0; i < kPlayed; i++) gap = fmaxf(gap, fabsf(played[i] - ref[i]));
+    return gap;
+}
+
+static void filter_resumes_without_click(void)
+{
+    q_vparam p = defaults();
+    p.sus = 40; p.envamt = -40;                     // open at rest, closed by the note
+    float closes = filter_gap(p);
+    p.cutoff = 100; p.envamt = 40;                  // opened by the attack, closed by the decay
+    float opens = filter_gap(p);
+    printf("  filter skipped then resumed: off by %.4f (ENV-), %.4f (ENV+)\n", closes, opens);
+    assert(closes < 0.03f && opens < 0.03f);
+}
+
 static const float kOldPeak = 0.6578f;     // the VA at defaults before the per-voice filter and ADSR (374914a)
 
 static void defaults_match_old_level(void)
@@ -395,6 +438,7 @@ int main(void)
     release_holds_voice();
     enveloped_ignores_adsr_level();
     filter_extremes_stay_finite();
+    filter_resumes_without_click();
     defaults_match_old_level();
     voice_bytes_reported();
     char_mixes_out_and_aux();
