@@ -39,7 +39,7 @@ an animated *scene* that moves with the sound and with every knob.
 | Track | One of the four parts, 1–4. ALGORITHM picks the current one. |
 | Sound | What a track sounds like: a model (EDIT) shaped by ENV, LFO, ARP and FX. |
 | Pattern | P1–P8, eight per track. A track plays one pattern at a time. |
-| Source | Where a pattern's notes come from: STEP, ATLAS, FLEET, COLONY, LOOM, CADENCE, LATTICE, MOONS or IMPROV. |
+| Source | Where a pattern's notes come from: STEP, ATLAS, FLEET, COLONY, LOOM, CADENCE, LATTICE, MOONS, IMPROV or CIPHER. |
 | Step | One of a STEP pattern's 64 places, 16 per page of the grid. |
 | P-lock | A knob's value stored on a single step. |
 | Scene | The four patterns playing and the mutes, kept together. Eight per project. |
@@ -695,18 +695,19 @@ few recipes.
 | [LATTICE](source-lattice.html) | A walk from chord to chord on the Tonnetz. |
 | [MOONS](source-moons.html) | Moons on orbits, each playing as it passes. |
 | [IMPROV](source-improv.html) | An improviser that learns a phrase from you. |
+| CIPHER | Bytebeat: a formula of time per step decides the rhythm, the accent and the note. |
 
 What the generative sources (all but STEP) share:
 
 - They play at the pattern's DIV, with the project's swing. Their notes go through the arpeggiator, the mutes and
   the scenes like a STEP pattern's.
-- A loop is 16 steps (ATLAS 32, FLEET its LEN): a pattern change waits for its end, and a song entry counts it.
+- A loop is 16 steps (ATLAS 32, FLEET and CIPHER their LEN): a pattern change waits for its end, and a song entry counts it.
 - Without REC, the keys play the track. REC writes nothing in them, except LOOM, CADENCE and LATTICE, which have a
   GRID of their own, and IMPROV, which listens.
 - PRESET always does something useful for the source: each source's page says what.
 - On a synth track, setting SOURCE to CADENCE, LATTICE, MOONS or IMPROV raises POLY to 3 if it is lower, so their
   chords sound.
-- COLONY, LOOM, CADENCE, LATTICE and MOONS count in degrees of GLO's scale, up from their NOTE brought into the
+- COLONY, LOOM, CADENCE, LATTICE, MOONS and CIPHER count in degrees of GLO's scale, up from their NOTE brought into the
   scale. FLEET has its own allowed notes; ATLAS plays a fixed NOTE; IMPROV plays the notes it learnt.
 
 ### STEP

@@ -411,6 +411,43 @@ CADENCE	cadence
 LATTICE	lattice
 MOONS	moons
 IMPROV	improv
+CIPHER	cipher
+FORMULA	formula
+PARAM	param
+TIME	time
+START	start
+SPEED	speed
+RHY	rhythm
+ACC	accent
+CLASSIC	classic
+SIERPIN	sierpinski
+FORTY2	forty two
+LACE	lace
+KNOT	knot
+GEAR	gear
+BEACON	beacon
+MELODY	melody
+TIDE	tide
+MOTOR	motor
+STORM	storm
+MESH	mesh
+DIG	dig
+FLIP	flip
+SWELL	swell
+STAIRS 1	stairs one
+STAIRS 2	stairs two
+LADDER	ladder
+TERRACE	terrace
+WEAVE	weave
+CHIME	chime
+COIL	coil
+SPARK	spark
+FLINT	flint
+QUAD	quad
+MODULO	modulo
+XOR	x or
+FRACTAL	fractal
+GLITCH	glitch
 PADS	pads
 BANDS	bands
 SEED	seed

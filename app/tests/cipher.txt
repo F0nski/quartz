@@ -1,0 +1,106 @@
+# CIPHER: its three pages, each knob at its ends, PRESET (the next formula with its advised values), NOTE hidden on
+# a KIT, the dice keep SOURCE, a pattern change waits for the end of LEN
+wait 600
+tap SEQ
+spin K4 9
+expect src 9
+expect page 1
+expect cyformula 0
+expect cya 5
+expect cystart 38
+expect cyspeed 28
+expect cydens 96
+expect cylen 16
+expect cynote 48
+expect cyrange 2
+spin K2 -40
+expect cyformula 0
+spin K2 40
+expect cyformula 31
+spin K3 -200
+expect cynote 1
+spin K3 200
+expect cynote 127
+turn SELECT 1
+expect page 2
+spin K1 -20
+expect cya 0
+spin K1 20
+expect cya 15
+spin K2 20
+expect cyb 15
+spin K3 20
+expect cyc 15
+spin K4 -200
+expect cydens 0
+spin K4 200
+expect cydens 127
+turn SELECT 1
+expect page 3
+spin K1 -70
+expect cylen 0
+spin K1 70
+expect cylen 64
+spin K2 -200
+expect cystart 0
+spin K2 200
+expect cystart 127
+spin K3 -300
+expect cyspeed 1
+spin K3 300
+expect cyspeed 255
+spin K4 -5
+expect cyrange 1
+spin K4 5
+expect cyrange 4
+# PRESET: from GLITCH (31) round to CLASSIC (0), then SIERPIN with its A, START, SPEED; DENS, LEN, NOTE, RANGE kept
+turn PRESET 1
+expect cyformula 0
+expect cya 5
+expect cystart 38
+expect cyspeed 28
+turn PRESET 1
+expect cyformula 1
+expect cya 8
+expect cystart 126
+expect cyspeed 45
+expect cydens 127
+expect cylen 64
+expect cyrange 4
+# the dice on TIME: SOURCE stays
+press REC
+key b5 down
+key b5 up
+release REC
+expect src 9
+# LEN 4, playing: a pattern change waits for the loop's end
+spin K1 -70
+spin K1 4
+expect cylen 4
+turn SELECT -2
+expect page 1
+tap PLAY
+wait 300
+press SEQ
+tapkey w1
+release SEQ
+expect pattern 2
+expect playpat 1
+wait 700
+expect playpat 2
+tap PLAY
+# on a KIT: NOTE hidden on the first page, its turns ignored
+tap EDIT
+spin PRESET -30
+spin PRESET 24
+expect model 24
+tap SEQ
+press SEQ
+tapkey w0
+release SEQ
+expect pattern 1
+expect src 9
+expect page 1
+expect cynote 127
+turn K3 5
+expect cynote 127

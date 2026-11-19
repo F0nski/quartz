@@ -18,7 +18,7 @@
 enum { D_EDIT, D_SEQ, D_GLO, D_HOME, D_ENV, D_LFO, D_ARP, D_FX, ND };
 enum { P_ENGINE, P_SOUND, P_STEPS, P_TEMPO, P_SCALE, P_CPU, P_XY, P_TRACKS, P_SONG, P_GRIDS, P_MAP, P_DENS, P_MARBLES, P_T,
        P_X, P_NOTES, P_LIFE, P_LIFEK, P_SEED, P_EVOL, P_PAD, P_KIT, P_ADSR, P_FILTER, P_LFO, P_ARP, P_INSERT, P_MIX, P_GFX, P_KEYS,
-       P_SN1, P_SN2, P_SN3, P_LANES, P_LENS, P_CHORDS, P_PROG, P_TONNETZ, P_WALK, P_PLAY, P_ORBITS, P_MOON, P_MOONK, P_CHORD, P_TZSTEP, P_MIMIC, P_LOOP, P_GRIDSK };            /* NOTES in SEQ: the cursor's step on K1-K4 */
+       P_SN1, P_SN2, P_SN3, P_LANES, P_LENS, P_CHORDS, P_PROG, P_TONNETZ, P_WALK, P_PLAY, P_ORBITS, P_MOON, P_MOONK, P_CHORD, P_TZSTEP, P_MIMIC, P_LOOP, P_GRIDSK, P_CIPHER, P_CIPHERK, P_CPARAM, P_CTIME };            /* NOTES in SEQ: the cursor's step on K1-K4 */
 /* what PRESET sets on a held step; the black keys pick them by family (FAMILY) */
 /* REC: GRID the white keys are SEQ's steps, NOTES they write at a cursor, LIVE they record while playing, ARM the first
    note starts LIVE */
@@ -29,9 +29,10 @@ enum { A_VEL, A_RATCHET, A_PROB, A_COND, A_SLIDE, A_ACCENT, A_NOTE, A_LEN, A_MIC
 static const uint8_t DOMAIN_PAGES[ND][5] = {{P_ENGINE, P_SOUND}, {P_STEPS, P_XY}, {P_TEMPO, P_SCALE, P_KEYS, P_GFX, P_CPU}, {P_TRACKS, P_SONG},
                                                 {P_ADSR, P_FILTER}, {P_LFO}, {P_ARP}, {P_MIX, P_INSERT}};
 static const uint8_t DOMAIN_N[ND] = {2, 1, 5, 2, 2, 1, 1, 2};      /* SEQ: 2 pages while PATH is XY (pages) */
-static const uint8_t GEN_PAGES[8][5] = {{P_GRIDS, P_MAP, P_DENS}, {P_MARBLES, P_T, P_X, P_NOTES}, {P_LIFE, P_SEED, P_EVOL},
+static const uint8_t GEN_PAGES[9][5] = {{P_GRIDS, P_MAP, P_DENS}, {P_MARBLES, P_T, P_X, P_NOTES}, {P_LIFE, P_SEED, P_EVOL},
                                         {P_LANES, P_LENS}, {P_CHORDS, P_PROG, P_CHORD},
-                                        {P_TONNETZ, P_WALK, P_PLAY, P_TZSTEP}, {P_ORBITS, P_MOON}, {P_MIMIC, P_LOOP}};
+                                        {P_TONNETZ, P_WALK, P_PLAY, P_TZSTEP}, {P_ORBITS, P_MOON}, {P_MIMIC, P_LOOP},
+                                        {P_CIPHER, P_CPARAM, P_CTIME}};
 static const uint8_t KIT_PAGES[5] = {P_PAD, P_KIT};
 static const uint8_t NOTES_PAGES[5] = {P_SN1, P_SN2, P_SN3, P_STEPS, P_XY};
 static const uint8_t DOMAIN_BTN[ND] = {B_EDIT, B_SEQ, B_GLO, B_HOME, B_ENV, B_LFO, B_ARP, B_FX};
@@ -87,6 +88,10 @@ static const q_page PAGE[] = {
     {"IMPROV", {"DIV", "ORDER", "DRIFT", "SOURCE"}, {0, 1, 0, 0}, {DIV_N - 1, 2, 127, SRC_N - 1}},
     {"LOOP", {"LOOP"}, {0}, {16}},                                       /* 0 FREE */
     {"ATLAS", {"DIV", "VOICE", "PAD", "SOURCE"}, {0, 1, 0, 0}, {DIV_N - 1, 3, 15, SRC_N - 1}},   /* a KIT's: VOICE's PAD for NOTE */
+    {"CIPHER", {"DIV", "FORMULA", "NOTE", "SOURCE"}, {0, 0, 1, 0}, {DIV_N - 1, CIPHER_N - 1, 127, SRC_N - 1}},
+    {"CIPHER", {"DIV", "FORMULA", 0, "SOURCE"}, {0, 0, 0, 0}, {DIV_N - 1, CIPHER_N - 1, 0, SRC_N - 1}},   /* a KIT's: no NOTE */
+    {"PARAM", {"A", "B", "C", "DENS"}, {0, 0, 0, 0}, {15, 15, 15, 127}},
+    {"TIME", {"LEN", "START", "SPEED", "RANGE"}, {0, 0, 1, 1}, {64, 127, 255, 4}},     /* LEN 0 FREE */
 };
 
 /* Plaits' registration order (pq.h) */
@@ -138,7 +143,7 @@ static const char *const INS_NAME[IT_N] = {"INSERT OFF", "OVERDRIVE", "WAVEFOLD"
 static const char *const INS_LABEL[IT_N][3] = {{"", "", ""}, {"DRIVE", "TONE", ""}, {"FOLD", "BIAS", "TONE"}, {"BITS", "RATE", ""},
                                                 {"RATE", "DEPTH", ""}, {"RATE", "DEPTH", "FEEDBK"}, {"FREQ", "", ""}, {"NOTE", "FEEDBK", "DAMP"}};
 static const char *const AMODE_NAME[6] = {"OFF", "UP", "DOWN", "UP-DN", "RAND", "ORDER"};
-static const char *const SRC_NAME[SRC_N] = {"STEP", "ATLAS", "FLEET", "COLONY", "LOOM", "CADENCE", "LATTICE", "MOONS", "IMPROV"};
+static const char *const SRC_NAME[SRC_N] = {"STEP", "ATLAS", "FLEET", "COLONY", "LOOM", "CADENCE", "LATTICE", "MOONS", "IMPROV", "CIPHER"};
 /* Marbles' T models, its TGeneratorModel order (gen.c) */
 static const char *const T_MODE_NAME[7] = {"C.BERN", "CLUSTERS", "DRUMS", "I.BERN", "DIVIDER", "3 STATES", "MARKOV"};
 static const char *const PATH_NAME[PATH_N] = {"FWD", "REV", "PING-PONG", "SNAKE", "COLUMNS", "SPIRAL", "RANDOM", "XY"};
@@ -261,6 +266,8 @@ static int pages(int d, uint8_t *out)
             out[0] = P_LIFEK;
         if (t->src == SRC_GRIDS && kit())
             out[0] = P_GRIDSK;
+        if (t->src == SRC_CIPHER && kit())
+            out[0] = P_CIPHERK;
         if (t->src == SRC_ORBITS && kit())
             out[1] = P_MOONK;
         return t->src == SRC_TONNETZ ? 4 : t->src == SRC_CHORDS ? 3 : t->src == SRC_ORBITS || t->src == SRC_LANES || t->src == SRC_MIMIC ? 2 : t->src != SRC_MARBLES ? 3 : kit() ? 2 : 4;   /* a KIT has no X section */
@@ -344,7 +351,9 @@ static int knob_get(int pid, int k)
     case P_CHORDS * 4 + 3:
     case P_TONNETZ * 4 + 3:
     case P_ORBITS * 4 + 3:
-    case P_MIMIC * 4 + 3: return t->src;
+    case P_MIMIC * 4 + 3:
+    case P_CIPHER * 4 + 3:
+    case P_CIPHERK * 4 + 3: return t->src;
     case P_GRIDS * 4:
     case P_GRIDSK * 4:
     case P_MARBLES * 4:
@@ -354,7 +363,9 @@ static int knob_get(int pid, int k)
     case P_CHORDS * 4:
     case P_TONNETZ * 4:
     case P_ORBITS * 4:
-    case P_MIMIC * 4: return t->div;
+    case P_MIMIC * 4:
+    case P_CIPHER * 4:
+    case P_CIPHERK * 4: return t->div;
     case P_CHORD * 4: return CH_DEG(t->chords.ch[ui.chcur]);
     case P_CHORD * 4 + 1: return CH_SIZE(t->chords.ch[ui.chcur]);
     case P_TZSTEP * 4: return TZ_OP(&t->tonnetz, ui.tzcur);
@@ -363,6 +374,17 @@ static int knob_get(int pid, int k)
     case P_MIMIC * 4 + 1: return t->mimic.order;
     case P_MIMIC * 4 + 2: return t->mimic.drift;
     case P_LOOP * 4: return t->mimic.loop;
+    case P_CIPHER * 4 + 1:
+    case P_CIPHERK * 4 + 1: return t->cipher.formula;
+    case P_CIPHER * 4 + 2: return t->cipher.note;
+    case P_CPARAM * 4: return t->cipher.a;
+    case P_CPARAM * 4 + 1: return t->cipher.b;
+    case P_CPARAM * 4 + 2: return t->cipher.c;
+    case P_CPARAM * 4 + 3: return t->cipher.dens;
+    case P_CTIME * 4: return t->cipher.len;
+    case P_CTIME * 4 + 1: return t->cipher.start;
+    case P_CTIME * 4 + 2: return t->cipher.speed;
+    case P_CTIME * 4 + 3: return t->cipher.range;
     case P_MOON * 4:
     case P_MOONK * 4: return t->orbits.per[ui.moon];
     case P_MOON * 4 + 1:
@@ -520,7 +542,9 @@ static void knob_set(int pid, int k, int v)
     case P_CHORDS * 4:
     case P_TONNETZ * 4:
     case P_ORBITS * 4:
-    case P_MIMIC * 4: t->div = (uint8_t)v; break;
+    case P_MIMIC * 4:
+    case P_CIPHER * 4:
+    case P_CIPHERK * 4: t->div = (uint8_t)v; break;
     case P_CHORD * 4: t->chords.ch[ui.chcur] = CH_MAKE(v, CH_SIZE(t->chords.ch[ui.chcur])); break;
     case P_CHORD * 4 + 1: t->chords.ch[ui.chcur] = CH_MAKE(CH_DEG(t->chords.ch[ui.chcur]), v); break;
     case P_TZSTEP * 4: TZ_SET(&t->tonnetz, ui.tzcur, v); break;
@@ -528,6 +552,17 @@ static void knob_set(int pid, int k, int v)
     case P_MIMIC * 4 + 1: t->mimic.order = (uint8_t)v; break;
     case P_MIMIC * 4 + 2: t->mimic.drift = (uint8_t)v; break;
     case P_LOOP * 4: t->mimic.loop = (uint8_t)v; break;
+    case P_CIPHER * 4 + 1:
+    case P_CIPHERK * 4 + 1: t->cipher.formula = (uint8_t)v; break;
+    case P_CIPHER * 4 + 2: t->cipher.note = (uint8_t)v; break;
+    case P_CPARAM * 4: t->cipher.a = (uint8_t)v; break;
+    case P_CPARAM * 4 + 1: t->cipher.b = (uint8_t)v; break;
+    case P_CPARAM * 4 + 2: t->cipher.c = (uint8_t)v; break;
+    case P_CPARAM * 4 + 3: t->cipher.dens = (uint8_t)v; break;
+    case P_CTIME * 4: t->cipher.len = (uint8_t)v; break;
+    case P_CTIME * 4 + 1: t->cipher.start = (uint8_t)v; break;
+    case P_CTIME * 4 + 2: t->cipher.speed = (uint8_t)v; break;
+    case P_CTIME * 4 + 3: t->cipher.range = (uint8_t)v; break;
     case P_ORBITS * 4 + 2:
         t->orbits.moons = (uint8_t)v;
         if (ui.moon >= v) ui.moon = v - 1;   /* fewer moons: the one set among them */
@@ -581,6 +616,8 @@ static void knob_set(int pid, int k, int v)
     case P_TONNETZ * 4 + 3:
     case P_ORBITS * 4 + 3:
     case P_MIMIC * 4 + 3:
+    case P_CIPHER * 4 + 3:
+    case P_CIPHERK * 4 + 3:
         t->src = (uint8_t)v;
         if ((v == SRC_CHORDS || v == SRC_TONNETZ || v == SRC_ORBITS || v == SRC_MIMIC) && !kit() && s->poly < 3)   /* chords, conjunctions: POLY 3 at least */
             s->poly = 3;
@@ -1434,7 +1471,7 @@ static void dice_page(int pid)
             continue;
         }
         if (k == 3 && (pid == P_STEPS || pid == P_GRIDS || pid == P_GRIDSK || pid == P_MARBLES || pid == P_LIFE || pid == P_LIFEK ||
-                       pid == P_LANES || pid == P_CHORDS || pid == P_TONNETZ || pid == P_ORBITS || pid == P_MIMIC))   /* SOURCE */
+                       pid == P_LANES || pid == P_CHORDS || pid == P_TONNETZ || pid == P_ORBITS || pid == P_MIMIC || pid == P_CIPHER || pid == P_CIPHERK))   /* SOURCE */
             continue;
         v = pg->min[k] + (int)dice_rand((uint32_t)(pg->max[k] - pg->min[k] + 1));
         if ((n = knob_zone(ui.p->sound[ui.track].model, pid, k, &start, &width)) && v >= start)
@@ -1968,6 +2005,9 @@ void ui_input(void)
             ui.tzcur = clamp(ui.tzcur + e, 0, pat()->tonnetz.len - 1);
         } else if (ui.domain == D_SEQ && pat()->src == SRC_ORBITS) {   /* the moon set (MOON page) */
             ui.moon = clamp(ui.moon + e, 0, pat()->orbits.moons - 1);
+        } else if (ui.domain == D_SEQ && pat()->src == SRC_CIPHER) {   /* the next formula, at its advised values */
+            gen_cipher_preset(&pat()->cipher, (pat()->cipher.formula + e % CIPHER_N + CIPHER_N) % CIPHER_N);
+            ui.dirty = 1;
         } else if (ui.domain == D_SEQ && pat()->src == SRC_MIMIC) {    /* a new draw: SEED */
             pat()->mimic.seed = (uint8_t)(pat()->mimic.seed + e);
             ui.dirty = 1;
@@ -2409,7 +2449,12 @@ static void knob_text(int pid, int k, int v, int model, char *b)
         while ((*b++ = *s++) != 0) {}
         return;
     }
-    if (pid == P_LOOP && !v) {
+    if ((pid == P_CIPHER || pid == P_CIPHERK) && k == 1) {   /* the formula's name */
+        const char *s = CIPHER_DEF[v].name;
+        while ((*b++ = *s++) != 0) {}
+        return;
+    }
+    if ((pid == P_LOOP || pid == P_CTIME) && !k && !v) {
         const char *s = "FREE";
         while ((*b++ = *s++) != 0) {}
         return;
@@ -2423,16 +2468,16 @@ static void knob_text(int pid, int k, int v, int model, char *b)
         while ((*b++ = *s++) != 0) {}
         return;
     }
-    if ((k == 3 && (pid == P_STEPS || pid == P_GRIDS || pid == P_GRIDSK || pid == P_MARBLES || pid == P_LIFE || pid == P_LIFEK || pid == P_LANES || pid == P_CHORDS || pid == P_TONNETZ || pid == P_ORBITS || pid == P_MIMIC)) || (pid == P_T && !k)) {
+    if ((k == 3 && (pid == P_STEPS || pid == P_GRIDS || pid == P_GRIDSK || pid == P_MARBLES || pid == P_LIFE || pid == P_LIFEK || pid == P_LANES || pid == P_CHORDS || pid == P_TONNETZ || pid == P_ORBITS || pid == P_MIMIC || pid == P_CIPHER || pid == P_CIPHERK)) || (pid == P_T && !k)) {
         const char *s = pid == P_T ? T_MODE_NAME[v] : SRC_NAME[v];
         while ((*b++ = *s++) != 0) {}
         return;
     }
-    if ((pid == P_GRIDS && k == 2) || (pid == P_NOTES && !k) || (pid == P_LIFE && k == 2) || ((pid == P_LANES || pid == P_CHORDS || pid == P_TONNETZ || pid == P_ORBITS) && k == 1)) {
+    if ((pid == P_GRIDS && k == 2) || (pid == P_CIPHER && k == 2) || (pid == P_NOTES && !k) || (pid == P_LIFE && k == 2) || ((pid == P_LANES || pid == P_CHORDS || pid == P_TONNETZ || pid == P_ORBITS) && k == 1)) {
         note_name(v, b);
         return;
     }
-    if ((pid == P_STEPS && k > 0) || (pid == P_XY && k & 1) || ((pid == P_GRIDS || pid == P_GRIDSK || pid == P_MARBLES || pid == P_LIFE || pid == P_LIFEK || pid == P_LANES || pid == P_CHORDS || pid == P_TONNETZ || pid == P_ORBITS || pid == P_MIMIC) && !k)) {
+    if ((pid == P_STEPS && k > 0) || (pid == P_XY && k & 1) || ((pid == P_GRIDS || pid == P_GRIDSK || pid == P_MARBLES || pid == P_LIFE || pid == P_LIFEK || pid == P_LANES || pid == P_CHORDS || pid == P_TONNETZ || pid == P_ORBITS || pid == P_MIMIC || pid == P_CIPHER || pid == P_CIPHERK) && !k)) {
         const char *s = pid == P_STEPS && k == 2 ? PATH_NAME[v] : DIV_NAME[v];
         while ((*b++ = *s++) != 0) {}
         return;
@@ -3753,6 +3798,16 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "gvoice")) *got = t->grids.voice;
     else if (!strcmp(what, "gnote")) *got = t->grids.note;
     else if (!strcmp(what, "gpad")) *got = t->grids.pad[t->grids.voice - 1] + 1;
+    else if (!strcmp(what, "cyformula")) *got = t->cipher.formula;
+    else if (!strcmp(what, "cya")) *got = t->cipher.a;
+    else if (!strcmp(what, "cyb")) *got = t->cipher.b;
+    else if (!strcmp(what, "cyc")) *got = t->cipher.c;
+    else if (!strcmp(what, "cydens")) *got = t->cipher.dens;
+    else if (!strcmp(what, "cylen")) *got = t->cipher.len;
+    else if (!strcmp(what, "cystart")) *got = t->cipher.start;
+    else if (!strcmp(what, "cyspeed")) *got = t->cipher.speed;
+    else if (!strcmp(what, "cyrange")) *got = t->cipher.range;
+    else if (!strcmp(what, "cynote")) *got = t->cipher.note;
     else if (!strcmp(what, "lpoly")) *got = t->life.poly;
     else if (!strcmp(what, "lnote")) *got = t->life.note;
     else if (!strcmp(what, "lmap")) *got = t->life.map;
