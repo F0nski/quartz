@@ -1191,13 +1191,13 @@ static void kit_pad_patch(void)
     block(256);
     assert(track_on(0) == 0 && count('n', track_slot(0)) == 0);
     P.sound[0].level = 127;
-    audio_live_note(0, KIT_NOTE + 4, 1);   /* RIM: SN, tune 12, harm 100, timb 100, decay 10, level 90 */
+    audio_live_note(0, KIT_NOTE + 4, 1);   /* RIM: SN, tune 19, harm 100, timb 100, decay 10, level 90 */
     block(256);
     int v = track_slot(0);
     assert(v >= 0 && pool.v[v].model == 22);
     assert(patch[v][0] == 100 / 127.0f && patch[v][1] == 100 / 127.0f && patch[v][2] == 10 / 127.0f);
     assert(patch[v][3] == 0.5f && patch[v][4] == 0.0f);
-    for (int i = 0; i < NLOG; i++) if (LOG[i].op == 'n') assert(LOG[i].a == 48.0f + 12.0f);
+    for (int i = 0; i < NLOG; i++) if (LOG[i].op == 'n') assert(LOG[i].a == 48.0f + 19.0f);
     assert(count('n', v) == 1);
     block(256);
     int32_t g = (int32_t)(0.01f * (float)(v + 1) * (90 / 127.0f * 0.25f * MODEL_GAIN[22]) * 8388607.0f);
