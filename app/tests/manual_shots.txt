@@ -366,3 +366,15 @@ key w7 down
 wait 900
 shot sound-arcade.png
 key w7 up
+spin PRESET 2
+expect model 16
+key w7 down
+wait 900
+shot sound-crowd.png
+key w7 up
+spin PRESET 3
+expect model 19
+key w7 down
+wait 400
+shot sound-wire.png
+key w7 up
