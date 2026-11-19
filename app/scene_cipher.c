@@ -7,7 +7,7 @@
 #define CYV_CX 120.0f               /* the cube's centre in the scene area */
 #define CYV_CY 104.0f
 #define CYV_S 37.0f                 /* half its edge, in pixels */
-#define CYV_TRAIL 6
+#define CYV_TRAIL 6                 /* the steps the trail joins to the one playing */
 static const uint16_t CYV_YEL[3] = {RGB(0xff, 0xf6, 0xb0), RGB(0xf2, 0xe1, 0x4c), RGB(0x8a, 0x7a, 0x10)};
 static const uint16_t CYV_CYAN[3] = {RGB(0xc8, 0xf4, 0xff), RGB(0x3e, 0xe6, 0xff), RGB(0x1d, 0x7f, 0xa8)};
 static const uint16_t CYV_MUTE[3] = {RGB(0x9a, 0x94, 0xd0), RGB(0x60, 0x5a, 0xa0), RGB(0x3a, 0x35, 0x6a)};
@@ -29,7 +29,7 @@ static const char *const CYV_TEXT[CIPHER_N] = {
     "t|t%F|t%G", "t*(t>>A)^t>>B", "(t^t>>A)*(t>>B)", "(t*t>>A)&t>>B", "t*(t>>A)%H", "t>>A^t*B",
     "(t*(t>>A)|t>>B)^t>>C", "t*(t>>A^t>>B)&I"};
 
-static struct { uint32_t ms; } cyv;
+static struct { uint32_t ms; float ax[3], ay[3]; } cyv;   /* the axes' names' places, for the band */
 
 void cipher_enter(void) { cyv.ms = 0; }
 
@@ -82,13 +82,22 @@ static void cyv_gem(float x, float y, float r, const uint16_t *t, float z)
 /* the steps the points show: the loop (LEN), or in FREE the 48 steps of the window the step is in */
 static uint32_t cyv_len(const q_cipher *c) { return c->len ? c->len : 48u; }
 
+/* step s's point: its byte and the next two (with LEN, round the loop: the steps that will play), and whether it plays */
+static int cyv_point(const q_cipher *c, uint32_t s, float rot, float *x, float *y, float *d)
+{
+    uint32_t L = c->len;
+    int b0 = gen_cipher_byte(c, L ? s % L : s), b1 = gen_cipher_byte(c, L ? (s + 1) % L : s + 1);
+    int b2 = gen_cipher_byte(c, L ? (s + 2) % L : s + 2);
+    cyv_at((float)b0 / 127.5f - 1.0f, (float)b1 / 127.5f - 1.0f, (float)b2 / 127.5f - 1.0f, rot, x, y, d);
+    return b0 >> 5 < (c->dens * 8 + 63) / 127;
+}
+
 void cipher_frame(const q_ciview *v, uint32_t ms)
 {
     const q_cipher *c = &v->c;
     uint32_t L = cyv_len(c), base = v->cur - v->cur % L, i;
     /* the cube sways about its isometric view rather than turning round: face on, it would read as a flat square */
     float rot = 0.785f + 0.42f * fm_sinf((float)(ms % 24000u) * (6.2831853f / 24000.0f)), ex[8], ey[8], ed[8], far = -9.0f;
-    int thr = (c->dens * 8 + 63) / 127;
     cyv.ms = ms;
     p3d_begin();
     for (i = 0; i < 8; i++) {                   /* the cube's corners; the farthest one's three edges go under */
@@ -101,14 +110,16 @@ void cipher_frame(const q_ciview *v, uint32_t ms)
                 int back = ed[i] == far || ed[i | b] == far;
                 p3d_line(ex[i], ey[i], ex[i | b], ey[i | b], back ? -10.0f : 30.0f, 1, back ? CYV_BACK : CYV_FRONT);
             }
-    float tx[CYV_TRAIL + 1], ty[CYV_TRAIL + 1];
-    int nt = 0;
+    /* the axes' names, beyond the ends of the edges from the corner (0, 0, 0): v[n] along x, v[n+1] y, v[n+2] z */
+    for (i = 0; i < 3; i++) {
+        float x, y, d;
+        cyv_at(i == 0 ? 1.2f : -1.0f, i == 1 ? 1.2f : -1.0f, i == 2 ? 1.2f : -1.0f, rot, &x, &y, &d);
+        cyv.ax[i] = x, cyv.ay[i] = y < 34.0f ? 34.0f : y > 156.0f ? 156.0f : y;   /* clear of the top lines and the footer */
+    }
     for (i = 0; i < L; i++) {                   /* the points: nearer ones over farther ones */
         uint32_t s = base + i;
-        int b0 = gen_cipher_byte(c, s), b1 = gen_cipher_byte(c, s + 1), b2 = gen_cipher_byte(c, s + 2), on = b0 >> 5 < thr;
         float x, y, d;
-        cyv_at((float)b0 / 127.5f - 1.0f, (float)b1 / 127.5f - 1.0f, (float)b2 / 127.5f - 1.0f, rot, &x, &y, &d);
-        int cur = s == v->cur, hot = cur && on && v->playing;
+        int on = cyv_point(c, s, rot, &x, &y, &d), cur = s == v->cur, hot = cur && on && v->playing;
         cyv_gem(x, y, cur ? 6.5f : 3.6f, hot ? PINK3 : on ? CYV_CYAN : CYV_MUTE, 10.0f - d);
         if (cur) {                              /* the step playing, framed */
             float r = 10.5f;
@@ -116,11 +127,20 @@ void cipher_frame(const q_ciview *v, uint32_t ms)
             p3d_line(x, y - r, x + r, y, 20.0f, 1, f), p3d_line(x + r, y, x, y + r, 20.0f, 1, f);
             p3d_line(x, y + r, x - r, y, 20.0f, 1, f), p3d_line(x - r, y, x, y - r, 20.0f, 1, f);
         }
-        if (s + CYV_TRAIL >= v->cur && s <= v->cur && v->playing)
-            tx[nt] = x, ty[nt] = y, nt++;
     }
-    for (int k = 1; k < nt; k++)                /* the trail to the step playing, brighter towards it */
-        p3d_line(tx[k - 1], ty[k - 1], tx[k], ty[k], 15.0f, 1, k > nt - 3 ? PINK3[1] : PINK3[2]);
+    if (v->playing) {                           /* the trail of the last steps to the one playing, round the loop */
+        float px = 0, py = 0;
+        int have = 0;
+        for (int k = CYV_TRAIL; k >= 0; k--) {
+            float x, y, d;
+            if (!c->len && v->cur < (uint32_t)k)  /* FREE: no step before the first */
+                continue;
+            cyv_point(c, c->len ? (v->cur + c->len * 8u - (uint32_t)k) % c->len : v->cur - (uint32_t)k, rot, &x, &y, &d);
+            if (have)
+                p3d_line(px, py, x, y, 15.0f, 1, k < 2 ? PINK3[1] : PINK3[2]);
+            px = x, py = y, have = 1;
+        }
+    }
 }
 
 void cipher_band(const q_ciview *v, int32_t oy)
@@ -130,6 +150,9 @@ void cipher_band(const q_ciview *v, int32_t oy)
     int val = gen_cipher_byte(c, v->cur), thr = (c->dens * 8 + 63) / 127, on = v->playing && val >> 5 < thr, i;
     cv_rect(0, oy, 240, 166, RGB(0, 0, 0));
     p3d_draw(oy);
+    glo_text((int32_t)cyv.ax[0], oy + (int32_t)cyv.ay[0], &FONT_XS, "v n", CYV_DIM, 0);
+    glo_text((int32_t)cyv.ax[1], oy + (int32_t)cyv.ay[1], &FONT_XS, "v n+1", CYV_DIM, 0);
+    glo_text((int32_t)cyv.ax[2], oy + (int32_t)cyv.ay[2], &FONT_XS, "v n+2", CYV_DIM, 0);
     cyv_formula(c, b, b + sizeof b);            /* the formula and t, on top */
     const felucca_font_t *f = text_w(&FONT_S, b) <= 232 ? &FONT_S : &FONT_XS;
     glo_text(120, oy + 9, f, b, KGREEN[1], 0);

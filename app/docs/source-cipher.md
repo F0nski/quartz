@@ -61,8 +61,9 @@ The bottom four bits pick the pad, so one formula makes a whole beat; NOTE is go
 ## PRESET
 
 PRESET steps through the 32 formulas, on any of the three pages. Each comes with its own A, B, C, START and SPEED,
-chosen so that it plays a living pattern; DENS, LEN, NOTE and RANGE stay as they are. When a setting of your own goes
-flat or silent, PRESET once forward and once back brings the formula's back.
+chosen so that it plays a living pattern; DENS, LEN, NOTE and RANGE stay as they are. When A, B, C, START or SPEED of
+your own go flat, PRESET once forward and once back brings the formula's back. PRESET leaves DENS alone: below 8,
+no step plays, whatever the formula.
 
 ## Recipes
 

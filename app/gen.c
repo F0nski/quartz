@@ -801,14 +801,14 @@ void gen_cipher_preset(q_cipher *c, int formula)
 
 /* the byte decides the step: bits 5-7 against DENS (round(dens x 8 / 127) levels play), bit 4 the accent, bits 0-3
    the degree (a KIT: the pad) */
-static int cipher_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, q_step *st)
+static int cipher_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, int k, q_step *st)
 {
     const q_cipher *c = &pt->cipher;
-    if (c->len && g->cipher_n >= c->len)      /* LEN shortened while playing: back into the loop */
-        g->cipher_n %= c->len;
-    int v = gen_cipher_byte(c, g->cipher_n++);
-    if (c->len && g->cipher_n == c->len)
-        g->cipher_n = 0;
+    /* with LEN, the formula's step is the sequencer's (k: LEN changed while playing keeps step 0 on the loop's start);
+       in FREE, its own count runs on. cipher_n: the next step, for the scene */
+    uint32_t n = c->len ? (uint32_t)k % c->len : g->cipher_n;
+    int v = gen_cipher_byte(c, n);
+    g->cipher_n = c->len ? (n + 1) % c->len : n + 1;
     if ((v >> 5) >= (c->dens * 8 + 63) / 127)
         return 0;
     if (p->sound[track].model == M_KIT) {
@@ -921,6 +921,6 @@ int gen_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, int k
     if (pt->src == SRC_TONNETZ) return tonnetz_step(g, p, track, pt, k, rng, st);
     if (pt->src == SRC_ORBITS) return orbits_step(g, p, track, pt, st);
     if (pt->src == SRC_MIMIC) return mimic_step(g, p, track, pt, st);
-    if (pt->src == SRC_CIPHER) return cipher_step(g, p, track, pt, st);
+    if (pt->src == SRC_CIPHER) return cipher_step(g, p, track, pt, k, st);
     return marbles_step(g, p, track, pt, rng, st);
 }

@@ -3516,7 +3516,6 @@ void ui_frame(void)
                 miw.step_ms = 2500u * DIV96[t->div] / ui.p->tempo;
                 mimic_frame(&miw, now);
             } else if (v.scene.anim == 14) {
-                static const char *const PADS3[3] = {"BD", "SN", "HH"};
                 const q_pattern *t = pat();
                 uint32_t n, L;
                 if (fresh)
@@ -3525,14 +3524,10 @@ void ui_frame(void)
                 n = civ.playing ? audio_cipher(ui.track) : 0, L = t->cipher.len;
                 civ.cur = !civ.playing ? 0 : L ? (n + L - 1) % L : n ? n - 1 : 0;   /* the step played last */
                 {
-                    int val = gen_cipher_byte(&t->cipher, civ.cur), p = val & 15;
+                    int p = gen_cipher_byte(&t->cipher, civ.cur) & 15;
                     uint16_t sc = gen_scale(ui.p);
-                    if (!kit())
-                        note_name(gen_life_note(t->cipher.note, sc, ui.p->tonic, p * t->cipher.range * __builtin_popcount(sc) / 16), civ.name);
-                    else if (p < 3)
-                        civ.name[0] = PADS3[p][0], civ.name[1] = PADS3[p][1], civ.name[2] = 0;
-                    else
-                        civ.name[0] = 'P', int_text(p + 1, civ.name + 1);
+                    mv_name(kit() ? KIT_NOTE + p : gen_life_note(t->cipher.note, sc, ui.p->tonic, p * t->cipher.range * __builtin_popcount(sc) / 16),
+                            kit(), civ.name);
                 }
                 cipher_frame(&civ, now);
             } else if (v.scene.anim == 7) {

@@ -1752,6 +1752,27 @@ static void cipher_loop(void)
     assert(G.cipher_n == 64 && gen_loop(pt) == 16);
 }
 
+/* LEN changed while playing: the formula's step follows the sequencer's (k), so step 0 stays on the loop's start */
+static void cipher_len_change_keeps_loop(void)
+{
+    q_pattern *pt = cipher_setup(8);
+    pt->cipher.dens = 127;
+    pt->cipher.len = 64;
+    q_step st, first; int acc;
+    played(pt, 0, &first, &acc);
+    for (int k = 1; k <= 40; k++) played(pt, k, &st, &acc);
+    pt->cipher.len = 16;                      /* the sequencer wraps: the next step is k 0 */
+    played(pt, 0, &st, &acc);
+    assert(st.note[0] == first.note[0] && G.cipher_n == 1);
+    pt->cipher.len = 0;                       /* FREE for 20 steps, then LEN 12 at k 4 */
+    for (int k = 0; k < 20; k++) played(pt, k % 16, &st, &acc);
+    pt->cipher.len = 12;
+    played(pt, 4, &st, &acc);
+    assert(st.note[0] == gen_life_note(pt->cipher.note, gen_scale(&P), P.tonic,
+                                       (gen_cipher_byte(&pt->cipher, 4) & 15) * pt->cipher.range * __builtin_popcount(gen_scale(&P)) / 16));
+    assert(G.cipher_n == 5);
+}
+
 int main(void)
 {
     cipher_matches_search();
@@ -1759,6 +1780,7 @@ int main(void)
     cipher_alive();
     cipher_decode();
     cipher_loop();
+    cipher_len_change_keeps_loop();
     marbles_gate_sets_len();
     grids_level_matches_step();
     corner_follows_node();

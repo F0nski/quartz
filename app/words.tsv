@@ -419,6 +419,12 @@ START	start
 SPEED	speed
 RHY	rhythm
 ACC	accent
+v n	byte n
+v n+1	byte n plus 1
+v n+2	byte n plus 2
+v	byte
+t	time
+--	none
 CLASSIC	classic
 SIERPIN	sierpinski
 FORTY2	forty two
