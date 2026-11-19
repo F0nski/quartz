@@ -343,3 +343,20 @@ spin K3 5
 expect gpad 7
 wait 2500
 shot source-atlas-kit.png
+
+# The family pages' scenes (synth-*.md): a new project, track 1, a note held on each
+reboot
+wait 600
+tap EDIT
+spin PRESET 8
+expect model 13
+key w7 down
+wait 700
+shot sound-pipe.png
+key w7 up
+spin PRESET 2
+expect model 12
+key w7 down
+wait 700
+shot sound-facets.png
+key w7 up
