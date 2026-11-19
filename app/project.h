@@ -8,7 +8,7 @@
 #define Q_LOCKS 128
 #define Q_SCENES 8
 #define Q_SONG 32
-#define Q_VERSION 15                /* q_project.version: the saved layout */
+#define Q_VERSION 16                /* q_project.version: the saved layout */
 #define Q_PADS 16
 #define M_KIT 24                   /* q_sound.model: the 16-pad kit */
 #define KIT_NOTE 36                /* a KIT's note: KIT_NOTE + pad */
@@ -36,7 +36,7 @@ typedef struct { uint8_t note[4], vel, len, prob, cond, flags; int8_t micro; } q
 typedef struct { uint8_t step, param, value; } q_lock;    /* value: the q_sound field's byte (tune as uint8_t) */
 enum { PATH_FWD, PATH_REV, PATH_PINGPONG, PATH_SNAKE, PATH_COLUMNS, PATH_SPIRAL, PATH_RANDOM, PATH_XY, PATH_N };
 /* XY: xlen, ylen 1..4, ydiv a DIV_* (the X clock is div) */
-enum { SRC_STEP, SRC_GRIDS, SRC_MARBLES, SRC_LIFE, SRC_LANES, SRC_CHORDS, SRC_TONNETZ, SRC_ORBITS, SRC_MIMIC, SRC_N };         /* q_pattern.src: where the notes come from */
+enum { SRC_STEP, SRC_GRIDS, SRC_MARBLES, SRC_LIFE, SRC_LANES, SRC_CHORDS, SRC_TONNETZ, SRC_ORBITS, SRC_MIMIC, SRC_CIPHER, SRC_N };         /* q_pattern.src: where the notes come from */
 /* 0..127 except voice 1..3, note 1..127 (0 is no note), pad 0..15 (a KIT: the pad each part plays) */
 typedef struct { uint8_t x, y, chaos, dens[3], voice, note, pad[3]; } q_grids;
 /* 0..127 except tout 1..3, len 1..16, note 1..127, mode 0..6, range 1..4, gate 0..5 (1/8 to 4 steps: 1 << gate eighths);
@@ -93,9 +93,12 @@ static inline int gen_orbits_hits(const q_orbits *o, uint32_t n)
 #define MIMIC_EV 32
 /* n 0..MIMIC_EV, order 1..2, drift 0..127, loop 0 FREE / 1..16, seed 0..255; ev[i]: note 1..127, gap 0..7 steps to the next */
 typedef struct { uint8_t n, order, drift, loop, seed; uint8_t ev[MIMIC_EV][2]; } q_mimic;
+/* CIPHER: formula 0..CIPHER_N - 1, a b c 0..15, dens 0..127, len 0 FREE / 1..64, start 0..127 (t from start x 256),
+ * speed 1..255 (t per step), note 1..127, range 1..4 octaves */
+typedef struct { uint8_t formula, a, b, c, dens, len, start, speed, note, range; } q_cipher;
 #define TZ_OP(t, i) ((t)->seq >> 2 * (i) & 3)
 #define TZ_SET(t, i, o) ((t)->seq = (uint16_t)(((t)->seq & ~(3u << 2 * (i))) | (unsigned)(o) << 2 * (i)))
-typedef struct { uint8_t len, div, nlocks, path, xlen, ylen, ydiv, src; q_grids grids; q_marbles marbles; q_life life; q_lanes lanes; q_chords chords; q_tonnetz tonnetz; q_orbits orbits; q_mimic mimic; q_step steps[Q_STEPS]; q_lock locks[Q_LOCKS]; } q_pattern;
+typedef struct { uint8_t len, div, nlocks, path, xlen, ylen, ydiv, src; q_grids grids; q_marbles marbles; q_life life; q_lanes lanes; q_chords chords; q_tonnetz tonnetz; q_orbits orbits; q_mimic mimic; q_cipher cipher; q_step steps[Q_STEPS]; q_lock locks[Q_LOCKS]; } q_pattern;
 typedef struct { uint8_t used, mute, pat[Q_TRACKS]; } q_scene;
 typedef struct { uint8_t scene, reps; } q_entry;          /* scene 0..7, reps 1..16 */
 /* 0..127 except model 0..24, poly 1..4, tune -24..24, ftype 0..2, envamt and ldepth -64..63, lshape 0..4, ltrig 0 FREE 1 TRIG,

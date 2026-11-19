@@ -283,6 +283,7 @@ static void store_clamps_v3(void)
     b.pat[0][2].marbles.mode = 7; b.pat[0][2].marbles.range = 9; b.pat[0][2].marbles.gate = 9;
     b.pat[0][3].grids.x = 200; b.pat[0][3].grids.dens[1] = 255; b.pat[0][3].grids.pad[2] = 200; b.pat[0][3].marbles.bias = 250;
     b.pat[0][3].marbles.note = 130;
+    b.pat[0][4].cipher = (q_cipher){ 40, 20, 16, 99, 200, 70, 200, 0, 0, 9 };
     b.pat[0][2].grids.note = 0; b.pat[0][2].marbles.note = 0;     /* note 0 is no note */
     b.kit[1][4].engine = 5; b.kit[1][4].tune = 100; b.kit[1][5].tune = -100; b.kit[1][5].level = 200;
     b.sound[0].model = 30;
@@ -298,6 +299,9 @@ static void store_clamps_v3(void)
     assert(a.pat[0][2].grids.note == 1 && a.pat[0][2].marbles.note == 1);
     assert(a.pat[0][3].grids.x == 127 && a.pat[0][3].grids.dens[1] == 127 && a.pat[0][3].grids.pad[2] == Q_PADS - 1 && a.pat[0][3].marbles.bias == 127);
     assert(a.pat[0][3].marbles.note == 127);
+    { const q_cipher *c = &a.pat[0][4].cipher;
+      assert(c->formula == 31 && c->a == 15 && c->b == 15 && c->c == 15 && c->dens == 127 && c->len == 64);
+      assert(c->start == 127 && c->speed == 1 && c->note == 1 && c->range == 4); }
     assert(a.kit[1][4].engine == PAD_HH && a.kit[1][4].tune == 24 && a.kit[1][5].tune == -24 && a.kit[1][5].level == 127);
     assert(a.sound[0].model == M_KIT);
 }

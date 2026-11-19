@@ -38,7 +38,8 @@ void gen_reset(q_gen *g, uint32_t *rng)
 
 int gen_loop(const q_pattern *pt)
 {
-    return pt->src == SRC_MARBLES ? pt->marbles.len : pt->src == SRC_LIFE || pt->src == SRC_LANES || pt->src == SRC_CHORDS || pt->src == SRC_TONNETZ || pt->src == SRC_ORBITS || pt->src == SRC_MIMIC ? LIFE_W : GRIDS_STEPS;
+    return pt->src == SRC_MARBLES ? pt->marbles.len : pt->src == SRC_LIFE || pt->src == SRC_LANES || pt->src == SRC_CHORDS || pt->src == SRC_TONNETZ || pt->src == SRC_ORBITS || pt->src == SRC_MIMIC ? LIFE_W
+           : pt->src == SRC_CIPHER ? (pt->cipher.len ? pt->cipher.len : LIFE_W) : GRIDS_STEPS;
 }
 
 /* settings 0..127 as Grids' 0..255 */
@@ -729,6 +730,97 @@ static int orbits_step(q_gen *g, const q_project *p, int track, const q_pattern 
     return nb > 1 ? (1 << nb) - 1 : 0;
 }
 
+/* CIPHER: bytebeat (viznut, 2011), a formula per step. All unsigned 32-bit; a shift by its value mod 32, as JavaScript
+   does (the bank was searched there; in C a shift of 32 or more is undefined); a divisor of 0 becomes 1. The
+   parentheses are C's (and JavaScript's) precedence of the formulas as written in the spec. */
+
+static inline uint32_t sr(uint32_t x, uint32_t s) { return x >> (s & 31u); }
+static inline uint32_t dz(uint32_t x) { return x ? x : 1u; }
+
+typedef uint32_t (*cipher_fn)(uint32_t t, uint32_t a, uint32_t b, uint32_t c);
+static uint32_t cf_classic(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { (void)c; return t * (sr(t, a) | sr(t, b)); }
+static uint32_t cf_sierpin(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { (void)b, (void)c; return t & sr(t, a); }
+static uint32_t cf_forty2(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { (void)c; return t * ((a * 4 + 2) & sr(t, b)); }
+static uint32_t cf_lace(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { (void)c; return (t & sr(t, a)) | sr(t, b); }
+static uint32_t cf_knot(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { (void)c; return t * (sr(t, a) & sr(t, b)); }
+static uint32_t cf_gear(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { (void)c; return (t * a) & sr(t, b); }
+static uint32_t cf_beacon(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { (void)c; return (t * a) | sr(t, b); }
+static uint32_t cf_melody(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { (void)c; return (t * (sr(0xCA98u, sr(t, a) & 14) & 15)) | sr(t, b); }
+static uint32_t cf_drift(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { return ((t * a) & sr(t, b)) | ((t * 3) & sr(t, c)); }
+static uint32_t cf_tide(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { return t * ((sr(t, a) | sr(t, b)) & 63 & sr(t, c)); }
+static uint32_t cf_motor(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { return (sr(t, a) | t | sr(t, sr(t, b))) * c + (sr(t, 11) & 7); }
+static uint32_t cf_storm(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { (void)c; return t * (t ^ (t + (sr(t, a) | 1)) ^ sr((t - 1280) ^ t, b)); }
+static uint32_t cf_mesh(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { return ((t * a) & sr(t, b)) | sr(t, c); }
+static uint32_t cf_dig(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { (void)c; return (t & sr(t, a)) - sr(t, b); }
+static uint32_t cf_flip(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { (void)c; return sr(t, a) ^ (t << (b & 7)); }
+static uint32_t cf_swell(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { return sr(t * (sr(t, a) & (b * 4 + 3)), sr(t, c) & 3); }
+static uint32_t cf_stairs1(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { return t * ((sr(t, a) | sr(t, b)) & 25 & sr(t, c)); }
+static uint32_t cf_stairs2(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { return (t & sr(t, a)) * (sr(t, b) | sr(t, c)); }
+static uint32_t cf_ladder(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { return t * (sr(t, a) & sr(t, b) & 123 & sr(t, c)); }
+static uint32_t cf_terrace(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { return t * ((sr(t, a) | sr(t, b)) & 82 & sr(t, c)); }
+static uint32_t cf_weave(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { (void)c; return sr(t, a) * sr(t, b); }
+static uint32_t cf_chime(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { return ((t * 9) & sr(t, a)) | ((t * 5) & sr(t, b)) | ((t * 3) & sr(t, c)); }
+static uint32_t cf_spiral(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { (void)c; return sr(t * (sr(t, a) % 16), sr(t, b) & 3); }
+static uint32_t cf_coil(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { (void)c; return (t * sr(t, a)) & sr(t, b); }
+static uint32_t cf_chaos(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { (void)c; return t | (t % dz(a * 17 + 1)) | (t % dz(b * 17 + 2)); }
+static uint32_t cf_spark(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { (void)c; return (t * sr(t, a)) ^ sr(t, b); }
+static uint32_t cf_flint(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { (void)c; return (t ^ sr(t, a)) * sr(t, b); }
+static uint32_t cf_quad(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { (void)c; return sr(t * t, a) & sr(t, b); }
+static uint32_t cf_modulo(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { (void)c; return (t * sr(t, a)) % dz(b * 16 + 1); }
+static uint32_t cf_xor(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { (void)c; return sr(t, a) ^ (t * b); }
+static uint32_t cf_fractal(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { return ((t * sr(t, a)) | sr(t, b)) ^ sr(t, c); }
+static uint32_t cf_glitch(uint32_t t, uint32_t a, uint32_t b, uint32_t c) { return (t * (sr(t, a) ^ sr(t, b))) & (c * 16 + 15); }
+
+/* PULSE, DRIFT, STAIRS, CHAOS: eight each, PRESET's order */
+static const cipher_fn CIPHER_FN[CIPHER_N] = {
+    cf_classic, cf_sierpin, cf_forty2, cf_lace, cf_knot, cf_gear, cf_beacon, cf_melody,
+    cf_drift, cf_tide, cf_motor, cf_storm, cf_mesh, cf_dig, cf_flip, cf_swell,
+    cf_stairs1, cf_stairs2, cf_ladder, cf_terrace, cf_weave, cf_chime, cf_spiral, cf_coil,
+    cf_chaos, cf_spark, cf_flint, cf_quad, cf_modulo, cf_xor, cf_fractal, cf_glitch};
+const q_cipher_def CIPHER_DEF[CIPHER_N] = {
+    {"CLASSIC", 5, 8, 0, 38, 28}, {"SIERPIN", 8, 0, 0, 126, 45}, {"FORTY2", 10, 10, 0, 55, 203}, {"LACE", 8, 4, 0, 95, 102},
+    {"KNOT", 8, 4, 0, 1, 9}, {"GEAR", 5, 7, 0, 126, 47}, {"BEACON", 3, 6, 0, 62, 23}, {"MELODY", 9, 8, 0, 7, 57},
+    {"DRIFT", 5, 7, 10, 127, 29}, {"TIDE", 12, 8, 4, 1, 9}, {"MOTOR", 6, 15, 10, 55, 13}, {"STORM", 15, 10, 0, 7, 11},
+    {"MESH", 3, 6, 10, 125, 67}, {"DIG", 5, 9, 0, 31, 19}, {"FLIP", 6, 1, 0, 5, 215}, {"SWELL", 9, 5, 13, 76, 105},
+    {"STAIRS 1", 9, 13, 6, 31, 27}, {"STAIRS 2", 12, 4, 8, 110, 23}, {"LADDER", 11, 8, 3, 25, 11}, {"TERRACE", 3, 9, 9, 59, 201},
+    {"WEAVE", 4, 8, 0, 113, 171}, {"CHIME", 4, 7, 10, 119, 10}, {"SPIRAL", 9, 13, 0, 109, 108}, {"COIL", 7, 4, 0, 15, 11},
+    {"CHAOS", 15, 15, 0, 5, 57}, {"SPARK", 9, 3, 0, 69, 6}, {"FLINT", 4, 8, 0, 4, 12}, {"QUAD", 9, 4, 0, 127, 17},
+    {"MODULO", 8, 11, 0, 57, 45}, {"XOR", 5, 3, 0, 5, 3}, {"FRACTAL", 7, 9, 5, 43, 6}, {"GLITCH", 5, 9, 15, 120, 31}};
+
+uint8_t gen_cipher_byte(const q_cipher *c, uint32_t n)
+{
+    uint32_t t = (uint32_t)c->start * 256u + n * c->speed;
+    return (uint8_t)CIPHER_FN[c->formula % CIPHER_N](t, c->a, c->b, c->c);
+}
+
+void gen_cipher_preset(q_cipher *c, int formula)
+{
+    const q_cipher_def *d = &CIPHER_DEF[formula];
+    c->formula = (uint8_t)formula, c->a = d->a, c->b = d->b, c->c = d->c, c->start = d->start, c->speed = d->speed;
+}
+
+/* the byte decides the step: bits 5-7 against DENS (round(dens x 8 / 127) levels play), bit 4 the accent, bits 0-3
+   the degree (a KIT: the pad) */
+static int cipher_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, q_step *st)
+{
+    const q_cipher *c = &pt->cipher;
+    if (c->len && g->cipher_n >= c->len)      /* LEN shortened while playing: back into the loop */
+        g->cipher_n %= c->len;
+    int v = gen_cipher_byte(c, g->cipher_n++);
+    if (c->len && g->cipher_n == c->len)
+        g->cipher_n = 0;
+    if ((v >> 5) >= (c->dens * 8 + 63) / 127)
+        return 0;
+    if (p->sound[track].model == M_KIT) {
+        st->note[0] = (uint8_t)(KIT_NOTE + (v & 15));
+    } else {
+        uint16_t sc = gen_scale(p);
+        st->note[0] = (uint8_t)gen_life_note(c->note, sc, p->tonic, (v & 15) * c->range * __builtin_popcount(sc) / 16);
+    }
+    st->flags = SF_ON; st->len = 4; st->vel = 100; st->prob = 20;
+    return v >> 4 & 1;
+}
+
 /* MIMIC */
 
 int gen_mimic_gap(uint32_t ms, uint32_t step_ms, int lo)
@@ -829,5 +921,6 @@ int gen_step(q_gen *g, const q_project *p, int track, const q_pattern *pt, int k
     if (pt->src == SRC_TONNETZ) return tonnetz_step(g, p, track, pt, k, rng, st);
     if (pt->src == SRC_ORBITS) return orbits_step(g, p, track, pt, st);
     if (pt->src == SRC_MIMIC) return mimic_step(g, p, track, pt, st);
+    if (pt->src == SRC_CIPHER) return cipher_step(g, p, track, pt, st);
     return marbles_step(g, p, track, pt, rng, st);
 }

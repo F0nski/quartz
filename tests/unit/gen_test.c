@@ -1617,8 +1617,148 @@ static void marbles_draw_new_loops(void)
     assert(memcmp(t.loop, G.t.loop, sizeof t.loop) && memcmp(x.loop, G.x.loop, sizeof x.loop));
 }
 
+static const uint8_t CIPHER_REF[32][34] = {
+    {0, 232, 8, 184, 16, 136, 24, 88, 32, 36, 232, 204, 176, 148, 120, 92, 64, 36, 8, 32, 176, 120, 120, 176, 32, 12, 208, 204, 144, 12, 24, 204, 128, 108},   /* CLASSIC */
+    {0, 44, 90, 6, 52, 96, 14, 59, 104, 21, 66, 111, 0, 0, 0, 128, 128, 128, 0, 1, 128, 129, 128, 2, 0, 0, 130, 130, 128, 1, 2, 3, 128, 129},   /* SIERPIN */
+    {0, 88, 220, 202, 184, 166, 148, 130, 112, 94, 76, 58, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 228, 122, 16, 166, 60, 210, 104, 254, 148, 42, 0, 0},   /* FORTY2 */
+    {240, 246, 252, 35, 9, 111, 118, 92, 35, 43, 111, 118, 124, 102, 77, 111, 118, 92, 102, 107, 111, 119, 124, 170, 137, 239, 221, 220, 170, 170, 239, 255, 252, 230},   /* LACE */
+    {0, 0, 18, 27, 0, 0, 54, 63, 0, 81, 90, 0, 0, 117, 126, 0, 144, 153, 0, 0, 180, 189, 0, 0, 216, 0, 0, 243, 252, 0, 0, 0, 64, 82},   /* KNOT */
+    {0, 232, 212, 193, 172, 149, 130, 108, 88, 67, 46, 0, 0, 0, 0, 1, 0, 2, 2, 0, 0, 3, 0, 4, 0, 1, 4, 1, 4, 6, 2, 5, 0, 8},   /* GEAR */
+    {248, 253, 250, 255, 253, 249, 254, 251, 250, 255, 251, 255, 252, 253, 255, 255, 253, 255, 254, 255, 255, 255, 255, 51, 120, 189, 3, 71, 142, 211, 22, 91, 163, 231},   /* BEACON */
+    {7, 87, 175, 7, 95, 13, 14, 15, 8, 9, 11, 11, 13, 13, 14, 15, 26, 27, 27, 27, 31, 31, 31, 62, 124, 174, 236, 31, 93, 159, 205, 15, 78, 126},   /* MELODY */
+    {0, 151, 46, 183, 92, 215, 110, 247, 152, 0, 32, 32, 0, 32, 0, 1, 32, 1, 2, 34, 0, 32, 34, 3, 32, 33, 2, 32, 4, 4, 36, 5, 32, 33},   /* DRIFT */
+    {0, 0, 18, 27, 0, 0, 54, 63, 0, 81, 90, 0, 0, 117, 126, 0, 144, 153, 0, 0, 180, 189, 0, 0, 216, 0, 0, 243, 252, 0, 0, 0, 64, 82},   /* TIDE */
+    {158, 168, 178, 252, 222, 168, 188, 188, 232, 232, 178, 188, 178, 252, 242, 188, 188, 188, 252, 252, 239, 113, 243, 53, 183, 249, 133, 253, 73, 193, 3, 133, 219, 93},   /* MOTOR */
+    {0, 66, 0, 66, 0, 2, 0, 154, 0, 82, 0, 242, 0, 194, 0, 74, 0, 98, 0, 162, 0, 162, 0, 250, 24, 95, 90, 41, 156, 195, 222, 85, 32, 23},   /* STORM */
+    {31, 223, 159, 95, 63, 255, 191, 127, 95, 31, 223, 191, 32, 33, 34, 35, 32, 33, 34, 35, 32, 41, 34, 44, 40, 32, 42, 49, 49, 33, 35, 53, 33, 33},   /* MESH */
+    {241, 1, 17, 42, 57, 75, 99, 117, 137, 154, 173, 193, 213, 232, 240, 240, 240, 242, 242, 241, 240, 244, 240, 245, 240, 242, 246, 240, 240, 241, 248, 248, 240, 243},   /* DIG */
+    {20, 185, 70, 20, 153, 66, 60, 233, 94, 44, 249, 66, 20, 233, 199, 116, 169, 195, 108, 185, 207, 28, 169, 195, 52, 153, 199, 52, 122, 195, 28, 110, 191, 236},   /* FLIP */
+    {0, 157, 59, 216, 118, 150, 78, 6, 190, 117, 0, 0, 0, 0, 0, 137, 164, 190, 216, 242, 26, 78, 131, 183, 236, 176, 255, 78, 157, 235, 78, 183, 32, 137},   /* SWELL */
+    {0, 216, 176, 217, 204, 56, 16, 232, 152, 139, 0, 0, 68, 95, 122, 0, 0, 203, 230, 0, 0, 0, 82, 109, 0, 0, 0, 217, 244, 0, 0, 69, 96, 123},   /* STAIRS 1 */
+    {0, 154, 148, 184, 188, 222, 220, 0, 0, 148, 148, 188, 252, 254, 254, 0, 0, 250, 250, 252, 252, 254, 254, 113, 0, 37, 190, 78, 224, 107, 246, 124, 0, 121},   /* STAIRS 2 */
+    {0, 11, 0, 0, 44, 0, 0, 77, 88, 0, 110, 121, 0, 143, 154, 0, 0, 187, 0, 0, 220, 0, 0, 253, 0, 38, 60, 0, 104, 126, 0, 170, 0, 0},   /* LADDER */
+    {0, 144, 68, 102, 136, 170, 204, 0, 0, 0, 0, 0, 216, 106, 252, 142, 32, 0, 0, 0, 0, 0, 140, 30, 176, 66, 212, 0, 0, 0, 0, 0, 64, 210},   /* TERRACE */
+    {16, 122, 122, 144, 14, 68, 144, 34, 142, 16, 182, 88, 16, 202, 162, 144, 217, 108, 144, 239, 182, 16, 133, 128, 16, 155, 202, 144, 49, 148, 144, 71, 100, 16},   /* WEAVE */
+    {0, 126, 124, 158, 248, 254, 60, 126, 208, 238, 236, 126, 120, 158, 236, 238, 32, 126, 220, 190, 248, 126, 124, 126, 240, 238, 28, 74, 248, 166, 212, 130, 64, 254},   /* CHIME */
+    {192, 17, 98, 123, 218, 56, 151, 245, 96, 204, 56, 164, 82, 203, 69, 190, 56, 55, 190, 69, 204, 83, 163, 55, 204, 96, 245, 150, 56, 218, 124, 96, 16, 191},   /* SPIRAL */
+    {0, 64, 144, 210, 32, 114, 180, 4, 80, 146, 228, 38, 248, 80, 160, 250, 80, 161, 248, 77, 164, 248, 78, 163, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},   /* COIL */
+    {252, 61, 127, 175, 255, 31, 86, 143, 202, 251, 59, 127, 173, 255, 30, 95, 152, 201, 250, 59, 127, 173, 255, 31, 94, 151, 202, 251, 61, 127, 175, 255, 52, 93},   /* CHAOS */
+    {160, 108, 57, 198, 147, 95, 108, 49, 198, 138, 95, 108, 57, 245, 130, 95, 108, 32, 245, 138, 95, 19, 56, 229, 146, 94, 11, 48, 229, 169, 94, 3, 56, 244},   /* SPARK */
+    {0, 48, 100, 152, 204, 252, 48, 68, 152, 168, 252, 48, 100, 84, 136, 252, 48, 0, 84, 168, 252, 204, 184, 89, 58, 118, 23, 80, 25, 45, 54, 175, 56, 36},   /* FLINT */
+    {128, 225, 96, 210, 68, 177, 38, 164, 24, 144, 10, 137, 4, 128, 0, 128, 0, 2, 0, 0, 5, 2, 3, 0, 9, 2, 3, 0, 12, 12, 14, 0, 2, 17},   /* QUAD */
+    {21, 108, 18, 105, 15, 102, 6, 138, 93, 48, 3, 135, 0, 0, 0, 0, 0, 0, 3, 48, 93, 138, 6, 102, 15, 105, 18, 108, 21, 78, 36, 171, 129, 87},   /* MODULO */
+    {40, 33, 58, 51, 12, 5, 30, 23, 96, 121, 114, 74, 69, 92, 87, 174, 185, 176, 139, 130, 157, 148, 236, 229, 242, 203, 192, 217, 214, 47, 36, 61, 11, 2},   /* XOR */
+    {77, 77, 69, 69, 77, 77, 68, 68, 108, 108, 100, 103, 111, 111, 103, 103, 14, 14, 6, 6, 14, 14, 129, 171, 169, 163, 73, 66, 64, 106, 96, 106, 11, 1},   /* FRACTAL */
+    {0, 132, 70, 70, 132, 40, 234, 234, 40, 236, 174, 174, 236, 208, 146, 146, 208, 227, 104, 227, 104, 131, 16, 131, 16, 67, 216, 67, 216, 35, 192, 35, 192, 30},   /* GLITCH */
+};
+
+/* CIPHER: the firmware's bytes are the search's (docs/superpowers: the bank's script), formula by formula */
+static void cipher_matches_search(void)
+{
+    for (int f = 0; f < CIPHER_N; f++) {
+        q_cipher c;
+        gen_cipher_preset(&c, f);
+        for (uint32_t n = 0; n < 34; n++) {
+            if (gen_cipher_byte(&c, n) != CIPHER_REF[f][n]) { printf("%s n %u\n", CIPHER_DEF[f].name, n); assert(0); }
+        }
+    }
+}
+
+/* the extremes of A, B, C and of t: no shift past 31, no division by 0 (UBSan's shift check and the trap) */
+static void cipher_extremes_safe(void)
+{
+    static const uint8_t X[2] = {0, 15};
+    for (int f = 0; f < CIPHER_N; f++)
+        for (int i = 0; i < 8; i++) {
+            q_cipher c = { (uint8_t)f, X[i & 1], X[i >> 1 & 1], X[i >> 2], 64, 0, 0, 1, 48, 2 };
+            uint32_t sum = 0;
+            for (uint32_t n = 0; n < 300; n++) sum += gen_cipher_byte(&c, n);      /* t 0..299 */
+            c.start = 127; c.speed = 255;
+            for (uint32_t n = 0; n < 4; n++) sum += gen_cipher_byte(&c, n);
+            for (uint32_t n = 16843000u; n < 16843010u; n++) sum += gen_cipher_byte(&c, n);   /* t past 2^32: it wraps */
+            (void)sum;
+        }
+}
+
+/* each formula at its advised values: alive (enough distinct bytes, enough rhythm levels) */
+static void cipher_alive(void)
+{
+    for (int f = 0; f < CIPHER_N; f++) {
+        q_cipher c;
+        gen_cipher_preset(&c, f);
+        int seen[256] = {0}, lv[8] = {0}, d = 0, l = 0;
+        for (uint32_t n = 0; n < 32; n++) { int v = gen_cipher_byte(&c, n); d += !seen[v]++; l += !lv[v >> 5]++; }
+        assert(d >= 6 && l >= 4);
+    }
+}
+
+static q_pattern *cipher_setup(int model)
+{
+    project_defaults(&P);
+    P.sound[0].model = model;
+    q_pattern *pt = &P.pat[0][0];
+    pt->src = SRC_CIPHER;
+    memset(&G, 0, sizeof G);
+    return pt;
+}
+
+/* the byte decides the step: DENS against bits 5-7, the accent bit 4, the note bits 0-3 (a KIT: the pad) */
+static void cipher_decode(void)
+{
+    q_pattern *pt = cipher_setup(8);
+    pt->cipher.dens = 0;
+    for (int k = 0; k < 64; k++) { q_step st; int acc; assert(!played(pt, k, &st, &acc)); }
+    pt = cipher_setup(8);
+    pt->cipher.dens = 127;
+    uint16_t sc = gen_scale(&P);
+    int nsc = __builtin_popcount(sc);
+    for (uint32_t k = 0; k < 64; k++) {
+        q_step st; int acc, v = gen_cipher_byte(&pt->cipher, k % pt->cipher.len);
+        assert(played(pt, (int)k, &st, &acc));
+        assert(st.note[0] == gen_life_note(pt->cipher.note, sc, P.tonic, (v & 15) * pt->cipher.range * nsc / 16));
+        assert(!st.note[1] && st.len == 4 && st.vel == 100 && !!acc == !!(v & 16));
+    }
+    pt = cipher_setup(M_KIT);
+    pt->cipher.dens = 127;
+    for (uint32_t k = 0; k < 32; k++) {
+        q_step st; int acc;
+        played(pt, (int)k, &st, &acc);
+        assert(st.note[0] == KIT_NOTE + (gen_cipher_byte(&pt->cipher, k % pt->cipher.len) & 15));
+    }
+    pt = cipher_setup(8);                     /* DENS in between: the rhythm level against round(DENS x 8 / 127) */
+    pt->cipher.dens = 48;
+    for (uint32_t k = 0; k < 64; k++) {
+        q_step st; int acc;
+        assert(!!played(pt, (int)k, &st, &acc) == ((gen_cipher_byte(&pt->cipher, k % 16) >> 5) < 3));
+    }
+}
+
+/* the loop: LEN 16 comes back on step 17; FREE runs on; gen_loop: LEN, 16 in FREE */
+static void cipher_loop(void)
+{
+    q_pattern *pt = cipher_setup(8);
+    pt->cipher.dens = 127;
+    q_step a, b; int acc;
+    played(pt, 0, &a, &acc);
+    for (int k = 1; k < 16; k++) played(pt, k, &b, &acc);
+    played(pt, 16, &b, &acc);
+    assert(a.note[0] == b.note[0] && G.cipher_n == 1);
+    assert(gen_loop(pt) == 16);
+    pt->cipher.len = 40;
+    assert(gen_loop(pt) == 40);
+    pt = cipher_setup(8);
+    pt->cipher.len = 0;
+    for (int k = 0; k < 64; k++) played(pt, k, &b, &acc);
+    assert(G.cipher_n == 64 && gen_loop(pt) == 16);
+}
+
 int main(void)
 {
+    cipher_matches_search();
+    cipher_extremes_safe();
+    cipher_alive();
+    cipher_decode();
+    cipher_loop();
     marbles_gate_sets_len();
     grids_level_matches_step();
     corner_follows_node();

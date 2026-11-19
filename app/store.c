@@ -123,6 +123,12 @@ static void clamp_project(q_project *p)
                 ob->per[m] = (uint8_t)clampi(ob->per[m], 1, 32); ob->pha[m] = (uint8_t)clampi(ob->pha[m], 0, 31);
                 ob->val[m] = (uint8_t)clampi(ob->val[m], 0, 15);
             }
+            q_cipher *cy = &q->cipher;
+            cy->formula = (uint8_t)clampi(cy->formula, 0, CIPHER_N - 1);
+            cy->a = (uint8_t)clampi(cy->a, 0, 15); cy->b = (uint8_t)clampi(cy->b, 0, 15); cy->c = (uint8_t)clampi(cy->c, 0, 15);
+            cy->dens = (uint8_t)clampi(cy->dens, 0, 127); cy->len = (uint8_t)clampi(cy->len, 0, 64);
+            cy->start = (uint8_t)clampi(cy->start, 0, 127); cy->speed = (uint8_t)clampi(cy->speed, 1, 255);
+            cy->note = (uint8_t)clampi(cy->note, 1, 127); cy->range = (uint8_t)clampi(cy->range, 1, 4);
             q_mimic *mi = &q->mimic;
             mi->n = (uint8_t)clampi(mi->n, 0, MIMIC_EV); mi->order = (uint8_t)clampi(mi->order, 1, 2);
             mi->drift = (uint8_t)clampi(mi->drift, 0, 127); mi->loop = (uint8_t)clampi(mi->loop, 0, 16);

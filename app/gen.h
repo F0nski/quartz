@@ -40,6 +40,7 @@ typedef struct {
     q_tonnetz_run tonnetz;                    /* TONNETZ */
     uint32_t orbits_n;                        /* ORBITS: the steps played since the reset */
     q_mimic_run mimic;                        /* MIMIC */
+    uint32_t cipher_n;                        /* CIPHER: the step in the loop (back to 0 at LEN; FREE: on and on) */
 } q_gen;
 
 extern const uint16_t SCALE_MASK[11];   /* bit n: n semitones above the tonic; CHROM..MIN PENTA, the order of ui.c MODE_NAME */
@@ -71,6 +72,12 @@ q_tz gen_tz_move(q_tz s, int op);
 void gen_tz_pcs(q_tz s, int base, uint8_t pcs[3]);
 q_tz gen_tz_step(q_tz s, int op, int in_scale, uint16_t scale, int base);
 void gen_tz_start(const q_project *p, const q_tonnetz *t, q_tz *s, int *base);
+#define CIPHER_N 32
+/* CIPHER's bank (spec 2026-11-19-quartz-cipher-design): a formula's name and its advised A, B, C, START and SPEED */
+typedef struct { const char *name; uint8_t a, b, c, start, speed; } q_cipher_def;
+extern const q_cipher_def CIPHER_DEF[CIPHER_N];
+uint8_t gen_cipher_byte(const q_cipher *c, uint32_t n);    /* the byte of step n: the formula of t = start x 256 + n x speed, & 255 */
+void gen_cipher_preset(q_cipher *c, int formula);         /* formula and its advised A, B, C, START, SPEED; the rest kept */
 int gen_mimic_gap(uint32_t ms, uint32_t step_ms, int lo);   /* MIMIC: ms in steps, rounded, lo..7 */
 void gen_mimic_learn(q_mimic *m, int note, int gap);        /* the last event's gap := gap; note appended (gap 1); the oldest out past MIMIC_EV */
 int gen_life_rows(const q_life *l, int kit, const uint16_t grid[LIFE_H], int col, uint8_t rows[4]);
