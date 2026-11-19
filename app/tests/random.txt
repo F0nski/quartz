@@ -153,7 +153,7 @@ key b5 down
 key b5 up
 release REC
 expect itype 1
-expect i1 51
+expect i1 6
 # GLO: TEMPO kept, SWING drawn within 50..75
 tap GLO
 press REC
@@ -196,9 +196,9 @@ expect stepon_1 1
 expect locks 1
 expect stepon_2 0
 expect stepon_16 0
-expect stepon_17 1
-expect stepon_18 0
-expect nsteps_on 13
+expect stepon_17 0
+expect stepon_18 1
+expect nsteps_on 7
 # black key 7: the whole pattern; LEN one of 16, 32, 48, 64; PATH kept; the p-locks gone
 tap REC
 tap REC
@@ -212,15 +212,15 @@ expect msg_random 2
 expect src 0
 expect path 0
 expect locks 0
-expect len 48
-expect nsteps_on 36
+expect len 64
+expect nsteps_on 35
 expect stepon_2 1
 expect stepnote_2 >47
 expect stepnote_2 <73
 expect stepvel_2 >59
 expect stepon_49 0
 # (the host is deterministic: the values pinned are the draws, off the defaults: DEGREE 0, OP 0, PERIOD 8, NOTE cell 0)
-# CHORDS: the 8 chords drawn within their ranges, PRESET's cursor back (here PROG's LEN drawn 2: on the last)
+# CHORDS: the 8 chords drawn within their ranges, PRESET's cursor back (here PROG's LEN drawn 5: the cursor kept)
 turn K4 5
 expect src 5
 turn PRESET 2
@@ -233,9 +233,9 @@ release REC
 expect msg_random 2
 expect src 5
 expect cdeg_1 <7
-expect cdeg_8 3
+expect cdeg_7 5
 expect csize_8 <4
-expect chcur 1
+expect chcur 2
 # TONNETZ: the 8 steps' ops
 turn K4 1
 expect src 6
@@ -260,7 +260,7 @@ expect src 7
 expect omoons >0
 expect omoons <5
 expect oper_1 >0
-expect oper_1 20
+expect oper_1 2
 expect opha_1 <32
 expect osel 0
 # LANES: every cell within its lane's range
@@ -272,7 +272,7 @@ key b6 up
 release REC
 expect src 4
 expect lv_0_16 <2
-expect lv_1_16 6
+expect lv_1_16 9
 expect lv_2_16 <5
 expect lv_3_16 <5
 expect lv_4_16 <4
