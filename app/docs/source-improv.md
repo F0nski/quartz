@@ -55,3 +55,7 @@ PRESET draws again: another improvisation from the same phrase, at once.
 
 **Inspired by** the [Continuator](https://www.francoispachet.fr/?p=4360) by François Pachet (Sony CSL, 2003), which
 learns a musician's phrases as they play and answers in their style. IMPROV learns one phrase, with ORDER 1 or 2.
+
+---
+
+[← MOONS](source-moons.html)

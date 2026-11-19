@@ -85,3 +85,7 @@ hops in and MORPH the blocks' width.
 
 **Inspired by** [Plaits](https://pichenettes.github.io/mutable-instruments-documentation/modules/plaits/manual/) by
 Mutable Instruments, whose chords, string machine and chiptune models these are.
+
+---
+
+[← Spectral](synth-spectral.html) · [Voice →](synth-voice.html)

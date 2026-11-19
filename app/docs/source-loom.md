@@ -66,3 +66,7 @@ PRESET picks the lane you edit; the scene shows it big.
 **Inspired by** [Kria](https://monome.org/docs/ansible/kria/) by monome (for Ansible and the grid): a step sequencer
 whose trigger, note, octave and duration have loops of their own lengths. LOOM adds a velocity lane, and its lanes are
 always independent.
+
+---
+
+[← COLONY](source-colony.html) · [CADENCE →](source-cadence.html)

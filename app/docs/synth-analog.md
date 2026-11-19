@@ -98,3 +98,7 @@ speciality.
 
 **Inspired by** [Plaits](https://pichenettes.github.io/mutable-instruments-documentation/modules/plaits/manual/) by
 Mutable Instruments, whose virtual analog, VA with filter, phase distortion and waveshaper models these are.
+
+---
+
+[FM →](synth-fm.html)

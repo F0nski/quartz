@@ -58,3 +58,7 @@ tube-like and nasal tones.
 
 **Inspired by** [Plaits](https://pichenettes.github.io/mutable-instruments-documentation/modules/plaits/manual/) by
 Mutable Instruments, whose additive and granular formant models these are.
+
+---
+
+[← Tables](synth-tables.html) · [Chords →](synth-chords.html)

@@ -233,7 +233,7 @@ browses the models from any EDIT page.
 | ENGINE | HARM, 0–127 | TIMB, 0–127 | MORPH, 0–127 | DECAY, 0–127 |
 | SOUND | MODEL, by name, by family | TUNE, −24 to +24 semitones | GLIDE, 0–127 | POLY, 1–4 voices |
 
-- **HARM, TIMB, MORPH** do something different on each model: the table below says what.
+- **HARM, TIMB, MORPH** do something different on each model: each family's page says what (Models, below).
 - Where HARM picks one of a few choices (a preset on HEX A–C, a chord on CHORALE, ENSEMBLE and ARCADE, a word bank on
   ORATOR past its blend of synths, from 43), each detent moves to the next choice and the footer shows its name; so
   does TIMB on ARCADE (its arpeggio).
@@ -256,61 +256,22 @@ The models are Plaits' 24 synthesis models under QUARTZ's own names, sorted by f
 the order of the table. Each family has its own scene. At their default settings, the models and the kit's three
 drums play at about the same loudness: QUARTZ evens out Plaits' own levels, which differ by up to 20 dB.
 
-| Family | Name | Sound | HARM | TIMB | MORPH | Plaits model |
-| --- | --- | --- | --- | --- | --- | --- |
-| Analog | CREST | Two classic analog waveforms | Detune | Pulse to sync | Triangle to saw | Virtual analog |
-|  | SWEEP | Classic waves through a resonant filter | Resonance and filter slope | Cutoff | Waveform and sub | Virtual analog with VCF (1.2) |
-|  | KINK | Phase distortion | Distortion frequency | Amount | Asymmetry | Phase distortion (1.2) |
-|  | PRISM | A triangle shaped and folded | Waveshape | Fold | Asymmetry | Waveshaper |
-| FM | MOON | Two sine operators | Ratio | Modulation index | Feedback | 2-operator FM |
-|  | HEX A | 6-operator FM, basses and synths | Preset, 1 of 32, by name | Modulator levels | Envelope stretch | 6-op FM, bank 1 (1.2) |
-|  | HEX B | 6-operator FM, keys, plucks, percussion | Preset, by name | Modulator levels | Envelope stretch | 6-op FM, bank 2 (1.2) |
-|  | HEX C | 6-operator FM, organs, pads, strings, brass | Preset, by name | Modulator levels | Envelope stretch | 6-op FM, bank 3 (1.2) |
-| Tables | PIPE | Wavetables, 4 banks of 8 x 8 | Bank | Row | Column | Wavetable |
-|  | BOWL | A path read on a 2D terrain | Terrain | Path radius | Path offset | Wave terrain (1.2) |
-| Spectral | FACETS | Harmonics added up | Spectral bumps | Main harmonic | Bump shape | Additive |
-|  | POLLEN | Formants from sine segments | Formant ratio | Formant frequency | Width and shape | Granular formant |
-| Chords | CHORALE | Four-note chords | Chord, 1 of 11: OCTAVE, FIFTH, SUS4, m, m7, m9, m11, 6/9, M9, M7, M | Inversion | Waveform | Chords |
-|  | ENSEMBLE | String machine with filter and chorus | Chord, as CHORALE | Chorus and filter | Waveform | String machine (1.2) |
-|  | ARCADE | Square-wave chords and arpeggios | Chord, as CHORALE | Arpeggio: UP, DOWN, UP-DN or RAND over 1, 2 or 4 octaves | Pulse width, sync | Chiptune (1.2) |
-| Voice | ORATOR | Vowels and words | FORMANT, SAM and LPC blended (0–42), then PHONEMES, WORDS 1–5 | Voice size | Phoneme or word | Speech |
-| Noise | CROWD | Eight sawtooths in a swarm | Pitch spread | Density | Grain duration | Swarm |
-|  | STATIC | Clocked noise through a filter | Low-pass to high-pass | Clock | Resonance | Filtered noise |
-|  | GLITTER | Dust through resonators | Frequency spread | Density | Filter type | Particle noise |
-| Physical | WIRE | A plucked string | Inharmonicity | Brightness | Decay | Inharmonic string |
-|  | CHLADNI | A struck resonant body | Material | Brightness | Decay | Modal resonator |
-| Drums | BASS DRUM | Analog bass drum | Attack and drive | Brightness | Decay | Bass drum |
-|  | SNARE | Analog snare | Tone to noise | Drum modes | Decay | Snare drum |
-|  | HI-HAT | Analog hi-hat | Metal to noise | High-pass | Decay | Hi-hat |
-|  | KIT | 16 drum pads (below) | — | — | — | — |
+Each family has a page of its own: what each model sounds like, what HARM, TIMB and MORPH do at their ends, where to
+start and a few recipes.
+
+| Family | Models | Sound |
+| --- | --- | --- |
+| [Analog](synth-analog.html) | CREST, SWEEP, KINK, PRISM | Classic waves, a resonant filter, phase distortion, a folded triangle |
+| [FM](synth-fm.html) | MOON, HEX A, HEX B, HEX C | Two-operator FM; six-operator FM with 96 presets |
+| [Tables](synth-tables.html) | PIPE, BOWL | Wavetables and a wave terrain |
+| [Spectral](synth-spectral.html) | FACETS, POLLEN | Harmonics added up; formants |
+| [Chords](synth-chords.html) | CHORALE, ENSEMBLE, ARCADE | Four-note chords, a string machine, chip arpeggios |
+| [Voice](synth-voice.html) | ORATOR | Vowels and words |
+| [Noise](synth-noise.html) | CROWD, STATIC, GLITTER | A swarm of saws, filtered noise, dust |
+| [Physical](synth-physical.html) | WIRE, CHLADNI | A plucked string, a struck body |
+| [Drums](synth-drums.html) | BASS DRUM, SNARE, HI-HAT, KIT | Analog drums, and the kit of 16 pads |
 
 On the drums, HEX A–C, WIRE and CHLADNI, the model makes its own envelope: ENV's ADSR then shapes only the filter.
-
-The scenes, by family:
-
-| Models | Scene |
-| --- | --- |
-| SWEEP, KINK, CREST, PRISM | A ship flies over crests that carry the waveform and fires at the next crest on each note. |
-| HEX A–C, MOON | A cut planet with a ring; ships in orbit fire at it on each note, and MORPH tilts the ring. |
-| BOWL, PIPE | A rider in a neon bowl (BOWL) or a half-pipe whose walls carry the wave (PIPE). |
-| ENSEMBLE, CHORALE | A choir of androids, one per voice, on steps as high as their notes. |
-| ARCADE | A cube robot hops from block to block, one block per note of the chord. |
-| POLLEN, FACETS | A garden of crystal flowers, one per harmonic. |
-| ORATOR | A low-poly head that speaks. |
-| CROWD, STATIC, GLITTER | A neon dancefloor whose tiles the grains light. |
-| WIRE | An acrobat on a laser rope that rings under each hop. |
-| CHLADNI | A Chladni figure of the body's modes. |
-| BASS DRUM, SNARE, HI-HAT, KIT | The kit's three drums, struck as they play. |
-
-![HEX A: a planet with a ring, ships around it](img/sound-hex.png "HEX A")
-
-![CHLADNI: a faceted figure in green and blue](img/sound-chladni.png "CHLADNI")
-
-![ORATOR: a low-poly head](img/sound-orator.png "ORATOR")
-
-![CHORALE: a choir of androids; HARM shows the chord m9](img/sound-chorale.png "CHORALE")
-
-![BOWL: a rider in a wire bowl](img/sound-bowl.png "BOWL")
 
 **Inspired by** [Plaits](https://pichenettes.github.io/mutable-instruments-documentation/modules/plaits/manual/)
 by Mutable Instruments (Emilie Gillet), with the eight models of its
@@ -322,30 +283,8 @@ and scene come from [Chladni figures](https://en.wikipedia.org/wiki/Ernst_Chladn
 
 ### KIT
 
-KIT turns the track into 16 drum pads on the white keys. Each pad is one of Plaits' three drums (BD, SN or HH) with
-its own tuning and settings, and a kit plays up to three pads at once. With KIT, EDIT has two pages:
-
-| Page | K1 | K2 | K3 | K4 |
-| --- | --- | --- | --- | --- |
-| PAD | TUNE, −24 to +24 | HARM, 0–127 | TIMB, 0–127 | DECAY, 0–127 |
-| KIT | MODEL, by name | ENGINE, BD SN HH | LEVEL, 0–127 | CHAR, 0–127 |
-
-The knobs set the last pad played, named in the header (`PAD 1`). In EDIT, hold a pad: K1–K4 set that pad and PRESET
-changes its engine. KIT's scene is the 16 pads, each with its engine, the one the knobs set lit, and a bar under each
-pad that shows its CHAR.
-
-CHAR mixes the two sounds each drum engine makes: 0 the analog one, 127 a synthetic take on the same drum (on HH, a
-ring-modulated noise instead of metallic squares), between them a blend.
-
-| Pad | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Default | Bass drum | Snare | Closed hat | Open hat | Rim | Clap | Low tom | Mid tom |
-| **Pad** | **9** | **10** | **11** | **12** | **13** | **14** | **15** | **16** |
-| Default | High tom | Synth bass drum | Synth snare | Synth hat | Conga | Cowbell | Shaker | Ride |
-
-![The PAD page: the kit's BD, SN and HH, TUNE -12, HARM 72, TIMB 50, DECAY 70](img/sound-pad.png "PAD, pad 1")
-
-![The KIT page: the 16 pads with their engines, pad 1 lit, a CHAR bar under pads 10–12](img/sound-kit.png "KIT")
+KIT turns the track into 16 drum pads on the white keys, each one of the three drums with its own tuning and
+settings. Its pages, its pads and CHAR are on the [Drums](synth-drums.html#kit) page.
 
 ---
 
@@ -741,17 +680,20 @@ Each pattern has a source: where its notes come from. SOURCE is always K4 of SEQ
 the same knob whatever the source. A pattern keeps its steps and the settings of every source, so you can go back.
 A scene can switch a track from one source to another, since each pattern has its own.
 
+Each source has a page of its own: what each knob does at its ends, its scene, PRESET, what it does on a kit and a
+few recipes.
+
 | Source | In a word |
 | --- | --- |
 | STEP | The step sequencer (section 8). |
-| ATLAS | A map of drum rhythms. |
-| FLEET | Random rhythms and melodies, which can loop. |
-| COLONY | The Game of Life, read as notes. |
-| LOOM | Five loops of different lengths: trigger, note, octave, length, velocity. |
-| CADENCE | A chord progression. |
-| LATTICE | A walk from chord to chord on the Tonnetz. |
-| MOONS | Moons on orbits, each playing as it passes. |
-| IMPROV | An improviser that learns a phrase from you. |
+| [ATLAS](source-atlas.html) | A map of drum rhythms. |
+| [FLEET](source-fleet.html) | Random rhythms and melodies, which can loop. |
+| [COLONY](source-colony.html) | The Game of Life, read as notes. |
+| [LOOM](source-loom.html) | Five loops of different lengths: trigger, note, octave, length, velocity. |
+| [CADENCE](source-cadence.html) | A chord progression. |
+| [LATTICE](source-lattice.html) | A walk from chord to chord on the Tonnetz. |
+| [MOONS](source-moons.html) | Moons on orbits, each playing as it passes. |
+| [IMPROV](source-improv.html) | An improviser that learns a phrase from you. |
 
 What the generative sources (all but STEP) share:
 
@@ -760,7 +702,7 @@ What the generative sources (all but STEP) share:
 - A loop is 16 steps (ATLAS 32, FLEET its LEN): a pattern change waits for its end, and a song entry counts it.
 - Without REC, the keys play the track. REC writes nothing in them, except LOOM, CADENCE and LATTICE, which have a
   GRID of their own, and IMPROV, which listens.
-- PRESET always does something useful for the source: each subsection says what.
+- PRESET always does something useful for the source: each source's page says what.
 - On a synth track, setting SOURCE to CADENCE, LATTICE, MOONS or IMPROV raises POLY to 3 if it is lower, so their
   chords sound.
 - COLONY, LOOM, CADENCE, LATTICE and MOONS count in degrees of GLO's scale, up from their NOTE brought into the
@@ -770,235 +712,6 @@ What the generative sources (all but STEP) share:
 
 The pattern you write yourself: see section 8. PRESET picks the pattern; on a held step, it sets the step's function.
 
-### ATLAS
-
-A map of 25 drum rhythms of 32 steps, each with three parts (bass drum, snare, hi-hat). X and Y pick a place on the
-map, between the rhythms, and each part's density thins it out or fills it in.
-
-| Page | K1 | K2 | K3 | K4 |
-| --- | --- | --- | --- | --- |
-| ATLAS | DIV | VOICE, 1–3 | NOTE (a kit: PAD) | SOURCE |
-| MAP | X, 0–127 | Y, 0–127 | CHAOS, 0–127 | — |
-| DENS | DENS 1 | DENS 2 | DENS 3 | — |
-
-- On a synth track, only the part VOICE plays, at the note NOTE.
-- On a kit, the three parts play, each on its own pad: VOICE picks a part and PAD the pad it plays (BD, SN, HH, P4 to
-  P16; pads 1, 2 and 3 in a new pattern). Two parts on the same pad play it once.
-- CHAOS shakes the densities at the start of each loop: rolls and ghost notes come and go.
-- Accented hits play at full velocity.
-- **PRESET** steps through the 25 rhythms of the map, setting X and Y on them.
-
-![ATLAS: the parts' hits as piles of blocks on a plateau, the step playing in pink](img/source-atlas.png "ATLAS")
-
-![ATLAS on a kit: VOICE 2, the snare part, plays pad 7](img/source-atlas-kit.png "ATLAS on a kit")
-
-**Inspired by** [Grids](https://pichenettes.github.io/mutable-instruments-documentation/modules/grids/manual/) by
-Mutable Instruments: QUARTZ runs Grids' drum map and its pattern generator. Grids' Euclidean mode and its own clock
-are not there.
-
-### FLEET
-
-Random rhythms and random notes, which DEJA VU turns into loops. The T section decides when notes play, the X
-section which notes.
-
-| Page | K1 | K2 | K3 | K4 |
-| --- | --- | --- | --- | --- |
-| FLEET | DIV | T OUT, 1–3 | LEN, 1–16 | SOURCE |
-| T | MODE | BIAS | JITTER | DEJA VU |
-| X | SPREAD | X BIAS | STEPS | GATE, 1/8 to 4 steps |
-| NOTES | NOTE | RANGE, 1–4 octaves | — | — |
-
-- **T**: each step, t2 plays and t1 and t3 are drawn by MODE: C.BERN (one or the other, a coin toss), CLUSTERS,
-  DRUMS (patterns like a kick and a snare), I.BERN (each its own coin), DIVIDER, 3 STATES, MARKOV. BIAS leans towards
-  t1 or t3; JITTER shifts the notes in time, up to almost half a step.
-- **X**: each note is drawn between NOTE and RANGE octaves above it. SPREAD sets how widely, X BIAS leans low or
-  high, and STEPS keeps only the strongest notes of the scale as it goes up (the tonic, then the fifth, the third…).
-- **GATE** is how long each note lasts, in steps (1/2 by default). Past one step, the notes overlap: they ring
-  together up to POLY; with POLY 1, each note cuts the one before. A ratcheted note stays within one step. In the
-  scene, the crystal a note hits stays lit for as long as the note lasts.
-- **DEJA VU**: at 0, every draw is new. Towards the middle, the draws repeat as a loop of LEN steps; above, the loop
-  is played in a shuffled order.
-- **NOTES** page: the keys switch the notes FLEET may play on and off, in any octave; the scene shows the 12 notes.
-  By default they are the project's scale.
-- On a kit, t1, t2 and t3 play pads 1, 2 and 3. On a synth track, only the output T OUT plays.
-- GLO's KEYS at ALL makes the white keys play the allowed notes on FLEET tracks.
-- **PRESET** draws new loops, at once.
-
-![FLEET: a squadron of ships over crystals named C to B, LEN 8](img/source-fleet.png "FLEET")
-
-![FLEET's T page: MODE C.BERN, BIAS 64, JITTER 0, DEJA VU 0](img/source-fleet-t.png "T")
-
-![FLEET's X page: SPREAD, X BIAS, STEPS and GATE 1/2](img/source-fleet-x.png "X")
-
-![FLEET's NOTES page: the 12 notes as keys, the seven of C major lit](img/source-fleet-notes.png "NOTES")
-
-**Inspired by** [Marbles](https://pichenettes.github.io/mutable-instruments-documentation/modules/marbles/manual/)
-by Mutable Instruments: QUARTZ runs Marbles' t models, its X draws and its DEJA VU, one step at a time. LEN is the
-loop's length here, 1–16; the X outputs play one at a time, and Marbles' ramps and external clock are not there.
-
-### COLONY
-
-A grid of 16 x 8 cells living by the Game of Life. A head reads one column a step, from left to right; the living
-cells of the column play, from the bottom up. Every few loops, the grid moves on by a generation.
-
-| Page | K1 | K2 | K3 | K4 |
-| --- | --- | --- | --- | --- |
-| COLONY | DIV | POLY, 1–4 | NOTE (a kit: MAP) | SOURCE |
-| SEED | SEED, 0–127 | DENS, 0–127 | AUTO, OFF ON | — |
-| EVOL | GEN, 1 2 4 8 | MUT, 0–127 | — | — |
-
-- A row is a degree of the scale above NOTE; on a kit, MAP PADS plays pad 1–8 by row, and MAP BANDS plays pads 1, 2
-  and 3 for the bottom, middle and top rows. POLY is how many cells of a column play, at most (three on a kit).
-  On a kit, a row takes the colour of its pad's engine: BD orange, SN green, HH white.
-- **SEED** and DENS make the grid you start from: the same pair always gives the same grid. Turning either sows a new
-  grid at the next loop. STOP then PLAY starts again from it.
-- **GEN** is how many loops between two generations; **MUT** adds random cells at each one.
-- A grid that dies or freezes, with MUT at 0: AUTO ON sows a new one; OFF leaves it. With DENS at 0 the grid stays
-  empty, AUTO or not.
-- Cells born at the last generation play accented.
-- **PRESET** turns SEED: a new grid at the next loop.
-
-![COLONY: atoms bonded to their neighbours, rows named C3 to C4, the head reading a column](img/source-colony.png "COLONY")
-
-**Inspired by** [Conway's Game of Life](https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life) (John Horton Conway,
-1970): a cell is born with three living neighbours and lives on with two or three.
-
-### LOOM
-
-Five lanes, TRIG, NOTE, OCT, DUR and VEL, each a loop of 1 to 16 cells with its own length. All the heads move one
-cell a step; with different lengths they drift apart, and the melody takes a long time to come back.
-
-| Page | K1 | K2 | K3 | K4 |
-| --- | --- | --- | --- | --- |
-| LOOM | DIV | NOTE | TRIG LEN, 1–16 | SOURCE |
-| LENS | NOTE LEN | OCT LEN | DUR LEN | VEL LEN |
-
-| Lane | Values | What a cell does |
-| --- | --- | --- |
-| TRIG | off, on | A note plays or not. |
-| NOTE | 0–15 | Degrees of the scale above NOTE; on a kit, the pad 1–16. |
-| OCT | 0–4 | −2 to +2 octaves (not on a kit). |
-| DUR | 0–4 | ¼, ½, 1, 2 or 4 steps. |
-| VEL | 0–3 | Velocity 40, 70, 100, or 100 accented. |
-
-- **PRESET** picks the lane you edit; the scene shows it big, the five lanes small above.
-- **GRID**: in SEQ, REC once. The white keys are the edited lane's cells: a short press switches a TRIG on or off, or
-  raises another lane's value by one (back to 0 after the top). Hold a cell and turn K1 to set it; hold a NOTE cell
-  and press another key to write that note. Hold a cell 0.4 s for its help.
-- The keys light the cells set, and the lane's head.
-
-![LOOM: the five lanes small on top, TRIG big below with LEN 7](img/source-loom.png "LOOM")
-
-![LOOM in GRID: GRID in the header, the TRIG lane's cells on the white keys](img/source-loom-grid.png "LOOM, on the grid")
-
-**Inspired by** [Kria](https://monome.org/docs/ansible/kria/) by monome (for Ansible and the grid): a step sequencer
-whose trigger, note, octave and duration have loops of their own lengths. LOOM adds a velocity lane, and its lanes are
-always independent.
-
-### CADENCE
-
-A progression of 1 to 8 chords, one a bar (16 steps), in degrees of the project's scale. Major, minor or diminished
-come from the scale. A new pattern plays I – vi – IV – V.
-
-| Page | K1 | K2 | K3 | K4 |
-| --- | --- | --- | --- | --- |
-| CADENCE | DIV | NOTE | RATE: 1/BAR to 16/BAR | SOURCE |
-| PROG | LEN, 1–8 | STRUM, 0–7 | VOICE: ROOT, SMOOTH | — |
-| CHORD | DEGREE: I–VII | SIZE: TRIAD, SEVENTH, SUS2, SUS4 | — | — |
-
-- RATE is how many times the chord is struck in a bar; each strike lasts until the next, and the first of the bar is
-  accented.
-- STRUM spreads the notes from the lowest up, by 24ths of a step; 0 plays them together.
-- VOICE ROOT plays each chord in root position on NOTE. SMOOTH picks the inversion closest to the chord before, never
-  far from the root position.
-- The chord plays as many notes as POLY: the root, the third, the seventh, then the fifth.
-- **PRESET** moves a cursor along the chords; the CHORD page sets the one under it, and the scene shows it.
-- **GRID**: in SEQ, REC once. White keys 1–8 are the chords: a short press gives the next size; hold one and press a
-  note of the scale to give it that degree, or turn K1 (degree) and K2 (size).
-- On a kit, CADENCE plays nothing.
-
-![CADENCE: the seven degrees on a heptagon, Am as a pink polygon, the keys struck below](img/source-cadence.png "CADENCE")
-
-CADENCE is QUARTZ's own.
-
-### LATTICE
-
-A chord a bar, which moves on the Tonnetz: each step of a sequence of up to 8 transforms the chord by P, L or R, and
-each keeps two of its three notes, so the chords always flow.
-
-| Page | K1 | K2 | K3 | K4 |
-| --- | --- | --- | --- | --- |
-| LATTICE | DIV | NOTE | RATE: 1/BAR to 16/BAR | SOURCE |
-| WALK | LEN, 1–8 | CHAOS, 0–127 | SCALE: FREE, IN SCALE | RETURN: OFF, ON |
-| PLAY | STRUM, 0–7 | VOICE: ROOT, SMOOTH | — | — |
-| STEP | OP: –, P, L, R | — | — | — |
-
-- **P** (parallel) swaps major and minor on the same root: C ↔ Cm. **L** (leading tone) moves the root by a
-  semitone: C ↔ Em. **R** (relative): C ↔ Am. **–** keeps the chord.
-- It starts on the triad of the scale on NOTE. RETURN ON goes back to it after the sequence, so the walk loops; OFF
-  walks on.
-- CHAOS is the chance that a step uses another transformation than the one written.
-- IN SCALE keeps every chord in GLO's scale, trying the other transformations; FREE lets the walk leave it.
-- RATE, STRUM and VOICE play the chord as in CADENCE.
-- **PRESET** moves a cursor along the steps; the STEP page sets the one under it.
-- **GRID**: in SEQ, REC once. White keys 1–8 are the steps: a short press gives the next one (–, P, L, R); hold one
-  and press black key 1–4 for P, L, R or –, or turn K1.
-- On a kit, LATTICE plays nothing.
-
-![LATTICE: the lattice of notes, F major as a pink triangle, the steps R L R L on top](img/source-lattice.png "LATTICE")
-
-**Inspired by** the [Tonnetz](https://en.wikipedia.org/wiki/Tonnetz) (Leonhard Euler, 1739) and the
-[neo-Riemannian](https://en.wikipedia.org/wiki/Neo-Riemannian_theory) transformations P, L and R (David Lewin,
-Richard Cohn).
-
-### MOONS
-
-One to four moons on orbits around a planet. Each moon goes round in PERIOD steps and plays its note each time it
-passes the top. Moons with different periods meet now and then: those meetings play accented.
-
-| Page | K1 | K2 | K3 | K4 |
-| --- | --- | --- | --- | --- |
-| MOONS | DIV | NOTE | MOONS, 1–4 | SOURCE |
-| MOON | PERIOD, 1–32 | PHASE, 0–31 | NOTE, degree 0–15 (a kit: PAD 1–16) | — |
-
-- A moon's note is degrees of the scale above NOTE; on a kit, its pad.
-- PHASE shifts the moon along its orbit, so two moons with the same period can play one after the other.
-- A new pattern has three moons, periods 8, 6 and 5, playing C, E and G: they meet again every 120 steps.
-- The white keys 1–4 light as their moon passes.
-- **PRESET** picks the moon the MOON page sets; the scene frames it.
-
-![MOONS: three moons on round orbits around a faceted planet, their notes C3 E3 G3](img/source-moons.png "MOONS")
-
-MOONS is QUARTZ's own. Orbit sequencers such as [Aphelian](https://apps.apple.com/app/aphelian/id1435855056) play
-with the same image.
-
-### IMPROV
-
-You play a phrase, IMPROV improvises on it: it picks a place in the phrase where the last notes it played appear, and
-goes on from there. The result sounds like your phrase, rearranged.
-
-| Page | K1 | K2 | K3 | K4 |
-| --- | --- | --- | --- | --- |
-| IMPROV | DIV | ORDER, 1–2 | DRIFT, 0–127 | SOURCE |
-| LOOP | LOOP: FREE, 1–16 | — | — | — |
-
-- **LISTEN**: in SEQ, press REC once. IMPROV goes quiet, the header shows `LISTEN`, and every note you play is learnt,
-  with the time until the next one (up to 7 steps; notes played together make a chord). The first note clears the old
-  phrase; the phrase keeps the last 32 notes. Press REC again to stop: the time since the last note becomes its gap.
-  Changing pattern, track, source or domain stops LISTEN too.
-- **ORDER** 1 matches the last note played, 2 the last two (more like the phrase).
-- **DRIFT** is the chance of jumping anywhere in the phrase instead.
-- **LOOP** 1–16 starts the improvisation again every LOOP steps, the same way each time: a riff. FREE never repeats.
-- The white keys 1–8 show where in the phrase IMPROV is reading, in eighths; in LISTEN, how full the phrase is.
-- A new pattern has no phrase: IMPROV stays silent and the screen says `REC TO TEACH`.
-- **PRESET** draws again: another improvisation from the same phrase, at once.
-
-![IMPROV: the phrase above (YOU) in four coloured quarters, the improvisation below (IMPROV) scrolling from the NOW line](img/source-mimic.png "IMPROV")
-
-![IMPROV in LISTEN: 2 NOTES learnt, F3 and A3](img/source-mimic-listen.png "LISTEN")
-
-**Inspired by** the [Continuator](https://www.francoispachet.fr/?p=4360) by François Pachet (Sony CSL, 2003), which
-learns a musician's phrases as they play and answers in their style. IMPROV learns one phrase, with ORDER 1 or 2.
 
 ---
 

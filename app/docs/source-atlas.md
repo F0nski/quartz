@@ -56,3 +56,7 @@ fine-tuning between two rhythms with X and Y.
 **Inspired by** [Grids](https://pichenettes.github.io/mutable-instruments-documentation/modules/grids/manual/) by
 Mutable Instruments: QUARTZ runs Grids' drum map and its pattern generator. Grids' Euclidean mode and its own clock
 are not there.
+
+---
+
+[FLEET →](source-fleet.html)

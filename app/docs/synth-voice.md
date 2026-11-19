@@ -40,3 +40,7 @@ phoneme; DECAY sets how long its syllables show.
 
 **Inspired by** [Plaits](https://pichenettes.github.io/mutable-instruments-documentation/modules/plaits/manual/) by
 Mutable Instruments, whose speech model this is.
+
+---
+
+[← Chords](synth-chords.html) · [Noise →](synth-noise.html)

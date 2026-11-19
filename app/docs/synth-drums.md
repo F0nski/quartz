@@ -88,3 +88,7 @@ ring-modulated noise instead of metallic squares), between them a blend.
 **Inspired by** [Plaits](https://pichenettes.github.io/mutable-instruments-documentation/modules/plaits/manual/) by
 Mutable Instruments, whose analog bass drum, snare and hi-hat models these are; CHAR mixes in the synthetic version
 each one makes on Plaits' second output.
+
+---
+
+[← Physical](synth-physical.html)

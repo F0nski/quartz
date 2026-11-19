@@ -60,3 +60,7 @@ MORPH where it sits. A small circle is close to a sine; a large one crosses more
 
 **Inspired by** [Plaits](https://pichenettes.github.io/mutable-instruments-documentation/modules/plaits/manual/) by
 Mutable Instruments, whose wavetable and wave terrain models these are.
+
+---
+
+[← FM](synth-fm.html) · [Spectral →](synth-spectral.html)

@@ -67,3 +67,7 @@ The presets of each bank:
 **Inspired by** [Plaits](https://pichenettes.github.io/mutable-instruments-documentation/modules/plaits/manual/) by
 Mutable Instruments, whose two-operator FM and six-operator FM models these are; the presets come from the classic
 six-operator banks Plaits ships.
+
+---
+
+[← Analog](synth-analog.html) · [Tables →](synth-tables.html)

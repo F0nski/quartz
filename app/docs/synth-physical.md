@@ -58,3 +58,7 @@ metal.
 **Inspired by** [Plaits](https://pichenettes.github.io/mutable-instruments-documentation/modules/plaits/manual/) by
 Mutable Instruments, whose inharmonic string and modal resonator models these are; CHLADNI's scene after
 [Chladni figures](https://en.wikipedia.org/wiki/Ernst_Chladni#Chladni_figures).
+
+---
+
+[← Noise](synth-noise.html) · [Drums →](synth-drums.html)

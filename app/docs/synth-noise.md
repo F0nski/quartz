@@ -75,3 +75,7 @@ risers.
 
 **Inspired by** [Plaits](https://pichenettes.github.io/mutable-instruments-documentation/modules/plaits/manual/) by
 Mutable Instruments, whose swarm, filtered noise and particle noise models these are.
+
+---
+
+[← Voice](synth-voice.html) · [Physical →](synth-physical.html)

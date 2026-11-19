@@ -75,3 +75,7 @@ PRESET draws new loops at once: with DEJA VU in the middle, turn it until a loop
 **Inspired by** [Marbles](https://pichenettes.github.io/mutable-instruments-documentation/modules/marbles/manual/)
 by Mutable Instruments: QUARTZ runs Marbles' t models, its X draws and its DEJA VU, one step at a time. LEN is the
 loop's length here, 1–16; the X outputs play one at a time, and Marbles' ramps and external clock are not there.
+
+---
+
+[← ATLAS](source-atlas.html) · [COLONY →](source-colony.html)

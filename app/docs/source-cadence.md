@@ -56,3 +56,7 @@ PRESET moves a cursor along the chords; the CHORD page sets the one under it, an
 | A darker progression | Chords vi – IV – I – V: the same chords, starting on the minor |
 
 CADENCE is QUARTZ's own.
+
+---
+
+[← LOOM](source-loom.html) · [LATTICE →](source-lattice.html)

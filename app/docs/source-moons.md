@@ -54,3 +54,7 @@ PRESET picks the moon the MOON page sets; the scene frames it.
 
 MOONS is QUARTZ's own. Orbit sequencers such as [Aphelian](https://apps.apple.com/app/aphelian/id1435855056) play
 with the same image.
+
+---
+
+[← LATTICE](source-lattice.html) · [IMPROV →](source-improv.html)

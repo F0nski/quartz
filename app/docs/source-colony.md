@@ -61,3 +61,7 @@ PRESET turns SEED: a new grid at the next loop. Turn it until a colony you like 
 
 **Inspired by** [Conway's Game of Life](https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life) (John Horton Conway,
 1970): a cell is born with three living neighbours and lives on with two or three.
+
+---
+
+[← FLEET](source-fleet.html) · [LOOM →](source-loom.html)

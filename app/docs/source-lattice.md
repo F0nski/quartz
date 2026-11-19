@@ -59,3 +59,7 @@ PRESET moves a cursor along the steps; the STEP page sets the one under it.
 **Inspired by** the [Tonnetz](https://en.wikipedia.org/wiki/Tonnetz) (Leonhard Euler, 1739) and the
 [neo-Riemannian](https://en.wikipedia.org/wiki/Neo-Riemannian_theory) transformations P, L and R (David Lewin,
 Richard Cohn).
+
+---
+
+[← CADENCE](source-cadence.html) · [MOONS →](source-moons.html)
