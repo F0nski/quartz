@@ -1,0 +1,24 @@
+# ENGINE's DECAY: turned on a model without its own envelope; hidden and ignored on those that have one (HEX A-C, WIRE,
+# CHLADNI, the drums: their MORPH sets how long they ring)
+wait 600
+tap EDIT
+expect model 8
+turn K4 3
+expect decay 67
+spin PRESET 5
+expect model 2
+turn K4 3
+expect decay 67
+spin PRESET 14
+expect model 19
+turn K4 -3
+expect decay 67
+spin PRESET 2
+expect model 21
+turn K4 5
+expect decay 67
+shot decay_hidden_bd.png
+spin PRESET -21
+expect model 8
+turn K4 -3
+expect decay 64

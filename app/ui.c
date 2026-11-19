@@ -293,12 +293,16 @@ static int page_id(void)
 /* the page K1-K4 set, a step held aside: a KIT's pad held in EDIT gives its PAD page */
 static int knob_page(void) { return ui.domain == D_EDIT && ui.padheld && kit() ? P_PAD : page_id(); }
 
-/* a KIT: no T output to pick; no arp either */
+/* the engines with their own envelope: the ADSR shapes only their filter (6-OP, STRING, MODAL, the drums, the KIT) */
+static int own_env(int m) { return (m >= 2 && m <= 4) || m >= 19; }
+
+/* a KIT: no T output to pick; no arp either; an engine with its own envelope: no DECAY (the LPG it would set is bypassed) */
 static int knob_hidden(int pid, int k)
 {
     return (kit() && ((pid == P_MARBLES && k == 1) || pid == P_ARP))   /* a KIT has no arp */
            || (pid == P_INSERT && k < 3 && !*INS_LABEL[ui.p->sound[ui.track].itype][k])    /* no role: turns ignored */
            || (pid == P_SN1 && !k && kit())                                                 /* a KIT's pads stay */
+           || (pid == P_ENGINE && k == 3 && own_env(ui.p->sound[ui.track].model))
            || (kit() && (pid == P_LANES || pid == P_LENS || pid == P_ORBITS) && k == 1);                       /* a KIT: no base note, no OCT */
 }
 
@@ -2277,9 +2281,6 @@ static void hz_text(float f, char *b)
     *b = 0;
 }
 
-/* the engines with their own envelope: the ADSR shapes only their filter (6-OP, STRING, MODAL, the drums, the KIT) */
-static int own_env(int m) { return (m >= 2 && m <= 4) || m >= 19; }
-
 static void attr_text(const q_step *s, int a, char *b);
 
 /* the grid LIFE's scene shows: the render's run while the pattern shown plays, else the one its SEED and DENS
@@ -3652,6 +3653,7 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "tune")) *got = s->tune;
     else if (!strcmp(what, "harm")) *got = s->harm;
     else if (!strcmp(what, "timb")) *got = s->timb;
+    else if (!strcmp(what, "decay")) *got = s->decay;
     else if (!strcmp(what, "names_wide")) {    /* the ENGINE choices' names wider than a footer column, at its least font */
         int i;
         for (*got = 0, i = 0; i < 96; i++)

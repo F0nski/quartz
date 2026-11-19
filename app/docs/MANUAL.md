@@ -237,8 +237,8 @@ browses the models from any EDIT page.
 - Where HARM picks one of a few choices (a preset on HEX A–C, a chord on CHORALE, ENSEMBLE and ARCADE, a word bank on
   ORATOR past its blend of synths, from 43), each detent moves to the next choice and the footer shows its name; so
   does TIMB on ARCADE (its arpeggio).
-- **DECAY** sets how long a note rings after its gate closes, and the length of the model's own envelope on the models
-  that have one (HEX A–C, WIRE, CHLADNI and the drums).
+- **DECAY** sets how long a note rings after its gate closes. HEX A–C, WIRE, CHLADNI and the drums make their own
+  envelope: they have no DECAY (K4 is blank), and their MORPH sets how long they ring.
 - **TUNE** transposes the track. **GLIDE** slides from one note to the next; 0 is off.
 - **POLY** is how many notes the track plays at once. The keys get POLY notes of their own beside the pattern's, so
   a note you hold keeps sounding while the pattern plays (on a kit, a pad still cuts its sound's last hit). The four
