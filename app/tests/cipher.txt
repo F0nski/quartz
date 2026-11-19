@@ -108,3 +108,22 @@ expect page 1
 expect cynote 127
 turn K3 5
 expect cynote 127
+# PARAM shows only the numbers the formula uses: C hidden on CLASSIC, B and C on SIERPIN, all three on DRIFT
+tap SEQ
+turn SELECT 1
+expect page 2
+turn PRESET -1
+expect cyformula 0
+expect cyc 0
+turn K3 4
+expect cyc 0
+turn PRESET 1
+expect cyformula 1
+expect cyb 0
+turn K2 4
+expect cyb 0
+turn PRESET 7
+expect cyformula 8
+expect cyc 10
+turn K3 2
+expect cyc 12

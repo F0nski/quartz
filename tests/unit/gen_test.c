@@ -1637,7 +1637,7 @@ static const uint8_t CIPHER_REF[32][34] = {
     {0, 216, 176, 217, 204, 56, 16, 232, 152, 139, 0, 0, 68, 95, 122, 0, 0, 203, 230, 0, 0, 0, 82, 109, 0, 0, 0, 217, 244, 0, 0, 69, 96, 123},   /* STAIRS 1 */
     {0, 154, 148, 184, 188, 222, 220, 0, 0, 148, 148, 188, 252, 254, 254, 0, 0, 250, 250, 252, 252, 254, 254, 113, 0, 37, 190, 78, 224, 107, 246, 124, 0, 121},   /* STAIRS 2 */
     {0, 11, 0, 0, 44, 0, 0, 77, 88, 0, 110, 121, 0, 143, 154, 0, 0, 187, 0, 0, 220, 0, 0, 253, 0, 38, 60, 0, 104, 126, 0, 170, 0, 0},   /* LADDER */
-    {0, 144, 68, 102, 136, 170, 204, 0, 0, 0, 0, 0, 216, 106, 252, 142, 32, 0, 0, 0, 0, 0, 140, 30, 176, 66, 212, 0, 0, 0, 0, 0, 64, 210},   /* TERRACE */
+    {0, 192, 128, 106, 56, 192, 128, 162, 112, 62, 128, 64, 168, 118, 128, 64, 224, 174, 124, 64, 0, 230, 180, 64, 0, 192, 236, 186, 0, 192, 36, 242, 0, 192},   /* TERRACE */
     {16, 122, 122, 144, 14, 68, 144, 34, 142, 16, 182, 88, 16, 202, 162, 144, 217, 108, 144, 239, 182, 16, 133, 128, 16, 155, 202, 144, 49, 148, 144, 71, 100, 16},   /* WEAVE */
     {0, 126, 124, 158, 248, 254, 60, 126, 208, 238, 236, 126, 120, 158, 236, 238, 32, 126, 220, 190, 248, 126, 124, 126, 240, 238, 28, 74, 248, 166, 212, 130, 64, 254},   /* CHIME */
     {192, 17, 98, 123, 218, 56, 151, 245, 96, 204, 56, 164, 82, 203, 69, 190, 56, 55, 190, 69, 204, 83, 163, 55, 204, 96, 245, 150, 56, 218, 124, 96, 16, 191},   /* SPIRAL */
@@ -1773,6 +1773,28 @@ static void cipher_len_change_keeps_loop(void)
     assert(G.cipher_n == 5);
 }
 
+/* np, the numbers a formula uses: one it has not changes no byte; one it has changes some (over stretches of t) */
+static void cipher_np_matches(void)
+{
+    for (int f = 0; f < CIPHER_N; f++) {
+        for (int k = 0; k < 3; k++) {
+            q_cipher c, d;
+            gen_cipher_preset(&c, f);
+            d = c;
+            uint8_t *x = k == 0 ? &d.a : k == 1 ? &d.b : &d.c;
+            int differs = 0;
+            for (int st = 0; st < 128 && !differs; st += 9) {   /* several stretches of t: one may not show a number */
+                c.start = d.start = (uint8_t)st;
+                for (int v = 0; v < 16 && !differs; v++) {
+                    *x = (uint8_t)v;
+                    for (uint32_t n = 0; n < 64; n++) differs |= gen_cipher_byte(&c, n) != gen_cipher_byte(&d, n);
+                }
+            }
+            if (differs != (k < CIPHER_DEF[f].np)) { fprintf(stderr, "%s param %d\n", CIPHER_DEF[f].name, k); assert(0); }
+        }
+    }
+}
+
 int main(void)
 {
     cipher_matches_search();
@@ -1781,6 +1803,7 @@ int main(void)
     cipher_decode();
     cipher_loop();
     cipher_len_change_keeps_loop();
+    cipher_np_matches();
     marbles_gate_sets_len();
     grids_level_matches_step();
     corner_follows_node();

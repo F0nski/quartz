@@ -29,7 +29,7 @@ The numbers below were counted in the simulator at 120 BPM with DIV 1/16 (8 step
 | Knob | At its start | Middle | At its end |
 | --- | --- | --- | --- |
 | DENS | 0: silence | 64: about 4.5 notes a second | 127: a note on every step |
-| A, B, C | The formula's numbers: each changes the pattern its own way (often a shift: `t>>A`) | — | — |
+| A, B, C | The formula's numbers: each changes the pattern its own way (often a shift: `t>>A`). PARAM shows only those the formula has: C on 12 formulas, B on all but SIERPIN | — | — |
 | LEN | FREE: the loop never comes back, `t` runs on | 16: a bar that repeats | 64: four bars |
 | START | 0: the formula from `t` = 0 | — | 127: from `t` = 32 512, another stretch of it |
 | SPEED | 1: `t` creeps, neighbouring steps are close | — | 255: big jumps of `t`, steps far apart |
@@ -48,7 +48,7 @@ points play, violet ones are silenced by DENS; the step playing is framed, pink 
 last six. On top, the formula with its values and `t`. On the left, the step's byte as its 8 bits, in the colour of
 their job; on the right, what it plays: RHY, its rhythm level against DENS's line, ACC, and the note.
 
-![CIPHER's PARAM page: A 5, B 8, C 0, DENS 96](img/source-cipher-param.png "PARAM")
+![CIPHER's PARAM page on CLASSIC: A 5, B 8, no C, DENS 96](img/source-cipher-param.png "PARAM")
 
 ![CIPHER's TIME page: LEN 16, START 38, SPEED 28, RANGE 2](img/source-cipher-time.png "TIME")
 

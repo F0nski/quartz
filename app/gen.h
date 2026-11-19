@@ -73,8 +73,9 @@ void gen_tz_pcs(q_tz s, int base, uint8_t pcs[3]);
 q_tz gen_tz_step(q_tz s, int op, int in_scale, uint16_t scale, int base);
 void gen_tz_start(const q_project *p, const q_tonnetz *t, q_tz *s, int *base);
 #define CIPHER_N 32
-/* CIPHER's bank (spec 2026-11-19-quartz-cipher-design): a formula's name and its advised A, B, C, START and SPEED */
-typedef struct { const char *name; uint8_t a, b, c, start, speed; } q_cipher_def;
+/* CIPHER's bank (spec 2026-11-19-quartz-cipher-design): a formula's name, its advised A, B, C, START and SPEED, and how
+   many of A, B, C it uses (1: A, 2: A and B, 3: all; PARAM hides the others) */
+typedef struct { const char *name; uint8_t a, b, c, start, speed, np; } q_cipher_def;
 extern const q_cipher_def CIPHER_DEF[CIPHER_N];
 uint8_t gen_cipher_byte(const q_cipher *c, uint32_t n);    /* the byte of step n: the formula of t = start x 256 + n x speed, & 255 */
 void gen_cipher_preset(q_cipher *c, int formula);         /* formula and its advised A, B, C, START, SPEED; the rest kept */

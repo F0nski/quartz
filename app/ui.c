@@ -310,6 +310,7 @@ static int knob_hidden(int pid, int k)
            || (pid == P_INSERT && k < 3 && !*INS_LABEL[ui.p->sound[ui.track].itype][k])    /* no role: turns ignored */
            || (pid == P_SN1 && !k && kit())                                                 /* a KIT's pads stay */
            || (pid == P_ENGINE && k == 3 && own_env(ui.p->sound[ui.track].model))
+           || (pid == P_CPARAM && k < 3 && k >= CIPHER_DEF[pat()->cipher.formula].np)   /* a number the formula has not */
            || (kit() && (pid == P_LANES || pid == P_LENS || pid == P_ORBITS) && k == 1);                       /* a KIT: no base note, no OCT */
 }
 
