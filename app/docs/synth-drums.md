@@ -3,8 +3,8 @@
 [← Manual](index.html#s6)
 
 The drums family is Plaits' three analog-style drums, each playable as a model on its own, and KIT, which puts sixteen
-of them on the keys as pads. The drums make their own envelope: ENV's ADSR then shapes only the filter, and DECAY (or
-a pad's DECAY) sets how long a hit rings.
+of them on the keys as pads. The drums make their own envelope: ENV's ADSR then shapes only the filter, and MORPH (on a
+kit, the pad's DECAY) sets how long a hit rings.
 
 The values below were measured with the two other knobs at 64, the bass drum on C2 and the others on C3. A bass drum
 lives below 150 Hz: it is clear on headphones and faint on the FM-1's speaker; raise its TUNE or its HARM to hear it

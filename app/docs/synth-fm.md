@@ -5,7 +5,7 @@
 FM makes its sounds by letting sine waves bend each other's pitch: bells, electric pianos, glassy keys, punchy basses
 and brass. MOON is a simple two-operator FM synth built from scratch with the knobs; HEX A–C are six-operator FM with
 96 ready-made sounds from the classic six-operator banks. HEX A–C make their own envelope: ENV's ADSR then shapes
-only the filter, and DECAY sets the length of the preset's envelope.
+only the filter, and MORPH stretches the preset's envelope.
 
 The values below were measured on the note C3 with the two other knobs at 64. A change below 300 Hz is clear on
 headphones and faint on the FM-1's speaker.
