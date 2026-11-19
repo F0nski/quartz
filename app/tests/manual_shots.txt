@@ -360,3 +360,9 @@ key w7 down
 wait 700
 shot sound-facets.png
 key w7 up
+spin PRESET 4
+expect model 7
+key w7 down
+wait 900
+shot sound-arcade.png
+key w7 up
