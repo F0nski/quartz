@@ -21,6 +21,7 @@
 #include "scene_tonnetz.c"
 #include "scene_orbits.c"
 #include "scene_mimic.c"
+#include "scene_cipher.c"
 #include "plateau.c"
 #include "ui.c"
 

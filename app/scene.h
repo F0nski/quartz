@@ -158,6 +158,17 @@ void orbits_enter(void);                             /* arrival: no pass, no fla
 void orbits_frame(const q_orview *v, uint32_t ms);   /* builds the primitives: the far planet, the orbits, the planet, the moons */
 void orbits_band(const q_orview *v, int32_t oy);     /* the sky, p3d_draw, then the ticks, dots, labels and the top strip */
 
+/* CIPHER's phase space (scene_cipher.c); ui.c fills the view */
+typedef struct {
+    q_cipher c;                /* the pattern's */
+    uint32_t cur;              /* the step playing, in the loop (0 stopped) */
+    uint8_t playing, kit;      /* the pattern shown plays; a KIT */
+    char name[6];              /* the note ("C3") or pad ("BD") the step plays */
+} q_ciview;
+void cipher_enter(void);
+void cipher_frame(const q_ciview *v, uint32_t ms);   /* builds the primitives: the cube, the points, the trail */
+void cipher_band(const q_ciview *v, int32_t oy);     /* p3d_draw, then the formula, the bits and what they play */
+
 /* MIMIC's two rolls (scene_mimic.c); ui.c fills the view */
 typedef struct {
     q_mimic m;                 /* the pattern's */

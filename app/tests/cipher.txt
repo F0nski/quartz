@@ -5,6 +5,8 @@ tap SEQ
 spin K4 9
 expect src 9
 expect page 1
+wait 100
+expect anim 14
 expect cyformula 0
 expect cya 5
 expect cystart 38
@@ -23,6 +25,7 @@ spin K3 200
 expect cynote 127
 turn SELECT 1
 expect page 2
+expect anim 14
 spin K1 -20
 expect cya 0
 spin K1 20
@@ -37,6 +40,7 @@ spin K4 200
 expect cydens 127
 turn SELECT 1
 expect page 3
+expect anim 14
 spin K1 -70
 expect cylen 0
 spin K1 70

@@ -1,0 +1,285 @@
+<title>CIPHER Scenes</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+/* Layout: the knobs on top (sticky), then the three scene proposals side by side, each a live 240x240 device screen. */
+:root {
+  --bg: #efedf5; --fg: #1c1830; --muted: #5d5873; --line: #d9d5e6; --device: #151320; --hot: #d4247a; --panel: #e4e1ee;
+  --display: "Chakra Petch", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --line: #2a2440; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #0e0b1a; --fg: #ece9f7; --muted: #a29cba; --line: #2a2440; --device: #000; --hot: #ff4fa8; --panel: #17132a; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 48px }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg) }
+main { max-width: 1180px; margin: 0 auto; display: grid; gap: 22px }
+h1 { font-family: var(--display); font-weight: 700; font-size: 1.9rem; line-height: 1.1; margin: 0; text-transform: uppercase; letter-spacing: .02em; text-wrap: balance }
+h1 em { font-style: normal; color: var(--hot) }
+.lead { color: var(--muted); max-width: 70ch; margin: 8px 0 0 }
+.knobs { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 1; background: var(--panel); border-radius: 10px; padding: 10px 14px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px 18px; align-items: center }
+.knobs label { display: grid; font-family: var(--display); font-size: .78rem; letter-spacing: .06em; text-transform: uppercase }
+.knobs label span { color: var(--muted); font-variant-numeric: tabular-nums }
+.knobs input[type=range], .knobs select { width: 100% }
+.knobs .check { display: flex; gap: 8px; align-items: center }
+h2 { font-family: var(--display); font-size: 1.25rem; margin: 6px 0 0; text-transform: uppercase; letter-spacing: .04em }
+section > p { margin: 2px 0 10px; color: var(--muted); max-width: 80ch; font-size: .92rem }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 340px)); gap: 24px }
+figure { margin: 0; display: grid; gap: 6px; align-content: start; min-width: 0 }
+canvas { width: 100%; max-width: 100%; aspect-ratio: 1; background: #000; border: 12px solid var(--device); border-radius: 16px; box-sizing: border-box }
+h3 { font-family: var(--display); font-size: 1rem; margin: 0; text-transform: uppercase; letter-spacing: .04em }
+figcaption p { margin: 2px 0 0; font-size: .85rem; color: var(--muted) }
+figcaption b { color: var(--fg); font-weight: 600 }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: .85rem; color: var(--muted) }
+.legend i { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px }
+@media (prefers-reduced-motion: reduce) { canvas { animation: none } }
+</style>
+
+<main>
+  <header>
+    <h1>CIPHER <em>scènes, troisième série</em></h1>
+    <p class="lead">À chaque pas, <code>t = START × 256 + n × SPEED</code> passe dans la formule, qui rend un octet de 0 à 255. Ses 8 bits décident du pas : les 3 bits hauts le rythme (contre DENS), le bit 4 l'accent, les 4 bits bas la note (ou le pad sur un KIT). Les trois écrans jouent la même boucle avec les mêmes knobs ; seule la mise en scène change.</p>
+  </header>
+
+  <div class="knobs">
+    <label>FORMULA <select id="f"></select></label>
+    <label>A <span id="vA"></span><input type="range" id="kA" min="0" max="15"></label>
+    <label>B <span id="vB"></span><input type="range" id="kB" min="0" max="15"></label>
+    <label>C <span id="vC"></span><input type="range" id="kC" min="0" max="15"></label>
+    <label>DENS <span id="vD"></span><input type="range" id="kD" min="0" max="127" value="96"></label>
+    <label>LEN <span id="vL"></span><input type="range" id="kL" min="0" max="64" value="32"></label>
+    <label>START <span id="vS"></span><input type="range" id="kS" min="0" max="127" value="16"></label>
+    <label>SPEED <span id="vP"></span><input type="range" id="kP" min="1" max="255" value="1"></label>
+    <label>RANGE <span id="vR"></span><input type="range" id="kR" min="1" max="4" value="2"></label>
+    <label>DIV <span id="vV"></span><input type="range" id="kV" min="0" max="3" value="1"></label>
+    <label class="check"><input type="checkbox" id="kit"> sur un KIT</label>
+  </div>
+
+  <div class="legend">
+    <span><i style="background:#ff8a3d"></i>bits 5–7 : le rythme</span>
+    <span><i style="background:#f2e14c"></i>bit 4 : l'accent</span>
+    <span><i style="background:#3ee6ff"></i>bits 0–3 : la note ou le pad</span>
+    <span><i style="background:#ff4fa8"></i>le pas qui joue</span>
+  </div>
+
+  <section>
+    <h2>Troisième série</h2>
+    <p>La formule, ses paramètres et <code>t</code> s'affichent en haut de B et C. Un pas qui joue est rose ; les couleurs des bits suivent la légende.</p>
+    <div class="grid">
+      <figure><canvas id="s0" width="240" height="240"></canvas><figcaption><h3>A · Rez : pirater le réseau</h3><p>Au fond, le cœur du réseau ; des flux de données convergent vers lui. Chaque pas est un anneau de 8 cibles (les bits à 1, des losanges à facettes ; les 0, des points éteints) qui fonce sur l'avatar vu de dos. Quand le pas joue, ses cibles sont verrouillées et abattues en rose. <b>SPEED</b> : la vitesse des flux. <b>DENS</b> : la jauge LOCK.</p></figcaption></figure>
+      <figure><canvas id="s1" width="240" height="240"></canvas><figcaption><h3>B · Espace des phases</h3><p>Chaque pas est un point dont les coordonnées sont trois octets successifs. Le nuage tourne dans un cube en fil de fer ; une traînée rose relie les 6 derniers pas. Une formule régulière trace un réseau net, une formule chaotique un nuage. Bleu : les pas qui jouent ; rose : le pas courant. <b>LEN</b> : le nombre de points.</p></figcaption></figure>
+    </div>
+  </section>
+</main>
+
+<script>
+// The bank sample: a few of the 32, with their advised A, B, C, START and SPEED (PRESET sets them all).
+const F = [
+  ["CLASSIC", (t,a,b,c) => t*(t>>a|t>>b), 5, 8, 0, 38, 28, (a,b,c) => `t*(t>>${a}|t>>${b})`],
+  ["SIERPIN", (t,a,b,c) => t&t>>a, 8, 0, 0, 126, 45, (a,b,c) => `t&t>>${a}`],
+  ["FORTY2", (t,a,b,c) => t*((a*4+2)&t>>b), 10, 10, 0, 55, 203, (a,b,c) => `t*(${a*4+2}&t>>${b})`],
+  ["DRIFT 1", (t,a,b,c) => (t*a&t>>b)|(t*3&t>>c), 5, 7, 10, 127, 29, (a,b,c) => `(t*${a}&t>>${b})|(t*3&t>>${c})`],
+  ["DRIFT 2", (t,a,b,c) => (t*(t>>a|t>>b))>>(t>>c), 5, 8, 15, 38, 28, (a,b,c) => `(t*(t>>${a}|t>>${b}))>>(t>>${c})`],
+  ["STAIRS 1", (t,a,b,c) => t*((t>>a|t>>b)&25&t>>c), 9, 13, 6, 31, 27, (a,b,c) => `t*((t>>${a}|t>>${b})&25&t>>${c})`],
+  ["STAIRS 2", (t,a,b,c) => (t&t>>a)*(t>>b|t>>c), 12, 4, 8, 110, 23, (a,b,c) => `(t&t>>${a})*(t>>${b}|t>>${c})`],
+  ["CHAOS 1", (t,a,b,c) => t|t%(a*17+1)|t%(b*17+2), 15, 15, 0, 5, 57, (a,b,c) => `t|t%${a*17+1}|t%${b*17+2}`],
+];
+const $ = id => document.getElementById(id);
+const sel = $("f");
+F.forEach((f, i) => sel.add(new Option(f[0], i)));
+sel.value = new URLSearchParams(location.search).get("f") || 0;   // ?f=: the formula to show first (screenshots)
+function preset() { const f = F[sel.value]; $("kA").value = f[2]; $("kB").value = f[3]; $("kC").value = f[4]; $("kS").value = f[5]; $("kP").value = f[6]; }
+sel.onchange = preset; preset();
+const DIVS = [["1/32", 62], ["1/16", 125], ["1/8", 250], ["1/4", 500]];
+const K = () => ({ f: F[sel.value], a: +$("kA").value, b: +$("kB").value, c: +$("kC").value, dens: +$("kD").value,
+  len: +$("kL").value, start: +$("kS").value, speed: +$("kP").value, range: +$("kR").value, div: DIVS[+$("kV").value], kit: $("kit").checked });
+function labels(k) {
+  $("vA").textContent = k.a; $("vB").textContent = k.b; $("vC").textContent = k.c; $("vD").textContent = k.dens;
+  $("vL").textContent = k.len ? k.len : "FREE"; $("vS").textContent = k.start; $("vP").textContent = k.speed;
+  $("vR").textContent = k.range; $("vV").textContent = k.div[0];
+}
+// the byte of step n, and what it plays
+function byte(k, n) { const t = (k.start * 256 + n * k.speed) >>> 0; return (k.f[1](t, k.a, k.b, k.c) >>> 0) & 255; }
+function plays(k, v) { return (v >> 5) < Math.round(k.dens * 8 / 127); }
+const MAJ = [0, 2, 4, 5, 7, 9, 11], NN = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+function noteName(k, v) {
+  if (k.kit) { const p = v & 15; return p < 3 ? ["BD","SN","HH"][p] : "P" + (p + 1); }
+  const d = Math.floor((v & 15) * k.range * 7 / 16), m = 48 + 12 * Math.floor(d / 7) + MAJ[d % 7];
+  return NN[m % 12] + (Math.floor(m / 12) - 1);
+}
+const COL = b => b >= 5 ? [255, 138, 61] : b === 4 ? [242, 225, 76] : [62, 230, 255];
+const PINK = [255, 79, 168];
+const rgb = (c, s) => `rgb(${c.map(x => Math.round(x * s)).join(",")})`;
+
+// a tiny flat 3D: points projected from a camera at the origin looking down +z
+function proj(p, f) { return [120 + p[0] / p[2] * f, 132 - p[1] / p[2] * f]; }
+function face(g, pts, c, f) {
+  if (pts.some(p => p[2] < 0.2)) return;
+  const q = pts.map(p => proj(p, f));
+  g.fillStyle = c; g.beginPath(); g.moveTo(q[0][0], q[0][1]); q.slice(1).forEach(p => g.lineTo(p[0], p[1])); g.closePath(); g.fill();
+}
+// a box as its 3 visible faces (top, front, the side towards the centre), shaded flat
+function box(list, x, y, z, w, h, d, c, lit) {
+  const s = lit ? 1 : 0.18, x1 = x + w, y1 = y + h, z1 = z + d, zc = z + d / 2;
+  list.push({ z: zc, pts: [[x, y1, z], [x1, y1, z], [x1, y1, z1], [x, y1, z1]], c: rgb(c, s) });
+  list.push({ z: zc - 0.01, pts: [[x, y, z], [x1, y, z], [x1, y1, z], [x, y1, z]], c: rgb(c, s * 0.72) });
+  const sx = x + w / 2 < 0 ? x1 : x;
+  list.push({ z: zc, pts: [[sx, y, z], [sx, y, z1], [sx, y1, z1], [sx, y1, z]], c: rgb(c, s * 0.5) });
+}
+function draw(g, list, f) { list.sort((a, b) => b.z - a.z).forEach(o => face(g, o.pts, o.c, f)); }
+
+function chrome(g, k, n, v, on, title) {     // the device's header and footer around the scene
+  g.fillStyle = "#000"; g.fillRect(0, 0, 240, 26); g.fillRect(0, 196, 240, 44);
+  g.fillStyle = "#ff8a3d"; g.fillRect(4, 4, 18, 18); g.fillStyle = "#000"; g.font = "700 14px Chakra Petch, sans-serif"; g.fillText("1", 9, 19);
+  g.fillStyle = "#fff"; g.fillText("SEQ", 28, 19); g.fillStyle = "#ff8a3d"; g.fillText("P1", 62, 19);
+  g.fillStyle = "#a29cba"; g.font = "500 12px Chakra Petch, sans-serif"; g.fillText("1/3", 214, 19);
+  g.fillStyle = on ? "#ff4fa8" : "#a29cba"; g.font = "700 13px Chakra Petch, sans-serif";
+  g.fillText("STEP " + String(n % (k.len || 16) + 1).padStart(2, "0"), 6, 42);
+  g.fillStyle = "#ece9f7"; g.font = "500 11px Chakra Petch, sans-serif";
+  const right = (k.f[0] + "  " + (on ? noteName(k, v) : "--"));
+  g.fillText(right, 234 - g.measureText(right).width, 42);
+  const lab = [["DIV", k.div[0], "#3ee6ff"], ["FORMULA", k.f[0], "#3fe08a"], [k.kit ? "" : "NOTE", k.kit ? "" : "C3", "#ece9f7"], ["SOURCE", "CIPHER", "#ff8a3d"]];
+  lab.forEach((l, i) => { g.fillStyle = l[2]; g.font = "500 10px Chakra Petch, sans-serif"; g.fillText(l[0], 6 + i * 60, 212);
+    g.fillStyle = "#fff"; g.font = "700 12px Chakra Petch, sans-serif"; g.fillText(l[1], 6 + i * 60, 229); });
+}
+
+// the formula with its parameters, and t, along the top of the scene (the maths shown)
+function formula(g, k, n) {
+  const t = (k.start * 256 + n * k.speed) >>> 0, txt = k.f[7](k.a, k.b, k.c);
+  g.font = "500 11px Chakra Petch, sans-serif"; g.fillStyle = "#3fe08a";
+  g.fillText(txt, 120 - g.measureText(txt).width / 2, 60);
+  g.fillStyle = "#a29cba"; const tt = "t = " + t; g.fillText(tt, 120 - g.measureText(tt).width / 2, 73);
+}
+function octa(list, x, y, z, r, c, s) {      // a low-poly target: an octahedron, flat-shaded per face
+  const P = [[x, y + r, z], [x + r, y, z], [x, y, z - r], [x - r, y, z], [x, y - r, z]];
+  [[0, 1, 2, 1], [0, 2, 3, 0.75], [4, 1, 2, 0.55], [4, 2, 3, 0.4]].forEach(f =>
+    list.push({ z: z - r * 0.5, pts: [P[f[0]], P[f[1]], P[f[2]]], c: rgb(c, s * f[3]) }));
+}
+
+// an outlined flat polygon (Rez: flat fills with a bright edge)
+function poly(g, q, fill, edge) {
+  g.beginPath(); g.moveTo(q[0][0], q[0][1]); q.slice(1).forEach(p => g.lineTo(p[0], p[1])); g.closePath();
+  if (fill) { g.fillStyle = fill; g.fill(); }
+  if (edge) { g.strokeStyle = edge; g.lineWidth = 1; g.stroke(); }
+}
+const hex = (c, s) => rgb(c, s);
+
+// A: Rez. A tunnel of rings rushing out of the network's core: each ring is a step, its 8 slots its bits (a lit bit
+// a faceted diamond target, a 0 a dim mark). The front ring is the step playing: locked (reticles) and shot (lasers).
+function rez(g, k, n, ph) {
+  const cx = 120, cy = 108, sp = performance.now() * 0.001;
+  const ringR = z => 50 / z, slot = (b, r) => { const a = b * Math.PI / 4 + Math.PI / 8; return [cx + Math.cos(a) * r * 1.25, cy + Math.sin(a) * r]; };
+  // the core far ahead: a turning octahedron in wire and two flat tones
+  const pr = 8, w1 = Math.cos(sp) * pr * 0.8, w2 = Math.sin(sp * 1.3) * 2;
+  poly(g, [[cx, cy - pr], [cx + w1, cy + w2], [cx, cy + pr]], "#26308a", "#6f7dff");
+  poly(g, [[cx, cy - pr], [cx - w1 * 0.7, cy - w2], [cx, cy + pr]], "#161c55", "#6f7dff");
+  const rings = [];
+  for (let w = 0; w < 7; w++) { const z = 1 + (w - ph) * 0.9 * (1.15 - Math.log2(k.speed) / 16); if (z > 0.75) rings.push({ w, z }); }
+  rings.sort((p, q) => q.z - p.z).forEach(({ w, z }) => {
+    const s = n + w, v = byte(k, s), on = plays(k, v), r = ringR(z), front = w === 0;
+    // the ring's wire: the octagon through its slots
+    g.strokeStyle = front && on ? "#ff4fa8" : "#262a66"; g.lineWidth = 1; g.beginPath();
+    for (let b = 0; b <= 8; b++) { const p = slot(b % 8, r); b ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]); } g.stroke();
+    for (let b = 0; b < 8; b++) {
+      const p = slot(b, r), sz = 9 / z, c = front && on ? PINK : COL(b);
+      if (v >> b & 1) {
+        poly(g, [[p[0], p[1] - sz], [p[0] + sz * 0.7, p[1]], [p[0], p[1] + sz]], hex(c, 1), null);
+        poly(g, [[p[0], p[1] - sz], [p[0] - sz * 0.7, p[1]], [p[0], p[1] + sz]], hex(c, 0.58), null);
+      } else { g.fillStyle = "#2f2b5e"; g.fillRect(p[0] - sz * 0.18, p[1] - sz * 0.18, sz * 0.36, sz * 0.36); }
+    }
+  });
+  // the avatar from behind, small, at the bottom
+  const ax = 120, ay = 192;
+  poly(g, [[ax - 6, ay - 15], [ax + 6, ay - 15], [ax + 9, ay], [ax - 9, ay]], "#6d63c8", "#b9b2ff");
+  poly(g, [[ax, ay - 25], [ax + 5, ay - 20], [ax, ay - 15], [ax - 5, ay - 20]], "#8f86e0", "#d7d2ff");
+  // a playing step: reticles on its targets and lasers from the avatar
+  const v = byte(k, n), on = plays(k, v), fz = 1 - ph * 0.9 * (1.15 - Math.log2(k.speed) / 16);
+  if (on && fz > 0.75) for (let b = 0; b < 8; b++) if (v >> b & 1) {
+    const p = slot(b, ringR(fz)), r = 13 / fz;
+    poly(g, [[p[0], p[1] - r], [p[0] + r, p[1]], [p[0], p[1] + r], [p[0] - r, p[1]]], null, "#ff4fa8");
+    if (ph > 0.2) { g.strokeStyle = "rgba(255,79,168,0.8)"; g.lineWidth = 1.5; g.beginPath(); g.moveTo(ax, ay - 22); g.lineTo(p[0], p[1]); g.stroke(); }
+  }
+  // the LOCK gauge (DENS)
+  const lv = Math.round(k.dens * 8 / 127);
+  g.font = "700 9px Chakra Petch, sans-serif"; g.fillStyle = "#a29cba"; g.fillText("LOCK", 8, 192);
+  for (let i = 0; i < 8; i++) poly(g, [[34 + i * 8, 192], [39 + i * 8, 192], [41 + i * 8, 185], [36 + i * 8, 185]], i < lv ? "#ff8a3d" : "#221d3a", null);
+}
+
+// the sides of B: on the left the step's byte as its 8 bits (bit 7 on top), on the right what they decode to
+function readout(g, k, n) {
+  const v = byte(k, n), on = plays(k, v), y0 = 84, h = 11;
+  for (let b = 7; b >= 0; b--) {
+    const y = y0 + (7 - b) * h, lit = v >> b & 1, c = COL(b);
+    poly(g, [[10, y], [26, y], [29, y + h - 3], [13, y + h - 3]], lit ? hex(c, on ? 1 : 0.75) : "#1d1a38", null);
+    g.font = "500 8px Chakra Petch, sans-serif"; g.fillStyle = lit ? "#ece9f7" : "#4a4670"; g.fillText(String(lit), 32, y + 7);
+  }
+  g.font = "700 10px Chakra Petch, sans-serif"; g.fillStyle = "#ece9f7"; g.fillText("v " + v, 9, y0 + 8 * h + 10);
+  // the rhythm: its 3 bits as a level against DENS's threshold
+  const lvl = v >> 5, thr = Math.round(k.dens * 8 / 127), x = 214;
+  g.font = "500 8px Chakra Petch, sans-serif"; g.fillStyle = "#a29cba"; g.fillText("RHY", x, y0 - 2);
+  for (let i = 0; i < 8; i++) {
+    const y = y0 + 4 + (7 - i) * 7;
+    g.fillStyle = i === lvl ? (on ? "#ff4fa8" : "#ff8a3d") : i < thr ? "#4a2f22" : "#1d1a38"; g.fillRect(x, y, 16, 5);
+  }
+  g.strokeStyle = "#ff8a3d"; g.beginPath(); g.moveTo(x - 3, y0 + 4 + (8 - thr) * 7 - 1); g.lineTo(x + 19, y0 + 4 + (8 - thr) * 7 - 1); g.stroke();
+  g.fillStyle = "#a29cba"; g.fillText("ACC", x, y0 + 72);
+  poly(g, [[x + 8, y0 + 76], [x + 14, y0 + 82], [x + 8, y0 + 88], [x + 2, y0 + 82]], v >> 4 & 1 ? "#f2e14c" : "#1d1a38", null);
+  g.fillStyle = "#a29cba"; g.fillText(k.kit ? "PAD" : "NOTE", x, y0 + 100);
+  g.font = "700 10px Chakra Petch, sans-serif"; g.fillStyle = on ? "#ff4fa8" : "#4a4670"; g.fillText(on ? noteName(k, v) : "--", x, y0 + 111);
+}
+
+// B: phase space. Each step a point (v[n], v[n+1], v[n+2]) in a turning wire cube, the path joining them in order:
+// a regular formula draws a lattice, a chaotic one a cloud. Nearly isometric, so it reads as a plan, not a corridor.
+function phase(g, k, n, ph, now) {
+  const L = k.len || 48, rot = now * 0.0003 + 0.6, tilt = 0.55, S = 41, cx = 120, cy = 138;
+  const P = (x, y, z) => {                    // orthographic: turned about the vertical, then tilted towards us
+    const c = Math.cos(rot), s = Math.sin(rot), x1 = x * c + z * s, z1 = -x * s + z * c;
+    const ct = Math.cos(tilt), st = Math.sin(tilt), y2 = y * ct + z1 * st, z2 = -y * st + z1 * ct;
+    return [cx + x1 * S, cy - y2 * S, z2];
+  };
+  const C = [-1, 1], E = [];
+  for (const a of C) for (const b of C) { E.push([[-1, a, b], [1, a, b]]); E.push([[a, -1, b], [a, 1, b]]); E.push([[a, b, -1], [a, b, 1]]); }
+  const edges = E.map(e => { const A = P(...e[0]), B = P(...e[1]); return { A, B, z: (A[2] + B[2]) / 2 }; });
+  const far = edges.reduce((m, e) => Math.max(m, e.z), -9);
+  const back = e => e.z > far - 0.3;          // the three edges meeting at the farthest corner
+  edges.filter(back).forEach(e => { g.strokeStyle = "#221f4a"; g.lineWidth = 1; g.beginPath(); g.moveTo(e.A[0], e.A[1]); g.lineTo(e.B[0], e.B[1]); g.stroke(); });
+  // the axes' names at three corners
+  g.font = "500 9px Chakra Petch, sans-serif"; g.fillStyle = "#6f6a95";
+  [["v n", [1.25, -1, -1]], ["v n+1", [-1, 1.25, -1]], ["v n+2", [-1, -1, 1.3]]].forEach(([t, q]) => { const p = P(...q); g.fillText(t, p[0] - 8, p[1] + 3); });
+  const base = n - (n % L), pts = [];
+  for (let i = 0; i < L; i++) {
+    const s = base + i, v0 = byte(k, s), q = P(v0 / 127.5 - 1, byte(k, s + 1) / 127.5 - 1, byte(k, s + 2) / 127.5 - 1);
+    pts.push({ q, s, v: v0 });
+  }
+  const ci = n - base, tr = pts.slice(Math.max(0, ci - 6), ci + 1);   // the trail: the last 6 steps up to the one playing
+  tr.forEach((o, i) => { if (!i) return; g.strokeStyle = rgb([255, 79, 168], 0.25 + 0.6 * i / tr.length); g.lineWidth = 1.2; g.beginPath(); g.moveTo(tr[i - 1].q[0], tr[i - 1].q[1]); g.lineTo(o.q[0], o.q[1]); g.stroke(); });
+  pts.slice().sort((a, b) => b.q[2] - a.q[2]).forEach(o => {
+    const cur = o.s === n, on = cur && plays(k, o.v), sz = (cur ? 6.5 : 3.6) / (1 + o.q[2] * 0.12);
+    const c = on ? PINK : plays(k, o.v) ? [62, 230, 255] : [96, 90, 160];
+    poly(g, [[o.q[0], o.q[1] - sz], [o.q[0] + sz * 0.75, o.q[1]], [o.q[0], o.q[1] + sz]], hex(c, 1), null);
+    poly(g, [[o.q[0], o.q[1] - sz], [o.q[0] - sz * 0.75, o.q[1]], [o.q[0], o.q[1] + sz]], hex(c, 0.6), null);
+    if (cur) poly(g, [[o.q[0], o.q[1] - sz - 4], [o.q[0] + sz + 4, o.q[1]], [o.q[0], o.q[1] + sz + 4], [o.q[0] - sz - 4, o.q[1]]], null, hex(c, 1));
+  });
+  edges.filter(e => !back(e)).forEach(e => { g.strokeStyle = "#4a4796"; g.lineWidth = 1; g.beginPath(); g.moveTo(e.A[0], e.A[1]); g.lineTo(e.B[0], e.B[1]); g.stroke(); });
+  readout(g, k, n);
+  formula(g, k, n);
+}
+
+const SC = [rez, phase].map((fn, i) => ({ fn, g: $("s" + i).getContext("2d") }));
+let n = +(new URLSearchParams(location.search).get("n") || 0), last = performance.now(), acc = 0;   // ?n=: the step to show first (screenshots)
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+function frame(now) {
+  const k = K(); labels(k);
+  acc += now - last; last = now;
+  if (acc > k.div[1]) { acc = 0; n++; if (k.len && n % k.len === 0) n = n - k.len; }
+  const loopN = k.len ? n % k.len : n, ph = reduce ? 0 : Math.min(1, acc / k.div[1]);
+  const v = byte(k, loopN), on = plays(k, v);
+  SC.forEach(s => { s.g.fillStyle = "#000"; s.g.fillRect(0, 0, 240, 240);
+    s.g.save(); s.g.beginPath(); s.g.rect(0, 46, 240, 150); s.g.clip(); s.fn(s.g, k, loopN, ph, now); s.g.restore();
+    chrome(s.g, k, loopN, v, on); });
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>

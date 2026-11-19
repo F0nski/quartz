@@ -2671,6 +2671,8 @@ static void view_now(q_view *v)
             v->scene.anim = 11;                 /* scene_tonnetz.c; ui_frame fills its view */
         if (pid == P_ORBITS || pid == P_MOON || pid == P_MOONK)
             v->scene.anim = 12;                 /* scene_orbits.c; ui_frame fills its view */
+        if (pid == P_CIPHER || pid == P_CIPHERK || pid == P_CPARAM || pid == P_CTIME)
+            v->scene.anim = 14;                 /* scene_cipher.c; ui_frame fills its view */
         if (pid == P_MIMIC || pid == P_LOOP)
             v->scene.anim = 13;                 /* scene_mimic.c; ui_frame fills its view */
         if (pid == P_MARBLES || pid == P_T || pid == P_X) {
@@ -3174,6 +3176,7 @@ void ui_frame(void)
     static q_chview chv;                   /* CHORDS' */
     static q_tzview tzw;                   /* TONNETZ's */
     static q_orview orw;                   /* ORBITS' */
+    static q_ciview civ;                   /* CIPHER's */
     static q_miview miw;                   /* MIMIC's */
     int b;
     ui_input();
@@ -3512,6 +3515,26 @@ void ui_frame(void)
                     __builtin_memset(&miw.r, 0, sizeof miw.r);
                 miw.step_ms = 2500u * DIV96[t->div] / ui.p->tempo;
                 mimic_frame(&miw, now);
+            } else if (v.scene.anim == 14) {
+                static const char *const PADS3[3] = {"BD", "SN", "HH"};
+                const q_pattern *t = pat();
+                uint32_t n, L;
+                if (fresh)
+                    cipher_enter();
+                civ.c = t->cipher, civ.kit = (uint8_t)kit(), civ.playing = (uint8_t)(v.scene.pos >= 0);
+                n = civ.playing ? audio_cipher(ui.track) : 0, L = t->cipher.len;
+                civ.cur = !civ.playing ? 0 : L ? (n + L - 1) % L : n ? n - 1 : 0;   /* the step played last */
+                {
+                    int val = gen_cipher_byte(&t->cipher, civ.cur), p = val & 15;
+                    uint16_t sc = gen_scale(ui.p);
+                    if (!kit())
+                        note_name(gen_life_note(t->cipher.note, sc, ui.p->tonic, p * t->cipher.range * __builtin_popcount(sc) / 16), civ.name);
+                    else if (p < 3)
+                        civ.name[0] = PADS3[p][0], civ.name[1] = PADS3[p][1], civ.name[2] = 0;
+                    else
+                        civ.name[0] = 'P', int_text(p + 1, civ.name + 1);
+                }
+                cipher_frame(&civ, now);
             } else if (v.scene.anim == 7) {
                 static char title[14];
                 int pid = v.scene.pid, k, w;
@@ -3599,6 +3622,8 @@ void ui_frame(void)
                     orbits_band(&orw, -BAND_H * b);
                 else if (v.scene.anim == 13)
                     mimic_band(&miw, -BAND_H * b);
+                else if (v.scene.anim == 14)
+                    cipher_band(&civ, -BAND_H * b);
                 else
                     plateau_band(-BAND_H * b);
                 cv_blit(0, HEAD_H + BAND_H * b);
