@@ -82,8 +82,10 @@ static int grids_step(q_gen *g, const q_project *p, int track, const q_pattern *
         if (level > 255) level = 255;
         if (level <= 255 - grids_u8(gr->dens[i])) continue;
         if (!kit && i != gr->voice - 1) continue;
-        if (level > 192) acc |= 1 << n;
-        st->note[n++] = kit ? KIT_NOTE + i : gr->note;
+        int note = kit ? KIT_NOTE + gr->pad[i] : gr->note, j = 0;
+        while (j < n && st->note[j] != note) j++;   /* two parts on one pad: it plays once */
+        if (level > 192) acc |= 1 << j;
+        if (j == n) st->note[n++] = (uint8_t)note;
     }
     if (n) { st->flags |= SF_ON; st->vel = 95; st->len = 4; st->prob = 20; }
     return acc;

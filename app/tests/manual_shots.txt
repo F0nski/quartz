@@ -326,3 +326,20 @@ tapkey b0
 wait 100
 shot glo-tap.png
 release GLO
+
+# ATLAS on a KIT: part 2 (SN) on pad 7
+reboot
+wait 600
+tap EDIT
+spin PRESET -30
+spin PRESET 24
+expect model 24
+tap SEQ
+tap PLAY
+spin K4 1
+expect src 1
+spin K2 1
+spin K3 5
+expect gpad 7
+wait 2500
+shot source-atlas-kit.png

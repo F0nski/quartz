@@ -14,7 +14,7 @@ static q_pattern *setup(int model)
     P.sound[0].model = model;
     q_pattern *pt = &P.pat[0][0];
     pt->src = SRC_GRIDS;
-    pt->grids = (q_grids){ 0, 0, 0, { 127, 127, 127 }, 1, 60 };
+    pt->grids = (q_grids){ 0, 0, 0, { 127, 127, 127 }, 1, 60, { 0, 1, 2 } };
     memset(&G, 0, sizeof G);
     return pt;
 }
@@ -49,6 +49,35 @@ static void corner_follows_node(void)
         assert(!!on == want_on);
         assert(acc == want_acc);
         if (on) { assert(st.vel == 95 && st.len == 4 && st.micro == 0 && STEP_RATCHET(&st) == 1); }
+        if (slot < 4) assert(st.note[slot] == 0);
+    }
+}
+
+/* a KIT's parts play their PAD; two parts on one pad play it once, accented when either is */
+static void grids_kit_pads(void)
+{
+    q_pattern *pt = setup(M_KIT);
+    pt->grids.pad[0] = pt->grids.pad[1] = 6;
+    pt->grids.pad[2] = 2;
+    for (int k = 0; k < 32; k++) {
+        q_step st; int acc;
+        int on = played(pt, k, &st, &acc);
+        int want_on = 0, want_acc = 0, slot = 0, seven = -1;
+        for (int i = 0; i < 3; i++) {
+            int lvl = node_10[i * 32 + k];
+            if (lvl <= 0) continue;
+            want_on = 1;
+            if (i < 2 && seven >= 0) {          /* part 2 on part 1's pad: no second note */
+                if (lvl > 192) want_acc |= 1 << seven;
+                continue;
+            }
+            assert(st.note[slot] == KIT_NOTE + (i < 2 ? 6 : 2));
+            if (i < 2) seven = slot;
+            if (lvl > 192) want_acc |= 1 << slot;
+            slot++;
+        }
+        assert(!!on == want_on);
+        assert(acc == want_acc);
         if (slot < 4) assert(st.note[slot] == 0);
     }
 }
@@ -385,7 +414,7 @@ static void grids_level_matches_step(void)
     P2.sound[0].model = M_KIT;
     q_pattern *pt = &P2.pat[0][0];
     pt->src = SRC_GRIDS;
-    pt->grids = (q_grids){ 40, 90, 0, { 70, 90, 110 }, 1, 60 };
+    pt->grids = (q_grids){ 40, 90, 0, { 70, 90, 110 }, 1, 60, { 0, 1, 2 } };
     gen_reset(&g, &rng);
     for (int k = 0; k < 32; k++) {
         q_step st;
@@ -1593,6 +1622,7 @@ int main(void)
     marbles_gate_sets_len();
     grids_level_matches_step();
     corner_follows_node();
+    grids_kit_pads();
     dens0_silent();
     interpolates();
     synth_voice_note();

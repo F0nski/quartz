@@ -18,7 +18,7 @@
 enum { D_EDIT, D_SEQ, D_GLO, D_HOME, D_ENV, D_LFO, D_ARP, D_FX, ND };
 enum { P_ENGINE, P_SOUND, P_STEPS, P_TEMPO, P_SCALE, P_CPU, P_XY, P_TRACKS, P_SONG, P_GRIDS, P_MAP, P_DENS, P_MARBLES, P_T,
        P_X, P_NOTES, P_LIFE, P_LIFEK, P_SEED, P_EVOL, P_PAD, P_KIT, P_ADSR, P_FILTER, P_LFO, P_ARP, P_INSERT, P_MIX, P_GFX, P_KEYS,
-       P_SN1, P_SN2, P_SN3, P_LANES, P_LENS, P_CHORDS, P_PROG, P_TONNETZ, P_WALK, P_PLAY, P_ORBITS, P_MOON, P_MOONK, P_CHORD, P_TZSTEP, P_MIMIC, P_LOOP };            /* NOTES in SEQ: the cursor's step on K1-K4 */
+       P_SN1, P_SN2, P_SN3, P_LANES, P_LENS, P_CHORDS, P_PROG, P_TONNETZ, P_WALK, P_PLAY, P_ORBITS, P_MOON, P_MOONK, P_CHORD, P_TZSTEP, P_MIMIC, P_LOOP, P_GRIDSK };            /* NOTES in SEQ: the cursor's step on K1-K4 */
 /* what PRESET sets on a held step; the black keys pick them by family (FAMILY) */
 /* REC: GRID the white keys are SEQ's steps, NOTES they write at a cursor, LIVE they record while playing, ARM the first
    note starts LIVE */
@@ -86,6 +86,7 @@ static const q_page PAGE[] = {
     {"STEP", {"OP"}, {0}, {3}},                                          /* the TONNETZ step under PRESET's cursor */
     {"IMPROV", {"DIV", "ORDER", "DRIFT", "SOURCE"}, {0, 1, 0, 0}, {DIV_N - 1, 2, 127, SRC_N - 1}},
     {"LOOP", {"LOOP"}, {0}, {16}},                                       /* 0 FREE */
+    {"ATLAS", {"DIV", "VOICE", "PAD", "SOURCE"}, {0, 1, 0, 0}, {DIV_N - 1, 3, 15, SRC_N - 1}},   /* a KIT's: VOICE's PAD for NOTE */
 };
 
 /* Plaits' registration order (pq.h) */
@@ -258,6 +259,8 @@ static int pages(int d, uint8_t *out)
         __builtin_memcpy(out, GEN_PAGES[t->src - 1], 5);
         if (t->src == SRC_LIFE && kit())
             out[0] = P_LIFEK;
+        if (t->src == SRC_GRIDS && kit())
+            out[0] = P_GRIDSK;
         if (t->src == SRC_ORBITS && kit())
             out[1] = P_MOONK;
         return t->src == SRC_TONNETZ ? 4 : t->src == SRC_CHORDS ? 3 : t->src == SRC_ORBITS || t->src == SRC_LANES || t->src == SRC_MIMIC ? 2 : t->src != SRC_MARBLES ? 3 : kit() ? 2 : 4;   /* a KIT has no X section */
@@ -290,10 +293,10 @@ static int page_id(void)
 /* the page K1-K4 set, a step held aside: a KIT's pad held in EDIT gives its PAD page */
 static int knob_page(void) { return ui.domain == D_EDIT && ui.padheld && kit() ? P_PAD : page_id(); }
 
-/* a KIT plays the generators' 3 voices on its pads: no voice, note nor T output to pick; no arp either */
+/* a KIT: no T output to pick; no arp either */
 static int knob_hidden(int pid, int k)
 {
-    return (kit() && ((pid == P_GRIDS && (k == 1 || k == 2)) || (pid == P_MARBLES && k == 1) || pid == P_ARP))   /* a KIT has no arp */
+    return (kit() && ((pid == P_MARBLES && k == 1) || pid == P_ARP))   /* a KIT has no arp */
            || (pid == P_INSERT && k < 3 && !*INS_LABEL[ui.p->sound[ui.track].itype][k])    /* no role: turns ignored */
            || (pid == P_SN1 && !k && kit())                                                 /* a KIT's pads stay */
            || (kit() && (pid == P_LANES || pid == P_LENS || pid == P_ORBITS) && k == 1);                       /* a KIT: no base note, no OCT */
@@ -329,6 +332,7 @@ static int knob_get(int pid, int k)
     case P_STEPS * 4 + 2: return t->path;
     case P_STEPS * 4 + 3:
     case P_GRIDS * 4 + 3:
+    case P_GRIDSK * 4 + 3:
     case P_MARBLES * 4 + 3:
     case P_LIFE * 4 + 3:
     case P_LIFEK * 4 + 3:
@@ -338,6 +342,7 @@ static int knob_get(int pid, int k)
     case P_ORBITS * 4 + 3:
     case P_MIMIC * 4 + 3: return t->src;
     case P_GRIDS * 4:
+    case P_GRIDSK * 4:
     case P_MARBLES * 4:
     case P_LIFE * 4:
     case P_LIFEK * 4:
@@ -388,8 +393,10 @@ static int knob_get(int pid, int k)
     case P_SEED * 4 + 2: return t->life.autos;
     case P_EVOL * 4: return t->life.gen;
     case P_EVOL * 4 + 1: return t->life.mut;
-    case P_GRIDS * 4 + 1: return t->grids.voice;
+    case P_GRIDS * 4 + 1:
+    case P_GRIDSK * 4 + 1: return t->grids.voice;
     case P_GRIDS * 4 + 2: return t->grids.note;
+    case P_GRIDSK * 4 + 2: return t->grids.pad[t->grids.voice - 1];
     case P_MAP * 4: return t->grids.x;
     case P_MAP * 4 + 1: return t->grids.y;
     case P_MAP * 4 + 2: return t->grids.chaos;
@@ -501,6 +508,7 @@ static void knob_set(int pid, int k, int v)
         break;
     case P_STEPS * 4 + 1:
     case P_GRIDS * 4:
+    case P_GRIDSK * 4:
     case P_MARBLES * 4:
     case P_LIFE * 4:
     case P_LIFEK * 4:
@@ -560,6 +568,7 @@ static void knob_set(int pid, int k, int v)
         break;
     case P_STEPS * 4 + 3:               /* the steps and the generators' settings stay */
     case P_GRIDS * 4 + 3:
+    case P_GRIDSK * 4 + 3:
     case P_MARBLES * 4 + 3:
     case P_LIFE * 4 + 3:
     case P_LIFEK * 4 + 3:
@@ -572,8 +581,10 @@ static void knob_set(int pid, int k, int v)
         if ((v == SRC_CHORDS || v == SRC_TONNETZ || v == SRC_ORBITS || v == SRC_MIMIC) && !kit() && s->poly < 3)   /* chords, conjunctions: POLY 3 at least */
             s->poly = 3;
         break;
-    case P_GRIDS * 4 + 1: t->grids.voice = (uint8_t)v; break;
+    case P_GRIDS * 4 + 1:
+    case P_GRIDSK * 4 + 1: t->grids.voice = (uint8_t)v; break;
     case P_GRIDS * 4 + 2: t->grids.note = (uint8_t)v; break;
+    case P_GRIDSK * 4 + 2: t->grids.pad[t->grids.voice - 1] = (uint8_t)v; break;
     case P_MAP * 4: t->grids.x = (uint8_t)v; break;
     case P_MAP * 4 + 1: t->grids.y = (uint8_t)v; break;
     case P_MAP * 4 + 2: t->grids.chaos = (uint8_t)v; break;
@@ -1418,7 +1429,7 @@ static void dice_page(int pid)
         case P_STEPS * 4: case P_STEPS * 4 + 2:   /* LEN: dice_all's own; PATH: XY could freeze the pattern on a step */
             continue;
         }
-        if (k == 3 && (pid == P_STEPS || pid == P_GRIDS || pid == P_MARBLES || pid == P_LIFE || pid == P_LIFEK ||
+        if (k == 3 && (pid == P_STEPS || pid == P_GRIDS || pid == P_GRIDSK || pid == P_MARBLES || pid == P_LIFE || pid == P_LIFEK ||
                        pid == P_LANES || pid == P_CHORDS || pid == P_TONNETZ || pid == P_ORBITS || pid == P_MIMIC))   /* SOURCE */
             continue;
         v = pg->min[k] + (int)dice_rand((uint32_t)(pg->max[k] - pg->min[k] + 1));
@@ -2383,9 +2394,9 @@ static void knob_text(int pid, int k, int v, int model, char *b)
         }
         return;
     }
-    if ((pid == P_MOON || pid == P_MOONK) && k == 2) {   /* the moon's note, or its pad */
+    if ((pid == P_MOON || pid == P_MOONK || pid == P_GRIDSK) && k == 2) {   /* the moon's note, or a pad */
         static const char *const PADS3[3] = {"BD", "SN", "HH"};
-        if (pid == P_MOONK) {
+        if (pid != P_MOON) {
             if (v < 3) { const char *s = PADS3[v]; while ((*b++ = *s++) != 0) {} }
             else { *b++ = 'P'; int_text(v + 1, b); }
         } else
@@ -2411,7 +2422,7 @@ static void knob_text(int pid, int k, int v, int model, char *b)
         while ((*b++ = *s++) != 0) {}
         return;
     }
-    if ((k == 3 && (pid == P_STEPS || pid == P_GRIDS || pid == P_MARBLES || pid == P_LIFE || pid == P_LIFEK || pid == P_LANES || pid == P_CHORDS || pid == P_TONNETZ || pid == P_ORBITS || pid == P_MIMIC)) || (pid == P_T && !k)) {
+    if ((k == 3 && (pid == P_STEPS || pid == P_GRIDS || pid == P_GRIDSK || pid == P_MARBLES || pid == P_LIFE || pid == P_LIFEK || pid == P_LANES || pid == P_CHORDS || pid == P_TONNETZ || pid == P_ORBITS || pid == P_MIMIC)) || (pid == P_T && !k)) {
         const char *s = pid == P_T ? T_MODE_NAME[v] : SRC_NAME[v];
         while ((*b++ = *s++) != 0) {}
         return;
@@ -2420,7 +2431,7 @@ static void knob_text(int pid, int k, int v, int model, char *b)
         note_name(v, b);
         return;
     }
-    if ((pid == P_STEPS && k > 0) || (pid == P_XY && k & 1) || ((pid == P_GRIDS || pid == P_MARBLES || pid == P_LIFE || pid == P_LIFEK || pid == P_LANES || pid == P_CHORDS || pid == P_TONNETZ || pid == P_ORBITS || pid == P_MIMIC) && !k)) {
+    if ((pid == P_STEPS && k > 0) || (pid == P_XY && k & 1) || ((pid == P_GRIDS || pid == P_GRIDSK || pid == P_MARBLES || pid == P_LIFE || pid == P_LIFEK || pid == P_LANES || pid == P_CHORDS || pid == P_TONNETZ || pid == P_ORBITS || pid == P_MIMIC) && !k)) {
         const char *s = pid == P_STEPS && k == 2 ? PATH_NAME[v] : DIV_NAME[v];
         while ((*b++ = *s++) != 0) {}
         return;
@@ -2602,7 +2613,7 @@ static void view_now(q_view *v)
         v->scene.pos = (int8_t)(audio_pattern(ui.track) == ui.p->pattern[ui.track] ? audio_pos(ui.track) : -1);
         if (pid == P_NOTES || pid == P_MARBLES || pid == P_T || pid == P_X)
             v->scene.notes = gen_allowed(ui.p, t);
-        if (pid == P_GRIDS || pid == P_MAP || pid == P_DENS)
+        if (pid == P_GRIDS || pid == P_GRIDSK || pid == P_MAP || pid == P_DENS)
             v->scene.anim = 4;
         if (pid == P_LIFE || pid == P_LIFEK || pid == P_SEED || pid == P_EVOL)
             v->scene.anim = 8;                  /* scene_life.c; ui_frame fills its view */
@@ -2985,6 +2996,7 @@ static void draw_scene(const q_view *v, int32_t oy)
         }
         break;
     case P_GRIDS:
+    case P_GRIDSK:
     case P_MAP:
     case P_DENS:
     case P_MARBLES:
@@ -3178,8 +3190,10 @@ void ui_frame(void)
                     while (audio_notes(ui.track, &ui.notes_seen, notes, in, 16) == 16) {}
                 }
                 n = audio_notes(ui.track, &ui.notes_seen, notes, in, 16);
-                for (k = 0; k < n; k++)             /* the voice of a note: a KIT's pad 1..3, else VOICE */
-                    grids_drop(kit() ? notes[k] - KIT_NOTE : t->grids.voice - 1, now + in[k]);
+                for (k = 0; k < n; k++) {           /* the voice of a note: a KIT's first part on its pad, else VOICE */
+                    for (st = 0; kit() && st < 2 && t->grids.pad[st] != notes[k] - KIT_NOTE; st++) {}
+                    grids_drop(kit() ? st : t->grids.voice - 1, now + in[k]);
+                }
                 for (k = 0; k < 3; k++) {
                     for (st = 0; st < 32; st++)
                         gv.level[k][st] = (uint8_t)gen_grids_level(&t->grids, st, k);
@@ -3196,12 +3210,13 @@ void ui_frame(void)
                 } else {
                     __builtin_memcpy(gv.top_l, "1-32", 5);
                 }
-                if (kit()) {
-                    gv.top_r[0] = 0;
-                } else {                            /* the voice a synth track plays, and its note */
+                {                                   /* VOICE, and the note a synth track plays or a KIT's pad */
                     static const char *const VN[3] = {"BD ", "SN ", "HH "};
                     __builtin_memcpy(gv.top_r, VN[t->grids.voice - 1], 3);
-                    note_name(t->grids.note, gv.top_r + 3);
+                    if (kit())
+                        knob_text(P_GRIDSK, 2, t->grids.pad[t->grids.voice - 1], M_KIT, gv.top_r + 3);
+                    else
+                        note_name(t->grids.note, gv.top_r + 3);
                 }
                 grids_frame(&gv, now);
             } else if (v.scene.anim == 5) {
@@ -3735,6 +3750,7 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "mtout")) *got = t->marbles.tout;
     else if (!strcmp(what, "gvoice")) *got = t->grids.voice;
     else if (!strcmp(what, "gnote")) *got = t->grids.note;
+    else if (!strcmp(what, "gpad")) *got = t->grids.pad[t->grids.voice - 1] + 1;
     else if (!strcmp(what, "lpoly")) *got = t->life.poly;
     else if (!strcmp(what, "lnote")) *got = t->life.note;
     else if (!strcmp(what, "lmap")) *got = t->life.map;

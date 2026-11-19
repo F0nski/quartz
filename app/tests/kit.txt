@@ -145,13 +145,21 @@ tap PLAY
 tap SEQ
 wait 100
 shot kit_steps_overdub.png
-# GRIDS on a KIT: VOICE and NOTE hidden, their knobs ignored
+# ATLAS on a KIT: VOICE picks a part, PAD (for NOTE) the pad it plays; the others keep theirs
 turn K4 1
 expect src 1
-turn K2 2
-expect gvoice 1
+expect gpad 1
+turn K2 1
+expect gvoice 2
+expect gpad 2
 turn K3 5
+expect gpad 7
 expect gnote 60
+turn K2 1
+expect gpad 3
+turn K2 -1
+expect gpad 7
+turn K2 -1
 # MARBLES on a KIT: 2 pages, T OUT hidden and ignored
 turn K4 1
 expect src 2

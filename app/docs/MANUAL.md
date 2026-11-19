@@ -777,16 +777,20 @@ map, between the rhythms, and each part's density thins it out or fills it in.
 
 | Page | K1 | K2 | K3 | K4 |
 | --- | --- | --- | --- | --- |
-| ATLAS | DIV | VOICE, 1–3 | NOTE | SOURCE |
+| ATLAS | DIV | VOICE, 1–3 | NOTE (a kit: PAD) | SOURCE |
 | MAP | X, 0–127 | Y, 0–127 | CHAOS, 0–127 | — |
 | DENS | DENS 1 | DENS 2 | DENS 3 | — |
 
-- On a kit, the three parts play pads 1, 2 and 3. On a synth track, only the part VOICE plays, at the note NOTE.
+- On a synth track, only the part VOICE plays, at the note NOTE.
+- On a kit, the three parts play, each on its own pad: VOICE picks a part and PAD the pad it plays (BD, SN, HH, P4 to
+  P16; pads 1, 2 and 3 in a new pattern). Two parts on the same pad play it once.
 - CHAOS shakes the densities at the start of each loop: rolls and ghost notes come and go.
 - Accented hits play at full velocity.
 - **PRESET** steps through the 25 rhythms of the map, setting X and Y on them.
 
 ![ATLAS: the parts' hits as piles of blocks on a plateau, the step playing in pink](img/source-atlas.png "ATLAS")
+
+![ATLAS on a kit: VOICE 2, the snare part, plays pad 7](img/source-atlas-kit.png "ATLAS on a kit")
 
 **Inspired by** [Grids](https://pichenettes.github.io/mutable-instruments-documentation/modules/grids/manual/) by
 Mutable Instruments: QUARTZ runs Grids' drum map and its pattern generator. Grids' Euclidean mode and its own clock

@@ -8,7 +8,7 @@
 #define Q_LOCKS 128
 #define Q_SCENES 8
 #define Q_SONG 32
-#define Q_VERSION 14                /* q_project.version: the saved layout */
+#define Q_VERSION 15                /* q_project.version: the saved layout */
 #define Q_PADS 16
 #define M_KIT 24                   /* q_sound.model: the 16-pad kit */
 #define KIT_NOTE 36                /* a KIT's note: KIT_NOTE + pad */
@@ -37,8 +37,8 @@ typedef struct { uint8_t step, param, value; } q_lock;    /* value: the q_sound 
 enum { PATH_FWD, PATH_REV, PATH_PINGPONG, PATH_SNAKE, PATH_COLUMNS, PATH_SPIRAL, PATH_RANDOM, PATH_XY, PATH_N };
 /* XY: xlen, ylen 1..4, ydiv a DIV_* (the X clock is div) */
 enum { SRC_STEP, SRC_GRIDS, SRC_MARBLES, SRC_LIFE, SRC_LANES, SRC_CHORDS, SRC_TONNETZ, SRC_ORBITS, SRC_MIMIC, SRC_N };         /* q_pattern.src: where the notes come from */
-/* 0..127 except voice 1..3, note 1..127 (0 is no note) */
-typedef struct { uint8_t x, y, chaos, dens[3], voice, note; } q_grids;
+/* 0..127 except voice 1..3, note 1..127 (0 is no note), pad 0..15 (a KIT: the pad each part plays) */
+typedef struct { uint8_t x, y, chaos, dens[3], voice, note, pad[3]; } q_grids;
 /* 0..127 except tout 1..3, len 1..16, note 1..127, mode 0..6, range 1..4, gate 0..5 (1/8 to 4 steps: 1 << gate eighths);
  * notes: pitch classes allowed (bit n = C + n), 0 = the project's scale */
 typedef struct { uint8_t tout, len, mode, bias, jitter, dejavu, spread, xbias, steps, note, range; uint8_t notes[2]; uint8_t gate; } q_marbles;

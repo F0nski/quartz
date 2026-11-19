@@ -104,6 +104,7 @@ static void clamp_project(q_project *p)
             g->chaos = (uint8_t)clampi(g->chaos, 0, 127); g->note = (uint8_t)clampi(g->note, 1, 127);
             g->voice = (uint8_t)clampi(g->voice, 1, 3);
             for (int j = 0; j < 3; j++) g->dens[j] = (uint8_t)clampi(g->dens[j], 0, 127);
+            for (int j = 0; j < 3; j++) g->pad[j] = (uint8_t)clampi(g->pad[j], 0, Q_PADS - 1);
             m->tout = (uint8_t)clampi(m->tout, 1, 3); m->len = (uint8_t)clampi(m->len, 1, 16);
             m->mode = (uint8_t)clampi(m->mode, 0, 6); m->range = (uint8_t)clampi(m->range, 1, 4);
             m->gate = (uint8_t)clampi(m->gate, 0, 5);
