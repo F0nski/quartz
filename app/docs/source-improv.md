@@ -58,4 +58,4 @@ learns a musician's phrases as they play and answers in their style. IMPROV lear
 
 ---
 
-[← MOONS](source-moons.html)
+[← MOONS](source-moons.html) · [CIPHER →](source-cipher.html)

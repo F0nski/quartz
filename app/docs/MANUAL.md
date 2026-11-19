@@ -695,7 +695,7 @@ few recipes.
 | [LATTICE](source-lattice.html) | A walk from chord to chord on the Tonnetz. |
 | [MOONS](source-moons.html) | Moons on orbits, each playing as it passes. |
 | [IMPROV](source-improv.html) | An improviser that learns a phrase from you. |
-| CIPHER | Bytebeat: a formula of time per step decides the rhythm, the accent and the note. |
+| [CIPHER](source-cipher.html) | Bytebeat: a formula of time per step decides the rhythm, the accent and the note. |
 
 What the generative sources (all but STEP) share:
 

@@ -384,3 +384,30 @@ key w7 down
 wait 300
 shot sound-drums.png
 key w7 up
+
+# CIPHER (source-cipher.md): a new project, track 1 on CIPHER playing, then the same pattern on a KIT
+reboot
+wait 600
+tap SEQ
+spin K4 9
+expect src 9
+tap PLAY
+wait 2300
+shot source-cipher.png
+turn SELECT 1
+wait 300
+shot source-cipher-param.png
+turn SELECT 1
+wait 300
+shot source-cipher-time.png
+tap PLAY
+tap EDIT
+spin PRESET -30
+spin PRESET 24
+expect model 24
+tap SEQ
+turn SELECT -2
+tap PLAY
+wait 2300
+shot source-cipher-kit.png
+tap PLAY
