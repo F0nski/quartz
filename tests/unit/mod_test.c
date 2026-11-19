@@ -91,6 +91,7 @@ static float lfo_at(int shape, double quarters)
 {
     mod_init(); q_vparam p = dflt(); p.cutoff = 60; p.lshape = shape; p.ldepth = 63; p.lrate = 5;   /* 1 beat */
     mod_clock(120, (uint32_t)(quarters * 0.125 * Q_SR + 0.5));
+    for (int i = 0; i < 100; i++) blk(0, &p, 120);  /* the glide from 0 settled (FREE: mod_set holds the phase) */
     return semis(blk(0, &p, 120).cutoff) - (15.5f + 60 * 119.5f / 127);
 }
 static void lfo_shapes(void)
@@ -107,6 +108,23 @@ static void lfo_shapes(void)
     assert(fabsf(lfo_at(LS_SQR, 5) - 60) < 0.01f);   /* a quarter into the 2nd cycle: +60 */
 }
 
+/* SAW's return and SQR's edges are jumps: the LFO glides over them in about 2 ms, or they click */
+static void lfo_jumps_softened(void)
+{
+    setup(); q_vparam p = dflt(); p.cutoff = 60; p.lshape = LS_SAW; p.ldepth = 63; p.lrate = 5;   /* 1 beat */
+    float base = 15.5f + 60 * 119.5f / 127;
+    mod_clock(120, (uint32_t)(0.5f * Q_SR) - 2 * MOD_BLK);                  /* just before the wrap */
+    for (int i = 0; i < 60; i++) blk(0, &p, 120);                           /* FREE: mod_set holds the phase */
+    float top = semis(blk(0, &p, 120).cutoff) - base;
+    assert(top > 59);
+    mod_clock(120, 4 * MOD_BLK);                                            /* past it: -60 is the target */
+    float first = semis(blk(0, &p, 120).cutoff) - base;
+    assert(first < top && top - first < 0.2f * 120);
+    int n = 1; float e = first;
+    while (e > -60 + 0.05f * 120) { e = semis(blk(0, &p, 120).cutoff) - base; n++; assert(n < 100); }
+    assert(n * DT > 0.004f && n * DT < 0.008f);                           /* 95 % in 3 time constants of 2 ms */
+}
+
 static void lfo_free_shared_phase(void)
 {
     setup(); q_vparam p = dflt(); p.cutoff = 60; p.lshape = LS_SAW; p.ldepth = 63; p.lrate = 5;
@@ -117,8 +135,8 @@ static void lfo_free_shared_phase(void)
     pq_mod a = blk(0, &p, 120), b = blk(1, &p, 120);
     assert(a.cutoff == b.cutoff);
     mod_restart();
-    a = blk(0, &p, 120);
-    assert(fabsf(semis(a.cutoff) - (15.5f + 60 * 119.5f / 127) + 60) < 0.01f);   /* SAW at phase 0: -1 */
+    for (int i = 0; i < 100; i++) a = blk(0, &p, 120);
+    assert(fabsf(semis(a.cutoff) - (15.5f + 60 * 119.5f / 127) + 60) < 0.01f);   /* SAW at phase 0: -1, once glided to */
 }
 
 static void lfo_trig_restarts(void)
@@ -129,8 +147,10 @@ static void lfo_trig_restarts(void)
     for (int k = 0; k < 3; k++) {
         for (int i = 0; i < 400 + 111 * k; i++) mod_clock(120, MOD_BLK), blk(0, &p, 120);
         assert(fabsf(semis(blk(0, &p, 120).cutoff) - s60) > 5);
+        float before = fabsf(semis(blk(0, &p, 120).cutoff) - s60);
         mod_set(0, &p, 120); mod_note_on(0, 0);
-        assert(fabsf(semis(blk(0, &p, 120).cutoff) - s60) < 0.01f);   /* sin 0 */
+        assert(mod_lfo_phase(0) == 0);                                  /* sin 0, glided to */
+        assert(fabsf(semis(blk(0, &p, 120).cutoff) - s60) < before);
     }
 }
 
@@ -148,10 +168,11 @@ static void lfo_phase_advances(void)
 static void lfo_sync_tempo_change_continuous(void)
 {
     setup(); q_vparam p = dflt(); p.cutoff = 60; p.lshape = LS_SAW; p.ldepth = 63; p.lrate = 5;
-    float s60 = 15.5f + 60 * 119.5f / 127, prev = -1; int tempo = 120;
+    float prev = -1; int tempo = 120;
     for (int i = 0; i < 6000; i++) {
         if (i == 3000) tempo = 90;
-        float ph = (semis(blk(0, &p, tempo).cutoff) - s60 + 60) / 120;
+        blk(0, &p, tempo);
+        float ph = mod_lfo_phase(0);                /* the phase itself: the value glides after each wrap */
         if (prev >= 0 && prev - ph < 0.5f) assert(fabsf(ph - prev) < 0.001f);   /* a wrap goes down by ~1 */
         prev = ph;
         mod_clock(tempo, MOD_BLK);
@@ -179,12 +200,15 @@ static void sh_changes_once_per_cycle(void)
 {
     setup(); q_vparam p = dflt(); p.cutoff = 60; p.lshape = LS_SH; p.ldepth = 63; p.lrate = 5; p.ltrig = 1;
     mod_set(0, &p, 120); mod_note_on(0, 0);
-    int changes = 0; float prev = blk(0, &p, 120).cutoff;
-    for (int i = 0; i < 3 * 1838 - 20; i++) { float c = blk(0, &p, 120).cutoff; if (c != prev) changes++; prev = c; }
+    blk(0, &p, 120);
+    int changes = 0; float prev = lfo_value(&MV[0], 0);                /* its own value, not the glide toward it */
+    for (int i = 0; i < 3 * 1838 - 20; i++) { blk(0, &p, 120); float c = lfo_value(&MV[0], 0); if (c != prev) changes++; prev = c; }
     assert(changes == 2);
     /* FREE: voices of a track share the value */
     p.ltrig = 0; mod_set(0, &p, 120); mod_set(1, &p, 120); mod_clock(120, 30000);
-    assert(blk(0, &p, 120).cutoff == blk(1, &p, 120).cutoff);
+    pq_mod a, b;
+    for (int i = 0; i < 100; i++) { a = blk(0, &p, 120); b = blk(1, &p, 120); }   /* both glided to it */
+    assert(fabsf(semis(a.cutoff) - semis(b.cutoff)) < 0.01f);
 }
 
 /* arpeggiator: a log of the events with absolute frames */
@@ -376,7 +400,7 @@ static void arp_untracked_noteoff_passes(void)
 int main(void)
 {
     adsr_default_is_gate(); adsr_times(); adsr_release_from_attack(); adsr_attack_from_current_level();
-    filter_env_amount_and_accent(); lfo_shapes(); lfo_free_shared_phase(); lfo_trig_restarts(); lfo_phase_advances();
+    filter_env_amount_and_accent(); lfo_shapes(); lfo_jumps_softened(); lfo_free_shared_phase(); lfo_trig_restarts(); lfo_phase_advances();
     lfo_sync_tempo_change_continuous(); lfo_level_depth(); lfo_pitch_range(); sh_changes_once_per_cycle();
     arp_up_two_octaves(); arp_down(); arp_updown_no_repeat(); arp_order_follows_arrival(); arp_rand_in_set();
     arp_single_note_repeats(); arp_starts_at_first_note(); arp_gate_min(); arp_stops_when_empty(); arp_latch();

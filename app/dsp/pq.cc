@@ -36,6 +36,7 @@ struct Slot {
   float vel;
   float env;             // the ADSR at the last block
   bool open;             // the last block skipped the filter (LP wide open)
+  float gain;            // the LFO's LEVEL gain at the last block's end: the next block ramps from it
   bool own_env;          // the engine has its own envelope: the gate sets the level, not the ADSR
   float glide;           // one-pole coefficient per block (1: immediate)
   unsigned quiet;        // frames since the output last exceeded kSilence, up to kSilentFrames
@@ -95,6 +96,7 @@ extern "C" void pq_init(void) {
     s.own_env = false;
     s.svf.Init();
     s.open = false;
+    s.gain = 1.0f;
     s.glide = 1.0f;
     s.quiet = kSilentFrames;
   }
@@ -165,9 +167,13 @@ extern "C" void pq_render(int v, float* out, unsigned n) {
       }
       s.open = open;
       s.voice.Render(s.patch, s.mod, s.block, plaits::kBlockSize);
+      // the LFO's LEVEL across the block, not a step every 12 frames
+      float g = s.gain;
+      const float dg = (m.gain - g) * (1.0f / plaits::kBlockSize);
+      s.gain = m.gain;
       if (open) {
         for (size_t k = 0; k < plaits::kBlockSize; ++k) {
-          const float y = mix(s.block[k], s.chr) * m.gain;
+          const float y = mix(s.block[k], s.chr) * (g += dg);
           s.out[k] = y > 1.0f ? 1.0f : y < -1.0f ? -1.0f : y;
         }
       } else {
@@ -176,7 +182,7 @@ extern "C" void pq_render(int v, float* out, unsigned n) {
           const float x = mix(s.block[k], s.chr);
           const float y = (m.type == FT_HP ? s.svf.Process<stmlib::FILTER_MODE_HIGH_PASS>(x)
                          : m.type == FT_BP ? s.svf.Process<stmlib::FILTER_MODE_BAND_PASS>(x)
-                         : s.svf.Process<stmlib::FILTER_MODE_LOW_PASS>(x)) * m.gain;
+                         : s.svf.Process<stmlib::FILTER_MODE_LOW_PASS>(x)) * (g += dg);
           s.out[k] = y > 1.0f ? 1.0f : y < -1.0f ? -1.0f : y;   // the resonance can overshoot
         }
       }

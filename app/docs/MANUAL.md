@@ -387,6 +387,7 @@ track. The scenes show the model's name and draw what the knobs set.
 - PRESET switches FREE and TRIG, shown in the header. FREE runs on its own, and a synced rate starts with the bar at
   PLAY. TRIG starts the shape again on each note.
 - S&H takes a new random value each cycle.
+- The LFO's jumps (SAW's return, SQR's edges, S&H's steps) glide over about 2 ms, so they do not click.
 
 ![The LFO page: LFO FREE in the header, the shape drawn, SIN, 1/4, DEPTH 0, DEST TIMB](img/shape-lfo.png "LFO")
 

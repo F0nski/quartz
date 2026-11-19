@@ -344,6 +344,38 @@ static void filter_resumes_without_click(void)
     assert(closes < 0.03f && opens < 0.03f);
 }
 
+// An LFO on LEVEL moves the gain once a Plaits block: a ramp across the block, not a step every 12 frames
+static float jump;
+static float prev1, prev2;
+static void track_jump(const float *b, unsigned n)
+{
+    for (unsigned i = 0; i < n; i++) {
+        float e = fabsf(b[i] - 2.0f * prev1 + prev2);   // a linear prediction's error: a click stands out
+        if (e > jump) jump = e;
+        prev2 = prev1; prev1 = b[i];
+    }
+}
+static float level_lfo_jump(int depth)
+{
+    q_vparam p = defaults();
+    p.ldest = LD_LEVEL; p.lshape = LS_SQR; p.ltrig = 1; p.lrate = 5; p.ldepth = (int8_t)depth;   // a beat, from the note
+    start(0, 0, p, 36.0f, 1.0f);                    // model 0: no sharp edge of its own
+    render(0, (unsigned)(kRate * 0.1f));
+    jump = prev1 = prev2 = 0.0f;
+    for (unsigned n = 0; n < (unsigned)(kRate * 2.0f); n += kBlock) {
+        mod_set(0, &p, 120);
+        render(0, kBlock, track_jump);
+    }
+    return jump;
+}
+
+static void level_lfo_without_click(void)
+{
+    float none = level_lfo_jump(0), sqr = level_lfo_jump(-63);
+    printf("  SQR on LEVEL: jump %.4f, without the LFO %.4f\n", sqr, none);
+    assert(sqr < none * 1.5f);
+}
+
 static const float kOldPeak = 0.6578f;     // the VA at defaults before the per-voice filter and ADSR (374914a)
 
 static void defaults_match_old_level(void)
@@ -439,6 +471,7 @@ int main(void)
     enveloped_ignores_adsr_level();
     filter_extremes_stay_finite();
     filter_resumes_without_click();
+    level_lfo_without_click();
     defaults_match_old_level();
     voice_bytes_reported();
     char_mixes_out_and_aux();

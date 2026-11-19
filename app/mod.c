@@ -11,9 +11,13 @@ typedef struct {
     q_vparam p; int tempo, stage, acc;
     float env, astep;                                /* astep: the attack's slope per block */
     float ph, inc;                                   /* LFO phase 0..1 and its advance per block */
+    float lv;                                        /* the LFO's value, softened (LFO_GLIDE) */
     uint32_t cyc, notes;                             /* S&H: cycle number (FREE: global, TRIG: own) and note counter */
 } mvoice;
 static mvoice MV[PQ_VOICES];
+/* the LFO's jumps (SAW's return, SQR's edges, S&H's steps) glided over ~2 ms: a one-pole of 1 - exp(-12 / Q_SR / 2 ms)
+ * a block. A jump on LEVEL or CUTOFF clicks */
+#define LFO_GLIDE 0.127f
 #define NRATE 76                                     /* q_sound.lrate 0..75 */
 static float RPH[NRATE], RHZ[NRATE - LRATE_SYNC];    /* the FREE LFOs' phase per RATE since mod_restart; free rates' Hz */
 static uint32_t RCYC[NRATE];                         /* ... and their cycle count */
@@ -106,7 +110,8 @@ void mod_voice_block(int v, pq_mod *m)
         break;
     }
 
-    float l = lfo_value(s, v), d = clampf(p->ldepth / 63.f, -1, 1), ld = d * l;
+    s->lv += (lfo_value(s, v) - s->lv) * LFO_GLIDE;
+    float l = s->lv, d = clampf(p->ldepth / 63.f, -1, 1), ld = d * l;
     float semi = 15.5f + p->cutoff * (119.5f / 127) + s->env * (p->envamt / 63.f) * 96 * (s->acc ? 1.5f : 1);
     float res = p->res / 127.f;
     m->env = s->env; m->type = p->ftype;
