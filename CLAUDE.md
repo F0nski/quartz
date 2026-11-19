@@ -45,7 +45,7 @@ author asks: from `base/`, with emsdk sourced and `JIELI_TOOLCHAIN`, `AC79_SDK` 
 `tools/publish_site.sh ../app X.Y`. Its commit takes the global identity: recommit it with the noreply address.
 
 Install on the author's FM-1, from `~/perso/fm1`:
-`spike-cpu/.tools/venv/bin/python quartz/base/tools/fm1_install.py --yes --classic quartz/app/build/quartz.fwsc`.
+`spike-cpu/.tools/venv/bin/python quartz/base/tools/fm1_install.py --yes --classic quartz/app/build/quartz.fwsc 2>&1 | tr '\r' '\n' | tail -3` (its progress bar floods the output).
 Always `--classic`: the fast install stalls at 3 % on this unit's loader; if it stalls, run it again to resume.
 
 ## Conventions
