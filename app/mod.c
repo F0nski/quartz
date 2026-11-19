@@ -67,7 +67,7 @@ void mod_note_on(int v, int accent)
 {
     mvoice *s = &MV[v];
     s->acc = accent; s->stage = E_ATK; s->notes++;
-    s->astep = s->p.atk ? (1 - s->env) * (MOD_BLK / Q_SR) / env_time(s->p.atk) : 1.f;
+    s->astep = (1 - s->env) * (MOD_BLK / Q_SR) / env_time(s->p.atk);
     if (s->p.ltrig) { s->ph = 0; s->cyc = 0; }
 }
 

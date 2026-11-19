@@ -16,7 +16,10 @@ static void adsr_default_is_gate(void)
 {
     setup(); q_vparam p = dflt(); mod_set(0, &p, 120);
     mod_note_on(0, 0);
-    assert(blk(0, &p, 120).env == 1);
+    int a = 1; float prev = blk(0, &p, 120).env;       /* ATTACK 0 rises in 1 ms: a jump to 1 would click */
+    assert(prev < 0.5f);
+    while (prev < 1) { float e = blk(0, &p, 120).env; assert(e > prev); prev = e; a++; }
+    assert(fabsf(a * DT - 0.001f) < DT);
     for (int i = 0; i < 100; i++) assert(blk(0, &p, 120).env == 1);
     mod_note_off(0);
     int n = 0; while (blk(0, &p, 120).env >= 0.001f) n++;
@@ -68,6 +71,7 @@ static void filter_env_amount_and_accent(void)
 {
     setup(); q_vparam p = dflt(); p.cutoff = 0; p.envamt = 63; p.sus = 127;
     mod_set(0, &p, 120); mod_note_on(0, 0);
+    for (int i = 0; i < 4; i++) blk(0, &p, 120);      /* past the 1 ms attack */
     float base = 15.5f;
     assert(fabsf(semis(blk(0, &p, 120).cutoff) - (base + 96)) < 0.01f);
     mod_note_on(0, 1);
