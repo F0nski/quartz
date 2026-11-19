@@ -25,7 +25,7 @@ the chords always flow, often outside the usual progressions. Good for film-like
 | --- | --- | --- | --- |
 | LEN | 1: one transform, repeated | — | 8: eight steps before RETURN |
 | CHAOS | 0: the walk as written | Some steps take another transform | 127: almost every step another transform: it wanders |
-| SCALE | FREE: the walk may leave GLO's scale, chromatic chords | — | IN SCALE: every chord in the scale, the other transforms tried first |
+| SCALE | FREE: the walk may leave GLO's scale, chromatic chords | — | IN SCALE: every chord in the scale; a transform that would leave it is replaced by one that doesn't, or the chord stays |
 | RETURN | OFF: walks on, never comes back | — | ON: back to the first chord after the sequence: a loop |
 
 ## The scene

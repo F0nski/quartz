@@ -275,7 +275,8 @@ On the drums, HEX A–C, WIRE and CHLADNI, the model makes its own envelope: ENV
 
 **Inspired by** [Plaits](https://pichenettes.github.io/mutable-instruments-documentation/modules/plaits/manual/)
 by Mutable Instruments (Emilie Gillet), with the eight models of its
-[firmware 1.2](https://pichenettes.github.io/mutable-instruments-documentation/modules/plaits/firmware/). QUARTZ runs
+[firmware 1.2](https://pichenettes.github.io/mutable-instruments-documentation/modules/plaits/firmware/) (SWEEP, KINK,
+HEX A–C, BOWL, ENSEMBLE and ARCADE). QUARTZ runs
 Plaits' own code. It adds to it what a module gets from its patch: notes and velocity from the keys and the
 sequencer, up to four voices per track, GLIDE, an ADSR, a filter, an LFO, an arpeggiator and effects. CHLADNI's name
 and scene come from [Chladni figures](https://en.wikipedia.org/wiki/Ernst_Chladni#Chladni_figures) (Ernst Chladni,

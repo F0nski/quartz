@@ -24,8 +24,8 @@ The numbers below were counted in the simulator on a new pattern, POLY 3, at 120
 | --- | --- | --- | --- |
 | RATE | 1/BAR: one chord held through the bar (1.5 notes a second) | 4/BAR: a chord a beat (6 notes a second) | 16/BAR: a chord every step (about 24 notes a second) |
 | LEN | 1: one chord, a drone | — | 8: eight chords, eight bars |
-| STRUM | 0: the notes together | — | 7: the widest spread, from the lowest note up |
-| VOICE | ROOT: each chord in root position on NOTE, jumps between chords | — | SMOOTH: the inversion closest to the chord before, a smooth line |
+| STRUM | 0: the notes together | — | 7: the widest spread, from the lowest note up, by 24ths of a step |
+| VOICE | ROOT: each chord in root position on NOTE, jumps between chords | — | SMOOTH: the inversion closest to the chord before, never far from the root position: a smooth line |
 
 ## The scene
 
@@ -53,7 +53,7 @@ PRESET moves a cursor along the chords; the CHORD page sets the one under it, an
 | Held pad chords | RATE 1/BAR, VOICE SMOOTH, POLY 4, a slow ENV, on ENSEMBLE or HEX C |
 | A stab on every beat | RATE 4/BAR, ENV with SUSTAIN 0 and a short DECAY |
 | A harp-like strum | RATE 2/BAR, STRUM 5, on WIRE or CHLADNI |
-| A darker progression | Chords vi – IV – I – V: the same chords, starting on the minor |
+| A darker progression | DEGREE VI, IV, I, V: the same chords, starting on the minor one |
 
 CADENCE is QUARTZ's own.
 

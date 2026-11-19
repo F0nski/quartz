@@ -65,7 +65,7 @@ The presets of each bank:
 | Slow strings | HEX C, STRINGS 2, POLY 4, MORPH 90 |
 
 **Inspired by** [Plaits](https://pichenettes.github.io/mutable-instruments-documentation/modules/plaits/manual/) by
-Mutable Instruments, whose two-operator FM and six-operator FM models these are; the presets come from the classic
+Mutable Instruments, whose two-operator FM and six-operator FM (firmware 1.2, banks 1 to 3) models these are; the presets come from the classic
 six-operator banks Plaits ships.
 
 ---

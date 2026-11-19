@@ -18,7 +18,7 @@ goes on from there. The result sounds like your phrase, rearranged: a duet partn
 | Knob | At its start | Middle | At its end |
 | --- | --- | --- | --- |
 | ORDER | 1: matches the last note: free, surprising | — | 2: matches the last two: closer to your phrase |
-| DRIFT | 0: always follows the phrase | Now and then a jump | 127: jumps anywhere in the phrase almost every time |
+| DRIFT | 0: always follows the phrase | Now and then a jump | 127: jumps anywhere in the phrase every time |
 | LOOP | FREE: never repeats | 4: a short riff, the same every 4 steps | 16: a riff of a bar |
 
 ## LISTEN

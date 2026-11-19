@@ -19,7 +19,7 @@ The numbers below were counted in the simulator on a KIT, at 120 BPM with DIV 1/
 | Knob | At 0 | Middle | At 127 |
 | --- | --- | --- | --- |
 | DENS 1–3, each part's density | The part is silent | The rhythm as drawn on the map: with all three at 64, about 4 hits a second | Every step the part can fill: about 11 hits a second with all three |
-| X, Y, the place on the map | One corner's rhythm | Between four rhythms, blended | The opposite corner's rhythm |
+| X, Y, the place on the map | Both at 0: one corner's rhythm | Between four rhythms, blended | Both at 127: the opposite corner's rhythm |
 | CHAOS | The pattern repeats exactly | — | The densities shaken at each loop: about 50 % more hits, rolls and ghost notes come and go |
 
 - On a synth track, only the part VOICE plays, at the note NOTE.

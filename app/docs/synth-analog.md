@@ -97,7 +97,7 @@ speciality.
 | Fold sweep | A note held, an LFO on TIMB (LFO page: DEPTH 40, DEST TIMB) |
 
 **Inspired by** [Plaits](https://pichenettes.github.io/mutable-instruments-documentation/modules/plaits/manual/) by
-Mutable Instruments, whose virtual analog, VA with filter, phase distortion and waveshaper models these are.
+Mutable Instruments, whose virtual analog, VA with VCF (firmware 1.2), phase distortion (1.2) and waveshaper models these are.
 
 ---
 

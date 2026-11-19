@@ -10,8 +10,10 @@ The values below were measured with the two other knobs at 64, the bass drum on 
 lives below 150 Hz: it is clear on headphones and faint on the FM-1's speaker; raise its TUNE or its HARM to hear it
 there.
 
-The scene shows the kit's three drums, each struck as it plays: HARM, TIMB and MORPH (or a pad's TUNE, HARM, TIMB and
-DECAY) change the drums, and the one being set is lit.
+![EDIT's ENGINE page with BASS DRUM: a faceted blue shape in a neon tunnel](img/sound-drums.png "BASS DRUM's scene")
+
+A drum played on its own is a faceted shape in a neon tunnel (the snare a cube), struck on each hit: HARM, TIMB and
+MORPH reshape it. On a kit's PAD page, the scene shows the three drums, the one the knobs set lit.
 
 ## BASS DRUM
 
@@ -25,6 +27,13 @@ DECAY) change the drums, and the one being set is lit.
 
 **Start with** MORPH at 100 for a long kick, HARM at 90 to hear it on the speaker.
 
+**Recipes**
+
+| Sound | Settings |
+| --- | --- |
+| Long boom | HARM 90, MORPH 110: loud, nearly all below 150 Hz |
+| Tight kick | HARM 100, MORPH 30: short, half as loud |
+
 ## SNARE
 
 **Sound.** An analog snare: a tuned drum head and a noise of snares.
@@ -37,6 +46,13 @@ DECAY) change the drums, and the one being set is lit.
 
 **Start with** HARM at 64: the head and the snares together.
 
+**Recipes**
+
+| Sound | Settings |
+| --- | --- |
+| Tight snare | HARM 64, MORPH 30: short, the head and a little noise |
+| Noisy snare | HARM 127, MORPH 50: the snares alone, 1.2–9.6 kHz |
+
 ## HI-HAT
 
 **Sound.** An analog hi-hat: metallic squares through a high-pass filter, mixed with noise.
@@ -48,6 +64,13 @@ DECAY) change the drums, and the one being set is lit.
 | MORPH, the decay | Closed hat: very short | — | Open hat: long |
 
 **Start with** MORPH at 30 for a closed hat and 110 for an open one.
+
+**Recipes**
+
+| Sound | Settings |
+| --- | --- |
+| Closed hat | MORPH 30 |
+| Open hat | TIMB 90, MORPH 110: long, most of it at 2.4–4.8 kHz |
 
 ## KIT
 

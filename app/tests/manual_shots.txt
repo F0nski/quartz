@@ -378,3 +378,9 @@ key w7 down
 wait 400
 shot sound-wire.png
 key w7 up
+spin PRESET 2
+expect model 21
+key w7 down
+wait 300
+shot sound-drums.png
+key w7 up

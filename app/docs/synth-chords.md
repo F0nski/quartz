@@ -84,7 +84,7 @@ hops in and MORPH the blocks' width.
 | Harsh chip | MORPH 127: bright, keep the level down |
 
 **Inspired by** [Plaits](https://pichenettes.github.io/mutable-instruments-documentation/modules/plaits/manual/) by
-Mutable Instruments, whose chords, string machine and chiptune models these are.
+Mutable Instruments, whose chords, string machine (firmware 1.2) and chiptune (1.2) models these are.
 
 ---
 

@@ -59,7 +59,7 @@ MORPH where it sits. A small circle is close to a sine; a large one crosses more
 | Glass | Notes around C4, HARM 127, TIMB 64: most of the energy far up, above 4.8 kHz |
 
 **Inspired by** [Plaits](https://pichenettes.github.io/mutable-instruments-documentation/modules/plaits/manual/) by
-Mutable Instruments, whose wavetable and wave terrain models these are.
+Mutable Instruments, whose wavetable and wave terrain (firmware 1.2) models these are.
 
 ---
 
