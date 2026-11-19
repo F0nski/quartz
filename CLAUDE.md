@@ -16,8 +16,9 @@ Plaits, Grids, Marbles and the Clouds reverb in `app/third_party/`. Licence GPL-
 - `app/p3d.c`: the flat 3D renderer. `app/scene*.c`: one animated scene per engine family, source and global page.
   `app/plateau.c`: the SEQ page's 4x4 plateau.
 - `app/words.tsv`: what the screen reader says for each word on the screen.
-- `app/fm1.toml`: build and site settings. `app/docs/MANUAL.md`: the user manual; `app/site/landing.md`: the
-  site's front page.
+- `app/fm1.toml`: build and site settings. `app/docs/MANUAL.md`: the user manual; `app/docs/synth-*.md` and
+  `source-*.md`: its page per family of models and per pattern source, beside it on the site (`manual/<name>.html`);
+  `app/site/landing.md`: the site's front page.
 - `app/tests/*.txt`: host simulator scripts (`tap`, `turn`, `key`, `wait`, `expect`, `shot`; syntax in
   `base/host/plat_host.c`'s header). `tests/unit/`: C and C++ unit tests.
 - `tools/device/`: device CPU measurement over USB (`measure.sh`, `worst_case.py`, `snap.py`).
@@ -31,10 +32,11 @@ Plaits, Grids, Marbles and the Clouds reverb in `app/third_party/`. Licence GPL-
 ```sh
 ./build.sh                 # app/build/quartz.fwsc (needs .tools/toolchain and .tools/sdk, see README.md)
 ./build.sh --host          # app/build/host/quartz_host, the simulator
-tests/run_tests.sh         # unit tests, then every app/tests/*.txt; ends with "all tests ok"
+tests/run_tests.sh         # unit tests, the manual's links, then every app/tests/*.txt; ends with "all tests ok"
 app/build/host/quartz_host app/tests/X.txt app/build/host     # one simulator script; shots land in the 2nd arg
 rm -rf app/build/shots && mkdir -p app/build/shots && app/build/host/quartz_host app/tests/manual_shots.txt app/build/shots && cp app/build/shots/*.png app/docs/img/   # the manual's captures
 python3 base/tools/manual_html.py app/docs/MANUAL.md app/build/manual.html --name QUARTZ   # preview the manual
+python3 base/tools/manual_html.py app/docs/synth-analog.md app/build/synth-analog.html --name QUARTZ   # or one page
 # the whole site (front page, installer, emulator, manual) in app/build/site, for a release X.Y; needs Emscripten
 source .tools/emsdk/emsdk_env.sh && ./build.sh --release X.Y && ./build.sh --web --release X.Y \
   && (cd base && python3 tools/make_site.py ../app ../app/build/quartz-X.Y.fwsc X.Y ../app/build/site)
@@ -75,12 +77,14 @@ Always `--classic`: the fast install stalls at 3 % on this unit's loader; if it 
 ## User manual
 
 Every change the player can see or hear (a page, a knob, a name, a range, a gesture, a default) updates
-`app/docs/MANUAL.md` in the same commit, and re-runs the captures command above when a screen changes, committing
+`app/docs/MANUAL.md` or the family or source page it belongs to (`app/docs/synth-*.md`, `source-*.md`) in the same
+commit, and re-runs the captures command above when a screen changes, committing
 the changed images in `app/docs/img/`. The manual names a borrowed idea in an **Inspired by** line, from the
 original's own documentation. The Markdown stays within what `base/tools/manual_html.py` handles (its header).
 
 ## Docs
 
-- `app/docs/MANUAL.md`: read before changing anything the player sees; it is the behaviour as documented.
+- `app/docs/MANUAL.md`: read before changing anything the player sees; it is the behaviour as documented. Read the
+  page of a family of models or a source (`app/docs/synth-*.md`, `source-*.md`) before changing it.
 - `docs/cpu.md`: read before touching audio code or the link order.
 - `docs/superpowers/specs/2026-11-10-quartz-groovebox-design.md`: the overall design; each feature's spec beside it.

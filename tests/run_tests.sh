@@ -30,6 +30,9 @@ for t in tests/unit/*_test.cc; do
     "$OUT/$(basename "$t" .cc)"
 done
 
+# the manual and its pages: links, anchors, images
+python3 tests/check_doc_links.py
+
 for s in app/tests/*.txt; do
     echo "run $s"
     app/build/host/quartz_host "$s" app/build/host

@@ -1,0 +1,24 @@
+diff --git a/tools/make_site.py b/tools/make_site.py
+index d340a91..cef5ecf 100755
+--- a/tools/make_site.py
++++ b/tools/make_site.py
+@@ -191,6 +191,10 @@ def main(app, pkg, version, out):
+         page(manual, out / "manual" / "index.html", conf, False)
+         if (app / "docs" / "img").is_dir():
+             shutil.copytree(app / "docs" / "img", out / "manual" / "img")
++        # the manual's own pages (a family of sounds, a source…), beside it: its images and links work as they are
++        for md in sorted((app / "docs").glob("*.md")):
++            if md.name != "MANUAL.md":
++                page(md, out / "manual" / f"{md.stem}.html", conf, False)
+     shutil.copytree(emu, out / "emu")
+     if (app / "web" / "words").is_dir():
+         shutil.copytree(app / "web" / "words", out / "words")
+@@ -199,7 +203,7 @@ def main(app, pkg, version, out):
+         (out / p).parent.mkdir(parents=True, exist_ok=True)
+         (out / p).write_text(h, encoding="utf-8")
+     (out / ".nojekyll").write_text("")
+-    print(f"site: {out}: index.html, install/ ({product}), {'manual/, ' if manual.exists() else ''}emu/, words/, "
++    print(f"site: {out}: index.html, install/ ({product}), {f'manual/ (+{len(list((app / "docs").glob("*.md"))) - 1} pages), ' if manual.exists() else ''}emu/, words/, "
+           f"{''.join(p.split('/')[0] + '/, ' for p in tools)}firmware/{name} ({len(raw)} B)"
+           f"{f', firmware/{res_name}' if res_src.exists() else ''}")
+ 
