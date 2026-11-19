@@ -32,6 +32,7 @@ core's load and LOST BLOCKS; a step is validated only with zero lost blocks in i
 | Step 5f, the same worst case on the ENV FILTER page: the harmonics (20 fps), two 45 s windows | 74 % / 65 % | 0 |
 | Step 5g, the same worst case on GLO's TEMPO page: the flat bar (27 fps), 45 s | 81 % / 58 % | 0 |
 | 0.7, probe.py over 30 s, twice: tracks 2 and 3 MODAL POLY 3 on LATTICE and MOONS, a KIT on ATLAS, PHASER on both, sends full, COMP | 86 % / 63 % | 0.2-0.4 a second |
+| The unity build at -Oz (fm1.toml unity_opt: 578 148 B to 524 900 B), worst_case.py, probe.py 2 x 60 s; the -Os build just before in the same session: 74 % / 65 % | 76 % / 66 % | 0 |
 
 One Plaits voice costs 5 to 11 % of a core for the light models, 12 to 16 % for the common ones and 20 to 21 % for
 ADDITIVE and MODAL; the cost is linear in voices and the second core halves the wall time. The generators run once

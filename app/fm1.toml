@@ -5,6 +5,7 @@ usb_manufacturer = "fm1-base"
 usb_product = "QUARTZ FM-1"
 include = ["third_party", "dsp"]
 device_include = ["dsp/cxx"]
+unity_opt = "z"        # the unity build at -Oz (the o2 units stay -O2): 53 KB of flash for the sources to come
 o2 = ["dsp/*.cc", "third_party/plaits/**/*.cc", "third_party/stmlib/**/*.cc"]
 o2_cflags = ["-idirafter", "app/libc_include", "-std=gnu++11", "-fno-exceptions", "-fno-rtti", "-fno-threadsafe-statics", "-fno-math-errno"]
 unity_cflags = ["-mllvm", "-enable-global-merge=false"]   # the statics not merged: adding one to the screen's code no
