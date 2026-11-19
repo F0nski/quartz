@@ -2734,6 +2734,8 @@ static void plateau_view(const q_view *v, q_plateau *p)
     }
 }
 
+static int head_page_name;              /* the header last drew the page's name (a test reads it) */
+
 static void draw_head(const q_view *v)
 {
     char t[8];
@@ -2743,15 +2745,16 @@ static void draw_head(const q_view *v)
     int_text(v->head.track + 1, t);
     cv_text(6 + (20 - text_w(&FONT_B, t)) / 2, 7, &FONT_B, t, C_BLACK);
     x = cv_text(34, 7, &FONT_B, DOMAIN_NAME[v->head.domain], C_WHITE);
-    if (v->head.msg)
-        cv_text(x + 10, 7, &FONT_B, v->head.msg == 1 ? "STOP TO SAVE" : v->head.msg == 2 ? "LOCKS FULL" : v->head.msg == 3 ? "AGAIN: ERASE"
-                : v->head.msg == 4 ? "RANDOM PAGE" : v->head.msg == 5 ? "RANDOM ALL" : v->head.msg == 6 ? "RANDOM MODEL" : "TAP",
-                KCOL[3]);
-    if (v->head.msg == 7) {             /* TAP and the tempo */
-        int_text(v->head.bpm, t);
-        cv_text(x + 10 + text_w(&FONT_B, "TAP") + 4, 7, &FONT_B, t, KCOL[3]);
-    }
-    else if (v->head.punch)
+    head_page_name = 0;
+    if (v->head.msg) {
+        x = cv_text(x + 10, 7, &FONT_B, v->head.msg == 1 ? "STOP TO SAVE" : v->head.msg == 2 ? "LOCKS FULL" : v->head.msg == 3 ? "AGAIN: ERASE"
+                    : v->head.msg == 4 ? "RANDOM PAGE" : v->head.msg == 5 ? "RANDOM ALL" : v->head.msg == 6 ? "RANDOM MODEL" : "TAP",
+                    KCOL[3]);
+        if (v->head.msg == 7) {         /* TAP and the tempo */
+            int_text(v->head.bpm, t);
+            cv_text(x + 4, 7, &FONT_B, t, KCOL[3]);
+        }
+    } else if (v->head.punch)
         cv_text(x + 10, 7, &FONT_B, PUNCH_NAME[v->head.punch - 1], C_AMB);
     else if (v->head.domain == D_HOME && v->head.scene) {       /* the scene asked, until it starts */
         t[0] = (char)('0' + v->head.scene), t[1] = 0;
@@ -2767,6 +2770,7 @@ static void draw_head(const q_view *v)
         t[0] = 'P', t[1] = (char)('0' + v->head.pat), t[2] = 0;
         cv_text(x, 7, &FONT_B, t, C_AMB);
     } else {
+        head_page_name = 1;
         x = cv_text(x + 10, 7, &FONT_B, v->foot.pid == P_INSERT ? INS_NAME[v->head.itype] : PAGE[v->foot.pid].name, C_AMB);
         if (v->head.ltrig)
             x = cv_text(x + 8, 7, &FONT_B, v->head.ltrig == 2 ? "TRIG" : "FREE", C_AMB);
@@ -3717,6 +3721,7 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "msg_wipe")) *got = plat_ms() < ui.wipe_until;
     else if (!strcmp(what, "msg_random")) *got = plat_ms() < ui.rnd_until ? ui.rnd_kind : 0;
     else if (!strcmp(what, "msg_tap")) *got = plat_ms() < ui.tap_until;
+    else if (!strcmp(what, "head_page_name")) *got = head_page_name;
     else if (!strcmp(what, "active")) *got = (int)audio_load().active;
     else if (!strcmp(what, "src")) *got = t->src;
     else if (!strcmp(what, "gx")) *got = t->grids.x;

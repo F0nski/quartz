@@ -294,3 +294,15 @@ press REC
 wait 500
 expect leds_lit 10
 release REC
+# the message replaces the page's name in the header, not drawn over it; the name comes back after it
+tap EDIT
+press REC
+key b5 down
+key b5 up
+release REC
+wait 100
+expect msg_random 1
+expect head_page_name 0
+wait 2000
+expect msg_random 0
+expect head_page_name 1
