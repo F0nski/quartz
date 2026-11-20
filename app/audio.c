@@ -32,7 +32,7 @@
 _Static_assert(APP_BLOCK <= QFX_BLOCK && APP_BLOCK % 2 == 0 && Q_TRACKS == QFX_TRACKS, "qfx_block's contract");
 
 /* SCENE: note = scene; PREP_REQ: note = model; DONE: track = slot, note = model */
-enum { CMD_NOTE, CMD_PLAY, CMD_MODEL, CMD_SCENE, CMD_PREP_REQ, CMD_PREP_DONE, CMD_DRAW, CMD_LISTEN };
+enum { CMD_NOTE, CMD_PLAY, CMD_MODEL, CMD_SCENE, CMD_PREP_REQ, CMD_PREP_DONE, CMD_DRAW, CMD_LISTEN, CMD_JUMP };
 typedef struct { uint8_t kind, track, note, on; } q_cmd;
 
 static q_project *prj;
@@ -195,6 +195,7 @@ int audio_pattern(int track) { return seq_pattern(&seq, track); }
 int audio_song_entry(void) { return seq_song_entry(&seq); }
 void audio_rec(int on) { recording = on; }
 void audio_scene(int scene) { push(CMD_SCENE, 0, scene, 0); }
+void audio_jump(int track, int pat) { push(CMD_JUMP, track, pat, 0); }
 void audio_marbles_draw(int track) { push(CMD_DRAW, track, 0, 0); }
 void audio_mimic_listen(int track, int on) { push(CMD_LISTEN, track, on, 0); }
 
@@ -712,6 +713,8 @@ static void commands(void)
             }
         } else if (c.kind == CMD_SCENE) {
             seq_launch(&seq, c.note);
+        } else if (c.kind == CMD_JUMP) {
+            seq_jump(&seq, c.track, c.note);
         } else if (c.kind == CMD_DRAW) {          /* MARBLES: a new draw of the track's loops */
             gen_marbles_draw(&seq.g[c.track], &seq.rng);
         } else if (c.kind == CMD_LISTEN) {        /* MIMIC: silent while it learns; after, a new phrase: as at the reset */

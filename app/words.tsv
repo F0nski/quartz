@@ -556,6 +556,7 @@ COPY SOUND	copy sound
 PASTE SOUND	paste sound
 PASTE	paste
 PRESS TWICE	press twice
+PATTERN AT ONCE	pattern at once
 PATTERN COPIED	pattern copied
 AGAIN: PASTE	again: paste
 PATTERN PASTED	pattern pasted

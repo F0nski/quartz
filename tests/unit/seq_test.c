@@ -116,6 +116,7 @@ static int64_t ceil_then(uint32_t k, uint32_t n1, uint32_t d1, uint32_t n2, uint
     return (int64_t)ceil_div((uint64_t)k * n1 * d2 + (uint64_t)n2 * d1, (uint64_t)d1 * d2);
 }
 
+/* the rank is the steps since PLAY modulo LEN: shorter, the track lands where a STOP and a PLAY would have it */
 static void length_shrink_wraps(void)
 {
     setup();
@@ -123,8 +124,65 @@ static void length_shrink_wraps(void)
     assert(nth(0, 1, 9) >= 0 && nth(0, 1, 10) < 0);     /* steps 0..9 have started */
     P.pat[0][0].len = 4;
     while (seq_pos(&S, 0) == 9) run(1);
+    assert(seq_pos(&S, 0) == 10 % 4);
+    assert(nth(0, 1, 10) == (int64_t)ceil_div(10 * (uint64_t)N16, D16));   /* on the grid */
+}
+
+/* a length changed and back: the track is on step 1 with a track that kept its length */
+static void length_back_realigns(void)
+{
+    setup();
+    for (int i = 0; i < 16; i++) P.pat[1][0].steps[i].flags = SF_ON;
+    while (seq_pos(&S, 0) != 5) run(1);
+    P.pat[0][0].len = 3;                                 /* a few odd passes */
+    while (seq_pos(&S, 1) != 13) run(1);
+    P.pat[0][0].len = 16;
+    while (seq_pos(&S, 1) != 0) run(1);
     assert(seq_pos(&S, 0) == 0);
-    assert(nth(0, 1, 10) == (int64_t)ceil_div(10 * (uint64_t)N16, D16));   /* step 10 of the grid is the wrap to step 0 */
+    while (seq_pos(&S, 1) != 7) run(1);
+    assert(seq_pos(&S, 0) == 7);
+}
+
+/* 16 to 32: the pass goes on to step 17, the start stays the others' */
+static void length_doubled_goes_on(void)
+{
+    setup();
+    while (seq_pos(&S, 0) != 15) run(1);
+    P.pat[0][0].len = 32;
+    while (seq_pos(&S, 0) == 15) run(1);
+    assert(seq_pos(&S, 0) == 16);
+}
+
+/* seq_jump: the pattern asked from the next step, at the steps since PLAY modulo its length */
+static void jump_keeps_place(void)
+{
+    setup();
+    for (int i = 0; i < Q_STEPS; i++) {
+        P.pat[0][1].steps[i].flags = SF_ON;
+        P.pat[0][1].steps[i].note[0] = 62;
+    }
+    P.pat[0][1].len = 8;
+    while (seq_pos(&S, 0) != 5) run(1);
+    P.pattern[0] = 1;
+    seq_jump(&S, 0, 1);
+    while (seq_pos(&S, 0) == 5) run(1);
+    assert(seq_pattern(&S, 0) == 1 && seq_pos(&S, 0) == 6);
+    while (seq_pos(&S, 0) != 7) run(1);
+    while (seq_pos(&S, 0) == 7) run(1);
+    assert(seq_pos(&S, 0) == 0);                         /* 8 steps since PLAY */
+}
+
+/* without a jump, a pattern of another length is taken at the pass's end, at the steps since PLAY modulo its length */
+static void switch_lands_on_play_grid(void)
+{
+    setup();
+    for (int i = 0; i < Q_STEPS; i++) P.pat[0][1].steps[i].flags = SF_ON;
+    P.pat[0][1].len = 32;
+    P.pat[0][0].len = 8;
+    while (seq_pos(&S, 0) != 3) run(1);
+    P.pattern[0] = 1;
+    while (seq_pattern(&S, 0) != 1) run(1);
+    assert(seq_pos(&S, 0) == 8);
 }
 
 static void tempo_change_keeps_grid(void)
@@ -1217,12 +1275,12 @@ static void generator_pattern_change_at_loop_end(void)
     run_to((uint64_t)at16(16, 0) - 1);
     assert(seq_pattern(&S, 0) == 0 && seq_pos(&S, 0) == 15);
     run_to((uint64_t)at16(16, 0));
-    assert(seq_pattern(&S, 0) == 1 && seq_pos(&S, 0) == 0);
+    assert(seq_pattern(&S, 0) == 1 && seq_pos(&S, 0) == 16);   /* its 32 steps counted from PLAY */
     run_to((uint64_t)at16(19, 0));
     P.pattern[0] = 0;
-    run_to((uint64_t)at16(48, 0) - 1);
+    run_to((uint64_t)at16(32, 0) - 1);
     assert(seq_pattern(&S, 0) == 1 && seq_pos(&S, 0) == 31);
-    run_to((uint64_t)at16(48, 0));
+    run_to((uint64_t)at16(32, 0));
     assert(seq_pattern(&S, 0) == 0 && seq_pos(&S, 0) == 0);
 }
 
@@ -1282,9 +1340,9 @@ static void source_change_mid_play(void)
     P.pat[0][0].marbles.len = 3;
     P.pat[0][0].marbles.tout = 2;                               /* a note every step */
     run_to((uint64_t)at16(11, 0));
-    assert(seq_pos(&S, 0) == 0);
+    assert(seq_pos(&S, 0) == 11 % 3);                           /* steps since PLAY modulo LEN */
     run_to((uint64_t)at16(20, 0) + 1);
-    assert(seq_pos(&S, 0) == 0);
+    assert(seq_pos(&S, 0) == 20 % 3);
     for (int i = 0; i < NEV; i++) {
         if (EV[i].e.on) { c[EV[i].e.note]++; gen += (int64_t)EV[i].at >= at16(11, 0); }
         else assert(c[EV[i].e.note]-- > 0);
@@ -1571,6 +1629,10 @@ int main(void)
     steps_land_on_exact_frames();
     polyrhythm();
     length_shrink_wraps();
+    length_back_realigns();
+    length_doubled_goes_on();
+    jump_keeps_place();
+    switch_lands_on_play_grid();
     tempo_change_keeps_grid();
     tempo_changes_keep_tracks_aligned();
     division_change_mid_play();

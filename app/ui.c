@@ -1883,10 +1883,14 @@ static void key_down(int k)
         ui.dirty = 1;
         return;
     }
-    if (ui.domain == D_SEQ && ui.seqdown) {    /* SEQ held: the white keys 1..8 are the patterns, black 1-4 copy */
+    if (ui.domain == D_SEQ && ui.seqdown) {    /* SEQ held: the white keys 1..8 are the patterns (SEL held too: at once,
+                                                  at the same place), black 1-4 copy */
         for (b = 0; b < 4 && BLACK[b] != k; b++) {}
-        if (w < Q_PATTERNS)
+        if (w < Q_PATTERNS) {
             pattern_set(w);
+            if (ui.seldown && audio_playing())
+                audio_jump(ui.track, w);
+        }
         else if (b < 4)
             copy_key(b);
         return;
@@ -3203,6 +3207,7 @@ static void draw_layer(const q_view *v, int32_t oy)
             tags[n] = "#3", names[n++] = "COPY SOUND";
             tags[n] = "#4", names[n++] = "PASTE SOUND";
             combo[0][0] = "PASTE", combo[0][1] = "PRESS TWICE";
+            combo[1][0] = "+ SEL", combo[1][1] = "PATTERN AT ONCE";
         }
         break;
     case B_ARP:

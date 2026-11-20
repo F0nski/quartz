@@ -192,7 +192,13 @@ To mute a track, hold HOME and press white key 1–4. A muted track's pedestal g
 
 Each track has eight patterns, P1–P8. To pick one, hold SEQ and press white key 1–8, or turn PRESET on a STEP
 pattern's pages. While playing, the new pattern starts when the one playing reaches the end of its loop; the header
-shows `P1 > P2` meanwhile.
+shows `P1 > P2` meanwhile. Hold SEL too (SEQ, SEL and the white key) and it starts at the next step, at the same
+place in the bar.
+
+The tracks count their steps from PLAY: a pattern plays the step it would have reached had it played since PLAY, as
+after a STOP and a PLAY. A length changed then put back, a pattern changed then picked again: the track is back in
+step with the others. Two lengths, 16 against 7, still make a polyrhythm, counted from PLAY (or from the last scene
+launched). A pattern of 32 steps picked at the end of a 16-step loop in the second bar starts at its step 17.
 
 To clear the pattern shown, hold REC and press black key 1. To remove only its p-locks, hold REC and press black key 2.
 Hold REC and press black key 3 to undo either ([REC held](sequencer.html#rec-held)).
@@ -623,7 +629,7 @@ Instruments, monome, Make Noise, Elektron or teenage engineering.
 | No sound | MASTER; HOME, the track's mute (HOME held, keys 1–4) and its LVL; FX's MIX LEVEL; ENV's CUTOFF on LP. |
 | A key does nothing | A button may still be held (its map is on the screen). With KEYS at ALL, the black keys are silent. |
 | REC does nothing | The pattern is generative: only LOOM, CADENCE and LATTICE have a GRID, and IMPROV listens. To record notes, set SOURCE to STEP. |
-| The pattern doesn't change | While playing, it waits for the end of the loop (`P1 > P2` in the header). |
+| The pattern doesn't change | While playing, it waits for the end of the loop (`P1 > P2` in the header); hold SEL too for at once. |
 | `STOP TO SAVE` | Stop, then press SAVE. |
 | `LOCKS FULL` | The pattern holds 128 p-locks: clear some (REC held, black key 2 clears them all). |
 | Clicks in the sound | GLO's CPU page: LOST BLOCKS counts them. Lower POLY, use lighter models than CHLADNI or FACETS on several tracks, or fewer inserts. |

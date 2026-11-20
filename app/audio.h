@@ -20,6 +20,7 @@ void audio_live_note(int track, int note, int on);
 void audio_rec(int on);
 int  audio_take_rec(q_rec *r);                          /* 1 and a recorded note, 0 none; beyond 32 waiting, lost */
 void audio_scene(int scene);                            /* while playing: at the next bar */
+void audio_jump(int track, int pat);                    /* while playing: pat from the track's next step, at the same place */
 int  audio_scene_started(void);                         /* the scene started since the last call, -1 none */
 int  audio_pattern(int track);                          /* the pattern playing */
 int  audio_song_entry(void);                            /* -1 when not in song mode */

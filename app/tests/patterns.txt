@@ -66,3 +66,20 @@ shot seq_pending.png
 wait 1100
 expect playpat 2
 tap PLAY
+# SEQ, SEL and a white key while playing: the pattern from the next step, at the same place in the bar
+press SEQ
+key w0 down
+key w0 up
+release SEQ
+tap PLAY
+wait 700
+press SEQ
+press SEL
+key w2 down
+key w2 up
+release SEL
+release SEQ
+wait 200
+expect playpat 3
+expect pos >5
+tap PLAY

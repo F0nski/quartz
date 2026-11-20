@@ -24,11 +24,12 @@ typedef struct {
     q_clock x;                  /* the start of the next step not begun */
     uint32_t pos;               /* that step's place since the anchor, in 96ths of a bar: XY's row */
     int planned;                /* the step at x is planned */
-    int k, row, pp;             /* rank in the pass; XY row; ping-pong phase */
+    int k, row;                 /* rank in the pass; XY row */
     int pat, path;              /* taken at the wrap */
     int loops, pre, tie;        /* passes of the pattern; PRE's result; the last step planned tied a note */
     int want, seen;             /* the pattern asked, taken at the wrap; p->pattern[t] last seen: a change asks */
     int anchor;                 /* to start over at the pending launch's bar */
+    int jump;                   /* seq_jump: want is taken at the next step */
     int src;                    /* the source last played + 1, 0 none yet: another one starts its generator over */
     q_planned h[2];             /* the last two steps planned, [1] the newest */
 } q_seq_track;
@@ -56,6 +57,7 @@ void seq_step_ratio(int tempo, int div, uint32_t *num, uint32_t *den);
 void seq_start(q_seq *s, const q_project *p, int count_in);
 void seq_click(q_seq *s, int on);                             /* metronome events while on (and during a count-in) */
 void seq_launch(q_seq *s, int scene);                         /* at the next bar while running; by hand ends the song */
+void seq_jump(q_seq *s, int track, int pat);                  /* the track plays pat from its next step, at the same place */
 int  seq_scene_started(q_seq *s);                             /* the scene launched since the last call, -1 none */
 int  seq_song_entry(const q_seq *s);                          /* the song entry playing, -1 when not in song mode */
 void seq_stop(q_seq *s, q_event *out, int *n);                /* out holds Q_TRACKS * SEQ_QUEUE */

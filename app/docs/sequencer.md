@@ -11,7 +11,8 @@ current page of 16 steps as blocks on a 4 x 4 plateau, each with its note on top
 | XY (PATH XY only) | X LEN, 1–4 | X DIV | Y LEN, 1–4 | Y DIV |
 
 - **LEN** is the pattern's length, **DIV** the length of a step. The DIVs are 1/32, 1/16T, 1/16, 1/8T, 1/8, 1/4T,
-  1/4, 1/2 and 1/1; T is a triplet.
+  1/4, 1/2 and 1/1; T is a triplet. The steps count from PLAY ([Patterns](index.html#patterns)): a LEN changed while
+  playing, then put back, finds the track in step with the others again.
 - **SOURCE** changes where the pattern's notes come from ([Sources](index.html#s9)). Each pattern keeps its own steps whatever its
   source.
 - **PATH** is the order the steps play in. A path draws itself on the plateau as arrows. With a LEN under 16, a

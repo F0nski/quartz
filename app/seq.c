@@ -239,7 +239,7 @@ static void reanchor(q_seq *s, const q_project *p, int t, const q_clock *b)
     }
     tr->x = *b;
     tr->pos = 0;
-    tr->planned = tr->pp = tr->loops = tr->tie = tr->anchor = 0;
+    tr->planned = tr->loops = tr->tie = tr->anchor = tr->jump = 0;
     tr->k = tr->row = -1;
     tr->pat = tr->want = sc->pat[t];
     tr->path = p->pat[t][tr->pat].path;
@@ -288,6 +288,12 @@ void seq_start(q_seq *s, const q_project *p, int count_in)
 void seq_click(q_seq *s, int on) { s->click = on; }
 
 void seq_launch(q_seq *s, int scene) { pend(s, scene, -1, -1); }
+
+void seq_jump(q_seq *s, int track, int pat)
+{
+    s->t[track].want = pat;
+    s->t[track].jump = 1;
+}
 
 int seq_scene_started(q_seq *s)
 {
@@ -392,15 +398,15 @@ static int loop_len(const q_seq_track *tr, const q_pattern *pt, int src)
     return tr->path == PATH_XY ? pt->xlen : pt->len;
 }
 
-/* the step the track's rank plays */
-static int step_at(q_seq *s, q_seq_track *tr, const q_pattern *pt)
+/* the step the track's rank plays; n: its steps since the anchor */
+static int step_at(q_seq *s, q_seq_track *tr, const q_pattern *pt, uint32_t n)
 {
     int len = pt->len, k = tr->k, m = 0;
     switch (tr->path) {
     case PATH_XY: return 4 * tr->row + k;
     case PATH_REV: k = len - 1 - k; break;
     case PATH_PINGPONG:
-        k = len > 1 ? tr->pp % (2 * len - 2) : 0;
+        k = len > 1 ? (int)(n % (uint32_t)(2 * len - 2)) : 0;
         if (k >= len) k = 2 * len - 2 - k;
         break;
     case PATH_RANDOM: k = (int)(seq_rand(s) % (uint32_t)len); break;
@@ -475,7 +481,10 @@ static void plan_notes(q_seq *s, const q_project *p, int t, const q_step *st, in
 
 /* Plans the track's steps due before end. A step's duration is fixed when it begins (its start falls in a block),
    as in a plain grid: a tempo change while it is only planned reaches it. b: the bar a scene starts at, 0 none; the
-   track starts over there once its next step would start at b or later. */
+   track starts over there once its next step would start at b or later.
+   The rank in the pass is the steps since the anchor (PLAY, a scene) modulo the loop's length, as after a STOP and a
+   PLAY: a length changed and back keeps the track on the others, two lengths make a polyrhythm from the anchor. A pass
+   ends when the rank does not move on: the pattern asked is taken then (at once after seq_jump). */
 static void plan(q_seq *s, const q_project *p, int t, uint64_t end, const q_clock *b)
 {
     q_seq_track *tr = &s->t[t];
@@ -483,7 +492,8 @@ static void plan(q_seq *s, const q_project *p, int t, uint64_t end, const q_cloc
         if (b && tr->anchor && not_after(b, &tr->x)) reanchor(s, p, t, b);
         const q_pattern *pt = &p->pat[t][tr->pat];
         int src = pt->src;              /* read once: the loop length and the step come from one source */
-        int wrap = !tr->planned && tr->k + 1 >= loop_len(tr, pt, src);
+        int wrap = !tr->planned && (tr->jump || (tr->k >= 0 &&
+                                    (int)(tr->pos / DIV96[pt->div] % (uint32_t)loop_len(tr, pt, src)) <= tr->k));
         if (wrap) {
             pt = &p->pat[t][tr->want];
             src = pt->src;
@@ -497,21 +507,19 @@ static void plan(q_seq *s, const q_project *p, int t, uint64_t end, const q_cloc
         }
         if (!due(&tr->x, end, src == SRC_MARBLES)) return;
         if (wrap) {                     /* the pattern and its path are taken at the wrap */
-            if (tr->want != tr->pat || pt->path != tr->path) tr->pp = 0;
             if (tr->want != tr->pat) gen_reset(&s->g[t], &s->rng), tr->src = src + 1;   /* (a new pattern: reset once) */
             tr->loops = tr->want != tr->pat ? 0 : tr->loops + 1;
             tr->pat = tr->want;
             tr->path = pt->path;
-            tr->k = 0;
-        } else {
-            tr->k++;
+            tr->jump = 0;
         }
+        uint32_t n = tr->pos / DIV96[pt->div];
+        tr->k = (int)(n % (uint32_t)loop_len(tr, pt, src));
         /* XY's rows run on the bar from the anchor, so a tempo change keeps them on the X steps: every division is a
            whole number of 96ths of a bar. A row starting with the X step applies to it */
         tr->row = (int)(tr->pos / DIV96[pt->ydiv] % pt->ylen);
         tr->pos += DIV96[pt->div];
-        int gen = src != SRC_STEP, step = gen ? tr->k : step_at(s, tr, pt), acc = 0;
-        tr->pp++;
+        int gen = src != SRC_STEP, step = gen ? tr->k : step_at(s, tr, pt, n), acc = 0;
         tr->h[0] = tr->h[1];
         tr->h[1] = (q_planned){ step, tr->pat, tr->k, tr->x };
         /* a muted step still decides: it counts for PRE (and draws its probability); a generator still computes its
