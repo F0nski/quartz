@@ -1322,9 +1322,14 @@ static void save_release(void)
         ui.dirty = 0;
 }
 
-/* backup and restore over USB (fm1-base device/backup.c): a backup holds the project as last saved */
+/* backup and restore over USB (fm1-base device/backup.c) */
 int app_backup_playing(void) { return audio_playing(); }
-void app_backup_flush(void) {}          /* nothing is saved on its own (MANUAL.md, Saving) */
+
+void app_backup_flush(void)             /* stopped, a backup starts: what changed is saved first, so it is in the file */
+{
+    if (ui.dirty && store_save(ui.p) == 0)
+        ui.dirty = 0;
+}
 void app_backup_hold(int on) { save_held = (uint8_t)on; }
 
 void app_backup_restored(void)

@@ -1,12 +1,12 @@
-# Backup and restore over USB: the backup holds the project as last saved; a restore is refused while playing or
-# when the file is damaged, and otherwise brings back the project, its models included
+# Backup and restore over USB: stopped, a backup saves what changed first and holds it; a restore is refused while
+# playing or when the file is damaged, and otherwise brings back the project, its models included
 wait 600
 tap GLO
 turn K1 5
 expect tempo 125
-tap SAVE
-expect dirty 0
+expect dirty 1
 backup out:quartz.bak
+expect dirty 0
 # changed after the backup, a KIT on track 1 and a step
 turn K1 5
 expect tempo 130

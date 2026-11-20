@@ -541,14 +541,15 @@ QUARTZ keeps one project: the four tracks, their patterns and sounds, the scenes
 
 - Press SAVE while stopped to write it to the FM-1. The FM-1 loads it when it starts.
 - While playing, SAVE only shows `STOP TO SAVE`: writing to the flash would stall the sound.
-- Nothing is saved on its own: turning the FM-1 off loses what changed since the last SAVE.
+- Nothing is saved on its own (but by a backup, below): turning the FM-1 off loses what changed since the last SAVE.
 - A new project (SAVE held, black key 1 twice) replaces the one in memory; the saved one stays until the next SAVE.
 
 To keep the project on a computer, use the site's backup page in Chrome or Edge, with the FM-1 connected by USB, or
 fm1-base's `python3 tools/fm1_backup.py`. The emulator saves and loads the same files, so a project started in the
 browser goes on the FM-1, and back.
 
-- A backup holds the project as last saved: SAVE first what you want in it.
+- Taken while stopped, a backup first saves what changed, as SAVE does, and holds it. Taken while playing, it holds the
+  project as last saved.
 - A restore replaces the project, after the FM-1 asks `RESTORE FROM USB?` (SEL yes, HOME no). Stop playing first: a
   restore is refused while playing.
 - A backup restores only on a version that saves projects the same way: one taken before an update that starts a new
