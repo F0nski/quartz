@@ -1348,13 +1348,15 @@ static void nudge(int d)
         return;
     undo_keep(UNDO_PAT);
     t = pat(), n = t->len;
-    if (d > 0) {
+    if (d > 0) {                        /* (no memmove on the device: the app is freestanding) */
         s = t->steps[n - 1];
-        __builtin_memmove(&t->steps[1], &t->steps[0], (uint32_t)(n - 1) * sizeof s);
+        for (i = n - 1; i > 0; i--)
+            t->steps[i] = t->steps[i - 1];
         t->steps[0] = s;
     } else {
         s = t->steps[0];
-        __builtin_memmove(&t->steps[0], &t->steps[1], (uint32_t)(n - 1) * sizeof s);
+        for (i = 0; i < n - 1; i++)
+            t->steps[i] = t->steps[i + 1];
         t->steps[n - 1] = s;
     }
     for (i = 0; i < t->nlocks; i++)
