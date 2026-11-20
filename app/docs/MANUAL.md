@@ -81,7 +81,7 @@ screen.
 
 > An update can change how projects are saved. While QUARTZ is still young, the project saved by an older version
 > is then not loaded, and you start from a new project, and its backups don't restore either (section 11). Note down
-> anything you want to keep.
+> anything you want to keep. The projects saved by 0.9 load in this version; their backups don't restore.
 
 ---
 
@@ -111,7 +111,7 @@ screen.
 | SEQ | The pattern: STEPS, then its source's pages. | White keys 1–8 pick the track's pattern; black keys 1–4 copy and paste. |
 | GLO | The project: TEMPO, SCALE, KEYS, FX, CPU. | Black key 1 taps the tempo (section 10). |
 | HOME | The four tracks and the song: TRACKS, SONG. | White keys 1–4 mute the tracks, 9–16 are the scenes. |
-| SAVE | Saves the project (stopped only). | White keys 1–8 add a scene to the song; black key 1 twice starts a new project; black keys 2–5 twice load project 1–4. |
+| SAVE | Saves the project (while playing: at the stop). | White keys 1–8 add a scene to the song; black key 1 twice starts a new project; black keys 2–5 twice load project 1–4. |
 | SEL | On SONG, removes the entry shown. | Selects steps on the grid ([Sequencer](sequencer.html#several-steps-at-once)). |
 | PLAY | Starts or stops every track. | — |
 | REC | Arms the recording ([Sequencer](sequencer.html#playing-writing-recording)). | Black key 1 clears the pattern, black key 2 its p-locks, black keys 6–8 draw at random ([Sequencer](sequencer.html#random)). With PLAY: records live. |

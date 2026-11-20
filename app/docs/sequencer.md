@@ -125,7 +125,10 @@ For example: hold a step, press black key 3 for PROB, press it again for COND, t
 
 While a step is held, K1–K4 lock the knobs of a sound page to that step only: the step plays with its own value, the
 others with the page's. SELECT turns the pages: ENGINE, SOUND, ADSR, FILTER, LFO, LFO 2, INSERT, MIX, ARP (a kit:
-ADSR, FILTER, LFO, LFO 2, INSERT, MIX). A pattern holds up to 128 p-locks; past that, the header says `LOCKS FULL`.
+PAD, ADSR, FILTER, LFO, LFO 2, INSERT, MIX). A pattern holds up to 128 p-locks; past that, the header says `LOCKS FULL`.
+
+On a kit, PAD locks TUNE, HARM, TIMB and DECAY for every pad of the step: a hat more open on one step, a tom higher.
+Its knobs start from the pad last played. Two pads on the step take the same values.
 
 ## Several steps at once
 

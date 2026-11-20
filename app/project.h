@@ -8,7 +8,7 @@
 #define Q_LOCKS 128
 #define Q_SCENES 8
 #define Q_SONG 32
-#define Q_VERSION 18                /* q_project.version: the saved layout */
+#define Q_VERSION 19                /* q_project.version: the saved layout */
 #define Q_PADS 16
 #define M_KIT 24                   /* q_sound.model: the 16-pad kit */
 #define KIT_NOTE 36                /* a KIT's note: KIT_NOTE + pad */
@@ -24,7 +24,9 @@ enum { LK_HARM, LK_TIMB, LK_MORPH, LK_DECAY, LK_TUNE, LK_GLIDE,
        LK_ATK, LK_DEC, LK_SUS, LK_REL, LK_FTYPE, LK_CUT, LK_RES, LK_ENVAMT,
        LK_SHAPE, LK_RATE, LK_DEPTH, LK_DEST, LK_AMODE, LK_AOCT, LK_ADIV, LK_AGATE,
        LK_I1, LK_I2, LK_I3, LK_IMIX, LK_DSEND, LK_RSEND, LK_PAN, LK_LEVEL,
-       LK_SHAPE2, LK_RATE2, LK_DEPTH2, LK_DEST2, LK_N };   /* lockable q_sound fields (LK_N <= 64: audio.c's lk_mask) */
+       LK_SHAPE2, LK_RATE2, LK_DEPTH2, LK_DEST2,
+       LK_PTUNE, LK_PHARM, LK_PTIMB, LK_PDECAY, LK_N };   /* lockable q_sound fields, then a KIT's pads' (every pad of the
+                                                             step: q_pad's tune, harm, timb, decay); LK_N <= 64: audio.c's lk_mask */
 enum { LK_PUNCH_LO = LK_N, LK_PUNCH_HI };   /* a step's punch-ins, not q_sound fields: white keys 1-8 and 9-16, bit k = key k + 1 */
 enum { IT_OFF, IT_DRIVE, IT_FOLD, IT_CRUSH, IT_CHORUS, IT_PHASER, IT_RING, IT_COMB, IT_N };   /* q_sound.itype: the insert */
 enum { FT_LP, FT_HP, FT_BP };

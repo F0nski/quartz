@@ -551,6 +551,32 @@ static void mimic_clamped_on_load(void)
     assert(a.pat[2][2].mimic.order == 2);
 }
 
+/* version 18 (0.9): loaded as this one, its punch-in locks (34, 35 then) moved past the pads' locks */
+static void store_migrates_18(void)
+{
+    static q_project a, b;
+    forget();
+    store_project = 0;
+    project_defaults(&a);
+    lock_set(&a.pat[1][3], 2, LK_HARM, 99);
+    lock_set(&a.pat[1][3], 2, LK_DEST2 + 1, 0x81);
+    lock_set(&a.pat[1][3], 5, LK_DEST2 + 2, 0x02);
+    a.version = 18;
+    assert(store_save(&a) == 0);
+    for (int i = 0; i < Q_CHUNKS; i++) mem[i][2] = 18;
+    assert(store_last() == 0);
+    assert(store_load(&b) == 0 && b.version == Q_VERSION);
+    const q_pattern *pt = &b.pat[1][3];
+    assert(pt->nlocks == 3);
+    assert(pt->locks[lock_find(pt, 2, LK_HARM)].value == 99);
+    assert(pt->locks[lock_find(pt, 2, LK_PUNCH_LO)].value == 0x81);
+    assert(pt->locks[lock_find(pt, 5, LK_PUNCH_HI)].value == 0x02);
+    assert(lock_find(pt, 2, LK_PTUNE) < 0);
+    mem[0][2] = 17;                                 /* older: the defaults */
+    check_defaults();
+    forget();
+}
+
 /* projects: each its own chunks; store_last finds the one saved last, of this version only */
 static void projects_apart(void)
 {
@@ -573,7 +599,7 @@ static void projects_apart(void)
     store_project = 2;
     assert(store_save(&a) == 0);
     assert(store_last() == 2);
-    mem[2 * Q_CHUNKS][2] = Q_VERSION - 1;   /* project 3's chunk 0 of another version: not the last */
+    mem[2 * Q_CHUNKS][2] = Q_VERSION - 2;   /* project 3's chunk 0 of another version: not the last */
     assert(store_last() == 0);
     forget();
     store_project = 0;
@@ -583,6 +609,7 @@ int main(void)
 {
     forget();
     store_keeps_punch_locks();
+    store_migrates_18();
     roundtrip();
     roundtrip_full_project();
     store_mixed_generations();

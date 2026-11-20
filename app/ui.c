@@ -1009,17 +1009,19 @@ static void attr_copy(q_step *dst, const q_step *src, int attr)
     }
 }
 
-/* the held step's p-lock pages: a synth track's 9, a KIT's ADSR, FILTER, LFO, LFO 2, INSERT and MIX (ui.lpage counts in the
-   track's own list); LOCK_OF: the LK_* each knob locks, -1 for the ones that do not (MODEL, POLY) */
-#define NLPAGE 9
-static const uint8_t LPAGE[NLPAGE] = {P_ENGINE, P_SOUND, P_ADSR, P_FILTER, P_LFO, P_LFO2, P_INSERT, P_MIX, P_ARP};
+/* the held step's p-lock pages: a synth track's 9 (ENGINE .. ARP), a KIT's PAD (every pad of the step), ADSR, FILTER, LFO,
+   LFO 2, INSERT and MIX (ui.lpage counts in the track's own list); LOCK_OF: the LK_* each knob locks, -1 for the ones that
+   do not (MODEL, POLY) */
+#define NLPAGE 10
+static const uint8_t LPAGE[NLPAGE] = {P_PAD, P_ENGINE, P_SOUND, P_ADSR, P_FILTER, P_LFO, P_LFO2, P_INSERT, P_MIX, P_ARP};
 static const int8_t LOCK_OF[NLPAGE][4] = {
+    {LK_PTUNE, LK_PHARM, LK_PTIMB, LK_PDECAY},
     {LK_HARM, LK_TIMB, LK_MORPH, LK_DECAY}, {-1, LK_TUNE, LK_GLIDE, -1}, {LK_ATK, LK_DEC, LK_SUS, LK_REL},
     {LK_FTYPE, LK_CUT, LK_RES, LK_ENVAMT}, {LK_SHAPE, LK_RATE, LK_DEPTH, LK_DEST},
     {LK_SHAPE2, LK_RATE2, LK_DEPTH2, LK_DEST2}, {LK_I1, LK_I2, LK_I3, LK_IMIX},
     {LK_DSEND, LK_RSEND, LK_PAN, LK_LEVEL}, {LK_AMODE, LK_AOCT, LK_ADIV, LK_AGATE}};
-static int lpage_n(void) { return kit() ? NLPAGE - 3 : NLPAGE; }
-static int lpage_row(void) { return ui.lpage + (kit() ? 2 : 0); }
+static int lpage_n(void) { return kit() ? NLPAGE - 3 : NLPAGE - 1; }
+static int lpage_row(void) { return kit() ? (ui.lpage ? ui.lpage + 2 : 0) : ui.lpage + 1; }
 static int lock_pid(void) { return LPAGE[lpage_row()]; }
 static int lock_param(int k) { return LOCK_OF[lpage_row()][k]; }
 
@@ -1029,7 +1031,8 @@ static int lock_value(const q_pattern *t, int step, int k, int *locked)
     *locked = i >= 0;
     if (i < 0)
         return knob_get(lock_pid(), k);
-    return param == LK_TUNE || param == LK_ENVAMT || param == LK_DEPTH || param == LK_PAN ? (int8_t)t->locks[i].value : t->locks[i].value;
+    return param == LK_TUNE || param == LK_ENVAMT || param == LK_DEPTH || param == LK_PAN || param == LK_PTUNE
+           ? (int8_t)t->locks[i].value : t->locks[i].value;
 }
 
 static void lock_turn(int step, int k, int d)

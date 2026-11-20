@@ -1329,6 +1329,27 @@ static void render_model_changes_at_its_command(void)
 }
 
 /* a pad sounds at 48 + its tune + the track's tune */
+/* a KIT step's pad locks: every pad of the step takes them, at its note-on; the next step, without, the pads' own */
+static void kit_pad_locks(void)
+{
+    kit_setup();
+    q_pattern *pt = &P.pat[0][0];
+    pt->steps[0].flags = pt->steps[1].flags = SF_ON;
+    pt->steps[0].note[0] = pt->steps[1].note[0] = KIT_NOTE + 4;   /* RIM: tune 19, harm 100, timb 100, decay 10 */
+    lock_set(pt, 0, LK_PTUNE, (uint8_t)-7);
+    lock_set(pt, 0, LK_PHARM, 1);
+    lock_set(pt, 0, LK_PTIMB, 2);
+    lock_set(pt, 0, LK_PDECAY, 3);
+    audio_play(1);
+    block(256);
+    int v = track_slot(0);
+    assert(v >= 0 && patch[v][0] == 1 / 127.0f && patch[v][1] == 2 / 127.0f && patch[v][2] == 3 / 127.0f);
+    for (int i = 0; i < NLOG; i++) if (LOG[i].op == 'n') assert(LOG[i].a == 48.0f - 7.0f);
+    until(256, spf16(120) + 256);
+    v = track_slot(0);
+    assert(audio_pos(0) == 1 && patch[v][0] == 100 / 127.0f && patch[v][2] == 10 / 127.0f);
+}
+
 static void kit_pad_pitch_adds_track_tune(void)
 {
     kit_setup();
@@ -2011,6 +2032,7 @@ int main(void)
     kit_switch_while_waiting();
     render_model_changes_at_its_command();
     kit_pad_pitch_adds_track_tune();
+    kit_pad_locks();
     arp_plays_step_chord();
     arp_mode_lock_off();
     arp_keyboard_latch();

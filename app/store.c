@@ -36,7 +36,24 @@ static const int8_t lk_range[LK_N][2] = {
     [LK_AMODE] = {0, AM_ORDER}, [LK_AOCT] = {1, 4}, [LK_ADIV] = {0, DIV_N - 1}, [LK_AGATE] = {5, 100},
     [LK_I1] = {0, 127}, [LK_I2] = {0, 127}, [LK_I3] = {0, 127}, [LK_IMIX] = {0, 127}, [LK_DSEND] = {0, 127},
     [LK_RSEND] = {0, 127}, [LK_PAN] = {-64, 63}, [LK_LEVEL] = {0, 127},
-    [LK_SHAPE2] = {0, LS_SH}, [LK_RATE2] = {0, 75}, [LK_DEPTH2] = {-64, 63}, [LK_DEST2] = {0, LD_LEVEL} };
+    [LK_SHAPE2] = {0, LS_SH}, [LK_RATE2] = {0, 75}, [LK_DEPTH2] = {-64, 63}, [LK_DEST2] = {0, LD_LEVEL},
+    [LK_PTUNE] = {-24, 24}, [LK_PHARM] = {0, 127}, [LK_PTIMB] = {0, 127}, [LK_PDECAY] = {0, 127} };
+
+/* version 18 (0.9), loaded and brought to this one: the same layout, its punch-in locks right after LK_DEST2, before
+   the pads' locks */
+#define V_MIGRATED 18
+#define V18_PUNCH_LO (LK_DEST2 + 1)
+static void migrate_18(q_project *p)
+{
+    for (int t = 0; t < Q_TRACKS; t++)
+        for (int n = 0; n < Q_PATTERNS; n++)
+            for (int k = 0; k < Q_LOCKS; k++) {
+                q_lock *l = &p->pat[t][n].locks[k];
+                if (l->param >= V18_PUNCH_LO && l->param <= V18_PUNCH_LO + 1)
+                    l->param = (uint8_t)(l->param - V18_PUNCH_LO + LK_PUNCH_LO);
+            }
+    p->version = Q_VERSION;
+}
 
 /* a valid-CRC object can still hold out-of-range fields: the render indexes and divides with them */
 static void clamp_project(q_project *p)
@@ -197,13 +214,13 @@ static int load_chunks(q_project *p)
         __builtin_memcpy(&h, chunk_buf, sizeof h);
         if (i == 0 && (gen = h.gen) > save_gen)   /* written first: a failed load still saves past it */
             save_gen = gen;
-        if (h.magic != CHUNK_MAGIC || h.version != Q_VERSION || h.index != i || h.gen != gen) return -1;
+        if (h.magic != CHUNK_MAGIC || (h.version != Q_VERSION && h.version != V_MIGRATED) || h.index != i || h.gen != gen) return -1;
         __builtin_memcpy((uint8_t *)p + (uint32_t)i * CHUNK_DATA, chunk_buf + sizeof h, n);
     }
     return 0;
 }
 
-/* the project saved last, 0 when none is of this version; and save_gen past every project's */
+/* the project saved last, 0 when none is of this version (or V_MIGRATED); and save_gen past every project's */
 int store_last(void)
 {
     int n, last = 0;
@@ -213,7 +230,7 @@ int store_last(void)
         if (plat_store_load(OBJ_CHUNK0 + (uint32_t)(n * Q_CHUNKS), chunk_buf, sizeof h) != (int)sizeof h)
             continue;
         __builtin_memcpy(&h, chunk_buf, sizeof h);
-        if (h.magic != CHUNK_MAGIC || h.version != Q_VERSION)
+        if (h.magic != CHUNK_MAGIC || (h.version != Q_VERSION && h.version != V_MIGRATED))
             continue;
         if (h.gen > best)
             best = h.gen, last = n;
@@ -225,7 +242,9 @@ int store_last(void)
 
 int store_load(q_project *p)
 {
-    if (load_chunks(p) == 0 && p->version == Q_VERSION) {
+    if (load_chunks(p) == 0 && (p->version == Q_VERSION || p->version == V_MIGRATED)) {
+        if (p->version == V_MIGRATED)
+            migrate_18(p);
         clamp_project(p);
         return 0;
     }

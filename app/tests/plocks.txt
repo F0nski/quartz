@@ -314,7 +314,7 @@ expect lpage 9
 turn K2 4
 expect lock_19_1 4
 key 0 up
-# a KIT's step takes locks: ADSR, FILTER, LFO, LFO 2, INSERT, MIX
+# a KIT's step takes locks: PAD (every pad of the step), ADSR, FILTER, LFO, LFO 2, INSERT, MIX
 turn ALGO 1
 tap EDIT
 tap REC
@@ -327,14 +327,19 @@ tap REC
 key 0 down
 expect lpage 1
 turn K1 3
+expect lock_34_1 -9
+turn K4 -2
+expect lock_37_1 68
+turn SELECT 1
+turn K1 3
 expect lock_6_1 3
 turn SELECT 6
 expect lpage 1
-turn SELECT 1
+turn SELECT 2
 turn K1 1
 expect lock_10_1 1
 turn SELECT 3
-expect lpage 5
+expect lpage 6
 key 0 up
 # the INSERT and MIX lock pages (an insert with a K1 role: a knob without one is not locked)
 turn ALGO 1

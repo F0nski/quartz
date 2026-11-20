@@ -62,9 +62,13 @@ key 0 down
 key 0 up
 expect stepnotes_4 1
 expect stepnote_4 38
-# a KIT step takes the ADSR, FILTER and LFO locks (ADSR first)
+# a KIT step takes the PAD locks (first), then ADSR, FILTER, LFO
 turn K1 5
 expect locks 1
+expect lock_34_4 -7
+turn SELECT 1
+turn K1 5
+expect locks 2
 expect lock_6_4 5
 expect msg_locks_full 0
 wait 100

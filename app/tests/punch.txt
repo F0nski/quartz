@@ -34,7 +34,7 @@ wait 50
 key 21 up
 release FX
 wait 20
-expect lock_35_5 16
+expect lock_39_5 16
 expect locks 1
 expect stepon_5 0
 tap PLAY
@@ -43,5 +43,5 @@ expect overdub 0
 press REC
 tapkey b1
 release REC
-expect lock_35_5 -1
+expect lock_39_5 -1
 expect locks 0

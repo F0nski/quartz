@@ -342,12 +342,14 @@ static void vparam(int v, const q_sound *s, q_vparam *q)
                      (int8_t)param(v, LK_DEPTH2, (uint8_t)s->l2depth), (uint8_t)param(v, LK_DEST2, s->l2dest) };
 }
 
-/* a KIT's voice: its pad's harm, timb and decay (its locks of those do not apply); the pad's decay is Plaits' drum decay (morph) */
+/* a KIT's voice: its pad's harm, timb and decay, or the step's pad locks (the track's HARM, TIMB, DECAY locks do not
+   apply); the pad's decay is Plaits' drum decay (morph) */
 static void set_patch(int v, const q_sound *s)
 {
     if (vpad[v] >= 0) {
         const q_pad *pd = &prj->kit[pool.v[v].track][vpad[v]];
-        pq_set_patch(v, pd->harm / 127.0f, pd->timb / 127.0f, pd->decay / 127.0f, 0.5f, 0);
+        pq_set_patch(v, param(v, LK_PHARM, pd->harm) / 127.0f, param(v, LK_PTIMB, pd->timb) / 127.0f,
+                     param(v, LK_PDECAY, pd->decay) / 127.0f, 0.5f, 0);
         pq_set_char(v, pd->chr / 127.0f);
         return;
     }
@@ -394,7 +396,8 @@ static void note_on(int track, int note, int vel, int pat, int step, int accent)
     vparam(v, s, &q);
     mod_set(v, &q, prj->tempo);
     mod_note_on(v, accent);
-    pq_note_on(v, (float)(kit ? 48 + prj->kit[track][vpad[v]].tune + s->tune : note + tune(v, s)), vel / 127.0f);
+    pq_note_on(v, (float)(kit ? 48 + (int8_t)param(v, LK_PTUNE, (uint8_t)prj->kit[track][vpad[v]].tune) + s->tune
+                              : note + tune(v, s)), vel / 127.0f);
     hits[track]++;
     if (kit)
         kit_hits[track][prj->kit[track][vpad[v]].engine]++;

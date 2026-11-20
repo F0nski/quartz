@@ -83,7 +83,8 @@ its own tuning and settings, and a kit plays up to three pads at once. With KIT,
 | KIT | MODEL, by name | ENGINE, BD SN HH | LEVEL, 0–127 | CHAR, 0–127 |
 
 The knobs set the last pad played, named in the header (`PAD 1`). In EDIT, hold a pad: K1–K4 set that pad and PRESET
-changes its engine. KIT's scene is the 16 pads, each with its engine, the one the knobs set lit, and a bar under each
+changes its engine. A step held on the grid locks PAD's four knobs for its pads
+([P-locks](sequencer.html#p-locks)). KIT's scene is the 16 pads, each with its engine, the one the knobs set lit, and a bar under each
 pad that shows its CHAR.
 
 CHAR mixes the two sounds each drum engine makes: 0 the analog one, 127 a synthetic take on the same drum (on HH, a

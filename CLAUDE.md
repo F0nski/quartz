@@ -58,8 +58,8 @@ Always `--classic`: the fast install stalls at 3 % on this unit's loader; if it 
   (`P_GRIDS`, `SRC_MARBLES`, Plaits' model order). The mapping lives in `app/ui.c`'s name tables.
 - On a page that shows a scene, every encoder visibly changes the scene, not only through the notes played.
 - PRESET has a practical use on every pattern source's pages (step editing where possible).
-- A change to `q_project` bumps `Q_VERSION`; old projects are discarded, never migrated, until the firmware is
-  finished.
+- A change to `q_project` bumps `Q_VERSION`; old projects are discarded, unless bringing them over is simple
+  (`store.c` `V_MIGRATED`: the last release's version, loaded and converted).
 - Scenes: flat low-poly 3D, moderate neon, no gradients; editing pages (SEQ) stay a straight, readable grid.
 - One feature = one spec, one plan, one branch; commits are small and say what changes for the player.
 - Git: the repository is public. Commit as `f0nski <13540044+F0nski@users.noreply.github.com>` (the repo's local
