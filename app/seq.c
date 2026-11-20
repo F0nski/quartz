@@ -138,7 +138,7 @@ static int64_t date(const q_clock *c, int64_t f)
    MARBLES step is planned a whole step ahead, so that its scene's marble falls for a step before the note sounds */
 static int due(const q_clock *c, uint64_t end, int whole)
 {
-    return mul64((int64_t)c->next_i - (int64_t)end, 2 * (int64_t)c->den) + 2 * (int64_t)c->next_r < (int64_t)c->num * (whole ? 2 : 1);
+    return mul64((int64_t)c->next_i - (int64_t)end, 2 * (int64_t)c->den) + 2 * (int64_t)c->next_r < (int64_t)c->num << whole;
 }
 
 /* a's start <= b's, exactly */
