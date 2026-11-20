@@ -561,6 +561,10 @@ PATTERN PASTED	pattern pasted
 SOUND COPIED	sound copied
 SOUND PASTED	sound pasted
 NOTHING COPIED	nothing copied
+UNDO	undo
+UNDONE	undone
+REDONE	redone
+NOTHING TO UNDO	nothing to undo
 SONG ON	song on
 SONG OFF	song off
 LVL 1	level 1

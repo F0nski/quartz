@@ -276,23 +276,23 @@ expect lv_1_16 9
 expect lv_2_16 <5
 expect lv_3_16 <5
 expect lv_4_16 <4
-# REC's map: black keys 1, 2 and 6, 7 lit on ENV (bits 1, 3, 13, 15); 8 too on EDIT (bit 17); HOME: 1 and 2 only
+# REC's map: black keys 1, 2, 3 (UNDO) and 6, 7 lit on ENV (bits 1, 3, 5, 13, 15); 8 too on EDIT (bit 17); HOME: 1, 2 and 3 only
 tap ENV
 press REC
 wait 500
 expect layer 12
-expect leds_lit 40970
+expect leds_lit 41002
 release REC
 tap EDIT
 press REC
 wait 500
-expect leds_lit 172042
+expect leds_lit 172074
 shot random_layer.png
 release REC
 tap HOME
 press REC
 wait 500
-expect leds_lit 10
+expect leds_lit 42
 release REC
 # the message replaces the page's name in the header, not drawn over it; the name comes back after it
 tap EDIT

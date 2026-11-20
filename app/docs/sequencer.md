@@ -188,17 +188,21 @@ REC (short) disarms and the pattern keeps playing. PLAY stops and disarms.
 
 ## REC held
 
-![REC held: #1 CLEAR, #2 CLEAR LOCKS on the pattern shown, #6 RND PAGE, #7 RND ALL, + PLAY for LIVE, TAP for GRID > NOTES > OFF](img/seq-rec-map.png "REC's map")
+![REC held: #1 CLEAR, #2 CLEAR LOCKS on the pattern shown, #3 UNDO, #6 RND PAGE, #7 RND ALL, + PLAY for LIVE, TAP for GRID > NOTES > OFF](img/seq-rec-map.png "REC's map")
 
 | REC held + | Not in LIVE or ARM | In LIVE |
 | --- | --- | --- |
 | PLAY | LIVE, with the count-in or armed | — |
 | black key 1 | CLEAR: empties the pattern shown | — |
 | black key 2 | CLEAR LOCKS: removes its p-locks | — |
+| black key 3 | UNDO: the last CLEAR, CLEAR LOCKS, draw or paste put back; again, done again | — |
 | keys | — | erase their notes as the pattern crosses them |
 | OCT- | — | clears every step crossed |
 
-A CLEAR cannot be undone.
+UNDO puts back what the last CLEAR, CLEAR LOCKS, draw (black keys 6–8) or paste (SEQ held, black keys 2 and 4)
+changed: the pattern, the track's sound and pads, or GLO's settings, as they were just before. The header says
+`UNDONE`; press again for `REDONE`, and so on. It keeps one action only, the last, and what you changed by hand since
+that action goes back with it. A SAVE ends it: then the header says `NOTHING TO UNDO`.
 
 ## Random
 
@@ -238,7 +242,8 @@ In SEQ, black key 7 also draws the source's content:
 - CADENCE: the 8 chords. LATTICE: the 8 steps. MOONS: every moon. LOOM: every cell of every lane.
 
 The other sources have only their knobs. The keys do nothing (unlit on the map) in LIVE, where REC held erases notes;
-with a step, a selection or a cell held, where the knobs set those; on HOME. A draw cannot be undone.
+with a step, a selection or a cell held, where the knobs set those; on HOME. Black key 3, REC still held, undoes a draw
+([REC held](#rec-held)).
 
 ## Recipes
 

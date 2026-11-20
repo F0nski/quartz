@@ -135,5 +135,6 @@ typedef struct {
 void project_defaults(q_project *p);
 int store_load(q_project *p);         /* 0 = loaded; else project_defaults and -1 */
 int store_save(const q_project *p);   /* 0 = ok; -1 = refused while playing; else plat_store_save's code */
+extern uint8_t chunk_buf[];           /* store.c's: one chunk, idle between a load and a save (ui.c's UNDO keeps its copy there) */
 
 #endif

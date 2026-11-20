@@ -138,7 +138,7 @@ left, as the screen numbers them.
 
 Messages show in the header for a moment: `STOP TO SAVE` (SAVE while playing), `LOCKS FULL` (no room for another
 p-lock in the pattern), `AGAIN: ERASE` (press again to start a new project), `AGAIN: PASTE` (press again to paste),
-`PATTERN COPIED` and the other copies' (section 5), `TAP 120` (the tempo just tapped), or the name of a punch-in.
+`PATTERN COPIED` and the other copies' (section 5), `UNDONE` and `REDONE` (REC held, black key 3), `TAP 120` (the tempo just tapped), or the name of a punch-in.
 
 ### Held buttons show their map
 
@@ -194,7 +194,7 @@ pattern's pages. While playing, the new pattern starts when the one playing reac
 shows `P1 > P2` meanwhile.
 
 To clear the pattern shown, hold REC and press black key 1. To remove only its p-locks, hold REC and press black key 2.
-Neither can be undone.
+Hold REC and press black key 3 to undo either ([REC held](sequencer.html#rec-held)).
 
 To copy a pattern, hold SEQ and press black key 1 (`PATTERN COPIED`): its steps, p-locks, LEN, DIV, PATH and the
 settings of every source. Then pick where it goes, another pattern or another track, hold SEQ and press black key 2
@@ -203,7 +203,7 @@ synth track sets its POLY to 3 at least, as SOURCE does.
 
 The same way, black key 3 copies the track's sound: its model, its EDIT, ENV, LFO and ARP settings, its insert, sends,
 pan and level, and on a KIT its 16 pads. Black key 4, pressed twice, pastes it on the track shown. What you copied
-stays until you turn the FM-1 off; a paste can't be undone.
+stays until you turn the FM-1 off. REC held and black key 3 undoes a paste.
 
 ### Scenes
 

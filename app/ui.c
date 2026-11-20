@@ -220,6 +220,7 @@ static struct {
     int rnd_kind;                              /* the message: 1 RANDOM PAGE, 2 RANDOM ALL, 3 RANDOM MODEL */
     uint32_t copy_until;                       /* SEQ held, black keys 1-4: copy_kind's message shown until then */
     int copy_kind, paste_key;                  /* COPY_*; paste_key: the paste armed (1: black key 2, 3: black key 4), 0 none */
+    int undo, undo_track, undo_pat, undone;    /* UNDO_* kept in chunk_buf, 0 none; for which pattern; undone: the next swap redoes */
     uint32_t tap_ms[4], tap_until;             /* TAP TEMPO: the last taps' times (ntap of them); its message until tap_until */
     int ntap;
     uint32_t down_ms[NB], used;                /* when each button went down; used: bit b, a key or button came while b was held */
@@ -1077,9 +1078,11 @@ static void pattern_set(int n)
 
 /* SEQ held, black keys 1-4: copy the pattern shown, paste it there, copy the track's sound (a KIT: its pads too),
    paste it. A paste replaces what is there: it asks for a second press. The clipboards stay till power-off */
-enum { COPY_PAT = 1, COPY_AGAIN, COPY_PAT_PASTED, COPY_SND, COPY_SND_PASTED, COPY_NONE };
-static const char *const COPY_NAME[COPY_NONE] = {"PATTERN COPIED", "AGAIN: PASTE", "PATTERN PASTED", "SOUND COPIED",
-                                                  "SOUND PASTED", "NOTHING COPIED"};   /* COPY_* - 1 */
+enum { COPY_PAT = 1, COPY_AGAIN, COPY_PAT_PASTED, COPY_SND, COPY_SND_PASTED, COPY_NONE, COPY_UNDONE, COPY_REDONE,
+       COPY_NO_UNDO, COPY_N };          /* (the header's messages for the copies and UNDO) */
+static const char *const COPY_NAME[COPY_N - 1] = {"PATTERN COPIED", "AGAIN: PASTE", "PATTERN PASTED", "SOUND COPIED",
+                                                   "SOUND PASTED", "NOTHING COPIED", "UNDONE", "REDONE",
+                                                   "NOTHING TO UNDO"};   /* COPY_* - 1 */
 static struct { q_pattern pat; q_sound snd; q_pad pads[Q_PADS]; uint8_t has_pat, has_snd; } clip;   /* (.bss: the pool
                                                                          keeps its 4 KB spare, fm1.toml pool_spare) */
 
@@ -1087,6 +1090,69 @@ static void copy_msg(int kind, uint32_t ms)
 {
     ui.copy_kind = kind;
     ui.copy_until = plat_ms() + ms;
+}
+
+/* UNDO (REC held, black key 3): the last CLEAR, CLEAR LOCKS, RANDOM or PASTE put back, by swapping the copy taken
+   before it with what is there now; again: done again. The copy lives in store.c's chunk_buf, idle between a load and a
+   save: a SAVE ends the UNDO, and a load or a restore starts the interface again (ui_init) */
+enum { UNDO_PAT = 1, UNDO_SND, UNDO_GLO };
+static const uint8_t UNDO_GLO_OFF[] = {   /* the settings RANDOM draws on GLO (not TEMPO) */
+    __builtin_offsetof(q_project, swing), __builtin_offsetof(q_project, tonic), __builtin_offsetof(q_project, mode),
+    __builtin_offsetof(q_project, quant), __builtin_offsetof(q_project, click), __builtin_offsetof(q_project, keys),
+    __builtin_offsetof(q_project, dtime), __builtin_offsetof(q_project, dfb), __builtin_offsetof(q_project, rsize),
+    __builtin_offsetof(q_project, rtone), __builtin_offsetof(q_project, comp), __builtin_offsetof(q_project, duck)};
+_Static_assert(sizeof(q_pattern) <= PLAT_STORE_MAX && sizeof(q_sound) + sizeof(q_pad[Q_PADS]) <= PLAT_STORE_MAX,
+               "UNDO's copy fits chunk_buf");
+
+static void swap_bytes(uint8_t *a, uint8_t *b, uint32_t n)
+{
+    while (n--) {
+        uint8_t c = *a;
+        *a++ = *b, *b++ = c;
+    }
+}
+
+/* the copy before an action that UNDO puts back; kind: UNDO_*, of the track and pattern shown */
+static void undo_keep(int kind)
+{
+    uint32_t i;
+    ui.undo = kind, ui.undo_track = ui.track, ui.undo_pat = ui.p->pattern[ui.track], ui.undone = 0;
+    if (kind == UNDO_PAT) {
+        __builtin_memcpy(chunk_buf, pat(), sizeof(q_pattern));
+    } else if (kind == UNDO_SND) {
+        __builtin_memcpy(chunk_buf, &ui.p->sound[ui.track], sizeof(q_sound));
+        __builtin_memcpy(chunk_buf + sizeof(q_sound), ui.p->kit[ui.track], sizeof(q_pad[Q_PADS]));
+    } else {
+        for (i = 0; i < sizeof UNDO_GLO_OFF; i++)
+            chunk_buf[i] = ((const uint8_t *)ui.p)[UNDO_GLO_OFF[i]];
+    }
+}
+
+static void undo_swap(void)
+{
+    uint32_t i;
+    int t = ui.undo_track;
+    if (!ui.undo) {
+        copy_msg(COPY_NO_UNDO, MSG_MS);
+        return;
+    }
+    if (ui.undo == UNDO_PAT) {
+        if (ui.rec == R_LISTEN)
+            rec_set(R_OFF);             /* LISTEN writes its phrase into the pattern shown */
+        swap_bytes(chunk_buf, (uint8_t *)&ui.p->pat[t][ui.undo_pat], sizeof(q_pattern));
+        if (t == ui.track && ui.undo_pat == ui.p->pattern[t])
+            pattern_set(ui.undo_pat);   /* the hold, the selection, the cursor: as for another pattern */
+    } else if (ui.undo == UNDO_SND) {
+        swap_bytes(chunk_buf, (uint8_t *)&ui.p->sound[t], sizeof(q_sound));
+        swap_bytes(chunk_buf + sizeof(q_sound), (uint8_t *)ui.p->kit[t], sizeof(q_pad[Q_PADS]));
+        audio_track_model(t);           /* the render takes the model from the sound */
+    } else {
+        for (i = 0; i < sizeof UNDO_GLO_OFF; i++)
+            swap_bytes(chunk_buf + i, (uint8_t *)ui.p + UNDO_GLO_OFF[i], 1);
+    }
+    ui.undone = !ui.undone;
+    ui.dirty = 1;
+    copy_msg(ui.undone ? COPY_UNDONE : COPY_REDONE, MSG_MS);
 }
 
 static void copy_key(int b)
@@ -1112,6 +1178,7 @@ static void copy_key(int b)
     case 1:
         if (ui.rec == R_LISTEN)
             rec_set(R_OFF);             /* LISTEN writes its phrase into the pattern shown */
+        undo_keep(UNDO_PAT);
         *t = clip.pat;
         poly_for_src(t->src);           /* as SOURCE does */
         pattern_set(ui.p->pattern[ui.track]);  /* the hold, the selection, the cursor: as for another pattern */
@@ -1124,6 +1191,7 @@ static void copy_key(int b)
         copy_msg(COPY_SND, MSG_MS);
         return;
     default:
+        undo_keep(UNDO_SND);
         ui.p->sound[ui.track] = clip.snd;
         __builtin_memcpy(ui.p->kit[ui.track], clip.pads, sizeof clip.pads);
         audio_track_model(ui.track);    /* the render takes the model from the sound */
@@ -1389,6 +1457,7 @@ static void save_release(void)
         ui.msg_until = plat_ms() + MSG_MS;
     else if (!save_held && store_save(ui.p) == 0)
         ui.dirty = 0;
+    ui.undo = 0;                        /* (a save writes through chunk_buf, UNDO's copy) */
 }
 
 /* backup and restore over USB (fm1-base device/backup.c) */
@@ -1398,6 +1467,7 @@ void app_backup_flush(void)             /* stopped, a backup starts: what change
 {
     if (ui.dirty && store_save(ui.p) == 0)
         ui.dirty = 0;
+    ui.undo = 0;                        /* (a save writes through chunk_buf, UNDO's copy) */
 }
 void app_backup_hold(int on) { save_held = (uint8_t)on; }
 
@@ -1657,6 +1727,7 @@ static void dice(int b)
     ui.rng ^= plat_ms() | 1u;
     if (!ui.rng)
         ui.rng = 1;
+    undo_keep(b == 7 || (ui.domain != D_SEQ && ui.domain != D_GLO) ? UNDO_SND : ui.domain == D_SEQ ? UNDO_PAT : UNDO_GLO);
     if (b == 5 && ui.domain == D_SEQ && pat()->src == SRC_STEP && (knob_page() == P_STEPS || knob_page() == P_XY)) {
         dice_steps(ui.spage * 16, ui.spage * 16 + 16);   /* the grid's page of steps shown */
     } else if (b == 5) {
@@ -1754,8 +1825,14 @@ static void key_down(int k)
                 dice(b);
             return;
         }
+        if (k == BLACK[2]) {            /* UNDO: armed too */
+            undo_swap();
+            return;
+        }
         if (ui.rec == R_ARM)            /* (armed: nothing, the first note comes once REC is let go) */
             return;
+        if (k == BLACK[0] || k == BLACK[1])
+            undo_keep(UNDO_PAT);
         if (k == BLACK[0])
             for (i = 0; i < Q_STEPS; i++)
                 step_clear(t, i);
@@ -2259,8 +2336,8 @@ static uint32_t layer_keys(int b)
             keys |= 1u << WHITE[i];
         return keys;
     case B_REC:
-        if (ui.rec != R_LIVE) {         /* CLEAR, CLEAR LOCKS, and RANDOM's keys where they act */
-            keys = 1u << BLACK[0] | 1u << BLACK[1];
+        if (ui.rec != R_LIVE) {         /* CLEAR, CLEAR LOCKS, UNDO, and RANDOM's keys where they act */
+            keys = 1u << BLACK[0] | 1u << BLACK[1] | 1u << BLACK[2];
             for (i = 5; i < 8; i++)
                 keys |= (uint32_t)dice_on(i) << BLACK[i];
             return keys;
@@ -3105,6 +3182,7 @@ static void draw_layer(const q_view *v, int32_t oy)
         } else {
             tags[n] = "#1", names[n++] = "CLEAR";
             tags[n] = "#2", names[n++] = "CLEAR LOCKS";
+            tags[n] = "#3", names[n++] = "UNDO";
             for (i = 0; i < 3; i++)     /* RANDOM's keys lit (layer_keys) */
                 if (v->scene.lkeys >> BLACK[5 + i] & 1u)
                     tags[n] = RND_TAG[i], names[n++] = RND_NAME[i];

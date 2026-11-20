@@ -1,0 +1,70 @@
+# UNDO, REC held + black key 3: the last CLEAR, CLEAR LOCKS, RANDOM or PASTE put back; again: done again. A SAVE ends it
+wait 600
+tap SEQ
+press REC
+key 5 down
+key 5 up
+release REC
+expect msg_copy 9
+# CLEAR, undone, done again, undone
+tap REC
+key 0 down
+key 0 up
+expect stepon_1 1
+tap REC
+tap REC
+expect rec 0
+press REC
+key 1 down
+key 1 up
+expect stepon_1 0
+key 5 down
+key 5 up
+expect stepon_1 1
+expect msg_copy 7
+wait 100
+shot undo.png
+key 5 down
+key 5 up
+expect stepon_1 0
+expect msg_copy 8
+key 5 down
+key 5 up
+expect stepon_1 1
+release REC
+# RND MODEL on EDIT, undone: the model back, for the render too
+tap EDIT
+expect model 8
+press REC
+key 17 down
+key 17 up
+release REC
+expect msg_random 3
+press REC
+key 5 down
+key 5 up
+release REC
+expect model 8
+# RANDOM on GLO, undone
+tap GLO
+expect swing 50
+expect tonic 0
+press REC
+key 15 down
+key 15 up
+key 5 down
+key 5 up
+release REC
+expect swing 50
+expect tonic 0
+# a SAVE ends it
+press REC
+key 15 down
+key 15 up
+release REC
+tap SAVE
+press REC
+key 5 down
+key 5 up
+release REC
+expect msg_copy 9
