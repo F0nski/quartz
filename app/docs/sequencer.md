@@ -123,8 +123,8 @@ For example: hold a step, press black key 3 for PROB, press it again for COND, t
 ## P-locks
 
 While a step is held, K1–K4 lock the knobs of a sound page to that step only: the step plays with its own value, the
-others with the page's. SELECT turns the pages: ENGINE, SOUND, ADSR, FILTER, LFO, INSERT, MIX, ARP (a kit: ADSR,
-FILTER, LFO, INSERT, MIX). A pattern holds up to 128 p-locks; past that, the header says `LOCKS FULL`.
+others with the page's. SELECT turns the pages: ENGINE, SOUND, ADSR, FILTER, LFO, LFO 2, INSERT, MIX, ARP (a kit:
+ADSR, FILTER, LFO, LFO 2, INSERT, MIX). A pattern holds up to 128 p-locks; past that, the header says `LOCKS FULL`.
 
 ## Several steps at once
 

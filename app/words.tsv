@@ -325,6 +325,7 @@ SN	snare
 HH	hi-hat
 ENV	envelope
 LFO	L F O
+LFO 2	L F O 2
 ARP	arpeggiator
 ADSR	A D S R
 FILTER	filter

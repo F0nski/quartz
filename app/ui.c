@@ -18,7 +18,8 @@
 enum { D_EDIT, D_SEQ, D_GLO, D_HOME, D_ENV, D_LFO, D_ARP, D_FX, ND };
 enum { P_ENGINE, P_SOUND, P_STEPS, P_TEMPO, P_SCALE, P_CPU, P_XY, P_TRACKS, P_SONG, P_GRIDS, P_MAP, P_DENS, P_MARBLES, P_T,
        P_X, P_NOTES, P_LIFE, P_LIFEK, P_SEED, P_EVOL, P_PAD, P_KIT, P_ADSR, P_FILTER, P_LFO, P_ARP, P_INSERT, P_MIX, P_GFX, P_KEYS,
-       P_SN1, P_SN2, P_SN3, P_LANES, P_LENS, P_CHORDS, P_PROG, P_TONNETZ, P_WALK, P_PLAY, P_ORBITS, P_MOON, P_MOONK, P_CHORD, P_TZSTEP, P_MIMIC, P_LOOP, P_GRIDSK, P_CIPHER, P_CIPHERK, P_CPARAM, P_CTIME };            /* NOTES in SEQ: the cursor's step on K1-K4 */
+       P_SN1, P_SN2, P_SN3, P_LANES, P_LENS, P_CHORDS, P_PROG, P_TONNETZ, P_WALK, P_PLAY, P_ORBITS, P_MOON, P_MOONK, P_CHORD, P_TZSTEP, P_MIMIC, P_LOOP, P_GRIDSK, P_CIPHER, P_CIPHERK, P_CPARAM, P_CTIME,
+       P_LFO2 };            /* NOTES in SEQ: the cursor's step on K1-K4 */
 /* what PRESET sets on a held step; the black keys pick them by family (FAMILY) */
 /* REC: GRID the white keys are SEQ's steps, NOTES they write at a cursor, LIVE they record while playing, ARM the first
    note starts LIVE */
@@ -27,8 +28,8 @@ enum { A_VEL, A_RATCHET, A_PROB, A_COND, A_SLIDE, A_ACCENT, A_NOTE, A_LEN, A_MIC
 #define COND_N 42                    /* NONE, FIRST, !FIRST, PRE, !PRE, FILL, !FILL, then A:B for B = 2..8, A = 1..B */
 
 static const uint8_t DOMAIN_PAGES[ND][5] = {{P_ENGINE, P_SOUND}, {P_STEPS, P_XY}, {P_TEMPO, P_SCALE, P_KEYS, P_GFX, P_CPU}, {P_TRACKS, P_SONG},
-                                                {P_ADSR, P_FILTER}, {P_LFO}, {P_ARP}, {P_MIX, P_INSERT}};
-static const uint8_t DOMAIN_N[ND] = {2, 1, 5, 2, 2, 1, 1, 2};      /* SEQ: 2 pages while PATH is XY (pages) */
+                                                {P_ADSR, P_FILTER}, {P_LFO, P_LFO2}, {P_ARP}, {P_MIX, P_INSERT}};
+static const uint8_t DOMAIN_N[ND] = {2, 1, 5, 2, 2, 2, 1, 2};      /* SEQ: 2 pages while PATH is XY (pages) */
 static const uint8_t GEN_PAGES[9][5] = {{P_GRIDS, P_MAP, P_DENS}, {P_MARBLES, P_T, P_X, P_NOTES}, {P_LIFE, P_SEED, P_EVOL},
                                         {P_LANES, P_LENS}, {P_CHORDS, P_PROG, P_CHORD},
                                         {P_TONNETZ, P_WALK, P_PLAY, P_TZSTEP}, {P_ORBITS, P_MOON}, {P_MIMIC, P_LOOP},
@@ -92,6 +93,7 @@ static const q_page PAGE[] = {
     {"CIPHER", {"DIV", "FORMULA", 0, "SOURCE"}, {0, 0, 0, 0}, {DIV_N - 1, CIPHER_N - 1, 0, SRC_N - 1}},   /* a KIT's: no NOTE */
     {"PARAM", {"A", "B", "C", "DENS"}, {0, 0, 0, 0}, {15, 15, 15, 127}},
     {"TIME", {"LEN", "START", "SPEED", "RANGE"}, {0, 0, 1, 1}, {64, 127, 255, 4}},     /* LEN 0 FREE */
+    {"LFO 2", {"SHAPE", "RATE", "DEPTH", "DEST"}, {0, 0, -64, 0}, {4, LRATE_SYNC + 63, 63, 6}},
 };
 
 /* Plaits' registration order (pq.h) */
@@ -467,6 +469,10 @@ static int knob_get(int pid, int k)
     case P_LFO * 4 + 1: return s->lrate;
     case P_LFO * 4 + 2: return s->ldepth;
     case P_LFO * 4 + 3: return s->ldest;
+    case P_LFO2 * 4: return s->l2shape;
+    case P_LFO2 * 4 + 1: return s->l2rate;
+    case P_LFO2 * 4 + 2: return s->l2depth;
+    case P_LFO2 * 4 + 3: return s->l2dest;
     case P_ARP * 4: return s->amode;
     case P_ARP * 4 + 1: return s->aoct;
     case P_ARP * 4 + 2: return s->adiv;
@@ -678,6 +684,10 @@ static void knob_set(int pid, int k, int v)
     case P_LFO * 4 + 1: s->lrate = (uint8_t)v; break;
     case P_LFO * 4 + 2: s->ldepth = (int8_t)v; break;
     case P_LFO * 4 + 3: s->ldest = (uint8_t)v; break;
+    case P_LFO2 * 4: s->l2shape = (uint8_t)v; break;
+    case P_LFO2 * 4 + 1: s->l2rate = (uint8_t)v; break;
+    case P_LFO2 * 4 + 2: s->l2depth = (int8_t)v; break;
+    case P_LFO2 * 4 + 3: s->l2dest = (uint8_t)v; break;
     case P_ARP * 4: s->amode = (uint8_t)v; break;
     case P_ARP * 4 + 1: s->aoct = (uint8_t)v; break;
     case P_ARP * 4 + 2: s->adiv = (uint8_t)v; break;
@@ -983,14 +993,16 @@ static void attr_copy(q_step *dst, const q_step *src, int attr)
     }
 }
 
-/* the held step's p-lock pages: a synth track's 8, a KIT's ADSR, FILTER, LFO, INSERT and MIX (ui.lpage counts in the track's own
-   list); LOCK_OF: the LK_* each knob locks, -1 for the ones that do not (MODEL, POLY) */
-static const uint8_t LPAGE[8] = {P_ENGINE, P_SOUND, P_ADSR, P_FILTER, P_LFO, P_INSERT, P_MIX, P_ARP};
-static const int8_t LOCK_OF[8][4] = {
+/* the held step's p-lock pages: a synth track's 9, a KIT's ADSR, FILTER, LFO, LFO 2, INSERT and MIX (ui.lpage counts in the
+   track's own list); LOCK_OF: the LK_* each knob locks, -1 for the ones that do not (MODEL, POLY) */
+#define NLPAGE 9
+static const uint8_t LPAGE[NLPAGE] = {P_ENGINE, P_SOUND, P_ADSR, P_FILTER, P_LFO, P_LFO2, P_INSERT, P_MIX, P_ARP};
+static const int8_t LOCK_OF[NLPAGE][4] = {
     {LK_HARM, LK_TIMB, LK_MORPH, LK_DECAY}, {-1, LK_TUNE, LK_GLIDE, -1}, {LK_ATK, LK_DEC, LK_SUS, LK_REL},
-    {LK_FTYPE, LK_CUT, LK_RES, LK_ENVAMT}, {LK_SHAPE, LK_RATE, LK_DEPTH, LK_DEST}, {LK_I1, LK_I2, LK_I3, LK_IMIX},
+    {LK_FTYPE, LK_CUT, LK_RES, LK_ENVAMT}, {LK_SHAPE, LK_RATE, LK_DEPTH, LK_DEST},
+    {LK_SHAPE2, LK_RATE2, LK_DEPTH2, LK_DEST2}, {LK_I1, LK_I2, LK_I3, LK_IMIX},
     {LK_DSEND, LK_RSEND, LK_PAN, LK_LEVEL}, {LK_AMODE, LK_AOCT, LK_ADIV, LK_AGATE}};
-static int lpage_n(void) { return kit() ? 5 : 8; }
+static int lpage_n(void) { return kit() ? NLPAGE - 3 : NLPAGE; }
 static int lpage_row(void) { return ui.lpage + (kit() ? 2 : 0); }
 static int lock_pid(void) { return LPAGE[lpage_row()]; }
 static int lock_param(int k) { return LOCK_OF[lpage_row()][k]; }
@@ -1057,7 +1069,7 @@ static void rec_lock(int pid, int k)
 {
     q_pattern *t = pat();
     int pos = audio_pos(ui.track), param = -1, r;
-    for (r = 0; r < 8; r++)
+    for (r = 0; r < NLPAGE; r++)
         if (LPAGE[r] == pid)
             param = LOCK_OF[r][k];
     if (param < 0 || knob_hidden(pid, k) || pos < 0 || t->src != SRC_STEP || audio_pattern(ui.track) != ui.p->pattern[ui.track] || !(t->steps[pos].flags & SF_ON))
@@ -2238,8 +2250,9 @@ void ui_input(void)
         } else if (ui.domain == D_FX && page_id() == P_INSERT) {   /* the insert's type */
             ui.p->sound[ui.track].itype = (uint8_t)clamp(ui.p->sound[ui.track].itype + e, 0, IT_N - 1);
             ui.dirty = 1;
-        } else if (ui.domain == D_LFO) {        /* FREE / TRIG */
-            ui.p->sound[ui.track].ltrig = (uint8_t)clamp(ui.p->sound[ui.track].ltrig + e, 0, 1);
+        } else if (ui.domain == D_LFO) {        /* FREE / TRIG, of the page shown */
+            uint8_t *tr = page_id() == P_LFO2 ? &ui.p->sound[ui.track].l2trig : &ui.p->sound[ui.track].ltrig;
+            *tr = (uint8_t)clamp(*tr + e, 0, 1);
             ui.dirty = 1;
         }
     }
@@ -2578,13 +2591,16 @@ static void knob_text(int pid, int k, int v, int model, char *b)
         const char *s = 0;
         switch (pid * 4 + k) {
         case P_FILTER * 4: s = FTYPE_NAME[v]; break;
-        case P_LFO * 4: s = LSHAPE_NAME[v]; break;
+        case P_LFO * 4:
+        case P_LFO2 * 4: s = LSHAPE_NAME[v]; break;
         case P_LFO * 4 + 1:
+        case P_LFO2 * 4 + 1:
             if (v >= LRATE_SYNC)
                 return hz_text(0.05f * __builtin_powf(600.f, (float)(v - LRATE_SYNC) / 63.f), b);
             s = LRATE_NAME[v];
             break;
-        case P_LFO * 4 + 3: s = LDEST_NAME[v]; break;
+        case P_LFO * 4 + 3:
+        case P_LFO2 * 4 + 3: s = LDEST_NAME[v]; break;
         case P_ARP * 4: s = AMODE_NAME[v]; break;
         case P_ARP * 4 + 2: s = DIV_NAME[v]; break;
         case P_ARP * 4 + 3:
@@ -2806,8 +2822,8 @@ static void view_now(q_view *v)
     v->foot.pid = (int8_t)fpid;
     v->foot.model = ui.p->sound[ui.track].model;
     v->scene.pid = (int8_t)pid;
-    if (pid == P_LFO)
-        v->head.ltrig = (int8_t)(ui.p->sound[ui.track].ltrig + 1);
+    if (pid == P_LFO || pid == P_LFO2)
+        v->head.ltrig = (int8_t)((pid == P_LFO ? ui.p->sound[ui.track].ltrig : ui.p->sound[ui.track].l2trig) + 1);
     if (pid == P_ENGINE || pid == P_SOUND)     /* the model's name after the page's: the footer gives only SOUND's */
         v->head.model = (int8_t)(ui.p->sound[ui.track].model + 1);
     v->foot.col = 15;
@@ -2832,7 +2848,7 @@ static void view_now(q_view *v)
         v->scene.anim = 7;                      /* scene_glo.c; ui_frame fills its view */
         if (pid == P_SONG && !ui.entry)
             v->foot.hide = 7;
-    } else if (pid == P_ENGINE || pid == P_SOUND || pid == P_PAD || (pid >= P_ADSR && pid < P_SN1)) {
+    } else if (pid == P_ENGINE || pid == P_SOUND || pid == P_PAD || (pid >= P_ADSR && pid < P_SN1) || pid == P_LFO2) {
         __builtin_memcpy(v->scene.v, v->foot.v, sizeof v->scene.v);
         v->scene.model = pid == P_PAD ? KIT_MODEL + ui.p->kit[ui.track][ui.pad].engine : ui.p->sound[ui.track].model;
         if (pid == P_PAD) {                     /* a KIT's scene: the edited pad's knobs on its engine's polyhedron */
@@ -2843,7 +2859,7 @@ static void view_now(q_view *v)
             if (pid == P_SOUND)         /* the scene shows the sound's ENGINE knobs on both pages */
                 for (k = 0; k < 4; k++)
                     v->scene.v[k] = (int16_t)knob_get(P_ENGINE, k);
-        } else if (pid >= P_ADSR && pid <= P_MIX) {      /* scene_sound.c */
+        } else if ((pid >= P_ADSR && pid <= P_MIX) || pid == P_LFO2) {      /* scene_sound.c */
             v->scene.anim = 6;
         }
     } else if (pid == P_KIT) {
@@ -3514,9 +3530,11 @@ void ui_frame(void)
                 home_frame(&hv, now);
             } else if (v.scene.anim == 6) {
                 const q_sound *s = &ui.p->sound[ui.track];
-                q_pview pv = {(uint8_t)(v.scene.pid - P_ADSR), v.scene.model, s->itype, (uint8_t)own_env(v.scene.model),
-                              v.scene.model == M_KIT, {v.scene.v[0], v.scene.v[1], v.scene.v[2], v.scene.v[3]},
-                              audio_hits(ui.track), audio_lfo_phase(ui.track), {0}, {0}, 0, 0};
+                int lfo2 = v.scene.pid == P_LFO2;          /* LFO 2: LFO's scene, with its knobs and phase */
+                q_pview pv = {(uint8_t)(lfo2 ? SP_LFO : v.scene.pid - P_ADSR), v.scene.model, s->itype,
+                              (uint8_t)own_env(v.scene.model), v.scene.model == M_KIT,
+                              {v.scene.v[0], v.scene.v[1], v.scene.v[2], v.scene.v[3]},
+                              audio_hits(ui.track), audio_lfo_phase(ui.track, lfo2), {0}, {0}, 0, 0};
                 int sounding, n = 0, k;
                 if (fresh)
                     scene_enter();
@@ -3968,6 +3986,11 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "envamt")) *got = s->envamt;
     else if (!strcmp(what, "lshape")) *got = s->lshape;
     else if (!strcmp(what, "ltrig")) *got = s->ltrig;
+    else if (!strcmp(what, "l2trig")) *got = s->l2trig;
+    else if (!strcmp(what, "l2shape")) *got = s->l2shape;
+    else if (!strcmp(what, "l2rate")) *got = s->l2rate;
+    else if (!strcmp(what, "l2depth")) *got = s->l2depth;
+    else if (!strcmp(what, "l2dest")) *got = s->l2dest;
     else if (!strcmp(what, "lrate")) *got = s->lrate;
     else if (!strcmp(what, "ldepth")) *got = s->ldepth;
     else if (!strcmp(what, "ldest")) *got = s->ldest;

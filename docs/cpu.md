@@ -40,6 +40,7 @@ core's load and LOST BLOCKS; a step is validated only with zero lost blocks in i
 | ATLAS's LEN (image 535 004 B, the render's code 8 B further), worst_case.py, probe.py 2 x 60 s | 76 % / 66 % | 0 |
 | COND FILL and UNDO (image 535 068 B), worst_case.py, probe.py 2 x 60 s | 76 % / 66 % | 0 |
 | Four projects (image 535 452 B, a 53-sector store pool), worst_case.py, probe.py 2 x 60 s | 76 % / 66 % | 0 |
+| LFO 2 (image 535 508 B, 64-bit lock mask), worst_case.py, probe.py 2 x 60 s: LFO 2 off / on (DEPTH 60) on tracks 1 and 2 | 76 % / 66 %, 77 % / 67 % | 0 |
 
 One Plaits voice costs 5 to 11 % of a core for the light models, 12 to 16 % for the common ones and 20 to 21 % for
 ADDITIVE and MODAL; the cost is linear in voices and the second core halves the wall time. The generators run once

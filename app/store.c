@@ -35,7 +35,8 @@ static const int8_t lk_range[LK_N][2] = {
     [LK_SHAPE] = {0, LS_SH}, [LK_RATE] = {0, 75}, [LK_DEPTH] = {-64, 63}, [LK_DEST] = {0, LD_LEVEL},
     [LK_AMODE] = {0, AM_ORDER}, [LK_AOCT] = {1, 4}, [LK_ADIV] = {0, DIV_N - 1}, [LK_AGATE] = {5, 100},
     [LK_I1] = {0, 127}, [LK_I2] = {0, 127}, [LK_I3] = {0, 127}, [LK_IMIX] = {0, 127}, [LK_DSEND] = {0, 127},
-    [LK_RSEND] = {0, 127}, [LK_PAN] = {-64, 63}, [LK_LEVEL] = {0, 127} };
+    [LK_RSEND] = {0, 127}, [LK_PAN] = {-64, 63}, [LK_LEVEL] = {0, 127},
+    [LK_SHAPE2] = {0, LS_SH}, [LK_RATE2] = {0, 75}, [LK_DEPTH2] = {-64, 63}, [LK_DEST2] = {0, LD_LEVEL} };
 
 /* a valid-CRC object can still hold out-of-range fields: the render indexes and divides with them */
 static void clamp_project(q_project *p)
@@ -78,6 +79,9 @@ static void clamp_project(q_project *p)
         s->lshape = (uint8_t)clampi(s->lshape, 0, LS_SH); s->ltrig = (uint8_t)clampi(s->ltrig, 0, 1);
         s->lrate = (uint8_t)clampi(s->lrate, 0, 75); s->ldepth = (int8_t)clampi(s->ldepth, -64, 63);
         s->ldest = (uint8_t)clampi(s->ldest, 0, LD_LEVEL); s->amode = (uint8_t)clampi(s->amode, 0, AM_ORDER);
+        s->l2shape = (uint8_t)clampi(s->l2shape, 0, LS_SH); s->l2trig = (uint8_t)clampi(s->l2trig, 0, 1);
+        s->l2rate = (uint8_t)clampi(s->l2rate, 0, 75); s->l2depth = (int8_t)clampi(s->l2depth, -64, 63);
+        s->l2dest = (uint8_t)clampi(s->l2dest, 0, LD_LEVEL);
         s->aoct = (uint8_t)clampi(s->aoct, 1, 4); s->adiv = (uint8_t)clampi(s->adiv, 0, DIV_N - 1);
         s->agate = (uint8_t)clampi(s->agate, 5, 100);
         s->itype = (uint8_t)clampi(s->itype, 0, IT_N - 1);

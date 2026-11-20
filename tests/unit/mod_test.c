@@ -5,7 +5,7 @@
 #include "gen.c"
 #include "seq.c"
 
-static q_vparam dflt(void) { return (q_vparam){ 0, 64, 127, 20, FT_LP, 127, 0, 0, LS_SIN, 0, 5, 0, LD_CUT }; }
+static q_vparam dflt(void) { return (q_vparam){ 0, 64, 127, 20, FT_LP, 127, 0, 0, LS_SIN, 0, 5, 0, LD_CUT, LS_SIN, 0, 5, 0, LD_PITCH }; }
 static pq_mod blk(int v, const q_vparam *p, int tempo) { pq_mod m; mod_set(v, p, tempo); mod_voice_block(v, &m); return m; }
 static float semis(float cutoff) { return 12 * log2f(cutoff * Q_SR / 440) + 69; }
 static const float DT = MOD_BLK / Q_SR;
@@ -149,7 +149,7 @@ static void lfo_trig_restarts(void)
         assert(fabsf(semis(blk(0, &p, 120).cutoff) - s60) > 5);
         float before = fabsf(semis(blk(0, &p, 120).cutoff) - s60);
         mod_set(0, &p, 120); mod_note_on(0, 0);
-        assert(mod_lfo_phase(0) == 0);                                  /* sin 0, glided to */
+        assert(mod_lfo_phase(0, 0) == 0);                                  /* sin 0, glided to */
         assert(fabsf(semis(blk(0, &p, 120).cutoff) - s60) < before);
     }
 }
@@ -158,11 +158,11 @@ static void lfo_phase_advances(void)
 {
     setup(); q_vparam p = dflt(); p.ltrig = 1; p.lrate = 5;
     mod_set(0, &p, 120); mod_note_on(0, 0);
-    assert(mod_lfo_phase(0) == 0);
+    assert(mod_lfo_phase(0, 0) == 0);
     for (int i = 0; i < 10; i++) blk(0, &p, 120);
-    assert(mod_lfo_phase(0) > 0 && mod_lfo_phase(0) < 1);
+    assert(mod_lfo_phase(0, 0) > 0 && mod_lfo_phase(0, 0) < 1);
     mod_set(0, &p, 120); mod_note_on(0, 0);
-    assert(mod_lfo_phase(0) == 0);
+    assert(mod_lfo_phase(0, 0) == 0);
 }
 
 static void lfo_sync_tempo_change_continuous(void)
@@ -172,7 +172,7 @@ static void lfo_sync_tempo_change_continuous(void)
     for (int i = 0; i < 6000; i++) {
         if (i == 3000) tempo = 90;
         blk(0, &p, tempo);
-        float ph = mod_lfo_phase(0);                /* the phase itself: the value glides after each wrap */
+        float ph = mod_lfo_phase(0, 0);                /* the phase itself: the value glides after each wrap */
         if (prev >= 0 && prev - ph < 0.5f) assert(fabsf(ph - prev) < 0.001f);   /* a wrap goes down by ~1 */
         prev = ph;
         mod_clock(tempo, MOD_BLK);
@@ -209,6 +209,23 @@ static void sh_changes_once_per_cycle(void)
     pq_mod a, b;
     for (int i = 0; i < 100; i++) { a = blk(0, &p, 120); b = blk(1, &p, 120); }   /* both glided to it */
     assert(fabsf(semis(a.cutoff) - semis(b.cutoff)) < 0.01f);
+}
+
+/* LFO 2: on its own destination, and added to LFO 1's on the same one */
+static void lfo2_adds(void)
+{
+    setup(); q_vparam p = dflt(); p.ldepth = 0; p.l2dest = LD_PITCH; p.l2depth = 63; p.l2rate = 5;
+    float lo = 99, hi = -99;
+    for (int i = 0; i < 2000; i++) { mod_clock(120, MOD_BLK); float x = blk(0, &p, 120).pitch; if (x < lo) lo = x; if (x > hi) hi = x; }
+    assert(lo < -11.9f && hi > 11.9f);
+    p.ldest = LD_PITCH; p.ldepth = 63; p.lrate = 5;   /* both FREE at one rate: in phase, twice as wide */
+    lo = 99, hi = -99;
+    for (int i = 0; i < 2000; i++) { mod_clock(120, MOD_BLK); float x = blk(0, &p, 120).pitch; if (x < lo) lo = x; if (x > hi) hi = x; }
+    assert(lo < -23.8f && hi > 23.8f);
+    p.l2depth = 0;                      /* DEPTH 0: LFO 2 adds nothing */
+    lo = 99, hi = -99;
+    for (int i = 0; i < 2000; i++) { mod_clock(120, MOD_BLK); float x = blk(0, &p, 120).pitch; if (x < lo) lo = x; if (x > hi) hi = x; }
+    assert(lo > -12.01f && hi < 12.01f);
 }
 
 /* arpeggiator: a log of the events with absolute frames */
@@ -401,7 +418,7 @@ int main(void)
 {
     adsr_default_is_gate(); adsr_times(); adsr_release_from_attack(); adsr_attack_from_current_level();
     filter_env_amount_and_accent(); lfo_shapes(); lfo_jumps_softened(); lfo_free_shared_phase(); lfo_trig_restarts(); lfo_phase_advances();
-    lfo_sync_tempo_change_continuous(); lfo_level_depth(); lfo_pitch_range(); sh_changes_once_per_cycle();
+    lfo_sync_tempo_change_continuous(); lfo_level_depth(); lfo_pitch_range(); sh_changes_once_per_cycle(); lfo2_adds();
     arp_up_two_octaves(); arp_down(); arp_updown_no_repeat(); arp_order_follows_arrival(); arp_rand_in_set();
     arp_single_note_repeats(); arp_starts_at_first_note(); arp_gate_min(); arp_stops_when_empty(); arp_latch();
     arp_mode_change_no_stuck(); arp_passthrough_keeps_legato(); arp_tempo_change(); arp_ninth_note_ignored();

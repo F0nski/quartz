@@ -61,7 +61,7 @@ static volatile int playing;
 static volatile int muted;
 static volatile int recording;      /* audio_rec */
 /* the step's p-locks each voice plays (bit LK_* of mask), taken at its note-on */
-static uint32_t lk_mask[Q_VOICES];
+static uint64_t lk_mask[Q_VOICES];  /* bit k: LK_* k locked on the voice's step */
 static uint8_t lk_val[Q_VOICES][LK_N];
 static int8_t vpad[Q_VOICES];       /* the KIT pad each voice plays, -1 none: taken at its note-on */
 /* each track's effect locks (bit k of mask: LK_I1 + k), taken at a step's note-on (fxl_step). They hold until a
@@ -323,7 +323,7 @@ static void take_locks(int v, int track, int pat, int step)
         const q_lock *l = &pt->locks[i];
         if (l->step != step || l->param >= LK_N || lk_mask[v] >> l->param & 1)
             continue;
-        lk_mask[v] |= 1u << l->param;
+        lk_mask[v] |= (uint64_t)1 << l->param;
         lk_val[v][l->param] = l->value;
     }
 }
@@ -336,7 +336,9 @@ static void vparam(int v, const q_sound *s, q_vparam *q)
                      (uint8_t)param(v, LK_FTYPE, s->ftype), (uint8_t)param(v, LK_CUT, s->cutoff),
                      (uint8_t)param(v, LK_RES, s->res), (int8_t)param(v, LK_ENVAMT, (uint8_t)s->envamt),
                      (uint8_t)param(v, LK_SHAPE, s->lshape), s->ltrig, (uint8_t)param(v, LK_RATE, s->lrate),
-                     (int8_t)param(v, LK_DEPTH, (uint8_t)s->ldepth), (uint8_t)param(v, LK_DEST, s->ldest) };
+                     (int8_t)param(v, LK_DEPTH, (uint8_t)s->ldepth), (uint8_t)param(v, LK_DEST, s->ldest),
+                     (uint8_t)param(v, LK_SHAPE2, s->l2shape), s->l2trig, (uint8_t)param(v, LK_RATE2, s->l2rate),
+                     (int8_t)param(v, LK_DEPTH2, (uint8_t)s->l2depth), (uint8_t)param(v, LK_DEST2, s->l2dest) };
 }
 
 /* a KIT's voice: its pad's harm, timb and decay (its locks of those do not apply); the pad's decay is Plaits' drum decay (morph) */
@@ -970,10 +972,10 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
 
 /* The screen's accessors (ui.c, later in the same unity build): static, so that clang places them where the screen uses
  * them, after the render, and the audio's code keeps its place in the flash (app.h APP_LATE, docs/cpu.md). The LFO phase
- * of the track's first sounding voice, -1 without one */
-static float audio_lfo_phase(int track)
+ * of the track's first sounding voice (lfo2: LFO 2's), -1 without one */
+static float audio_lfo_phase(int track, int lfo2)
 {
-    for (int v = 0; v < PQ_VOICES; v++) if (pool.v[v].track == track && sounding(v)) return mod_lfo_phase(v);
+    for (int v = 0; v < PQ_VOICES; v++) if (pool.v[v].track == track && sounding(v)) return mod_lfo_phase(v, lfo2);
     return -1;
 }
 

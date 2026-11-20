@@ -5,7 +5,7 @@
 
 /* a voice's settings, locks applied (audio.c) */
 typedef struct { uint8_t atk, dec, sus, rel, ftype, cutoff, res; int8_t envamt; uint8_t lshape, ltrig, lrate;
-                 int8_t ldepth; uint8_t ldest; } q_vparam;
+                 int8_t ldepth; uint8_t ldest, l2shape, l2trig, l2rate; int8_t l2depth; uint8_t l2dest; } q_vparam;   /* l2*: LFO 2 */
 
 #define ARP_HELD 8                  /* notes held at most; a 9th note-on is ignored */
 #define ARP_IN 32                   /* note events per block; beyond, note-ons dropped, never a note-off */

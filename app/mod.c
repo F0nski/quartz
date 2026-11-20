@@ -13,6 +13,8 @@ typedef struct {
     float ph, inc;                                   /* LFO phase 0..1 and its advance per block */
     float lv;                                        /* the LFO's value, softened (LFO_GLIDE) */
     uint32_t cyc, notes;                             /* S&H: cycle number (FREE: global, TRIG: own) and note counter */
+    float ph2, inc2, lv2;                            /* LFO 2's, the same */
+    uint32_t cyc2;
 } mvoice;
 static mvoice MV[PQ_VOICES];
 /* the LFO's jumps (SAW's return, SQR's edges, S&H's steps) glided over ~2 ms: a one-pole of 1 - exp(-12 / Q_SR / 2 ms)
@@ -35,22 +37,45 @@ static float hash_rnd(uint32_t x)                    /* -1..1 */
     return x * (2.f / 4294967295.f) - 1.f;
 }
 
-static float lfo_value(const mvoice *s, int v)
+/* a wave at phase ph; S&H's value from its cycle (and, TRIG, the voice and its notes) */
+static float lfo_wave(int shape, int trig, float ph, uint32_t cyc, uint32_t notes, int v)
 {
-    float ph = s->ph;
-    switch (s->p.lshape) {
+    switch (shape) {
     case LS_SIN: return fm_sinf(6.2831853f * ph);
     case LS_TRI: return ph < 0.25f ? 4 * ph : ph < 0.75f ? 2 - 4 * ph : 4 * ph - 4;
     case LS_SAW: return 2 * ph - 1;
     case LS_SQR: return ph < 0.5f ? 1.f : -1.f;
-    default: return hash_rnd(s->cyc + (s->p.ltrig ? (v + 1) * 0x9E3779B1U + s->notes * 0x85EBCA6BU : 0));
+    default: return hash_rnd(cyc + (trig ? (v + 1) * 0x9E3779B1U + notes * 0x85EBCA6BU : 0));
+    }
+}
+
+static float lfo_value(const mvoice *s, int v) { return lfo_wave(s->p.lshape, s->p.ltrig, s->ph, s->cyc, s->notes, v); }
+/* (another seed for S&H: two LFOs on S&H draw apart) */
+static float lfo2_value(const mvoice *s, int v)
+{
+    return lfo_wave(s->p.l2shape, s->p.l2trig, s->ph2, s->cyc2 + 0x68E31DA4U, s->notes, v);
+}
+
+/* an LFO's value l at depth -64..63 onto dest: added to the other LFO's, a gain multiplied */
+static void lfo_apply(pq_mod *m, int dest, int depth, float l, float *semi, float *res)
+{
+    float d = clampf(depth / 63.f, -1, 1), ld = d * l;
+    switch (dest) {
+    case LD_HARM: m->harm += ld; break;
+    case LD_TIMB: m->timb += ld; break;
+    case LD_MORPH: m->morph += ld; break;
+    case LD_PITCH: m->pitch += 12 * ld; break;
+    case LD_CUT: *semi += 60 * ld; break;
+    case LD_RES: *res = clampf(*res + ld, 0, 1); break;
+    default: m->gain *= 1 - (d < 0 ? -d : d) * (1 - l) / 2; break;
     }
 }
 
 void mod_init(void)
 {
     __builtin_memset(MV, 0, sizeof MV);
-    for (int v = 0; v < PQ_VOICES; v++) MV[v].p = (q_vparam){ 0, 64, 127, 20, FT_LP, 127, 0, 0, LS_SIN, 0, 5, 0, LD_CUT };
+    for (int v = 0; v < PQ_VOICES; v++)
+        MV[v].p = (q_vparam){ 0, 64, 127, 20, FT_LP, 127, 0, 0, LS_SIN, 0, 5, 0, LD_CUT, LS_SIN, 0, 5, 0, LD_PITCH };
     for (int i = 0; i < NRATE - LRATE_SYNC; i++) RHZ[i] = 0.05f * __builtin_powf(600.f, i / 63.f);
     mod_restart();
 }
@@ -62,6 +87,9 @@ void mod_set(int v, const q_vparam *p, int tempo)
     float per_frame = p->lrate < LRATE_SYNC ? tempo / 60.f / Q_SR / PERIOD[p->lrate] : RHZ[p->lrate - LRATE_SYNC] / Q_SR;
     s->inc = per_frame * MOD_BLK;
     if (!p->ltrig) { s->ph = RPH[p->lrate]; s->cyc = RCYC[p->lrate]; }
+    per_frame = p->l2rate < LRATE_SYNC ? tempo / 60.f / Q_SR / PERIOD[p->l2rate] : RHZ[p->l2rate - LRATE_SYNC] / Q_SR;
+    s->inc2 = per_frame * MOD_BLK;
+    if (!p->l2trig) { s->ph2 = RPH[p->l2rate]; s->cyc2 = RCYC[p->l2rate]; }
 }
 
 /* a slot freed without a note-off (fade, steal across tracks) keeps a stale level: its attack starts from 0 */
@@ -73,11 +101,12 @@ void mod_note_on(int v, int accent)
     s->acc = accent; s->stage = E_ATK; s->notes++;
     s->astep = (1 - s->env) * (MOD_BLK / Q_SR) / env_time(s->p.atk);
     if (s->p.ltrig) { s->ph = 0; s->cyc = 0; }
+    if (s->p.l2trig) { s->ph2 = 0; s->cyc2 = 0; }
 }
 
 /* static: clang places a static function where it is first used, here the screen's code, after the render (app.h
  * APP_LATE); used by audio_lfo_phase (audio.c), itself called by the screen; unity build only */
-static float mod_lfo_phase(int v) { return MV[v].ph; }
+static float mod_lfo_phase(int v, int lfo2) { return lfo2 ? MV[v].ph2 : MV[v].ph; }
 void mod_note_off(int v) { if (MV[v].stage != E_IDLE) MV[v].stage = E_REL; }
 
 void mod_clock(int tempo, uint32_t n)
@@ -111,25 +140,22 @@ void mod_voice_block(int v, pq_mod *m)
     }
 
     s->lv += (lfo_value(s, v) - s->lv) * LFO_GLIDE;
-    float l = s->lv, d = clampf(p->ldepth / 63.f, -1, 1), ld = d * l;
+    if (p->l2depth)                                  /* (DEPTH 0: LFO 2 off, its wave not computed) */
+        s->lv2 += (lfo2_value(s, v) - s->lv2) * LFO_GLIDE;
     float semi = 15.5f + p->cutoff * (119.5f / 127) + s->env * (p->envamt / 63.f) * 96 * (s->acc ? 1.5f : 1);
     float res = p->res / 127.f;
     m->env = s->env; m->type = p->ftype;
     m->pitch = m->harm = m->timb = m->morph = 0; m->gain = 1;
-    switch (p->ldest) {
-    case LD_HARM: m->harm = ld; break;
-    case LD_TIMB: m->timb = ld; break;
-    case LD_MORPH: m->morph = ld; break;
-    case LD_PITCH: m->pitch = 12 * ld; break;
-    case LD_CUT: semi += 60 * ld; break;
-    case LD_RES: res = clampf(res + ld, 0, 1); break;
-    default: m->gain = 1 - (d < 0 ? -d : d) * (1 - l) / 2; break;
-    }
+    lfo_apply(m, p->ldest, p->ldepth, s->lv, &semi, &res);
+    if (p->l2depth)
+        lfo_apply(m, p->l2dest, p->l2depth, s->lv2, &semi, &res);
     m->cutoff = clampf(440.f * fm_expf((semi - 69) * (0.69314718f / 12)) / Q_SR, 0.0001f, 0.45f);
     m->res = 0.5f * fm_powf(60.f, res);
 
     s->ph += s->inc;                                 /* TRIG: own phase; FREE: mod_set re-derives it */
     if (s->ph >= 1) { s->ph -= 1; s->cyc++; }
+    s->ph2 += s->inc2;
+    if (s->ph2 >= 1) { s->ph2 -= 1; s->cyc2++; }
 }
 
 /* Out of line, as seq.c's mul64: inlined 64-bit multiplies among loads corrupt a register (base/bsp/docs/CPU.md) */

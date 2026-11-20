@@ -105,7 +105,7 @@ screen.
 | --- | --- | --- |
 | EDIT | The sound: ENGINE, SOUND (a kit: PAD, KIT). | — |
 | ENV | The envelope and the filter: ADSR, FILTER. | — |
-| LFO | The LFO. | — |
+| LFO | The two LFOs: LFO, LFO 2. | — |
 | ARP | The arpeggiator. | The notes you press stay in the arpeggio after you let go (latch). |
 | FX | The track's effects: MIX, INSERT. | The white keys are the 16 punch-ins; black key 1 is FILL. |
 | SEQ | The pattern: STEPS, then its source's pages. | White keys 1–8 pick the track's pattern; black keys 1–4 copy and paste. |
@@ -342,6 +342,7 @@ track. The scenes show the model's name and draw what the knobs set.
 | Page | K1 | K2 | K3 | K4 |
 | --- | --- | --- | --- | --- |
 | LFO | SHAPE: SIN, TRI, SAW, SQR, S&H | RATE | DEPTH, −64 to +63 | DEST |
+| LFO 2 | SHAPE | RATE | DEPTH, 0 in a new project: off | DEST, PITCH in a new project |
 
 - RATE first offers 12 speeds in time with the tempo (8 BAR, 4 BAR, 2 BAR, 1 BAR, 1/2, 1/4, 1/4T, 1/8, 1/8T, 1/16,
   1/16T, 1/32), then free speeds from 0.05 Hz to 30 Hz.
@@ -351,6 +352,8 @@ track. The scenes show the model's name and draw what the knobs set.
   PLAY. TRIG starts the shape again on each note.
 - S&H takes a new random value each cycle.
 - The LFO's jumps (SAW's return, SQR's edges, S&H's steps) glide over about 2 ms, so they do not click.
+- LFO 2 is a second LFO, the same in every way, with its own FREE or TRIG (PRESET on its page). On two destinations it
+  moves two things at once; on the same one, the two add up: a slow sweep with a fast wobble on top, for example.
 
 ![The LFO page: LFO FREE in the header, the shape drawn, SIN, 1/4, DEPTH 0, DEST TIMB](img/shape-lfo.png "LFO")
 

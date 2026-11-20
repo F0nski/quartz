@@ -364,7 +364,7 @@ static void audio_lfo_phase_none(void)
 {
     setup();
     block(256);
-    assert(audio_lfo_phase(0) == -1);
+    assert(audio_lfo_phase(0, 0) == -1);
 }
 
 static void audio_lfo_phase_voice(void)
@@ -372,7 +372,7 @@ static void audio_lfo_phase_voice(void)
     setup();
     audio_live_note(0, 60, 1);
     block(256);
-    assert(audio_lfo_phase(0) >= 0);
+    assert(audio_lfo_phase(0, 0) >= 0);
 }
 
 static void audio_arp_held(void)

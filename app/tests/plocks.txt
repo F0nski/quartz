@@ -294,7 +294,7 @@ key 0 down
 turn K1 1
 expect lockharm_1 86
 key 0 up
-# the ADSR, FILTER, LFO and ARP lock pages (track 2: its own table)
+# the ADSR, FILTER, LFO and ARP lock pages (track 2: its own table; LFO 2 between LFO and INSERT)
 turn ALGO 1
 tap SEQ
 key 0 down
@@ -309,12 +309,12 @@ expect lock_13_1 -5
 turn SELECT 1
 turn K3 -9
 expect lock_16_1 -9
-turn SELECT 3
-expect lpage 8
+turn SELECT 4
+expect lpage 9
 turn K2 4
 expect lock_19_1 4
 key 0 up
-# a KIT's step takes locks: ADSR, FILTER, LFO
+# a KIT's step takes locks: ADSR, FILTER, LFO, LFO 2, INSERT, MIX
 turn ALGO 1
 tap EDIT
 tap REC
@@ -328,7 +328,7 @@ key 0 down
 expect lpage 1
 turn K1 3
 expect lock_6_1 3
-turn SELECT 5
+turn SELECT 6
 expect lpage 1
 turn SELECT 1
 turn K1 1
@@ -347,13 +347,13 @@ turn PRESET 1
 tap SEQ
 tap REC
 key 0 down
-turn SELECT 5
-expect lpage 6
+turn SELECT 6
+expect lpage 7
 turn K1 7
 expect lock_22_1 71
 turn SELECT 1
 turn K3 -5
 expect lock_28_1 -5
 turn SELECT 1
-expect lpage 8
+expect lpage 9
 key 0 up

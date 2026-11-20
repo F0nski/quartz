@@ -1,0 +1,35 @@
+# LFO 2: the LFO domain's second page, its own FREE/TRIG (PRESET), its p-lock page after LFO's
+wait 600
+tap LFO
+expect page 1
+turn SELECT 1
+expect page 2
+expect l2depth 0
+expect l2dest 3
+spin K3 127
+expect l2depth 63
+turn K4 -3
+expect l2dest 0
+turn K1 2
+expect l2shape 2
+turn PRESET 1
+expect l2trig 1
+expect ltrig 0
+expect anim 6
+wait 100
+shot lfo2.png
+turn SELECT 1
+expect page 1
+turn PRESET 1
+expect ltrig 1
+# a held step: LFO 2's lock page is the 6th of a synth track's 9; K3 locks its DEPTH (LK_DEPTH2, 32)
+tap SEQ
+tap REC
+key 0 down
+key 0 up
+key 0 down
+turn SELECT 5
+expect lpage 6
+turn K3 -10
+key 0 up
+expect lock_32_1 53
