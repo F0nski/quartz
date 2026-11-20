@@ -8,7 +8,7 @@ Plaits, Grids, Marbles and the Clouds reverb in `app/third_party/`. Licence GPL-
 
 - `app/app.c`: the unity build's entry; includes the app's own `.c` files. `app/app_ui.c`: the screen's code, linked
   last on the device (`APP_LATE`) so the audio code keeps its place in the flash (`docs/cpu.md`).
-- `app/project.h`: `q_project`, everything saved, and `Q_VERSION`. `app/store.c`: the project in flash.
+- `app/project.h`: `q_project`, everything saved, and `Q_VERSION`. `app/store.c`: the four projects in flash.
 - `app/ui.c`: domains, pages (`PAGE[]`), keys, lights, every name drawn on the screen (`MODEL_NAME`, `SRC_NAME`, …).
 - `app/seq.c`: the sequencer (steps, p-locks, recording, song). `app/gen.c`: the pattern sources other than STEP.
 - `app/audio.c`: the render, per block, split across the two cores. `app/voices.c`: voice allocation.

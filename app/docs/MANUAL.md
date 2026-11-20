@@ -54,7 +54,7 @@ an animated *scene* that moves with the sound and with every knob.
 | P-lock | A knob's value stored on a single step. |
 | Scene | The four patterns playing and the mutes, kept together. Eight per project. |
 | Song | A list of scenes, each played a number of times. |
-| Project | Everything above, the tempo, the scale and the effects. QUARTZ keeps one project. |
+| Project | Everything above, the tempo, the scale and the effects. QUARTZ keeps four projects (section 11). |
 
 **Inspired by** the [OP-Z](https://teenage.engineering/guides/op-z) by teenage engineering: one button per domain,
 held buttons that turn the keys into shortcuts, punch-in effects, and the shape of this guide. The scenes' look, flat
