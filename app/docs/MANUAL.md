@@ -377,8 +377,12 @@ track. The scenes show the model's name and draw what the knobs set.
 
 - RATE first offers 12 speeds in time with the tempo (8 BAR, 4 BAR, 2 BAR, 1 BAR, 1/2, 1/4, 1/4T, 1/8, 1/8T, 1/16,
   1/16T, 1/32), then free speeds from 0.05 Hz to 30 Hz.
-- DEST: HARM, TIMB, MORPH, PITCH (±12 semitones), CUTOFF (±5 octaves), RES or LEVEL. The LFO adds to the value set
-  on the page, or to its p-lock.
+- DEST: HARM, TIMB, MORPH, PITCH (±12 semitones), CUTOFF (±5 octaves), RES, LEVEL, PAN or INSERT. The LFO adds to the
+  value set on the page, or to its p-lock.
+- PAN and INSERT move the whole track, not each note: PAN sweeps it left and right around MIX's PAN (an auto-pan),
+  INSERT turns the insert's first knob around its setting (a phaser's or a comb's sweep, a moving wavefold). At DEPTH
+  63 they cover the knob's whole travel. TRIG follows the track's note sounding; with none, it waits at the wave's
+  start.
 - PRESET switches FREE and TRIG, shown in the header. FREE runs on its own, and a synced rate starts with the bar at
   PLAY. TRIG starts the shape again on each note.
 - S&H takes a new random value each cycle.

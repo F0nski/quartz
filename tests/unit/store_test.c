@@ -248,7 +248,7 @@ static void store_clamps_fields(void)
     {
         const q_lock *l = a.pat[1][2].locks;
         assert(l[4].value == 75 && l[5].value == DIV_N - 1 && l[6].value == 1 && (int8_t)l[7].value == -64);
-        assert((int8_t)l[8].value == -5 && l[9].value == 5 && l[10].value == LD_LEVEL);
+        assert((int8_t)l[8].value == -5 && l[9].value == 5 && l[10].value == LD_INS);
     }
     assert(a.pat[2][5].path == PATH_N - 1 && a.pat[2][5].xlen == 1 && a.pat[2][5].ylen == 4 && a.pat[2][5].ydiv == DIV_N - 1);
     assert(a.pattern[0] == Q_PATTERNS - 1 && a.nsong == Q_SONG && a.scene[1].pat[2] == Q_PATTERNS - 1);
@@ -338,7 +338,7 @@ static void store_clamps_v4(void)
     store_save(&a);
     b = a;
     q_sound *s = &b.sound[1];
-    s->ftype = 7; s->lshape = 9; s->lrate = 200; s->ldest = 9; s->amode = 9; s->aoct = 0; s->adiv = 20; s->agate = 0;
+    s->ftype = 7; s->lshape = 9; s->lrate = 200; s->ldest = 12; s->amode = 9; s->aoct = 0; s->adiv = 20; s->agate = 0;
     s->ltrig = 5; s->envamt = -128; s->ldepth = -128;
     s = &b.sound[3];
     s->envamt = 100; s->ldepth = 100; s->aoct = 9; s->agate = 200; s->cutoff = 250; s->res = 200;
@@ -346,7 +346,7 @@ static void store_clamps_v4(void)
     memset(&a, 0xAA, sizeof a);
     assert(store_load(&a) == 0);
     s = &a.sound[1];
-    assert(s->ftype == FT_BP && s->lshape == LS_SH && s->lrate == 75 && s->ldest == LD_LEVEL && s->amode == AM_ORDER);
+    assert(s->ftype == FT_BP && s->lshape == LS_SH && s->lrate == 75 && s->ldest == LD_INS && s->amode == AM_ORDER);
     assert(s->aoct == 1 && s->adiv == DIV_N - 1 && s->agate == 5 && s->ltrig == 1);
     assert(s->envamt == -64 && s->ldepth == -64);
     s = &a.sound[3];

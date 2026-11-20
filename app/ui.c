@@ -65,7 +65,7 @@ static const q_page PAGE[] = {
     {"KIT", {"MODEL", "ENGINE", "LEVEL", "CHAR"}, {0, 0, 0, 0}, {M_KIT, 2, 127, 127}},
     {"ADSR", {"ATTACK", "DECAY", "SUSTAIN", "RELEASE"}, {0, 0, 0, 0}, {127, 127, 127, 127}},
     {"FILTER", {"TYPE", "CUTOFF", "RES", "ENV AMT"}, {0, 0, 0, -64}, {2, 127, 127, 63}},
-    {"LFO", {"SHAPE", "RATE", "DEPTH", "DEST"}, {0, 0, -64, 0}, {4, LRATE_SYNC + 63, 63, 6}},
+    {"LFO", {"SHAPE", "RATE", "DEPTH", "DEST"}, {0, 0, -64, 0}, {4, LRATE_SYNC + 63, 63, LD_INS}},
     {"ARP", {"MODE", "OCT", "DIV", "GATE"}, {0, 1, 0, 5}, {AM_ORDER, 4, DIV_N - 1, 100}},
     {"INSERT", {"", "", "", "MIX"}, {0, 0, 0, 0}, {127, 127, 127, 127}},      /* its name and knobs: INS_NAME, INS_LABEL */
     {"MIX", {"DELAY", "REVERB", "PAN", "LEVEL"}, {0, 0, -64, 0}, {127, 127, 63, 127}},
@@ -93,7 +93,7 @@ static const q_page PAGE[] = {
     {"CIPHER", {"DIV", "FORMULA", 0, "SOURCE"}, {0, 0, 0, 0}, {DIV_N - 1, CIPHER_N - 1, 0, SRC_N - 1}},   /* a KIT's: no NOTE */
     {"PARAM", {"A", "B", "C", "DENS"}, {0, 0, 0, 0}, {15, 15, 15, 127}},
     {"TIME", {"LEN", "START", "SPEED", "RANGE"}, {0, 0, 1, 1}, {64, 127, 255, 4}},     /* LEN 0 FREE */
-    {"LFO 2", {"SHAPE", "RATE", "DEPTH", "DEST"}, {0, 0, -64, 0}, {4, LRATE_SYNC + 63, 63, 6}},
+    {"LFO 2", {"SHAPE", "RATE", "DEPTH", "DEST"}, {0, 0, -64, 0}, {4, LRATE_SYNC + 63, 63, LD_INS}},
 };
 
 /* Plaits' registration order (pq.h) */
@@ -139,7 +139,7 @@ static const char *const FTYPE_NAME[3] = {"LP", "HP", "BP"};
 static const char *const LSHAPE_NAME[5] = {"SIN", "TRI", "SAW", "SQR", "S&H"};
 static const char *const LRATE_NAME[LRATE_SYNC] = {"8 BAR", "4 BAR", "2 BAR", "1 BAR", "1/2", "1/4", "1/4T", "1/8", "1/8T",
                                                    "1/16", "1/16T", "1/32"};
-static const char *const LDEST_NAME[7] = {"HARM", "TIMB", "MORPH", "PITCH", "CUTOFF", "RES", "LEVEL"};
+static const char *const LDEST_NAME[LD_INS + 1] = {"HARM", "TIMB", "MORPH", "PITCH", "CUTOFF", "RES", "LEVEL", "PAN", "INSERT"};
 /* the insert's page name and its 3 knobs by type: "" a knob with no role (K4 is always MIX) */
 static const char *const INS_NAME[IT_N] = {"INSERT OFF", "OVERDRIVE", "WAVEFOLD", "BITCRUSH", "CHORUS", "PHASER", "RING MOD", "COMB"};
 static const char *const INS_LABEL[IT_N][3] = {{"", "", ""}, {"DRIVE", "TONE", ""}, {"FOLD", "BIAS", "TONE"}, {"BITS", "RATE", ""},

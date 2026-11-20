@@ -34,6 +34,7 @@ void mod_slot_reset(int v);                          /* before a note-on on a sl
 void mod_note_off(int v);                            /* release from the current level */
 void mod_clock(int tempo, uint32_t n);               /* after each block: the FREE LFOs' clock */
 void mod_restart(void);                              /* at PLAY: the FREE LFOs from 0 */
+float mod_track_lfo(int shape, int trig, int rate, int lfo2, int v);   /* LD_PAN, LD_INS's value, -1..1: TRIG voice v's */
 void arp_reset(q_arp *a);
 void arp_input(q_arp *a, const q_event *e);          /* the track's event, offset in this block */
 void arp_unlatch(q_arp *a);                          /* the latched notes released at the next arp_block */

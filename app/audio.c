@@ -547,6 +547,25 @@ static void fx_take(const q_event *e)
     }
 }
 
+/* the track's LFOs on dest (LD_PAN, LD_INS), depth included, -1..1 each: TRIG's from its first sounding voice */
+static float track_lfo(int t, int dest)
+{
+    const q_sound *s = &prj->sound[t];
+    float sum = 0.0f;
+    int v;
+    for (v = 0; v < PQ_VOICES && !(pool.v[v].track == t && sounding(v)); v++) {}
+    for (int l = 0; l < 2; l++) {
+        int depth = l ? s->l2depth : s->ldepth;
+        if ((l ? s->l2dest : s->ldest) != dest || !depth)
+            continue;
+        sum += (depth < -63 ? -63 : depth) / 63.0f * mod_track_lfo(l ? s->l2shape : s->lshape, l ? s->l2trig : s->ltrig,
+                                                                  l ? s->l2rate : s->lrate, l, v < PQ_VOICES ? v : -1);
+    }
+    return sum;
+}
+
+static int clamp_i(int x, int lo, int hi) { return x < lo ? lo : x > hi ? hi : x; }
+
 /* the track's effect setting k (LK_I1..), its lock or the track's value */
 static int fx(int t, int k, int track_value)
 {
@@ -954,11 +973,12 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
         b[t] = bus[0][t];
         for (uint32_t i = 0; i < n; i++)
             b[t][i] += bus[1][t][i];
-        tr[t] = (qfx_track){ s->itype, (uint8_t)fx(t, LK_I1, s->i1), (uint8_t)fx(t, LK_I2, s->i2),
-                             (uint8_t)fx(t, LK_I3, s->i3), (uint8_t)fx(t, LK_IMIX, s->imix),
+        /* the LFOs on PAN and INSERT: around the setting, a whole knob's travel at DEPTH 63 */
+        tr[t] = (qfx_track){ s->itype, (uint8_t)clamp_i(fx(t, LK_I1, s->i1) + (int)(64.0f * track_lfo(t, LD_INS)), 0, 127),
+                             (uint8_t)fx(t, LK_I2, s->i2), (uint8_t)fx(t, LK_I3, s->i3), (uint8_t)fx(t, LK_IMIX, s->imix),
                              (uint8_t)fx(t, LK_DSEND, s->dsend), (uint8_t)fx(t, LK_RSEND, s->rsend),
                              (uint8_t)fx(t, LK_LEVEL, s->level), (uint8_t)(rmodel[t] != M_KIT),
-                             (int8_t)fx(t, LK_PAN, (uint8_t)s->pan) };
+                             (int8_t)clamp_i((int8_t)fx(t, LK_PAN, (uint8_t)s->pan) + (int)(64.0f * track_lfo(t, LD_PAN)), -64, 63) };
     }
     uint32_t num, den;
     seq_step_ratio(prj->tempo, prj->dtime, &num, &den);

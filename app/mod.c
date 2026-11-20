@@ -67,8 +67,17 @@ static void lfo_apply(pq_mod *m, int dest, int depth, float l, float *semi, floa
     case LD_PITCH: m->pitch += 12 * ld; break;
     case LD_CUT: *semi += 60 * ld; break;
     case LD_RES: *res = clampf(*res + ld, 0, 1); break;
-    default: m->gain *= 1 - (d < 0 ? -d : d) * (1 - l) / 2; break;
-    }
+    case LD_LEVEL: m->gain *= 1 - (d < 0 ? -d : d) * (1 - l) / 2; break;
+    }                                                /* (PAN, INSERT: per track, mod_track_lfo) */
+}
+
+/* a track's LFO (lfo2: LFO 2) on PAN or INSERT, -1..1, once a block: FREE on the clock's phase for its RATE, TRIG
+   softened as voice v's (-1: no voice sounding, the wave's start) */
+float mod_track_lfo(int shape, int trig, int rate, int lfo2, int v)
+{
+    if (trig)
+        return v < 0 ? 0.0f : lfo2 ? MV[v].lv2 : MV[v].lv;
+    return lfo_wave(shape, 0, RPH[rate], RCYC[rate] + (lfo2 ? 0x68E31DA4U : 0), 0, 0);
 }
 
 void mod_init(void)

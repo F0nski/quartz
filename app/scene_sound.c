@@ -18,7 +18,7 @@
 #define SP_BAR RGB(0x06, 0x04, 0x1a)    /* the knobs' index */
 static const uint16_t SP_GRAY[3] = {RGB(0x6f, 0x68, 0x90), RGB(0x4a, 0x44, 0x66), RGB(0x2c, 0x28, 0x44)};
 static const uint16_t SP_RAIL[3] = {RGB(0x2a, 0x24, 0x40), RGB(0x1a, 0x15, 0x30), RGB(0x10, 0x0c, 0x20)};
-static const char *const SP_DEST[7] = {"HARM", "TIMB", "MORPH", "PITCH", "CUTOFF", "RES", "LEVEL"};
+static const char *const SP_DEST[LD_INS + 1] = {"HARM", "TIMB", "MORPH", "PITCH", "CUTOFF", "RES", "LEVEL", "PAN", "INSERT"};
 static const char *const SP_FTYPE[3] = {"LOW-PASS", "HIGH-PASS", "BAND-PASS"};    /* ui.c's order */
 static struct {
     q_pview v;

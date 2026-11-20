@@ -31,7 +31,8 @@ enum { LK_PUNCH_LO = LK_N, LK_PUNCH_HI };   /* a step's punch-ins, not q_sound f
 enum { IT_OFF, IT_DRIVE, IT_FOLD, IT_CRUSH, IT_CHORUS, IT_PHASER, IT_RING, IT_COMB, IT_N };   /* q_sound.itype: the insert */
 enum { FT_LP, FT_HP, FT_BP };
 enum { LS_SIN, LS_TRI, LS_SAW, LS_SQR, LS_SH };
-enum { LD_HARM, LD_TIMB, LD_MORPH, LD_PITCH, LD_CUT, LD_RES, LD_LEVEL };
+enum { LD_HARM, LD_TIMB, LD_MORPH, LD_PITCH, LD_CUT, LD_RES, LD_LEVEL, LD_PAN, LD_INS };   /* PAN, INS (the insert's K1): per
+                                                                                         track, not per voice (audio.c) */
 enum { AM_OFF, AM_UP, AM_DOWN, AM_UPDN, AM_RAND, AM_ORDER };
 #define LRATE_SYNC 12              /* q_sound.lrate 0..11: synced to the tempo; 12..75: free */
 /* note[1..3] 0 = none; vel 1..127; len 1..64 eighths of a step; prob 0..20 (x 5 %); micro -11..11 (24ths) */
@@ -107,7 +108,7 @@ typedef struct { uint8_t len, div, nlocks, path, xlen, ylen, ydiv, src; q_grids 
 typedef struct { uint8_t used, mute, pat[Q_TRACKS]; } q_scene;
 typedef struct { uint8_t scene, reps; } q_entry;          /* scene 0..7, reps 1..16 */
 /* 0..127 except model 0..24, poly 1..4, tune -24..24, ftype 0..2, envamt and ldepth -64..63, lshape 0..4, ltrig 0 FREE 1 TRIG,
- * lrate 0..75, ldest 0..6, amode 0..5, aoct 1..4, adiv a DIV_*, agate 5..100, itype 0..7 (IT_*), pan -64..63;
+ * lrate 0..75, ldest 0..8 (LD_*), amode 0..5, aoct 1..4, adiv a DIV_*, agate 5..100, itype 0..7 (IT_*), pan -64..63;
  * i1..i3 the insert's knobs, imix its dry/wet, dsend and rsend the sends to the delay and the reverb; l2*: LFO 2, as l*;
  * edest: where ENV AMT sends the envelope, LD_HARM..LD_CUT (HARM, TIMB, MORPH, PITCH or the filter's CUTOFF) */
 typedef struct {

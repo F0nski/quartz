@@ -1514,6 +1514,27 @@ static void voices_reach_their_track_bus(void)
     }
 }
 
+/* LFO on PAN or INSERT: per track, on the clock's phase (FREE), around the setting; the voices' gain left alone */
+static void lfo_to_pan_and_insert(void)
+{
+    setup();
+    P.sound[0].pan = 10;
+    P.sound[0].ldest = LD_PAN; P.sound[0].ldepth = 63; P.sound[0].lshape = LS_SQR; P.sound[0].lrate = 5;   /* a beat */
+    P.sound[1].i1 = 64;
+    P.sound[1].l2dest = LD_INS; P.sound[1].l2depth = -32; P.sound[1].l2shape = LS_SQR; P.sound[1].l2rate = 5;
+    mod_restart();
+    block(256);
+    assert(QTR[0].pan == 63 && QTR[1].p1 == 64 - 32 && QTR[2].pan == 0 && QTR[2].p1 == 64);   /* SQR's first half: +1 */
+    while (RPH[5] < 0.6f) block(256);
+    block(256);
+    assert(QTR[0].pan == 10 - 64 && QTR[1].p1 == 64 + 32);   /* its second half: -1 */
+    audio_live_note(0, 60, 1);
+    block(256);
+    pq_mod m;
+    mod_voice_block(track_slot(0), &m);
+    assert(m.gain == 1.0f);
+}
+
 static void level_moves_to_fx(void)
 {
     setup();
@@ -2041,6 +2062,7 @@ int main(void)
     keyboard_note_takes_no_lock();
     voices_reach_their_track_bus();
     level_moves_to_fx();
+    lfo_to_pan_and_insert();
     fx_lock_on_its_step();
     fx_lock_negative_micro();
     fx_lock_positive_micro_clears();
