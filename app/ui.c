@@ -1310,14 +1310,31 @@ static void live_erase(void)
     ui.erase_pos = pos;
 }
 
+static uint8_t save_held;               /* a backup streams to the computer: a save would change what it reads */
+
 static void save_release(void)
 {
     if (!short_press(B_SAVE))
         return;
     if (audio_playing())                /* a flash write stalls the render */
         ui.msg_until = plat_ms() + MSG_MS;
-    else if (store_save(ui.p) == 0)
+    else if (!save_held && store_save(ui.p) == 0)
         ui.dirty = 0;
+}
+
+/* backup and restore over USB (fm1-base device/backup.c): a backup holds the project as last saved */
+int app_backup_playing(void) { return audio_playing(); }
+void app_backup_flush(void) {}          /* nothing is saved on its own (MANUAL.md, Saving) */
+void app_backup_hold(int on) { save_held = (uint8_t)on; }
+
+void app_backup_restored(void)
+{
+    rec_set(R_OFF);                     /* (ui_init clears ui.rec: LISTEN must tell the render first) */
+    store_load(ui.p);
+    for (int t = 0; t < Q_TRACKS; t++)  /* the render takes each track's model from the restored project */
+        audio_track_model(t);
+    ui.dirty = 0;
+    app_ui_init();                      /* the sound back (the restore muted it) and the screen anew */
 }
 
 /* a new pattern or mask for the project: the cursor stays inside the pattern */
