@@ -173,7 +173,7 @@ typedef struct { q_step st; uint8_t nlocks; q_lock lk[16]; } q_clip;   /* a step
 
 /* what is on the screen, part by part: a part is drawn again when its view changes */
 typedef struct {
-    struct { int8_t track, domain, page, n, msg, pat, playing, scene, pad, ltrig, itype, punch, badge, bnum, model, dirty, trans; uint8_t bpm; } head;   /* badge: REC's
+    struct { int8_t track, domain, page, n, msg, pat, playing, scene, pad, ltrig, itype, punch, badge, bnum, model, dirty, trans; uint8_t bpm, hits, len; } head;   /* badge: REC's
                                                                                    state, 1 GRID .. 4 ARM (0 none or ARM's blink off); bnum: NOTES' step */   /* pat: P1..P8 asked; playing: the one playing when it differs, else 0;
                                                                                    pad: a KIT's in EDIT 1..16, else 0;
                                                                                    ltrig: LFO's FREE 1 / TRIG 2, else 0; itype: the insert's, in the page name */
@@ -233,6 +233,9 @@ static struct {
                                                   written as it plays its next pass, 0 none */
     uint32_t tap_ms[4], tap_until;             /* TAP TEMPO: the last taps' times (ntap of them); its message until tap_until */
     int transpose;                             /* GLO held, a key: the sequencer's live transposition, in KEYS' unit */
+    int euclid, euclid_rot;                    /* REC held, black key 5: EUCLID's hits while PRESET may change them (REC
+                                                  still held, UNDO's copy the pattern before), 0 none; its rotation */
+    uint32_t euclid_until;                     /* its message shown until then */
     uint32_t trans_until;                      /* its message shown until then */
     int ntap;
     uint32_t down_ms[NB], used;                /* when each button went down; used: bit b, a key or button came while b was held */
@@ -1171,6 +1174,7 @@ static void swap_bytes(uint8_t *a, uint8_t *b, uint32_t n)
 static void undo_keep(int kind)
 {
     uint32_t i;
+    ui.euclid = 0;                      /* (EUCLID draws again from this copy: another action ends it) */
     ui.undo = kind, ui.undo_track = ui.track, ui.undo_pat = ui.p->pattern[ui.track], ui.undone = 0;
     if (kind == UNDO_PAT) {
         __builtin_memcpy(chunk_buf, pat(), sizeof(q_pattern));
@@ -1916,6 +1920,45 @@ static void dice_steps(int from, int to)
     }
 }
 
+/* EUCLID: steps 1..LEN on at ui.euclid places spread evenly (Bresenham's line, Bjorklund's rhythm turned), from
+   ui.euclid_rot; drawn from the pattern before (UNDO's copy). A step on that was on keeps its notes, one that was not
+   takes the tonic (a KIT: pad 1); one off keeps its notes behind the flag */
+static void euclid_draw(void)
+{
+    q_pattern *t = pat();
+    const q_pattern *o = (const q_pattern *)chunk_buf;
+    int n = t->len, i, tonic = ui.p->tonic;
+    for (i = 0; i < n; i++) {
+        q_step v = o->steps[i], *s = &t->steps[i];
+        int on = (i + ui.euclid_rot) % n * ui.euclid % n < ui.euclid;
+        if (on && !(v.flags & SF_ON)) {
+            step_default(&v);
+            v.note[0] = (uint8_t)(kit() ? KIT_NOTE : 60 + tonic - (tonic > 6 ? 12 : 0));
+        }
+        s->flags &= (uint8_t)~SF_ON;    /* the flag last: the render never reads half a step */
+        __asm__ volatile("" ::: "memory");
+        v.flags &= (uint8_t)~SF_ON;
+        *s = v;
+        if (on)
+            step_on(s);
+    }
+    ui.dirty = 1;
+    ui.euclid_until = plat_ms() + MSG_MS;
+}
+
+/* REC held, black key 5 on a STEP pattern: EUCLID, a quarter to a half of LEN as hits, a rotation drawn */
+static void euclid_key(void)
+{
+    int n = pat()->len;
+    ui.rng ^= plat_ms() | 1u;
+    if (!ui.rng)
+        ui.rng = 1;
+    undo_keep(UNDO_PAT);
+    ui.euclid = (n + 3) / 4 + (int)dice_rand((uint32_t)(n / 2 - (n + 3) / 4 + 1 > 0 ? n / 2 - (n + 3) / 4 + 1 : 1));
+    ui.euclid_rot = (int)dice_rand((uint32_t)n);
+    euclid_draw();
+}
+
 /* every page of the domain shown, then in SEQ the source's content */
 static void dice_all(void)
 {
@@ -2100,6 +2143,11 @@ static void key_down(int k)
         }
         if (k == BLACK[2]) {            /* UNDO: armed too */
             undo_swap();
+            return;
+        }
+        if (k == BLACK[4]) {            /* EUCLID: as RANDOM's, on a STEP pattern */
+            if (dice_on(5) && t->src == SRC_STEP)
+                euclid_key();
             return;
         }
         if (ui.rec == R_ARM)            /* (armed: nothing, the first note comes once REC is let go) */
@@ -2414,8 +2462,10 @@ void ui_input(void)
         }
     if ((ui.btn & ~btn) >> B_SAVE & 1u)
         save_release();
-    if ((ui.btn & ~btn) >> B_REC & 1u)
+    if ((ui.btn & ~btn) >> B_REC & 1u) {
         rec_release();
+        ui.euclid = 0;
+    }
     if (ui.domain != D_SEQ && (ui.rec == R_GRID || ui.rec == R_NOTES) && audio_playing())   /* out of SEQ, GRID is NOTES:
                                                                                                playing, LIVE */
         rec_set(R_LIVE);
@@ -2454,7 +2504,10 @@ void ui_input(void)
             ui.page[d] = ((ui.page[d] + e) % n + n) % n;
     }
     if ((e = plat_enc(EN_PRESET)) != 0) {
-        if (notes_on() && ui.nchord) {   /* keys held: the note tied over the next steps, or untied */
+        if (ui.euclid && ui.btn >> B_REC & 1u) {   /* REC still held after EUCLID: its hits, drawn again */
+            ui.euclid = clamp(ui.euclid + e, 1, pat()->len);
+            euclid_draw();
+        } else if (notes_on() && ui.nchord) {   /* keys held: the note tied over the next steps, or untied */
             q_step *s = &pat()->steps[ui.cursor - 1];
             for (; e; e -= e > 0 ? 1 : -1)
                 s->len = (uint8_t)len_step(s->len, e);
@@ -2644,7 +2697,7 @@ static uint32_t layer_keys(int b)
         return keys;
     case B_REC:
         if (ui.rec != R_LIVE) {         /* CLEAR, CLEAR LOCKS, UNDO, and RANDOM's keys where they act */
-            keys = 1u << BLACK[0] | 1u << BLACK[1] | 1u << BLACK[2];
+            keys = 1u << BLACK[0] | 1u << BLACK[1] | 1u << BLACK[2] | (uint32_t)(dice_on(5) && pat()->src == SRC_STEP) << BLACK[4];
             for (i = 5; i < 8; i++)
                 keys |= (uint32_t)dice_on(i) << BLACK[i];
             return keys;
@@ -3072,7 +3125,10 @@ static void view_now(q_view *v)
     v->head.n = (int8_t)domain_n(ui.domain);
     v->head.msg = plat_ms() < ui.msg_until ? 1 : plat_ms() < ui.locks_until ? 2 : plat_ms() < ui.wipe_until ? 3 :
                   plat_ms() < ui.rnd_until ? 3 + ui.rnd_kind : plat_ms() < ui.tap_until ? 7 :
-                  plat_ms() < ui.copy_until ? 7 + ui.copy_kind : plat_ms() < ui.trans_until ? 7 + COPY_N : 0;
+                  plat_ms() < ui.copy_until ? 7 + ui.copy_kind : plat_ms() < ui.trans_until ? 7 + COPY_N :
+                  plat_ms() < ui.euclid_until ? 8 + COPY_N : 0;
+    v->head.hits = (uint8_t)ui.euclid;
+    v->head.len = (uint8_t)t->len;
     v->head.trans = (int8_t)ui.transpose;
     v->head.bpm = (uint8_t)ui.p->tempo;
     v->head.pat = (int8_t)(ui.p->pattern[ui.track] + 1);
@@ -3308,11 +3364,18 @@ static void draw_head(const q_view *v)
     if (v->head.msg) {
         x = cv_text(x + 10, 7, &FONT_B, v->head.msg == 1 ? "SAVE AT STOP" : v->head.msg == 2 ? "LOCKS FULL" : v->head.msg == 3 ? "AGAIN: ERASE"
                     : v->head.msg == 4 ? "RANDOM PAGE" : v->head.msg == 5 ? "RANDOM ALL" : v->head.msg == 6 ? "RANDOM MODEL"
-                    : v->head.msg == 7 ? "TAP" : v->head.msg == 7 + COPY_N ? "TRANSPOSE" : COPY_NAME[v->head.msg - 8],
+                    : v->head.msg == 7 ? "TAP" : v->head.msg == 7 + COPY_N ? "TRANSPOSE" : v->head.msg == 8 + COPY_N ? "EUCLID"
+                    : COPY_NAME[v->head.msg - 8],
                     KCOL[3]);
         if (v->head.msg == 7) {         /* TAP and the tempo */
             int_text(v->head.bpm, t);
             cv_text(x + 4, 7, &FONT_B, t, KCOL[3]);
+        } else if (v->head.msg == 8 + COPY_N) {   /* its hits / LEN */
+            int_text(v->head.hits, t);
+            x = cv_text(x + 4, 7, &FONT_B, t, KCOL[3]);
+            x = cv_text(x, 7, &FONT_B, "/", KCOL[3]);
+            int_text(v->head.len, t);
+            cv_text(x, 7, &FONT_B, t, KCOL[3]);
         } else if (v->head.msg == 7 + COPY_N) {   /* and its steps, signed */
             t[0] = v->head.trans < 0 ? '-' : '+';
             int_text(v->head.trans < 0 ? -v->head.trans : v->head.trans, t + 1);
@@ -3515,6 +3578,8 @@ static void draw_layer(const q_view *v, int32_t oy)
             tags[n] = "#1", names[n++] = "CLEAR";
             tags[n] = "#2", names[n++] = "CLEAR LOCKS";
             tags[n] = "#3", names[n++] = "UNDO";
+            if (v->scene.lkeys >> BLACK[4] & 1u)
+                tags[n] = "#5", names[n++] = "EUCLID (PRESET: HITS)";
             for (i = 0; i < 3; i++)     /* RANDOM's keys lit (layer_keys) */
                 if (v->scene.lkeys >> BLACK[5 + i] & 1u)
                     tags[n] = RND_TAG[i], names[n++] = RND_NAME[i];
@@ -4341,6 +4406,7 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "save_at_stop")) *got = ui.save_at_stop;
     else if (!strcmp(what, "msg_wipe")) *got = plat_ms() < ui.wipe_until;
     else if (!strcmp(what, "msg_random")) *got = plat_ms() < ui.rnd_until ? ui.rnd_kind : 0;
+    else if (!strcmp(what, "euclid")) *got = ui.euclid;
     else if (!strcmp(what, "solo")) *got = ui.solo;
     else if (!strcmp(what, "latch")) *got = ui.latch;
     else if (!strcmp(what, "transpose")) *got = ui.transpose;

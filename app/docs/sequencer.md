@@ -195,7 +195,7 @@ REC (short) disarms and the pattern keeps playing. PLAY stops and disarms.
 
 ## REC held
 
-![REC held: #1 CLEAR, #2 CLEAR LOCKS on the pattern shown, #3 UNDO, #6 RND PAGE, #7 RND ALL, OCT NUDGE THE STEPS, + PLAY for LIVE, TAP for GRID > NOTES > OFF](img/seq-rec-map.png "REC's map")
+![REC held: #1 CLEAR, #2 CLEAR LOCKS on the pattern shown, #3 UNDO, #5 EUCLID, #6 RND PAGE, #7 RND ALL, OCT NUDGE THE STEPS, + PLAY for LIVE, TAP for GRID > NOTES > OFF](img/seq-rec-map.png "REC's map")
 
 | REC held + | Not in LIVE or ARM | In LIVE |
 | --- | --- | --- |
@@ -203,14 +203,23 @@ REC (short) disarms and the pattern keeps playing. PLAY stops and disarms.
 | black key 1 | CLEAR: empties the pattern shown | — |
 | black key 2 | CLEAR LOCKS: removes its p-locks | — |
 | black key 3 | UNDO: the last CLEAR, CLEAR LOCKS, draw or paste put back; again, done again | — |
+| black key 5 | EUCLID on a STEP pattern; then PRESET, REC still held: more or fewer hits | — |
 | keys | — | erase their notes as the pattern crosses them |
 | OCT- | NUDGE: steps 1 to LEN one step left (step 1 goes last) | clears every step crossed |
 | OCT+ | NUDGE: steps 1 to LEN one step right (the last goes first) | — |
 
+EUCLID spreads hits as evenly as it can over steps 1 to LEN, from a place drawn at random: 3 hits in 8 make the
+tresillo, 5 in 16 a bossa-like line. It draws a quarter to a half of LEN; turn PRESET while still holding REC for more
+or fewer, from 1 to LEN (`EUCLID 5/16`). A step that was on stays as written, a new one plays the tonic (a kit: pad
+1), and a step turned off keeps its notes for the next draw. REC held and black key 3 gives the pattern back.
+
+**Inspired by** Godfried Toussaint's [The Euclidean Algorithm Generates Traditional Musical
+Rhythms](http://cgm.cs.mcgill.ca/~godfried/publications/banff.pdf): Bjorklund's even spreading of hits over steps.
+
 NUDGE moves a STEP pattern's steps with their p-locks, `STEPS LEFT` or `STEPS RIGHT`: a hat line onto the offbeat, a
 LIVE take played a step late put back on the beat.
 
-UNDO puts back what the last CLEAR, CLEAR LOCKS, NUDGE, draw (black keys 6–8), paste (SEQ held, black keys 2 and 4),
+UNDO puts back what the last CLEAR, CLEAR LOCKS, NUDGE, EUCLID, draw (black keys 6–8), paste (SEQ held, black keys 2 and 4),
 x2 or PRINT changed: the pattern, the track's sound and pads, or GLO's settings, as they were just before. The header says
 `UNDONE`; press again for `REDONE`, and so on. It keeps one action only, the last, and what you changed by hand since
 that action goes back with it. A SAVE ends it: then the header says `NOTHING TO UNDO`.

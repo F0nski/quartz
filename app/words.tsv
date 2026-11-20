@@ -567,6 +567,8 @@ PRINTED	printed
 LEN DOUBLED	length doubled
 STEPS LEFT	steps left
 LATCHED	latched
+EUCLID	euclid
+EUCLID (PRESET: HITS)	euclid, preset sets the hits
 AGAIN: INIT	again: init
 SOUND INIT	sound init
 INIT SOUND	init sound

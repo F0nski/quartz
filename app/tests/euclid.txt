@@ -1,0 +1,43 @@
+# REC held, black key 5: EUCLID on a STEP pattern, its hits spread over LEN; PRESET, REC still held: more or fewer hits;
+# a step written keeps its notes, a new one takes the tonic; UNDO gives the pattern back
+wait 600
+tap SEQ
+tap REC
+key w2 down
+tapkey 11
+key w2 up
+expect stepnote_3 64
+tap REC
+tap REC
+expect rec 0
+tap GLO
+turn SELECT 1
+turn K1 2
+expect tonic 2
+tap SEQ
+press REC
+wait 500
+shot euclid_map.png
+tapkey b4
+expect euclid >3
+expect euclid <9
+turn PRESET 16
+expect euclid 16
+expect nsteps_on 16
+expect stepnote_3 64
+expect stepnote_1 62
+turn PRESET -15
+expect nsteps_on 1
+expect stepnote_3 64
+wait 100
+shot euclid_msg.png
+release REC
+expect euclid 0
+turn PRESET 1
+expect pattern 2
+turn PRESET -1
+press REC
+tapkey b2
+release REC
+expect nsteps_on 1
+expect stepon_3 1
