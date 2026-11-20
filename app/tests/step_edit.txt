@@ -14,7 +14,7 @@ turn PRESET -10
 expect stepprob_1 10
 key 5 down
 key 5 up
-turn PRESET 5
+turn PRESET 7
 expect stepcond_1 33
 key 13 down
 key 13 up

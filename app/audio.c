@@ -72,6 +72,7 @@ static uint8_t fxl_mask[Q_TRACKS], fxl_step[Q_TRACKS], fxl_seen[Q_TRACKS];
 static int fxl_pos[Q_TRACKS];
 static int duck_at;                 /* the block's first KIT BD note-on, -1 none */
 static volatile uint16_t punch_held;  /* audio_punch's: the main loop writes, the render reads */
+static volatile uint8_t fill_held;    /* audio_fill's, the same way */
 static uint16_t punch_last;         /* the last block's punch-ins */
 static float punch_free;            /* stopped: the bar's position since the punch-ins began, or since the STOP */
 static float clk_c, clk_s, clk_cw, clk_sw, clk_env;   /* the click: a phasor turning by (clk_cw, clk_sw) a frame */
@@ -189,6 +190,7 @@ int audio_notes(int track, uint32_t *seen, uint8_t *out, uint32_t *in_ms, int ma
     return n;
 }
 void audio_punch(uint16_t mask) { punch_held = mask; }
+void audio_fill(int on) { fill_held = (uint8_t)(on != 0); }
 int audio_pattern(int track) { return seq_pattern(&seq, track); }
 int audio_song_entry(void) { return seq_song_entry(&seq); }
 void audio_rec(int on) { recording = on; }
@@ -874,6 +876,7 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
     punch_last = punch;
     duck_at = -1;
     seq_click(&seq, recording && (prj->click & 1));
+    seq.fill = fill_held;
     ne = ncmd + seq_block(&seq, prj, n, ev + ncmd, EV_MAX);
     int ni = ne;
     for (int i = ncmd; i < ni; i++)   /* by date: the last note-on's step wins */

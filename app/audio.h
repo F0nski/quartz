@@ -34,6 +34,7 @@ q_load audio_load(void);                                /* the cores' load over 
  * app_ui_init when it is refused, a reboot when committed) and before plat_restart (a reboot): app_ui_init unmutes */
 void audio_mute(void);
 void audio_unmute(void);
+void audio_fill(int on);                                 /* FILL held: the steps with COND FILL play, !FILL not */
 void audio_punch(uint16_t mask);                        /* the punch-ins held, bit k = white key k + 1: from the next block on */
 int audio_playing(void);
 /* a LIFE pattern's run as the render left it (a copy read while it may write: one frame off at worst) */

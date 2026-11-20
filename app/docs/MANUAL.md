@@ -107,7 +107,7 @@ screen.
 | ENV | The envelope and the filter: ADSR, FILTER. | — |
 | LFO | The LFO. | — |
 | ARP | The arpeggiator. | The notes you press stay in the arpeggio after you let go (latch). |
-| FX | The track's effects: MIX, INSERT. | The white keys are the 16 punch-ins. |
+| FX | The track's effects: MIX, INSERT. | The white keys are the 16 punch-ins; black key 1 is FILL. |
 | SEQ | The pattern: STEPS, then its source's pages. | White keys 1–8 pick the track's pattern; black keys 1–4 copy and paste. |
 | GLO | The project: TEMPO, SCALE, KEYS, FX, CPU. | Black key 1 taps the tempo (section 10). |
 | HOME | The four tracks and the song: TRACKS, SONG. | White keys 1–4 mute the tracks, 9–16 are the scenes. |
@@ -422,6 +422,10 @@ be held together. Its name shows in the header; let go of FX and they all stop.
 
 While recording LIVE on a STEP pattern, the punch-ins you hold are written on the steps they cross ([LIVE](sequencer.html#live)), and
 play back with the pattern.
+
+Black key 1, with FX held, is FILL: while you hold it, the steps whose COND is FILL play and those with !FILL don't, on
+every track ([COND](sequencer.html#step-functions)). Let go of the key or of FX and the pattern plays as written again.
+FILL is not recorded.
 
 ![FX held with key 8 pressed: the 16 punch-ins named, SWEEP in pink](img/shape-punch.png "FX held: the punch-ins")
 

@@ -24,7 +24,7 @@ enum { P_ENGINE, P_SOUND, P_STEPS, P_TEMPO, P_SCALE, P_CPU, P_XY, P_TRACKS, P_SO
    note starts LIVE */
 enum { R_OFF, R_GRID, R_NOTES, R_LIVE, R_ARM, R_LISTEN };   /* LISTEN: a MIMIC pattern learns from the keyboard */
 enum { A_VEL, A_RATCHET, A_PROB, A_COND, A_SLIDE, A_ACCENT, A_NOTE, A_LEN, A_MICRO, A_N };
-#define COND_N 40                    /* NONE, FIRST, !FIRST, PRE, !PRE, then A:B for B = 2..8, A = 1..B */
+#define COND_N 42                    /* NONE, FIRST, !FIRST, PRE, !PRE, FILL, !FILL, then A:B for B = 2..8, A = 1..B */
 
 static const uint8_t DOMAIN_PAGES[ND][5] = {{P_ENGINE, P_SOUND}, {P_STEPS, P_XY}, {P_TEMPO, P_SCALE, P_KEYS, P_GFX, P_CPU}, {P_TRACKS, P_SONG},
                                                 {P_ADSR, P_FILTER}, {P_LFO}, {P_ARP}, {P_MIX, P_INSERT}};
@@ -71,7 +71,7 @@ static const q_page PAGE[] = {
     {"FX", {"DLY TIME", "DLY FB", "REV SIZE", "REV TONE"}, {0, 0, 0, 0}, {DIV_N - 1, 127, 127, 127}},
     {"KEYS", {"IN SCALE"}, {0}, {KEYS_ALL}},
     {"STEP", {"NOTE", "LEN", "VEL", "PROB"}, {1, 1, 1, 0}, {127, 64, 127, 20}},
-    {"STEP", {"RATCHET", "COND", "MICRO"}, {1, 0, -11}, {4, 39, 11}},      /* COND: its index, COND_N - 1 at most */
+    {"STEP", {"RATCHET", "COND", "MICRO"}, {1, 0, -11}, {4, 41, 11}},      /* COND: its index, COND_N - 1 at most */
     {"STEP", {"SLIDE", "ACCENT"}, {0, 0}, {1, 1}},
     {"LOOM", {"DIV", "NOTE", "TRIG LEN", "SOURCE"}, {0, 1, 1, 0}, {DIV_N - 1, 127, 16, SRC_N - 1}},
     {"LENS", {"NOTE LEN", "OCT LEN", "DUR LEN", "VEL LEN"}, {1, 1, 1, 1}, {16, 16, 16, 16}},
@@ -161,7 +161,7 @@ static const uint8_t ATTR_ROW[A_N] = {A_RATCHET, A_VEL, A_PROB, A_COND, A_NOTE, 
 static const uint8_t FAMILY[11][2] = {{A_RATCHET, X}, {A_VEL, X}, {A_PROB, A_COND}, {A_NOTE, X}, {A_LEN, A_MICRO}, {A_SLIDE, X},
                                       {A_ACCENT, X}, {X, X}, {X, X}, {X, X}, {X, X}};
 #undef X
-static const char *const COND_NAME[5] = {"NONE", "FIRST", "!FIRST", "PRE", "!PRE"};
+static const char *const COND_NAME[CD_NFILL + 1] = {"NONE", "FIRST", "!FIRST", "PRE", "!PRE", "FILL", "!FILL"};
 static const uint8_t WHITE[16] = PLAT_WHITE_KEYS;
 static const uint8_t BLACK[11] = PLAT_BLACK_KEYS;
 static const uint16_t KCOL[4] = {RGB(58, 109, 255), RGB(34, 213, 142), RGB(240, 240, 250), RGB(255, 122, 46)};
@@ -210,6 +210,7 @@ static struct {
     int pad, padheld;                          /* a KIT: its last pad played 0..15; the held pad's key + 1, 0 none */
     int homedown, savedown, seldown, msg_scene;   /* msg_scene: 1..8 asked */
     int fxdown, msg_punch;                     /* msg_punch: the punch-in last pressed 1..16, shown until punch_until */
+    int fill;                                  /* FX held, black key 1 held: FILL (audio_fill) */
     uint16_t punch;                            /* the punch-ins held under FX, bit k = white key k + 1 */
     uint8_t last_note[Q_TRACKS];               /* a step switched on by hand takes it */
     int8_t key_note[NKEYS], key_track[NKEYS];  /* what each held key sounds, for its note-off; -1 none */
@@ -889,9 +890,9 @@ static void button(int b)
 static int cond_value(int i)
 {
     int b = 2;
-    if (i < 5)
+    if (i <= CD_NFILL)
         return i;
-    for (i -= 5; i >= b; b++)
+    for (i -= CD_NFILL + 1; i >= b; b++)
         i -= b;
     return (i + 1) | b << 4;
 }
@@ -1704,7 +1705,9 @@ static void key_down(int k)
         home_key(w);
         return;
     }
-    if (ui.fxdown) {                    /* FX held: the white keys are the punch-ins, the black ones nothing */
+    if (ui.fxdown) {                    /* FX held: the white keys are the punch-ins, black key 1 FILL */
+        if (k == BLACK[0])
+            audio_fill(ui.fill = 1);
         if (w < 16) {
             ui.punch |= (uint16_t)(1u << w);
             audio_punch(ui.punch);
@@ -1952,6 +1955,8 @@ static void key_up(int k)
         ui.punch &= (uint16_t)~(1u << w);
         audio_punch(ui.punch);
     }
+    if (k == BLACK[0] && ui.fill)
+        audio_fill(ui.fill = 0);
     if (ui.cell && k == ui.cell_key) {  /* a tap: the cell's value steps up, back to 0 past its top (TRIG toggles) */
         if (!ui.cell_edited && plat_ms() - ui.cell_ms <= HOLD_MS && pat()->src == SRC_LANES) {   /* a long hold: its help */
             q_lanes *l = &pat()->lanes;
@@ -2020,6 +2025,8 @@ void ui_input(void)
         ui.punch = 0;
         audio_punch(0);
     }
+    if (!ui.fxdown && ui.fill)          /* and FILL */
+        audio_fill(ui.fill = 0);
     if ((btn & ~ui.btn) || (keys & ~ui.keys))  /* a press: the buttons already held have served */
         ui.used |= ui.btn & btn;
     ui.used &= ~(btn & ~ui.btn);
@@ -2240,6 +2247,8 @@ static uint32_t layer_keys(int b)
     case B_SEQ:
         for (i = 0; i < (b == B_FX ? 16 : 8); i++)
             keys |= 1u << WHITE[i];
+        if (b == B_FX)                  /* FX: and FILL */
+            keys |= 1u << BLACK[0];
         if (b == B_SEQ)                 /* SEQ: and the copies */
             keys |= 1u << BLACK[0] | 1u << BLACK[1] | 1u << BLACK[2] | 1u << BLACK[3];
         return b == B_SAVE ? keys | 1u << BLACK[0] : keys;   /* SAVE: and the new project */
@@ -2609,7 +2618,7 @@ static void attr_text(const q_step *s, int a, char *b)
         *b++ = '%', *b = 0;
         break;
     case A_COND:
-        if (s->cond < 5) {
+        if (s->cond <= CD_NFILL) {
             const char *n = COND_NAME[s->cond];
             while ((*b++ = *n++) != 0) {}
         } else {
@@ -3046,7 +3055,7 @@ static void draw_layer(const q_view *v, int32_t oy)
             int_text(i + 1, tb[i]);
             tags[n] = tb[i], names[n++] = PUNCH_NAME[i];
         }
-        combo[0][0] = "LET GO", combo[0][1] = "EVERY PUNCH-IN STOPS";
+        combo[0][0] = "#1", combo[0][1] = "FILL, WHILE HELD";   /* (one line fits: FX let go stops all, the manual says) */
         break;
     case B_SAVE:
     case B_SEQ:
@@ -3905,6 +3914,7 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "playpat")) *got = audio_pattern(ui.track) + 1;
     else if (!strcmp(what, "locks")) *got = t->nlocks;
     else if (!strcmp(what, "punch")) *got = ui.punch;
+    else if (!strcmp(what, "fill")) *got = ui.fill;
     else if (!strcmp(what, "msg_locks_full")) *got = plat_ms() < ui.locks_until;
     else if (!strcmp(what, "dirty")) *got = ui.dirty;
     else if (!strcmp(what, "msg_stop_to_save")) *got = plat_ms() < ui.msg_until;

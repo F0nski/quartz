@@ -420,6 +420,8 @@ static int decide(q_seq *s, q_seq_track *tr, const q_step *st)
         own = 0;
     } else if (c == CD_FIRST || c == CD_NFIRST) {
         ok = (tr->loops == 0) == (c == CD_FIRST);
+    } else if (c == CD_FILL || c == CD_NFILL) {
+        ok = s->fill == (c == CD_FILL);
     } else if (b >= 2 && b <= 8 && a >= 1 && a <= b) {
         ok = tr->loops % b == a - 1;
     } else {                            /* NONE, or a byte out of range: no condition */

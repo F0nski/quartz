@@ -1,0 +1,49 @@
+# COND FILL and !FILL: FX held and black key 1 held, the FILL steps play and the !FILL ones not
+wait 600
+tap SEQ
+tap REC
+key 0 down
+key 0 up
+key 2 down
+key 2 up
+# step 1: hold it, black key 3 twice (PROB, then COND), PRESET to FILL
+key 0 down
+key 5 down
+key 5 up
+key 5 down
+key 5 up
+turn PRESET 5
+key 0 up
+expect stepcond_1 5
+key 2 down
+key 5 down
+key 5 up
+key 5 down
+key 5 up
+turn PRESET 6
+key 2 up
+expect stepcond_2 6
+tap REC
+tap REC
+expect rec 0
+# (2 hits so far: the keys played as the steps were written; a step is decided as it is planned, a step ahead)
+expect hits 2
+# no fill: step 2 plays, step 1 not
+tap PLAY
+wait 1700
+expect hits 3
+# FX held, black key 1 held: step 1 plays, step 2 not
+press FX
+key 1 down
+expect fill 1
+wait 2000
+expect hits 4
+key 1 up
+expect fill 0
+wait 2000
+expect hits 5
+# FX let go with black key 1 still down: the fill ends
+key 1 down
+release FX
+expect fill 0
+key 1 up

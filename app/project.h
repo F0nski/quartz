@@ -19,7 +19,7 @@ enum { DIV_32, DIV_16T, DIV_16, DIV_8T, DIV_8, DIV_4T, DIV_4, DIV_2, DIV_1, DIV_
 enum { SF_ON = 1, SF_SLIDE = 2, SF_ACCENT = 4 };          /* q_step.flags; bits 3-4: ratchet - 1; bits 5-7: STRUM */
 #define SF_STRUM(s) ((s)->flags >> 5 & 7)                  /* a generator's step: its notes 1/24 step apart, lowest first */
 #define STEP_RATCHET(s) ((((s)->flags >> 3) & 3) + 1)
-enum { CD_NONE, CD_FIRST, CD_NFIRST, CD_PRE, CD_NPRE };   /* q_step.cond < 16; else A:B: A = cond & 15, B = cond >> 4 */
+enum { CD_NONE, CD_FIRST, CD_NFIRST, CD_PRE, CD_NPRE, CD_FILL, CD_NFILL };   /* q_step.cond < 16; else A:B: A = cond & 15, B = cond >> 4 */
 enum { LK_HARM, LK_TIMB, LK_MORPH, LK_DECAY, LK_TUNE, LK_GLIDE,
        LK_ATK, LK_DEC, LK_SUS, LK_REL, LK_FTYPE, LK_CUT, LK_RES, LK_ENVAMT,
        LK_SHAPE, LK_RATE, LK_DEPTH, LK_DEST, LK_AMODE, LK_AOCT, LK_ADIV, LK_AGATE,

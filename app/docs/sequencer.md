@@ -112,6 +112,8 @@ COND decides on which loops the step plays, before PROB:
 | !FIRST | On every loop but the first. |
 | PRE | If the last step with a condition or a PROB on this track played. |
 | !PRE | If it did not. |
+| FILL | Only while FILL is held: FX held and black key 1 held. |
+| !FILL | Except while FILL is held. |
 | A:B | On loop A of every B: 1:2 every other loop from the first, 2:4 the second loop of four… B goes from 2 to 8. |
 
 For example: hold a step, press black key 3 for PROB, press it again for COND, turn PRESET to 1:2.
@@ -257,6 +259,6 @@ with a step, a selection or a cell held, where the knobs set those; on HOME. A d
 
 **Inspired by** Elektron's sequencers ([Digitakt manual](https://www.elektron.se/support-downloads/digitakt)):
 the 16 keys as the steps, parameter locks, trig conditions (A:B, 1ST, PRE and their negations) and micro timing.
-QUARTZ's COND has no FILL or NEI, and its PROB is a function of its own beside COND. The gestures around the
+QUARTZ's COND has no NEI, and its PROB is a function of its own beside COND. The gestures around the
 clipboard (paste the last note, cut to move, hold to hear) and SEL as a shift come from the
 [OP-Z](https://teenage.engineering/guides/op-z).

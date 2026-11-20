@@ -79,6 +79,8 @@ FIRST	first
 !FIRST	not first
 PRE	previous
 !PRE	not previous
+FILL	fill
+!FILL	not fill
 ON	on
 P1	pattern 1
 P2	pattern 2
@@ -524,8 +526,7 @@ EVERY STEP	every step
 TAP	tap
 HOLD	hold
 NOTHING ON RELEASE	nothing on release
-LET GO	let go
-EVERY PUNCH-IN STOPS	every punch-in stops
+FILL, WHILE HELD	fill, while held
 KEY	key
 LATCH ITS NOTE	latch its note
 TAP TEMPO	tap tempo

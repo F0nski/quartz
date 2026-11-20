@@ -24,7 +24,7 @@ turn SELECT 1
 expect page 2
 turn K1 1
 expect stepratchet_1 2
-turn K2 5
+turn K2 7
 expect stepcond_1 33
 turn K3 -3
 expect stepmicro_1 -3

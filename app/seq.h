@@ -37,6 +37,7 @@ typedef struct {
     uint32_t rng;
     uint64_t now;                   /* absolute frame of the next block */
     int mute, seen_mute;            /* the mutes played; p->mute last seen: a change applies at once */
+    int fill;                       /* FILL held (audio_fill): the FILL steps play, the !FILL ones not */
     int launch, lentry, bar;        /* scene pending, -1 none; its song entry, -1 by hand; its bar, -1 the next */
     int entry, started;             /* the song entry playing, -1 none; the scene launched + 1, 0 none */
     q_clock beat;
