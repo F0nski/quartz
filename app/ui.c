@@ -1630,6 +1630,8 @@ static void key_down(int k)
         rec_set(R_OFF);                 /* (ui_init clears ui.rec: LISTEN must tell the render first) */
         audio_play(0);
         project_defaults(ui.p);
+        for (i = 0; i < Q_TRACKS; i++)  /* the render takes each track's model from the new project */
+            audio_track_model(i);
         ui_init(ui.p);
         ui.dirty = 1;
         return;
