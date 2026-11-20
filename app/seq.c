@@ -461,6 +461,25 @@ static int decide(q_seq *s, q_seq_track *tr, const q_step *st)
     return ok;
 }
 
+/* the note the live transposition makes of a step's note: semitones, or degrees of the project's scale (a note out of
+   the scale counts from where it is); a KIT's pads stay */
+static int transposed(const q_seq *s, const q_project *p, int t, int note)
+{
+    int d = s->transpose;
+    if (!d || p->sound[t].model == M_KIT)
+        return note;
+    if (!s->tdeg) {
+        note += d;
+    } else {
+        uint16_t m = gen_scale(p);
+        while (d > 0 && note < 127)
+            if (m >> (++note % 12) & 1) d--;
+        while (d < 0 && note > 1)
+            if (m >> (--note % 12) & 1) d++;
+    }
+    return note < 1 ? 1 : note > 127 ? 127 : note;
+}
+
 /* A tie pending from the step before: the first note-on queued is its legato. A slide ties the first note of the
    last repetition. A legato or tied note-on comes no earlier than the last one queued, so they leave the queue in
    the order planned (micro-timing can otherwise put a step's notes before the step before's) and a legato removes
@@ -478,18 +497,19 @@ static void plan_notes(q_seq *s, const q_project *p, int t, const q_step *st, in
             int64_t on = date(&tr->x, f + 4800 * j / r + strum * i), off = date(&tr->x, f + 4800 * j / r + 600 * g / r + strum * i);
             if (on < (int64_t)s->now) on = (int64_t)s->now;     /* dated before this block: at its start */
             if (!st->note[i]) continue;
+            int note = transposed(s, p, t, st->note[i]);
             int vel = acc >> i & 1 ? st->vel + 32 : st->vel;
             if (vel > 127) vel = 127;
             int tie = (st->flags & SF_SLIDE) && j == r - 1 && !hold;
             int64_t a = (tr->tie || tie) && on < from ? from : on;
             if (j == 0 && p->pat[t][tr->pat].src != SRC_STEP) {      /* a generator's: for its scene, with its frame */
                 uint32_t c = s->gcount[t] % 16u;
-                s->gnote[t][c] = st->note[i];
+                s->gnote[t][c] = (uint8_t)note;
                 s->gat[t][c] = (uint32_t)a;
                 s->gcount[t]++;
             }
             if (queue_push_on(q, (uint64_t)a, tie ? TIED : off > a ? (uint32_t)(off - a) : 0,
-                    (q_event){ 0, (uint8_t)t, st->note[i], (uint8_t)vel, 1, (uint8_t)tr->pat, (uint8_t)step,
+                    (q_event){ 0, (uint8_t)t, (uint8_t)note, (uint8_t)vel, 1, (uint8_t)tr->pat, (uint8_t)step,
                                (uint8_t)((tr->tie ? EV_LEGATO : 0) | (acc >> i & 1 ? EV_ACCENT : 0) | (j ? EV_REPEAT : 0)), 0 })) {
                 tr->tie = 0;
                 hold |= tie;

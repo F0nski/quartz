@@ -1,0 +1,36 @@
+# GLO held and a key: the synth tracks' steps transposed, the tonic playing the key's note; KEYS ALL: in degrees
+wait 600
+tap SEQ
+tap REC
+tapkey w0
+tap REC
+press GLO
+wait 500
+shot transpose_map.png
+# KEYS OFF: semitones from C4 (key 7); E4 (key 11) is +4, F3 (key 0) -7
+key 11 down
+key 11 up
+expect transpose 4
+wait 100
+shot transpose_msg.png
+key 0 down
+key 0 up
+expect transpose -7
+key 7 down
+key 7 up
+expect transpose 0
+release GLO
+# KEYS ALL: white key 3 is two degrees up
+tap GLO
+turn SELECT 2
+turn K1 1
+expect keys 1
+press GLO
+key w2 down
+key w2 up
+expect transpose 2
+key b3 down
+key b3 up
+expect transpose 2
+release GLO
+expect tempo 120

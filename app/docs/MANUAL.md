@@ -533,8 +533,12 @@ Press GLO for the project's settings, shared by the four tracks.
 
 - **TAP TEMPO**: hold GLO and tap black key 1 on the beat, from any page. From the second tap, TEMPO follows the
   mean gap of your last four taps, in whole BPM, 40–240; the header shows `TAP` and the tempo. A pause over 2 s
-  starts the count again. While playing, only the speed changes: the patterns go on from the step they are at. The
-  other keys do nothing while GLO is held.
+  starts the count again. While playing, only the speed changes: the patterns go on from the step they are at.
+- **Transpose**: hold GLO and press another key: the steps of every synth track play transposed, so that the tonic
+  sounds as that key's note (`TRANSPOSE +4`). The tonic's key puts them back. With KEYS at ALL, the white keys are
+  degrees of the scale (white key 1 the tonic, as when playing; OCT moves an octave of the scale), and the notes stay
+  in the scale; with KEYS OFF, the keys are semitones from the tonic nearest the middle of the keyboard. Only the
+  sequencer is transposed, not the keys you play nor the KIT tracks; it lasts until changed, and is not saved.
 - **SWING** delays every other step; 50 % is straight.
 - **COMP** compresses the whole mix; 0 is off. A limiter always protects the output.
 - **DUCK** lowers the synth tracks and the effects on each bass drum pad of a KIT track, up to −24 dB, like a
@@ -554,7 +558,7 @@ Press GLO for the project's settings, shared by the four tracks.
 
 ![GLO's TEMPO page: 120 BPM, SWING 50 %, COMP and DUCK bars](img/glo-tempo.png "TEMPO")
 
-![GLO held: black key 1 named TAP TEMPO, 2 TAPS to set the BPM; TAP 100 in the header](img/glo-tap.png "TAP TEMPO")
+![GLO held: black key 1 named TAP TEMPO, every key TRANSPOSE THE STEPS, 2 TAPS to set the BPM; TAP 100 in the header](img/glo-tap.png "TAP TEMPO")
 
 ![GLO's SCALE page: C MAJOR on a keyboard, QUANT 100 %, CLICK OFF](img/glo-scale.png "SCALE")
 

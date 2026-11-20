@@ -1584,6 +1584,31 @@ static void chords_strum_overlaps(void)
     for (int k = 0; k < 2; k++)
         for (int i = 0; i < 3; i++) assert(nth(0, 1, 3 * k + i) == at16(k, 1400 * i));
 }
+/* the live transposition: semitones, or degrees of the scale (C major: E up 2 degrees is G); a KIT stays */
+static void transpose_moves_notes(void)
+{
+    static const struct { int d, deg, model, note, want; } c[] = {
+        { 3, 0, 8, 64, 67 }, { -5, 0, 8, 64, 59 }, { 2, 1, 8, 64, 67 }, { -3, 1, 8, 64, 59 }, { 1, 1, 8, 63, 64 },
+        { 7, 1, 8, 60, 72 }, { 5, 0, M_KIT, KIT_NOTE + 2, KIT_NOTE + 2 }, { 100, 0, 8, 64, 127 },
+    };
+    for (unsigned i = 0; i < sizeof c / sizeof *c; i++) {
+        setup();
+        only_step(0, 0);
+        P.sound[0].model = (uint8_t)c[i].model;
+        P.pat[0][0].steps[0].note[0] = (uint8_t)c[i].note;
+        S.transpose = c[i].d;
+        S.tdeg = c[i].deg;
+        run(30);
+        int on = -1, off = -1;
+        for (int j = 0; j < NEV; j++) {
+            if (EV[j].e.track != 0) continue;
+            if (EV[j].e.on && on < 0) on = EV[j].e.note;
+            if (!EV[j].e.on && off < 0) off = EV[j].e.note;
+        }
+        assert(on == c[i].want && off == c[i].want);
+    }
+}
+
 /* a STEP pattern printed from a generator keeps its strum */
 static void step_plays_strum_bits(void)
 {
@@ -1676,6 +1701,7 @@ int main(void)
     chords_strum_zero();
     chords_strum_overlaps();
     step_plays_strum_bits();
+    transpose_moves_notes();
     print_sends_next_pass();
     source_back_restarts_generator();
     swing_delays_odd_steps();

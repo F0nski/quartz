@@ -173,7 +173,7 @@ typedef struct { q_step st; uint8_t nlocks; q_lock lk[16]; } q_clip;   /* a step
 
 /* what is on the screen, part by part: a part is drawn again when its view changes */
 typedef struct {
-    struct { int8_t track, domain, page, n, msg, pat, playing, scene, pad, ltrig, itype, punch, badge, bnum, model, dirty; uint8_t bpm; } head;   /* badge: REC's
+    struct { int8_t track, domain, page, n, msg, pat, playing, scene, pad, ltrig, itype, punch, badge, bnum, model, dirty, trans; uint8_t bpm; } head;   /* badge: REC's
                                                                                    state, 1 GRID .. 4 ARM (0 none or ARM's blink off); bnum: NOTES' step */   /* pat: P1..P8 asked; playing: the one playing when it differs, else 0;
                                                                                    pad: a KIT's in EDIT 1..16, else 0;
                                                                                    ltrig: LFO's FREE 1 / TRIG 2, else 0; itype: the insert's, in the page name */
@@ -228,6 +228,8 @@ static struct {
     int print, print_pat, print_src;           /* PRINT: the track + 1 whose pattern print_pat (of SOURCE print_src) is
                                                   written as it plays its next pass, 0 none */
     uint32_t tap_ms[4], tap_until;             /* TAP TEMPO: the last taps' times (ntap of them); its message until tap_until */
+    int transpose;                             /* GLO held, a key: the sequencer's live transposition, in KEYS' unit */
+    uint32_t trans_until;                      /* its message shown until then */
     int ntap;
     uint32_t down_ms[NB], used;                /* when each button went down; used: bit b, a key or button came while b was held */
     q_clip clip;                               /* the grid's clipboard, common to the tracks: the last step cut or chord played */
@@ -1875,14 +1877,31 @@ static void tap_tempo(void)
     ui.dirty = 1;
 }
 
+/* GLO held and a key: the synth tracks' steps transposed so that the tonic plays the key's note. KEYS ALL: in degrees of
+   the scale, white key 1 the tonic as when playing (OCT: a scale's length a step); OFF: in semitones from the tonic
+   nearest the keyboard's middle */
+static void transpose_key(int k)
+{
+    int w, deg = ui.p->keys == KEYS_ALL, t = ui.p->tonic;
+    for (w = 0; w < 16 && WHITE[w] != k; w++) {}
+    if (deg && w == 16)                 /* the black keys are silent there */
+        return;
+    ui.transpose = deg ? w + __builtin_popcount(gen_scale(ui.p)) * ui.octave
+                       : 53 + k + 12 * ui.octave - (60 + t - (t > 6 ? 12 : 0));
+    audio_transpose(ui.transpose, deg);
+    ui.trans_until = plat_ms() + MSG_MS;
+}
+
 static void key_down(int k)
 {
     q_pattern *t = pat();
     q_step *s = 0;
     int note = 53 + k + 12 * ui.octave, w, b, i;
-    if (ui.btn >> B_GLO & 1u) {         /* GLO held: black key 1 taps the tempo, the other keys nothing */
+    if (ui.btn >> B_GLO & 1u) {         /* GLO held: black key 1 taps the tempo, the other keys transpose */
         if (k == BLACK[0])
             tap_tempo();
+        else
+            transpose_key(k);
         return;
     }
     for (w = 0; w < 16 && WHITE[w] != k; w++) {}
@@ -2441,8 +2460,10 @@ static uint32_t layer_keys(int b)
     uint32_t keys = 0;
     int i;
     switch (b) {
-    case B_GLO:                         /* TAP TEMPO */
-        return 1u << BLACK[0];
+    case B_GLO:                         /* TAP TEMPO, and the keys that transpose (KEYS ALL: the white ones) */
+        for (i = 0; i < 16; i++)
+            keys |= 1u << WHITE[i];
+        return ui.p->keys == KEYS_ALL ? keys | 1u << BLACK[0] : (1u << NKEYS) - 1u;
     case B_HOME:                        /* the mutes, the scenes */
         for (i = 0; i < 16; i++)
             keys |= (uint32_t)(i < Q_TRACKS || i >= 8) << WHITE[i];
@@ -2901,7 +2922,8 @@ static void view_now(q_view *v)
     v->head.n = (int8_t)domain_n(ui.domain);
     v->head.msg = plat_ms() < ui.msg_until ? 1 : plat_ms() < ui.locks_until ? 2 : plat_ms() < ui.wipe_until ? 3 :
                   plat_ms() < ui.rnd_until ? 3 + ui.rnd_kind : plat_ms() < ui.tap_until ? 7 :
-                  plat_ms() < ui.copy_until ? 7 + ui.copy_kind : 0;
+                  plat_ms() < ui.copy_until ? 7 + ui.copy_kind : plat_ms() < ui.trans_until ? 7 + COPY_N : 0;
+    v->head.trans = (int8_t)ui.transpose;
     v->head.bpm = (uint8_t)ui.p->tempo;
     v->head.pat = (int8_t)(ui.p->pattern[ui.track] + 1);
     v->head.scene = (int8_t)ui.msg_scene;
@@ -3136,10 +3158,14 @@ static void draw_head(const q_view *v)
     if (v->head.msg) {
         x = cv_text(x + 10, 7, &FONT_B, v->head.msg == 1 ? "SAVE AT STOP" : v->head.msg == 2 ? "LOCKS FULL" : v->head.msg == 3 ? "AGAIN: ERASE"
                     : v->head.msg == 4 ? "RANDOM PAGE" : v->head.msg == 5 ? "RANDOM ALL" : v->head.msg == 6 ? "RANDOM MODEL"
-                    : v->head.msg == 7 ? "TAP" : COPY_NAME[v->head.msg - 8],
+                    : v->head.msg == 7 ? "TAP" : v->head.msg == 7 + COPY_N ? "TRANSPOSE" : COPY_NAME[v->head.msg - 8],
                     KCOL[3]);
         if (v->head.msg == 7) {         /* TAP and the tempo */
             int_text(v->head.bpm, t);
+            cv_text(x + 4, 7, &FONT_B, t, KCOL[3]);
+        } else if (v->head.msg == 7 + COPY_N) {   /* and its steps, signed */
+            t[0] = v->head.trans < 0 ? '-' : '+';
+            int_text(v->head.trans < 0 ? -v->head.trans : v->head.trans, t + 1);
             cv_text(x + 4, 7, &FONT_B, t, KCOL[3]);
         }
     } else if (v->head.punch)
@@ -3308,7 +3334,9 @@ static void draw_layer(const q_view *v, int32_t oy)
         break;
     case B_GLO:
         tags[n] = "#1", names[n++] = "TAP TEMPO";
+        tags[n] = "KEY", names[n++] = "TRANSPOSE THE STEPS";
         combo[0][0] = "2 TAPS", combo[0][1] = "SET THE BPM";
+        combo[1][0] = "TONIC", combo[1][1] = "NO TRANSPOSITION";
         break;
     case B_SEL:
         if (v->scene.lmode) {           /* NOTES: the knobs set the step without SEL */
@@ -4156,6 +4184,7 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "save_at_stop")) *got = ui.save_at_stop;
     else if (!strcmp(what, "msg_wipe")) *got = plat_ms() < ui.wipe_until;
     else if (!strcmp(what, "msg_random")) *got = plat_ms() < ui.rnd_until ? ui.rnd_kind : 0;
+    else if (!strcmp(what, "transpose")) *got = ui.transpose;
     else if (!strcmp(what, "msg_copy")) *got = plat_ms() < ui.copy_until ? ui.copy_kind : 0;
     else if (!strcmp(what, "project")) *got = store_project + 1;
     else if (!strcmp(what, "msg_tap")) *got = plat_ms() < ui.tap_until;

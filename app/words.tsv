@@ -531,6 +531,9 @@ NOTHING ON RELEASE	nothing on release
 FILL, WHILE HELD	fill, while held
 KEY	key
 LATCH ITS NOTE	latch its note
+TRANSPOSE	transpose
+TRANSPOSE THE STEPS	transpose the steps
+NO TRANSPOSITION	no transposition
 TAP TEMPO	tap tempo
 2 TAPS	two taps
 SET THE BPM	set the B P M
