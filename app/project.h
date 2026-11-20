@@ -137,6 +137,7 @@ typedef struct {
 } q_project;
 
 void project_defaults(q_project *p);
+void sound_defaults(q_sound *s, q_pad *pads);   /* a new project's sound for a track, and its Q_PADS pads */
 extern int store_project;              /* the project store_load and store_save use, 0..Q_PROJECTS - 1 */
 int store_last(void);                 /* the project saved last (0 when none), to load at power-on */
 int store_load(q_project *p);         /* 0 = loaded; else project_defaults and -1 */

@@ -1,0 +1,34 @@
+# SEQ held, black key 8 twice: the track's sound as in a new project, its model kept; UNDO
+wait 600
+tap EDIT
+turn PRESET 3
+turn K1 10
+expect harm 74
+expect model 9
+press SEQ
+wait 500
+shot init_map.png
+tapkey b7
+expect msg_copy 22
+expect harm 74
+tapkey b7
+release SEQ
+expect msg_copy 23
+expect harm 64
+expect model 9
+press REC
+tapkey b2
+release REC
+expect harm 74
+# a KIT stays a KIT, its pads the default kit's
+tap EDIT
+spin PRESET 30
+expect model 24
+turn K1 5
+expect padtune_1 -7
+press SEQ
+tapkey b7
+tapkey b7
+release SEQ
+expect model 24
+expect padtune_1 -12

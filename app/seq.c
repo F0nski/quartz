@@ -16,6 +16,18 @@ static const uint8_t LANES_LEN[L_N] = { 7, 5, 3, 4, 6 };
 static const uint8_t LANES_V[L_N][16] = {
     { 1, 0, 1, 1, 0, 1, 0 }, { 0, 4, 2, 5, 3 }, { 2, 2, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 }, { 1, 3, 1, 2 }, { 3, 1, 2, 1, 3, 2 } };
 
+void sound_defaults(q_sound *s, q_pad *pads)
+{
+    __builtin_memset(s, 0, sizeof *s);
+    s->model = 8; s->poly = 1; s->level = 100;
+    s->harm = s->timb = s->morph = s->decay = 64;
+    s->dec = 64; s->sus = 127; s->rel = 20; s->cutoff = 127;    /* the rest of the fields: 0 (LP, SIN, FREE, OFF...) */
+    s->lrate = 5; s->ldest = LD_CUT; s->aoct = 1; s->adiv = DIV_16; s->agate = 50;
+    s->l2rate = 5; s->l2dest = LD_PITCH;                        /* LFO 2: DEPTH 0, off until turned */
+    s->i1 = s->i2 = s->i3 = 64; s->imix = 127;                  /* itype, dsend, rsend, pan: 0 (no insert, no send, centre) */
+    for (int k = 0; k < Q_PADS; k++) pads[k] = KIT_DEFAULT[k];
+}
+
 void project_defaults(q_project *p)
 {
     __builtin_memset(p, 0, sizeof *p);
@@ -27,14 +39,7 @@ void project_defaults(q_project *p)
     p->dtime = DIV_8; p->dfb = 40; p->rsize = 80; p->rtone = 64;   /* comp, duck: 0 */
     for (int i = 0; i < Q_SONG; i++) p->song[i].reps = 1;   /* 1..16: what the load's clamp would make of 0 */
     for (int i = 0; i < Q_TRACKS; i++) {
-        q_sound *s = &p->sound[i];
-        s->model = 8; s->poly = 1; s->level = 100;
-        s->harm = s->timb = s->morph = s->decay = 64;
-        s->dec = 64; s->sus = 127; s->rel = 20; s->cutoff = 127;    /* the rest of the new fields: 0 (LP, SIN, FREE, OFF...) */
-        s->lrate = 5; s->ldest = LD_CUT; s->aoct = 1; s->adiv = DIV_16; s->agate = 50;
-        s->l2rate = 5; s->l2dest = LD_PITCH;                        /* LFO 2: DEPTH 0, off until turned */
-        s->i1 = s->i2 = s->i3 = 64; s->imix = 127;                  /* itype, dsend, rsend, pan: 0 (no insert, no send, centre) */
-        for (int k = 0; k < Q_PADS; k++) p->kit[i][k] = KIT_DEFAULT[k];
+        sound_defaults(&p->sound[i], p->kit[i]);
         for (int n = 0; n < Q_PATTERNS; n++) {
             q_pattern *pt = &p->pat[i][n];
             pt->len = 16; pt->div = DIV_16; pt->path = PATH_FWD;

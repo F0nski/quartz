@@ -1127,14 +1127,15 @@ static void pattern_set(int n)
    paste it. A paste replaces what is there: it asks for a second press. The clipboards stay till power-off */
 enum { COPY_PAT = 1, COPY_AGAIN, COPY_PAT_PASTED, COPY_SND, COPY_SND_PASTED, COPY_NONE, COPY_UNDONE, COPY_REDONE,
        COPY_NO_UNDO, COPY_AGAIN_LOAD, COPY_UNSAVED_LOAD, COPY_AGAIN_PRINT, COPY_PRINTING, COPY_PRINTED, COPY_PLAY_PRINT,
-       COPY_DOUBLED, COPY_TOO_LONG, COPY_NUDGE_L, COPY_NUDGE_R, COPY_LATCHED, COPY_UNLATCHED, COPY_PROJECT, COPY_N = COPY_PROJECT + Q_PROJECTS };   /* (the header's messages for
+       COPY_DOUBLED, COPY_TOO_LONG, COPY_NUDGE_L, COPY_NUDGE_R, COPY_LATCHED, COPY_UNLATCHED, COPY_AGAIN_INIT, COPY_INIT,
+       COPY_PROJECT, COPY_N = COPY_PROJECT + Q_PROJECTS };   /* (the header's messages for
                                                        the copies, UNDO and the projects: COPY_PROJECT + n, project n) */
 static const char *const COPY_NAME[COPY_N - 1] = {"PATTERN COPIED", "AGAIN: PASTE", "PATTERN PASTED", "SOUND COPIED",
                                                    "SOUND PASTED", "NOTHING COPIED", "UNDONE", "REDONE",
                                                    "NOTHING TO UNDO", "AGAIN: LOAD", "UNSAVED: LOAD?", "AGAIN: PRINT",
                                                    "PRINTING", "PRINTED", "PLAY TO PRINT", "LEN DOUBLED",
                                                    "TOO LONG TO DOUBLE", "STEPS LEFT", "STEPS RIGHT", "LATCHED",
-                                                   "LATCH OFF", "PROJECT 1",
+                                                   "LATCH OFF", "AGAIN: INIT", "SOUND INIT", "PROJECT 1",
                                                    "PROJECT 2",
                                                    "PROJECT 3", "PROJECT 4"};   /* COPY_* - 1 */
 static struct { q_pattern pat; q_sound snd; q_pad pads[Q_PADS]; uint8_t has_pat, has_snd; } clip;   /* (.bss: the pool
@@ -1357,6 +1358,27 @@ static void nudge(int d)
             t->locks[i].step = (uint8_t)((t->locks[i].step + d + n) % n);
     ui.dirty = 1;
     copy_msg(d > 0 ? COPY_NUDGE_R : COPY_NUDGE_L, MSG_MS);
+}
+
+/* SEQ held, black key 8 twice: the track's sound and pads as in a new project, its model kept (a KIT's pads the default
+   kit's); POLY raised as its pattern's source asks */
+static void init_key(void)
+{
+    q_sound *s = &ui.p->sound[ui.track];
+    int model = s->model;
+    if (ui.paste_key != 7 || plat_ms() >= ui.copy_until) {
+        ui.paste_key = 7;
+        copy_msg(COPY_AGAIN_INIT, 2 * MSG_MS);
+        return;
+    }
+    ui.paste_key = 0;
+    undo_keep(UNDO_SND);
+    sound_defaults(s, ui.p->kit[ui.track]);
+    s->model = (uint8_t)model;
+    poly_for_src(pat()->src);
+    audio_track_model(ui.track);        /* the render takes the model from the sound (its pads' engines too) */
+    ui.dirty = 1;
+    copy_msg(COPY_INIT, MSG_MS);
 }
 
 /* a PRINT step lands on its rank (the generator's pattern does not read its steps); the last one makes it STEP: its
@@ -2079,6 +2101,10 @@ static void key_down(int k)
             double_key();
             return;
         }
+        if (k == BLACK[7]) {
+            init_key();
+            return;
+        }
         for (b = 0; b < 4 && BLACK[b] != k; b++) {}
         if (w < Q_PATTERNS) {
             pattern_set(w);
@@ -2582,7 +2608,7 @@ static uint32_t layer_keys(int b)
             keys |= 1u << BLACK[0] | 1u << BLACK[1];
         if (b == B_SEQ)                 /* SEQ: and the copies, PRINT on a generator */
             keys |= 1u << BLACK[0] | 1u << BLACK[1] | 1u << BLACK[2] | 1u << BLACK[3] | (uint32_t)(pat()->src != SRC_STEP) << BLACK[4]
-                    | (uint32_t)(pat()->src == SRC_STEP) << BLACK[5];
+                    | (uint32_t)(pat()->src == SRC_STEP) << BLACK[5] | 1u << BLACK[7];
         return b == B_SAVE ? keys | 1u << BLACK[0] | 1u << BLACK[1] | 1u << BLACK[2] | 1u << BLACK[3] | 1u << BLACK[4]
                            : keys;      /* SAVE: and the new project, the projects */
     case B_SEL:
@@ -3426,8 +3452,9 @@ static void draw_layer(const q_view *v, int32_t oy)
             if (v->scene.lkeys >> BLACK[4] & 1u)
                 tags[n] = "#5", names[n++] = "PRINT THE NEXT LOOP";
             if (v->scene.lkeys >> BLACK[5] & 1u)
-                tags[n] = "#6", names[n++] = "LEN X2, STEPS COPIED";
-            combo[0][0] = "PASTE", combo[0][1] = "PRESS TWICE (PRINT TOO)";
+                tags[n] = "#6", names[n++] = "LEN X2 (DOUBLE)";
+            tags[n] = "#8", names[n++] = "INIT SOUND";
+            combo[0][0] = "PASTE", combo[0][1] = "PRESS TWICE (PRINT, INIT TOO)";
             combo[1][0] = "+ SEL", combo[1][1] = "PATTERN AT ONCE";
         }
         break;
