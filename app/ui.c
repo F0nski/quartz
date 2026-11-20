@@ -1077,7 +1077,8 @@ static void pattern_set(int n)
 enum { COPY_PAT = 1, COPY_AGAIN, COPY_PAT_PASTED, COPY_SND, COPY_SND_PASTED, COPY_NONE };
 static const char *const COPY_NAME[COPY_NONE] = {"PATTERN COPIED", "AGAIN: PASTE", "PATTERN PASTED", "SOUND COPIED",
                                                   "SOUND PASTED", "NOTHING COPIED"};   /* COPY_* - 1 */
-static struct { q_pattern pat; q_sound snd; q_pad pads[Q_PADS]; uint8_t has_pat, has_snd; } clip PLAT_POOL;
+static struct { q_pattern pat; q_sound snd; q_pad pads[Q_PADS]; uint8_t has_pat, has_snd; } clip;   /* (.bss: the pool
+                                                                         keeps its 4 KB spare, fm1.toml pool_spare) */
 
 static void copy_msg(int kind, uint32_t ms)
 {
