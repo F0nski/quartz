@@ -1,19 +1,46 @@
 diff --git a/tools/make_site.py b/tools/make_site.py
-index d340a91..879bfd0 100755
+index d340a91..142b813 100755
 --- a/tools/make_site.py
 +++ b/tools/make_site.py
-@@ -191,6 +191,10 @@ def main(app, pkg, version, out):
-         page(manual, out / "manual" / "index.html", conf, False)
-         if (app / "docs" / "img").is_dir():
-             shutil.copytree(app / "docs" / "img", out / "manual" / "img")
+@@ -174,23 +174,28 @@ def main(app, pkg, version, out):
+     app_js = (app / conf["install_app"]).read_text(encoding="utf-8") if conf.get("install_app") else "null"
+     (out / "install" / "index.html").write_text(html.replace("/*LIB*/", lib).replace("/*META*/", meta)
+                                                 .replace("/*APP*/", app_js), encoding="utf-8")
+-    # the front page and the manual (complete pages, their images beside them)
++    # the manual and the front page (complete pages, their images beside them)
++    manual = app / "docs" / "MANUAL.md"
++    if manual.exists():
++        (out / "manual").mkdir()
++        page(manual, out / "manual" / "index.html", conf, False)
++        if (app / "docs" / "img").is_dir():
++            shutil.copytree(app / "docs" / "img", out / "manual" / "img")
 +        # the manual's own pages (a family of sounds, a source…), beside it: its images and links work as they are
 +        for md in sorted((app / "docs").glob("*.md")):
 +            if md.name != "MANUAL.md":
 +                page(md, out / "manual" / f"{md.stem}.html", conf, False)
++    # the front page after the manual: its pictures may be the manual's (manual/img/...), whose sizes it reads
+     landing = app / "site" / "landing.md"
+     if not landing.exists():
+         raise SystemExit(f"no {landing}: the site's front page")
+     filled = out / "_landing.md"                    # the version and the package's file name, known only now
+     filled.write_text(landing.read_text(encoding="utf-8").replace("{{VERSION}}", version).replace("{{PKG}}", name),
+                       encoding="utf-8")
+-    page(filled, out / "index.html", conf, True)
+-    filled.unlink()
+     if (app / "site" / "img").is_dir():
+         shutil.copytree(app / "site" / "img", out / "img")
+-    manual = app / "docs" / "MANUAL.md"
+-    if manual.exists():
+-        (out / "manual").mkdir()
+-        page(manual, out / "manual" / "index.html", conf, False)
+-        if (app / "docs" / "img").is_dir():
+-            shutil.copytree(app / "docs" / "img", out / "manual" / "img")
++    page(filled, out / "index.html", conf, True)
++    filled.unlink()
      shutil.copytree(emu, out / "emu")
      if (app / "web" / "words").is_dir():
          shutil.copytree(app / "web" / "words", out / "words")
-@@ -199,7 +203,8 @@ def main(app, pkg, version, out):
+@@ -199,7 +204,8 @@ def main(app, pkg, version, out):
          (out / p).parent.mkdir(parents=True, exist_ok=True)
          (out / p).write_text(h, encoding="utf-8")
      (out / ".nojekyll").write_text("")

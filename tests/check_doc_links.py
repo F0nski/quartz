@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
 """The manual's pages (app/docs/*.md) rendered as the site renders them: every relative link reaches a page and an
-anchor that exist, every image is in app/docs/img, and no page has an id twice. Exit 1 with one line per fault."""
+anchor that exist, every image is in app/docs/img and declares its size, and no page has an id twice. Exit 1 with one line per fault."""
 import re
 import subprocess
 import sys
@@ -37,9 +37,14 @@ def main():
             target = target or here
             if target not in ids or (anchor and anchor not in ids[target]):
                 faults.append(f"app/docs/{name}: broken link {href}")
-        for src in re.findall(r'<img [^>]*src="([^"]+)"', page):
+        for tag in re.findall(r'<img [^>]*>', page):
+            src = re.search(r'src="([^"]+)"', tag).group(1)
             if not (DOCS / src).is_file():
                 faults.append(f"app/docs/{name}: missing image {src}")
+            if not re.search(r'\swidth="\d+"', tag) or not re.search(r'\sheight="\d+"', tag):
+                # without them a lazy image has no height until it loads: the page shifts and a link to an anchor
+                # lands in the wrong place
+                faults.append(f"app/docs/{name}: image without width and height {src}")
     for f in faults:
         print(f)
     if faults:
