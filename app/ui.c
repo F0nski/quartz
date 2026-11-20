@@ -214,6 +214,8 @@ static struct {
     int fxdown, msg_punch;                     /* msg_punch: the punch-in last pressed 1..16, shown until punch_until */
     int fill;                                  /* FX held, black key 1 held: FILL (audio_fill) */
     uint16_t punch;                            /* the punch-ins held under FX, bit k = white key k + 1 */
+    uint16_t latch;                            /* FX held, black key 2: the punch-ins kept after their keys and FX, until a
+                                                  tap on FX */
     uint8_t last_note[Q_TRACKS];               /* a step switched on by hand takes it */
     int8_t key_note[NKEYS], key_track[NKEYS];  /* what each held key sounds, for its note-off; -1 none */
     uint32_t btn, keys, msg_until, locks_until, path_until, punch_until;
@@ -1123,13 +1125,14 @@ static void pattern_set(int n)
    paste it. A paste replaces what is there: it asks for a second press. The clipboards stay till power-off */
 enum { COPY_PAT = 1, COPY_AGAIN, COPY_PAT_PASTED, COPY_SND, COPY_SND_PASTED, COPY_NONE, COPY_UNDONE, COPY_REDONE,
        COPY_NO_UNDO, COPY_AGAIN_LOAD, COPY_UNSAVED_LOAD, COPY_AGAIN_PRINT, COPY_PRINTING, COPY_PRINTED, COPY_PLAY_PRINT,
-       COPY_DOUBLED, COPY_TOO_LONG, COPY_NUDGE_L, COPY_NUDGE_R, COPY_PROJECT, COPY_N = COPY_PROJECT + Q_PROJECTS };   /* (the header's messages for
+       COPY_DOUBLED, COPY_TOO_LONG, COPY_NUDGE_L, COPY_NUDGE_R, COPY_LATCHED, COPY_UNLATCHED, COPY_PROJECT, COPY_N = COPY_PROJECT + Q_PROJECTS };   /* (the header's messages for
                                                        the copies, UNDO and the projects: COPY_PROJECT + n, project n) */
 static const char *const COPY_NAME[COPY_N - 1] = {"PATTERN COPIED", "AGAIN: PASTE", "PATTERN PASTED", "SOUND COPIED",
                                                    "SOUND PASTED", "NOTHING COPIED", "UNDONE", "REDONE",
                                                    "NOTHING TO UNDO", "AGAIN: LOAD", "UNSAVED: LOAD?", "AGAIN: PRINT",
                                                    "PRINTING", "PRINTED", "PLAY TO PRINT", "LEN DOUBLED",
-                                                   "TOO LONG TO DOUBLE", "STEPS LEFT", "STEPS RIGHT", "PROJECT 1",
+                                                   "TOO LONG TO DOUBLE", "STEPS LEFT", "STEPS RIGHT", "LATCHED",
+                                                   "LATCH OFF", "PROJECT 1",
                                                    "PROJECT 2",
                                                    "PROJECT 3", "PROJECT 4"};   /* COPY_* - 1 */
 static struct { q_pattern pat; q_sound snd; q_pad pads[Q_PADS]; uint8_t has_pat, has_snd; } clip;   /* (.bss: the pool
@@ -1975,9 +1978,15 @@ static void key_down(int k)
         home_key(w);
         return;
     }
-    if (ui.fxdown) {                    /* FX held: the white keys are the punch-ins, black key 1 FILL */
+    if (ui.fxdown) {                    /* FX held: the white keys are the punch-ins, black key 1 FILL, black key 2 LATCH */
         if (k == BLACK[0])
             audio_fill(ui.fill = 1);
+        if (k == BLACK[1]) {            /* the ones that end in silence or a wash are not kept: TAPE STOP, DELAY THROW,
+                                           FREEZE */
+            ui.latch = ui.punch & (uint16_t)~(1u << 4 | 1u << 12 | 1u << 13);
+            if (ui.latch)
+                copy_msg(COPY_LATCHED, MSG_MS);
+        }
         if (w < 16) {
             ui.punch |= (uint16_t)(1u << w);
             audio_punch(ui.punch);
@@ -2244,7 +2253,7 @@ static void key_up(int k)
 {
     int w;
     for (w = 0; w < 16 && WHITE[w] != k; w++) {}
-    if (w < 16 && ui.punch >> w & 1) {
+    if (w < 16 && ui.punch >> w & 1 && !(ui.latch >> w & 1)) {
         ui.punch &= (uint16_t)~(1u << w);
         audio_punch(ui.punch);
     }
@@ -2321,9 +2330,13 @@ void ui_input(void)
         sel_clear();
     ui.arpdown = btn >> B_ARP & 1u;
     ui.fxdown = btn >> B_FX & 1u;
-    if (!ui.fxdown && ui.punch) {       /* FX let go: every punch-in with it */
-        ui.punch = 0;
-        audio_punch(0);
+    if ((ui.btn & ~btn) >> B_FX & 1u && short_press(B_FX) && ui.latch) {   /* a tap on FX: the latch off */
+        ui.latch = 0;
+        copy_msg(COPY_UNLATCHED, MSG_MS);
+    }
+    if (!ui.fxdown && ui.punch != ui.latch) {   /* FX let go: every punch-in with it, but the latched ones */
+        ui.punch = ui.latch;
+        audio_punch(ui.punch);
     }
     if (!ui.fxdown && ui.fill)          /* and FILL */
         audio_fill(ui.fill = 0);
@@ -2550,8 +2563,8 @@ static uint32_t layer_keys(int b)
     case B_SEQ:
         for (i = 0; i < (b == B_FX ? 16 : 8); i++)
             keys |= 1u << WHITE[i];
-        if (b == B_FX)                  /* FX: and FILL */
-            keys |= 1u << BLACK[0];
+        if (b == B_FX)                  /* FX: and FILL, LATCH */
+            keys |= 1u << BLACK[0] | 1u << BLACK[1];
         if (b == B_SEQ)                 /* SEQ: and the copies, PRINT on a generator */
             keys |= 1u << BLACK[0] | 1u << BLACK[1] | 1u << BLACK[2] | 1u << BLACK[3] | (uint32_t)(pat()->src != SRC_STEP) << BLACK[4]
                     | (uint32_t)(pat()->src == SRC_STEP) << BLACK[5];
@@ -3371,7 +3384,8 @@ static void draw_layer(const q_view *v, int32_t oy)
             int_text(i + 1, tb[i]);
             tags[n] = tb[i], names[n++] = PUNCH_NAME[i];
         }
-        combo[0][0] = "#1", combo[0][1] = "FILL, WHILE HELD";   /* (one line fits: FX let go stops all, the manual says) */
+        combo[0][0] = "#1  #2", combo[0][1] = "FILL, WHILE HELD; LATCH (TAP FX: OFF)";   /* (one line fits: FX let go
+                                                                                         stops all, the manual says) */
         break;
     case B_SAVE:
     case B_SEQ:
@@ -4258,6 +4272,7 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "save_at_stop")) *got = ui.save_at_stop;
     else if (!strcmp(what, "msg_wipe")) *got = plat_ms() < ui.wipe_until;
     else if (!strcmp(what, "msg_random")) *got = plat_ms() < ui.rnd_until ? ui.rnd_kind : 0;
+    else if (!strcmp(what, "latch")) *got = ui.latch;
     else if (!strcmp(what, "transpose")) *got = ui.transpose;
     else if (!strcmp(what, "msg_copy")) *got = plat_ms() < ui.copy_until ? ui.copy_kind : 0;
     else if (!strcmp(what, "project")) *got = store_project + 1;

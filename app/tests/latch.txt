@@ -1,0 +1,41 @@
+# FX held, black key 2: the punch-ins held stay after their keys and FX (not TAPE STOP, DELAY THROW, FREEZE); a tap on FX
+# lets them go; latched in LIVE, they are recorded
+wait 600
+press FX
+key w5 down
+key w4 down
+tapkey b1
+expect latch 32
+expect msg_copy 20
+key w5 up
+key w4 up
+expect punch 32
+release FX
+expect punch 32
+wait 300
+shot latch.png
+tap EDIT
+expect punch 32
+tap FX
+expect punch 0
+expect latch 0
+expect msg_copy 21
+# in LIVE: recorded on the steps crossed
+tap SEQ
+tap PLAY
+press REC
+tap PLAY
+release REC
+expect rec 3
+expect locks 0
+press FX
+key w6 down
+tapkey b1
+key w6 up
+release FX
+wait 600
+expect punch 64
+expect locks >1
+tap PLAY
+expect punch 64
+tap FX

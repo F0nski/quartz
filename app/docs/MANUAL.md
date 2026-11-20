@@ -448,6 +448,11 @@ Black key 1, with FX held, is FILL: while you hold it, the steps whose COND is F
 every track ([COND](sequencer.html#step-functions)). Let go of the key or of FX and the pattern plays as written again.
 FILL is not recorded.
 
+Black key 2, with FX held, LATCHes the punch-ins you hold: they stay on after you let go of their keys and of FX, so
+that both hands are free (`LATCHED`). Tap FX to let them go (`LATCH OFF`). TAPE STOP, DELAY THROW and FREEZE are never
+latched: they would leave the mix silent or drowned. While recording LIVE, the latched ones are written on every step
+crossed.
+
 ![FX held with key 8 pressed: the 16 punch-ins named, SWEEP in pink](img/shape-punch.png "FX held: the punch-ins")
 
 **Inspired by** the [OP-Z's punch-in effects](https://teenage.engineering/guides/op-z/punch-in-effects): a held key

@@ -528,7 +528,6 @@ EVERY STEP	every step
 TAP	tap
 HOLD	hold
 NOTHING ON RELEASE	nothing on release
-FILL, WHILE HELD	fill, while held
 KEY	key
 LATCH ITS NOTE	latch its note
 TRANSPOSE	transpose
@@ -567,6 +566,10 @@ PRINTING	printing
 PRINTED	printed
 LEN DOUBLED	length doubled
 STEPS LEFT	steps left
+LATCHED	latched
+LATCH OFF	latch off
+#1  #2	black keys 1 and 2
+FILL, WHILE HELD; LATCH (TAP FX: OFF)	fill, while held; latch, tap f x for off
 STEPS RIGHT	steps right
 NUDGE THE STEPS	nudge the steps
 TOO LONG TO DOUBLE	too long to double
