@@ -566,6 +566,9 @@ AGAIN: PRINT	again: print
 PRINTING	printing
 PRINTED	printed
 LEN DOUBLED	length doubled
+STEPS LEFT	steps left
+STEPS RIGHT	steps right
+NUDGE THE STEPS	nudge the steps
 TOO LONG TO DOUBLE	too long to double
 LEN X2, STEPS COPIED	length times two, steps copied
 PLAY TO PRINT	play to print

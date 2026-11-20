@@ -18,7 +18,7 @@ key 5 down
 key 5 up
 release SAVE
 expect project 2
-expect msg_copy 19
+expect msg_copy 21
 expect tempo 120
 expect dirty 0
 tap GLO

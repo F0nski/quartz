@@ -264,6 +264,7 @@ static int cond_index(int c);
 static void step_on(q_step *s);
 static void step_default(q_step *s);
 static void attr_turn(q_step *s, int a, int d);
+static void nudge(int d);
 static const uint8_t SN_ATTR[3][4] = {{A_NOTE, A_LEN, A_VEL, A_PROB}, {A_RATCHET, A_COND, A_MICRO}, {A_SLIDE, A_ACCENT}};   /* P_SN1..3 */
 static int kit(void) { return ui.p->sound[ui.track].model == M_KIT; }
 
@@ -900,6 +901,8 @@ static void button(int b)
     case B_OCTUP:
         d = b == B_OCTUP ? 1 : -1;
         if (ui.rec == R_LIVE && ui.btn >> B_REC & 1u) {    /* REC held in LIVE: OCT- erases (live_erase) */
+        } else if (ui.btn >> B_REC & 1u) {             /* REC held: NUDGE */
+            nudge(d);
         } else if (grid_on() && ui.held) {     /* the held step's length */
             q_step *s = &pat()->steps[ui.held - 1];
             s->len = (uint8_t)len_step(s->len, d);
@@ -1120,13 +1123,14 @@ static void pattern_set(int n)
    paste it. A paste replaces what is there: it asks for a second press. The clipboards stay till power-off */
 enum { COPY_PAT = 1, COPY_AGAIN, COPY_PAT_PASTED, COPY_SND, COPY_SND_PASTED, COPY_NONE, COPY_UNDONE, COPY_REDONE,
        COPY_NO_UNDO, COPY_AGAIN_LOAD, COPY_UNSAVED_LOAD, COPY_AGAIN_PRINT, COPY_PRINTING, COPY_PRINTED, COPY_PLAY_PRINT,
-       COPY_DOUBLED, COPY_TOO_LONG, COPY_PROJECT, COPY_N = COPY_PROJECT + Q_PROJECTS };   /* (the header's messages for
+       COPY_DOUBLED, COPY_TOO_LONG, COPY_NUDGE_L, COPY_NUDGE_R, COPY_PROJECT, COPY_N = COPY_PROJECT + Q_PROJECTS };   /* (the header's messages for
                                                        the copies, UNDO and the projects: COPY_PROJECT + n, project n) */
 static const char *const COPY_NAME[COPY_N - 1] = {"PATTERN COPIED", "AGAIN: PASTE", "PATTERN PASTED", "SOUND COPIED",
                                                    "SOUND PASTED", "NOTHING COPIED", "UNDONE", "REDONE",
                                                    "NOTHING TO UNDO", "AGAIN: LOAD", "UNSAVED: LOAD?", "AGAIN: PRINT",
                                                    "PRINTING", "PRINTED", "PLAY TO PRINT", "LEN DOUBLED",
-                                                   "TOO LONG TO DOUBLE", "PROJECT 1", "PROJECT 2",
+                                                   "TOO LONG TO DOUBLE", "STEPS LEFT", "STEPS RIGHT", "PROJECT 1",
+                                                   "PROJECT 2",
                                                    "PROJECT 3", "PROJECT 4"};   /* COPY_* - 1 */
 static struct { q_pattern pat; q_sound snd; q_pad pads[Q_PADS]; uint8_t has_pat, has_snd; } clip;   /* (.bss: the pool
                                                                          keeps its 4 KB spare, fm1.toml pool_spare) */
@@ -1322,6 +1326,32 @@ static void double_key(void)
     t->len = (uint8_t)(2 * n);
     ui.dirty = 1;
     copy_msg(COPY_DOUBLED, MSG_MS);
+}
+
+/* REC held, OCT- or OCT+ out of LIVE: a STEP pattern's steps 1..LEN turned one step left or right, p-locks with them */
+static void nudge(int d)
+{
+    q_pattern *t;
+    q_step s;
+    int n, i;
+    if (pat()->src != SRC_STEP)
+        return;
+    undo_keep(UNDO_PAT);
+    t = pat(), n = t->len;
+    if (d > 0) {
+        s = t->steps[n - 1];
+        __builtin_memmove(&t->steps[1], &t->steps[0], (uint32_t)(n - 1) * sizeof s);
+        t->steps[0] = s;
+    } else {
+        s = t->steps[0];
+        __builtin_memmove(&t->steps[0], &t->steps[1], (uint32_t)(n - 1) * sizeof s);
+        t->steps[n - 1] = s;
+    }
+    for (i = 0; i < t->nlocks; i++)
+        if (t->locks[i].step < n)
+            t->locks[i].step = (uint8_t)((t->locks[i].step + d + n) % n);
+    ui.dirty = 1;
+    copy_msg(d > 0 ? COPY_NUDGE_R : COPY_NUDGE_L, MSG_MS);
 }
 
 /* a PRINT step lands on its rank (the generator's pattern does not read its steps); the last one makes it STEP: its
@@ -3407,6 +3437,7 @@ static void draw_layer(const q_view *v, int32_t oy)
             for (i = 0; i < 3; i++)     /* RANDOM's keys lit (layer_keys) */
                 if (v->scene.lkeys >> BLACK[5 + i] & 1u)
                     tags[n] = RND_TAG[i], names[n++] = RND_NAME[i];
+            tags[n] = "OCT", names[n++] = "NUDGE THE STEPS";
             combo[0][0] = "+ PLAY", combo[0][1] = "LIVE: COUNT-IN OR ARMED";
             combo[1][0] = "TAP", combo[1][1] = "GRID > NOTES > OFF";
             combo[2][0] = "HOLD", combo[2][1] = "NOTHING ON RELEASE";

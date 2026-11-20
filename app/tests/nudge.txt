@@ -1,0 +1,33 @@
+# REC held, OCT+ / OCT- out of LIVE: the steps 1..LEN turned right or left, their p-locks with them
+wait 600
+tap SEQ
+tap REC
+key w0 down
+turn K1 3
+key w0 up
+tapkey w3
+tap SEQ
+expect len 16
+press REC
+wait 500
+shot nudge_map.png
+tap OCT+
+expect msg_copy 19
+expect stepon_1 0
+expect stepon_2 1
+expect stepon_5 1
+expect lock_0_2 67
+expect lock_0_1 -1
+tap OCT-
+tap OCT-
+release REC
+expect msg_copy 18
+expect stepon_16 1
+expect stepon_3 1
+expect lock_0_16 67
+expect spage 1
+expect rec 1
+press REC
+tapkey b2
+release REC
+expect stepon_1 1
