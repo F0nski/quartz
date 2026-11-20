@@ -1,0 +1,30 @@
+# HOME and SEL held, white key 1-4: the track soloed (the others muted); again: the mutes as before
+wait 600
+press HOME
+key w2 down
+key w2 up
+expect mute 4
+press SEL
+key w0 down
+key w0 up
+expect mute 14
+expect solo 1
+key w1 down
+key w1 up
+expect mute 13
+key w1 down
+key w1 up
+release SEL
+expect mute 4
+expect solo 0
+# a mute by hand ends the solo
+press SEL
+key w3 down
+key w3 up
+release SEL
+expect mute 7
+key w0 down
+key w0 up
+expect solo 0
+expect mute 6
+release HOME

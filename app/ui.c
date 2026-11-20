@@ -211,6 +211,8 @@ static struct {
                                                                    nwrote: notes of the chord written since the hold began */
     int pad, padheld;                          /* a KIT: its last pad played 0..15; the held pad's key + 1, 0 none */
     int homedown, savedown, seldown, msg_scene;   /* msg_scene: 1..8 asked */
+    int solo;                                  /* HOME and SEL held, white key 1-4: the track soloed + 1, 0 none */
+    uint8_t solo_mute;                         /* the mutes before it, back with the same keys */
     int fxdown, msg_punch;                     /* msg_punch: the punch-in last pressed 1..16, shown until punch_until */
     int fill;                                  /* FX held, black key 1 held: FILL (audio_fill) */
     uint16_t punch;                            /* the punch-ins held under FX, bit k = white key k + 1 */
@@ -1673,19 +1675,32 @@ static void scene_apply(const q_scene *sc)
     for (t = 0; t < Q_TRACKS; t++)
         ui.p->pattern[t] = sc->pat[t];
     ui.p->mute = sc->mute;
+    ui.solo = 0;
     sel_clear();
     ui.nchord = 0;
     if (ui.cursor > pat()->len)
         ui.cursor = 1;
 }
 
-/* HOME held and a white key: 0..3 mute the track, 8..15 the scene 1..8 */
+/* HOME held and a white key: 0..3 mute the track (SEL held too: solo it, again: the mutes back), 8..15 the scene 1..8 */
 static void home_key(int w)
 {
     q_scene *sc = &ui.p->scene[w < 8 ? 0 : w - 8];
     int t;
-    if (w < Q_TRACKS) {
+    if (w < Q_TRACKS && ui.seldown) {
+        if (ui.solo == w + 1) {
+            ui.p->mute = ui.solo_mute;
+            ui.solo = 0;
+        } else {
+            if (!ui.solo)
+                ui.solo_mute = ui.p->mute;
+            ui.p->mute = (uint8_t)(((1u << Q_TRACKS) - 1u) & ~(1u << w));
+            ui.solo = w + 1;
+        }
+        ui.dirty = 1;
+    } else if (w < Q_TRACKS) {
         ui.p->mute ^= (uint8_t)(1u << w);
+        ui.solo = 0;                    /* a mute by hand: the solo is over, these mutes stay */
         ui.dirty = 1;
     } else if (w >= 8 && (ui.seldown || !sc->used)) {
         for (t = 0; t < Q_TRACKS; t++)
@@ -3371,7 +3386,7 @@ static void draw_layer(const q_view *v, int32_t oy)
             int_text(i < Q_TRACKS ? i + 1 : i - 3, nb[i] + 6);
             tags[n] = tb[i], names[n++] = nb[i];
         }
-        combo[0][0] = "+ SEL", combo[0][1] = "STORE THE SCENE";
+        combo[0][0] = "+ SEL", combo[0][1] = "1-4 SOLO, 9-16 STORE THE SCENE";
         break;
     case B_CELL:
         combo[0][0] = "+ K1", combo[0][1] = "SET THE CELL";
@@ -3613,6 +3628,8 @@ void ui_init(q_project *p)
         for (k = 0; k < NKEYS; k++)
             key_up(k);
     __builtin_memset(&ui, 0, sizeof ui);
+    audio_punch(0);                     /* the render's latch and transposition go with ui's */
+    audio_transpose(0, 0);
     __builtin_memset(ui.key_note, -1, sizeof ui.key_note);
     __builtin_memset(ui.last_note, 60, sizeof ui.last_note);
     step_default(&ui.clip.st);
@@ -4272,6 +4289,7 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "save_at_stop")) *got = ui.save_at_stop;
     else if (!strcmp(what, "msg_wipe")) *got = plat_ms() < ui.wipe_until;
     else if (!strcmp(what, "msg_random")) *got = plat_ms() < ui.rnd_until ? ui.rnd_kind : 0;
+    else if (!strcmp(what, "solo")) *got = ui.solo;
     else if (!strcmp(what, "latch")) *got = ui.latch;
     else if (!strcmp(what, "transpose")) *got = ui.transpose;
     else if (!strcmp(what, "msg_copy")) *got = plat_ms() < ui.copy_until ? ui.copy_kind : 0;

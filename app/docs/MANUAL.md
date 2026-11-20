@@ -188,6 +188,10 @@ on their pedestals, with the pattern each plays and its model, and its knobs are
 
 To mute a track, hold HOME and press white key 1–4. A muted track's pedestal goes dark and its key goes out.
 
+To solo a track, hold HOME and SEL and press its white key 1–4: the other three are muted. The same keys again put the
+mutes back as they were; another track's key solos that one instead. The solo is made of mutes: a scene stored
+meanwhile keeps it, and muting a track by hand ends it, leaving the mutes as they are.
+
 ### Patterns
 
 Each track has eight patterns, P1–P8. To pick one, hold SEQ and press white key 1–8, or turn PRESET on a STEP
