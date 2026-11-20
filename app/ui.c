@@ -2434,7 +2434,8 @@ void ui_input(void)
         rec_write(&rec);
     while (audio_take_print(&pr))
         print_write(&pr);
-    if (ui.print && ui.p->pat[ui.print - 1][ui.print_pat].src != ui.print_src) {   /* its SOURCE changed: no pass */
+    if (ui.print && (ui.p->pat[ui.print - 1][ui.print_pat].src != ui.print_src ||
+                     ui.p->pattern[ui.print - 1] != ui.print_pat)) {   /* its SOURCE changed, another pattern asked: no pass */
         ui.print = 0;
         ui.copy_until = 0;
     }

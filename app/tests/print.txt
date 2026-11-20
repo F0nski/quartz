@@ -40,3 +40,14 @@ expect msg_copy 13
 tap PLAY
 expect msg_copy 0
 expect src 2
+# another pattern asked while it waits: no PRINT
+tap PLAY
+press SEQ
+tapkey b4
+tapkey b4
+expect msg_copy 13
+key w1 down
+key w1 up
+release SEQ
+expect msg_copy 0
+tap PLAY
