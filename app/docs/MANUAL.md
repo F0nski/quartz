@@ -480,7 +480,7 @@ What the generative sources (all but STEP) share:
 
 - They play at the pattern's DIV, with the project's swing. Their notes go through the arpeggiator, the mutes and
   the scenes like a STEP pattern's.
-- A loop is 16 steps (ATLAS 32, FLEET and CIPHER their LEN): a pattern change waits for its end, and a song entry counts it.
+- A loop is 16 steps (ATLAS, FLEET and CIPHER their LEN): a pattern change waits for its end, and a song entry counts it.
 - Without REC, the keys play the track. REC writes nothing in them, except LOOM, CADENCE and LATTICE, which have a
   GRID of their own, and IMPROV, which listens.
 - PRESET always does something useful for the source: each source's page says what.

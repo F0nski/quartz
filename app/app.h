@@ -41,7 +41,7 @@ enum { OBJ_SETTINGS, OBJ_PANEL, OBJ_PROJECT, OBJ_CHUNK0, OBJ_NOBJ = OBJ_CHUNK0 +
 #define APP_BACKUP_OBJS {OBJ_CHUNK0, OBJ_CHUNK0 + 1, OBJ_CHUNK0 + 2, OBJ_CHUNK0 + 3, OBJ_CHUNK0 + 4, OBJ_CHUNK0 + 5, \
                          OBJ_CHUNK0 + 6, OBJ_CHUNK0 + 7, OBJ_CHUNK0 + 8, OBJ_CHUNK0 + 9, OBJ_CHUNK0 + 10}
 #define APP_BACKUP_MAGIC 0x5A545251u     /* "QRTZ" */
-#define APP_BACKUP_VERSION 16
+#define APP_BACKUP_VERSION 17
 #define APP_BACKUP_WHAT "replaces the project"
 #define APP_BACKUP_BUF chunk_buf         /* store.c's: the restore takes none of the pool */
 int app_backup_playing(void);

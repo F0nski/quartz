@@ -37,6 +37,7 @@ core's load and LOST BLOCKS; a step is validated only with zero lost blocks in i
 | The same, track 3 on CIPHER (CREST, one note a step): 7 voices wanted for 6, 10.7 stolen/s | 80 % / 61 % | 0, then 0.1/s |
 | The same, track 3 on FLEET T OUT 2 instead (a note every step): the overload is the third track's, not CIPHER's | 78 % / 62 % | 2.0/s |
 | Backup and restore over USB (image 534 836 B, the render's code 38 B further), worst_case.py, probe.py 2 x 60 s; a backup taken while playing, 20 s | 76 % / 66 % | 0 |
+| ATLAS's LEN (image 535 004 B, the render's code 8 B further), worst_case.py, probe.py 2 x 60 s | 76 % / 66 % | 0 |
 
 One Plaits voice costs 5 to 11 % of a core for the light models, 12 to 16 % for the common ones and 20 to 21 % for
 ADDITIVE and MODAL; the cost is linear in voices and the second core halves the wall time. The generators run once

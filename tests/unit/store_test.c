@@ -261,7 +261,7 @@ static void store_roundtrip_v3(void)
     project_defaults(&a);
     q_pattern *q = &a.pat[1][3];
     q->src = SRC_MARBLES;
-    q->grids = (q_grids){ 10, 20, 30, { 40, 50, 60 }, 2, 70, { 3, 4, 5 } };
+    q->grids = (q_grids){ 10, 20, 30, { 40, 50, 60 }, 2, 70, { 3, 4, 5 }, 20 };
     q->marbles = (q_marbles){ 2, 12, 5, 11, 22, 33, 44, 55, 66, 77, 3, { 0x55, 0x0A }, 4 };
     a.kit[2][9] = (q_pad){ 1, -7, 11, 22, 33, 44 };
     assert(store_save(&a) == 0);
@@ -277,9 +277,9 @@ static void store_clamps_v3(void)
     store_save(&a);
     b = a;
     q_pattern *q = &b.pat[0][1];
-    q->src = 9; q->grids.voice = 0; q->marbles.tout = 7; q->marbles.len = 0; q->marbles.mode = 9;
+    q->src = 9; q->grids.voice = 0; q->grids.len = 0; q->marbles.tout = 7; q->marbles.len = 0; q->marbles.mode = 9;
     q->marbles.range = 0; q->marbles.steps = 200;
-    b.pat[0][2].grids.voice = 9; b.pat[0][2].marbles.tout = 0; b.pat[0][2].marbles.len = 99;
+    b.pat[0][2].grids.voice = 9; b.pat[0][2].grids.len = 99; b.pat[0][2].marbles.tout = 0; b.pat[0][2].marbles.len = 99;
     b.pat[0][2].marbles.mode = 7; b.pat[0][2].marbles.range = 9; b.pat[0][2].marbles.gate = 9;
     b.pat[0][3].grids.x = 200; b.pat[0][3].grids.dens[1] = 255; b.pat[0][3].grids.pad[2] = 200; b.pat[0][3].marbles.bias = 250;
     b.pat[0][3].marbles.note = 130;
@@ -291,9 +291,9 @@ static void store_clamps_v3(void)
     memset(&a, 0xAA, sizeof a);
     assert(store_load(&a) == 0);
     q = &a.pat[0][1];
-    assert(q->src == SRC_N - 1 && q->grids.voice == 1 && q->marbles.tout == 3 && q->marbles.len == 1);
+    assert(q->src == SRC_N - 1 && q->grids.voice == 1 && q->grids.len == 1 && q->marbles.tout == 3 && q->marbles.len == 1);
     assert(q->marbles.mode == 6 && q->marbles.range == 1 && q->marbles.steps == 127);
-    assert(a.pat[0][2].grids.voice == 3 && a.pat[0][2].marbles.tout == 1 && a.pat[0][2].marbles.len == 16);
+    assert(a.pat[0][2].grids.voice == 3 && a.pat[0][2].grids.len == GRIDS_LEN && a.pat[0][2].marbles.tout == 1 && a.pat[0][2].marbles.len == 16);
     assert(a.pat[0][2].marbles.gate == 5);
     assert(a.pat[0][2].marbles.mode == 6 && a.pat[0][2].marbles.range == 4);
     assert(a.pat[0][2].grids.note == 1 && a.pat[0][2].marbles.note == 1);

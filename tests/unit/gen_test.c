@@ -14,7 +14,7 @@ static q_pattern *setup(int model)
     P.sound[0].model = model;
     q_pattern *pt = &P.pat[0][0];
     pt->src = SRC_GRIDS;
-    pt->grids = (q_grids){ 0, 0, 0, { 127, 127, 127 }, 1, 60, { 0, 1, 2 } };
+    pt->grids = (q_grids){ 0, 0, 0, { 127, 127, 127 }, 1, 60, { 0, 1, 2 }, GRIDS_LEN };
     memset(&G, 0, sizeof G);
     return pt;
 }
@@ -155,6 +155,8 @@ static void loop_lengths(void)
 {
     q_pattern *pt = setup(M_KIT);
     assert(gen_loop(pt) == 32);
+    pt->grids.len = 20;                 /* ATLAS: its LEN */
+    assert(gen_loop(pt) == 20);
     pt->src = SRC_MARBLES; pt->marbles.len = 7;
     assert(gen_loop(pt) == 7);
     pt->src = SRC_LIFE;
@@ -414,7 +416,7 @@ static void grids_level_matches_step(void)
     P2.sound[0].model = M_KIT;
     q_pattern *pt = &P2.pat[0][0];
     pt->src = SRC_GRIDS;
-    pt->grids = (q_grids){ 40, 90, 0, { 70, 90, 110 }, 1, 60, { 0, 1, 2 } };
+    pt->grids = (q_grids){ 40, 90, 0, { 70, 90, 110 }, 1, 60, { 0, 1, 2 }, GRIDS_LEN };
     gen_reset(&g, &rng);
     for (int k = 0; k < 32; k++) {
         q_step st;

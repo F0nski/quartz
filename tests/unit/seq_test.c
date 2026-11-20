@@ -897,7 +897,7 @@ static void scene_launch_step_to_grids(void)
     setup();
     q_pattern *gp = &P.pat[0][1];
     gp->src = SRC_GRIDS;
-    gp->grids = (q_grids){ 32, 200, 0, { 100, 100, 100 }, 1, 67 };
+    gp->grids = (q_grids){ 32, 200, 0, { 100, 100, 100 }, 1, 67, { 0 }, GRIDS_LEN };
     P.scene[0] = (q_scene){ 1, 0, { 1, 0, 0, 0 } };
     while (seq_pos(&S, 0) != 5) run(1);
     seq_launch(&S, 0);

@@ -163,7 +163,7 @@ static q_gview G;
 static void gbase(void)
 {
     memset(&G, 0, sizeof G);
-    G.pos = -1; G.voice = 1; G.x = 64; G.y = 64;
+    G.pos = -1; G.voice = 1; G.x = 64; G.y = 64; G.len = 32;
     strcpy(G.top_l, "1-32");
     grids_enter();
 }
@@ -208,6 +208,18 @@ static void grids_hit_pink(void)
     assert(gcount(PL_PINK[1]) > 0);
     grids_frame(&G, 1400);
     assert(gcount(PL_PINK[1]) == 0);
+}
+
+/* LEN: a step past it shows no stack, one inside does */
+static void grids_past_len(void)
+{
+    gbase();
+    G.level[0][10] = 200; G.dens[0] = 127; G.len = 10;
+    grids_frame(&G, 1000);
+    int past = gcount(PL_ORANGE[1]);   /* (the legend has the colour too) */
+    G.len = 11;
+    grids_frame(&G, 1000);
+    assert(gcount(PL_ORANGE[1]) > past);
 }
 
 /* the sight sits on the step playing: step 13 is column 5 of row 2 on the 8-column plate */
@@ -334,6 +346,7 @@ int main(void)
     band_pink_fill();
     sel_orange();
     grids_stack_order();
+    grids_past_len();
     grids_threshold();
     grids_hit_pink();
     grids_sight_on_its_step();

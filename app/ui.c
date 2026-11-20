@@ -50,7 +50,7 @@ static const q_page PAGE[] = {
     {"TRACKS", {"LVL 1", "LVL 2", "LVL 3", "LVL 4"}, {0, 0, 0, 0}, {127, 127, 127, 127}},   /* the mixer: MIX LEVEL */
     {"SONG", {"ENTRY", "SCENE", "REPEAT", "MODE"}, {1, 1, 1, 0}, {Q_SONG, Q_SCENES, 16, 1}},
     {"ATLAS", {"DIV", "VOICE", "NOTE", "SOURCE"}, {0, 1, 1, 0}, {DIV_N - 1, 3, 127, SRC_N - 1}},
-    {"MAP", {"X", "Y", "CHAOS"}, {0, 0, 0}, {127, 127, 127}},
+    {"MAP", {"X", "Y", "CHAOS", "LEN"}, {0, 0, 0, 1}, {127, 127, 127, GRIDS_LEN}},
     {"DENS", {"DENS 1", "DENS 2", "DENS 3"}, {0, 0, 0}, {127, 127, 127}},
     {"FLEET", {"DIV", "T OUT", "LEN", "SOURCE"}, {0, 1, 1, 0}, {DIV_N - 1, 3, 16, SRC_N - 1}},
     {"T", {"MODE", "BIAS", "JITTER", "DEJA VU"}, {0, 0, 0, 0}, {6, 127, 127, 127}},
@@ -429,6 +429,7 @@ static int knob_get(int pid, int k)
     case P_MAP * 4: return t->grids.x;
     case P_MAP * 4 + 1: return t->grids.y;
     case P_MAP * 4 + 2: return t->grids.chaos;
+    case P_MAP * 4 + 3: return t->grids.len;
     case P_DENS * 4:
     case P_DENS * 4 + 1:
     case P_DENS * 4 + 2: return t->grids.dens[k];
@@ -639,6 +640,7 @@ static void knob_set(int pid, int k, int v)
     case P_MAP * 4: t->grids.x = (uint8_t)v; break;
     case P_MAP * 4 + 1: t->grids.y = (uint8_t)v; break;
     case P_MAP * 4 + 2: t->grids.chaos = (uint8_t)v; break;
+    case P_MAP * 4 + 3: t->grids.len = (uint8_t)v; break;
     case P_DENS * 4:
     case P_DENS * 4 + 1:
     case P_DENS * 4 + 2: t->grids.dens[k] = (uint8_t)v; break;
@@ -1557,6 +1559,7 @@ static void dice_page(int pid)
         switch (pid * 4 + k) {          /* MODEL, POLY (the voices), LEVEL, TEMPO, STEPS' LEN and PATH */
         case P_SOUND * 4: case P_SOUND * 4 + 3: case P_KIT * 4: case P_KIT * 4 + 2: case P_MIX * 4 + 3: case P_TEMPO * 4:
         case P_STEPS * 4: case P_STEPS * 4 + 2:   /* LEN: dice_all's own; PATH: XY could freeze the pattern on a step */
+        case P_MAP * 4 + 3:             /* ATLAS's LEN: a length drawn breaks the bar */
             continue;
         }
         if (k == 3 && (pid == P_STEPS || pid == P_GRIDS || pid == P_GRIDSK || pid == P_MARBLES || pid == P_LIFE || pid == P_LIFEK ||
@@ -3354,14 +3357,15 @@ void ui_frame(void)
                 }
                 gv.pos = v.scene.pos;
                 gv.voice = (int8_t)(kit() ? 0 : t->grids.voice);
-                gv.x = t->grids.x, gv.y = t->grids.y, gv.chaos = t->grids.chaos;
+                gv.x = t->grids.x, gv.y = t->grids.y, gv.chaos = t->grids.chaos, gv.len = t->grids.len;
                 if (v.scene.pos >= 0) {
                     __builtin_memcpy(gv.top_l, "STEP ", 5);
                     gv.top_l[5] = (char)('0' + (v.scene.pos + 1) / 10);
                     gv.top_l[6] = (char)('0' + (v.scene.pos + 1) % 10);
                     gv.top_l[7] = 0;
                 } else {
-                    __builtin_memcpy(gv.top_l, "1-32", 5);
+                    gv.top_l[0] = '1', gv.top_l[1] = '-';   /* the steps that loop */
+                    int_text(t->grids.len, gv.top_l + 2);
                 }
                 {                                   /* VOICE, and the note a synth track plays or a KIT's pad */
                     static const char *const VN[3] = {"BD ", "SN ", "HH "};
@@ -3912,6 +3916,7 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "active")) *got = (int)audio_load().active;
     else if (!strcmp(what, "src")) *got = t->src;
     else if (!strcmp(what, "gx")) *got = t->grids.x;
+    else if (!strcmp(what, "glen")) *got = t->grids.len;
     else if (!strcmp(what, "gy")) *got = t->grids.y;
     else if (!strcmp(what, "gdens1")) *got = t->grids.dens[0];
     else if (!strcmp(what, "mlen")) *got = t->marbles.len;

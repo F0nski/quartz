@@ -24,7 +24,7 @@ void plateau_frame(const q_plateau *p, uint32_t hits, uint32_t ms);
 void plateau_band(int32_t oy);
 
 /* GRIDS (spec 5b, 3 bis): the loop's 32 steps as stacks of the three voices, BD at the base */
-typedef struct { uint8_t level[3][32], dens[3]; int8_t pos, voice; char top_l[8], top_r[10]; uint8_t x, y, chaos; } q_gview;   /* voice 1..3, 0 none */
+typedef struct { uint8_t level[3][32], dens[3]; int8_t pos, voice; char top_l[8], top_r[10]; uint8_t x, y, chaos, len; } q_gview;   /* voice 1..3, 0 none; len: the steps that loop */
 void grids_enter(void);                            /* shown anew: no hit pending */
 void grids_drop(int voice, uint32_t land_ms);      /* a voice hits at land_ms (a note decided ahead) */
 void grids_frame(const q_gview *v, uint32_t ms);

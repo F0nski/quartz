@@ -8,7 +8,7 @@
 #include "third_party/grids/map.h"
 #include "third_party/marbles/tables.h"
 
-#define GRIDS_STEPS 32
+#define GRIDS_STEPS GRIDS_LEN
 
 /* the same xorshift as the sequencer's (seq_rand); gen does not depend on seq.c */
 static uint32_t gen_rand(uint32_t *rng)
@@ -39,7 +39,7 @@ void gen_reset(q_gen *g, uint32_t *rng)
 int gen_loop(const q_pattern *pt)
 {
     return pt->src == SRC_MARBLES ? pt->marbles.len : pt->src == SRC_LIFE || pt->src == SRC_LANES || pt->src == SRC_CHORDS || pt->src == SRC_TONNETZ || pt->src == SRC_ORBITS || pt->src == SRC_MIMIC ? LIFE_W
-           : pt->src == SRC_CIPHER ? (pt->cipher.len ? pt->cipher.len : LIFE_W) : GRIDS_STEPS;
+           : pt->src == SRC_CIPHER ? (pt->cipher.len ? pt->cipher.len : LIFE_W) : pt->grids.len;
 }
 
 /* settings 0..127 as Grids' 0..255 */

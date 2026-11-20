@@ -224,6 +224,7 @@ Never drawn, so that a draw never silences the track nor changes what it is:
 | MIX's and KIT's LEVEL | the track could go silent or clip |
 | TEMPO | the whole project's speed |
 | STEPS' LEN and PATH, the XY page | LEN comes with black key 7's new pattern; an XY path could hold the pattern on one step |
+| ATLAS's LEN | a length drawn would break the bar |
 | HOME (TRACKS, SONG) | the mix and the arrangement, not the sound |
 
 In SEQ, black key 7 also draws the source's content:

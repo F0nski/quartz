@@ -1,0 +1,27 @@
+# ATLAS: LEN, K4 of MAP, 1-32 steps (32 by default): the drum map loops over its first LEN steps
+wait 600
+tap SEQ
+turn K4 1
+expect src 1
+turn SELECT 1
+expect page 2
+expect glen 32
+spin K4 -40
+expect glen 1
+spin K4 40
+expect glen 32
+spin K4 -27
+expect glen 5
+wait 100
+shot atlas_len.png
+# at 120 BPM a step is 125 ms: 7 steps in, LEN 5 plays its third
+tap PLAY
+wait 920
+expect pos 2
+# RND PAGE leaves LEN alone
+tap PLAY
+press REC
+key 13 down
+key 13 up
+release REC
+expect glen 5

@@ -375,8 +375,8 @@ void grids_band(int32_t oy)
     for (i = 0; i < 32; i++) {
         float gx = (float)(i % 8), gy = (float)(i / 8);
         pl_pt a = at(gx, gy), b = at(gx + 1, gy), c = at(gx + 1, gy + 1), d = at(gx, gy + 1);
-        quad(a, b, c, d, oy, i % 4 == 0 ? RGB(0x15, 0x10, 0x30) : PL_CELL);
-        outline(a, b, c, d, oy, PL_EDGE);
+        quad(a, b, c, d, oy, i >= v->len ? RGB(0x0a, 0x07, 0x18) : i % 4 == 0 ? RGB(0x15, 0x10, 0x30) : PL_CELL);   /* past LEN: dark */
+        outline(a, b, c, d, oy, i >= v->len ? RGB(0x16, 0x10, 0x30) : PL_EDGE);
     }
     outline(at(0, 0), at(8, 0), at(8, 4), at(0, 4), oy, PL_PULSE);
     for (k = 0; k < 8; k += 4)          /* the beats, on the back edge */
@@ -394,7 +394,7 @@ void grids_band(int32_t oy)
             near = gr.ms - gr.hit[k];
     for (s = 0; s <= 10; s++)           /* far to near: the stacks, BD at the base */
         for (i = 0; i < 32; i++) {
-            if (i % 8 + i / 8 != s)
+            if (i % 8 + i / 8 != s || i >= v->len)   /* past LEN: never played */
                 continue;
             float gx = (float)(i % 8), gy = (float)(i / 8), z = 0.0f, top;
             pl_pt c = at(gx + 0.5f, gy + 0.5f);
