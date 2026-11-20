@@ -1,5 +1,6 @@
-/* The project in flash: the q_project's bytes cut into Q_CHUNKS store objects (pooled, app.h), each behind a header
+/* The projects in flash: a q_project's bytes cut into Q_CHUNKS store objects (pooled, app.h), each behind a header
  * naming the save it belongs to. Loading wants every chunk, of one save: a project is never half old, half new.
+ * store_project picks which of the Q_PROJECTS a load or a save is; the gens count the saves of all of them.
  * Part of the unity build (app.c). */
 #include "audio.h"
 
@@ -12,8 +13,11 @@ _Static_assert(sizeof(q_project) <= Q_CHUNKS * CHUNK_DATA, "q_project must fit i
 uint8_t chunk_buf[PLAT_STORE_MAX] __attribute__((aligned(4)));   /* one chunk: no q_project on the stack; lent to a
                                                                     restore (app.h APP_BACKUP_BUF) */
 _Static_assert(APP_BACKUP_VERSION == Q_VERSION, "a backup's version is the project's layout");
-_Static_assert(sizeof (uint16_t[])APP_BACKUP_OBJS == Q_CHUNKS * sizeof(uint16_t), "a backup holds every chunk");
-static uint32_t save_gen;                            /* chunk 0's last read or written: the highest gen */
+_Static_assert(sizeof (uint16_t[])APP_BACKUP_OBJS == Q_PROJECTS * Q_CHUNKS * sizeof(uint16_t), "a backup holds every chunk");
+static uint32_t save_gen;                            /* the highest chunk 0's gen read or written: a save goes past it */
+int store_project;                                   /* the project loaded and saved, 0..Q_PROJECTS - 1 */
+
+static uint32_t chunk_obj(int i) { return OBJ_CHUNK0 + (uint32_t)(store_project * Q_CHUNKS + i); }
 
 static uint32_t chunk_len(int i)                     /* payload bytes of chunk i */
 {
@@ -184,14 +188,35 @@ static int load_chunks(q_project *p)
     for (int i = 0; i < Q_CHUNKS; i++) {
         chunk_hdr h;
         uint32_t n = chunk_len(i);
-        if (plat_store_size(OBJ_CHUNK0 + i) != (int)(sizeof h + n)) return -1;   /* (plat_store_load cuts a longer one) */
-        if (plat_store_load(OBJ_CHUNK0 + i, chunk_buf, sizeof h + n) != (int)(sizeof h + n)) return -1;
+        if (plat_store_size(chunk_obj(i)) != (int)(sizeof h + n)) return -1;   /* (plat_store_load cuts a longer one) */
+        if (plat_store_load(chunk_obj(i), chunk_buf, sizeof h + n) != (int)(sizeof h + n)) return -1;
         __builtin_memcpy(&h, chunk_buf, sizeof h);
-        if (i == 0) save_gen = gen = h.gen;      /* written first: a failed load still saves past it */
+        if (i == 0 && (gen = h.gen) > save_gen)   /* written first: a failed load still saves past it */
+            save_gen = gen;
         if (h.magic != CHUNK_MAGIC || h.version != Q_VERSION || h.index != i || h.gen != gen) return -1;
         __builtin_memcpy((uint8_t *)p + (uint32_t)i * CHUNK_DATA, chunk_buf + sizeof h, n);
     }
     return 0;
+}
+
+/* the project saved last, 0 when none is of this version; and save_gen past every project's */
+int store_last(void)
+{
+    int n, last = 0;
+    uint32_t best = 0;
+    chunk_hdr h;
+    for (n = 0; n < Q_PROJECTS; n++) {
+        if (plat_store_load(OBJ_CHUNK0 + (uint32_t)(n * Q_CHUNKS), chunk_buf, sizeof h) != (int)sizeof h)
+            continue;
+        __builtin_memcpy(&h, chunk_buf, sizeof h);
+        if (h.magic != CHUNK_MAGIC || h.version != Q_VERSION)
+            continue;
+        if (h.gen > best)
+            best = h.gen, last = n;
+        if (h.gen > save_gen)
+            save_gen = h.gen;
+    }
+    return last;
 }
 
 int store_load(q_project *p)
@@ -214,7 +239,7 @@ int store_save(const q_project *p)
         uint32_t n = chunk_len(i);
         __builtin_memcpy(chunk_buf, &h, sizeof h);
         __builtin_memcpy(chunk_buf + sizeof h, (const uint8_t *)p + (uint32_t)i * CHUNK_DATA, n);
-        int r = plat_store_save(OBJ_CHUNK0 + i, chunk_buf, sizeof h + n);
+        int r = plat_store_save(chunk_obj(i), chunk_buf, sizeof h + n);
         if (r) return r;
     }
     return 0;

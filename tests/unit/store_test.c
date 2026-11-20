@@ -7,9 +7,9 @@
 #include "../../app/app.h"
 #include "store.c"
 
-/* doubles: the nine chunk objects in memory (indexed by obj - OBJ_CHUNK0) and the playing state */
-static uint8_t mem[Q_CHUNKS][PLAT_STORE_MAX];
-static int mem_len[Q_CHUNKS];
+/* doubles: every project's chunk objects in memory (indexed by obj - OBJ_CHUNK0) and the playing state */
+static uint8_t mem[Q_PROJECTS * Q_CHUNKS][PLAT_STORE_MAX];
+static int mem_len[Q_PROJECTS * Q_CHUNKS];
 static int saves;
 static int load_fails;
 static int playing;
@@ -34,7 +34,7 @@ int plat_store_save(uint32_t obj, const void *src, uint32_t len)
     return 0;
 }
 
-static void forget(void) { for (int i = 0; i < Q_CHUNKS; i++) mem_len[i] = -1; }
+static void forget(void) { for (int i = 0; i < Q_PROJECTS * Q_CHUNKS; i++) mem_len[i] = -1; }
 
 static uint32_t rng = 12345;
 static int rnd(int lo, int hi) { rng = rng * 1664525u + 1013904223u; return lo + (int)((rng >> 8) % (uint32_t)(hi - lo + 1)); }
@@ -551,6 +551,34 @@ static void mimic_clamped_on_load(void)
     assert(a.pat[2][2].mimic.order == 2);
 }
 
+/* projects: each its own chunks; store_last finds the one saved last, of this version only */
+static void projects_apart(void)
+{
+    static q_project a, b;
+    forget();
+    store_project = 0;
+    assert(store_last() == 0);          /* none saved: project 1 */
+    project_defaults(&a);
+    a.tempo = 100;
+    store_project = 2;
+    assert(store_save(&a) == 0);
+    a.tempo = 90;
+    store_project = 0;
+    assert(store_save(&a) == 0);
+    assert(store_last() == 0);
+    store_project = 2;
+    assert(store_load(&b) == 0 && b.tempo == 100);
+    store_project = 1;
+    assert(store_load(&b) == -1 && b.tempo == 120);   /* never saved: the defaults */
+    store_project = 2;
+    assert(store_save(&a) == 0);
+    assert(store_last() == 2);
+    mem[2 * Q_CHUNKS][2] = Q_VERSION - 1;   /* project 3's chunk 0 of another version: not the last */
+    assert(store_last() == 0);
+    forget();
+    store_project = 0;
+}
+
 int main(void)
 {
     forget();
@@ -578,6 +606,7 @@ int main(void)
     store_clamps_v5();
     store_v4_gives_defaults();
     save_refused_while_playing();
+    projects_apart();
     puts("store ok");
     return 0;
 }

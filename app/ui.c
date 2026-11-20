@@ -221,6 +221,7 @@ static struct {
     uint32_t copy_until;                       /* SEQ held, black keys 1-4: copy_kind's message shown until then */
     int copy_kind, paste_key;                  /* COPY_*; paste_key: the paste armed (1: black key 2, 3: black key 4), 0 none */
     int undo, undo_track, undo_pat, undone;    /* UNDO_* kept in chunk_buf, 0 none; for which pattern; undone: the next swap redoes */
+    int load_key;                              /* SAVE held, black keys 2-5: the project armed + 1, until copy_until; 0 none */
     uint32_t tap_ms[4], tap_until;             /* TAP TEMPO: the last taps' times (ntap of them); its message until tap_until */
     int ntap;
     uint32_t down_ms[NB], used;                /* when each button went down; used: bit b, a key or button came while b was held */
@@ -1079,10 +1080,12 @@ static void pattern_set(int n)
 /* SEQ held, black keys 1-4: copy the pattern shown, paste it there, copy the track's sound (a KIT: its pads too),
    paste it. A paste replaces what is there: it asks for a second press. The clipboards stay till power-off */
 enum { COPY_PAT = 1, COPY_AGAIN, COPY_PAT_PASTED, COPY_SND, COPY_SND_PASTED, COPY_NONE, COPY_UNDONE, COPY_REDONE,
-       COPY_NO_UNDO, COPY_N };          /* (the header's messages for the copies and UNDO) */
+       COPY_NO_UNDO, COPY_AGAIN_LOAD, COPY_PROJECT, COPY_N = COPY_PROJECT + Q_PROJECTS };   /* (the header's messages for
+                                                       the copies, UNDO and the projects: COPY_PROJECT + n, project n) */
 static const char *const COPY_NAME[COPY_N - 1] = {"PATTERN COPIED", "AGAIN: PASTE", "PATTERN PASTED", "SOUND COPIED",
                                                    "SOUND PASTED", "NOTHING COPIED", "UNDONE", "REDONE",
-                                                   "NOTHING TO UNDO"};   /* COPY_* - 1 */
+                                                   "NOTHING TO UNDO", "AGAIN: LOAD", "PROJECT 1", "PROJECT 2",
+                                                   "PROJECT 3", "PROJECT 4"};   /* COPY_* - 1 */
 static struct { q_pattern pat; q_sound snd; q_pad pads[Q_PADS]; uint8_t has_pat, has_snd; } clip;   /* (.bss: the pool
                                                                          keeps its 4 KB spare, fm1.toml pool_spare) */
 
@@ -1153,6 +1156,27 @@ static void undo_swap(void)
     ui.undone = !ui.undone;
     ui.dirty = 1;
     copy_msg(ui.undone ? COPY_UNDONE : COPY_REDONE, MSG_MS);
+}
+
+/* SAVE held, black keys 2-5: project n loaded from the flash, pressed twice (what is in RAM goes); the clipboards stay,
+   so a pattern or a sound copied goes from one project to another. SAVE then writes project n */
+static void project_key(int n)
+{
+    int t;
+    if (ui.load_key != n + 1 || plat_ms() >= ui.copy_until) {
+        ui.load_key = n + 1;
+        copy_msg(COPY_AGAIN_LOAD, 2 * MSG_MS);
+        return;
+    }
+    rec_set(R_OFF);                     /* (ui_init clears ui.rec: LISTEN must tell the render first) */
+    audio_play(0);
+    store_project = n;
+    store_load(ui.p);
+    for (t = 0; t < Q_TRACKS; t++)      /* the render takes each track's model from the project */
+        audio_track_model(t);
+    ui.dirty = 0;
+    ui_init(ui.p);
+    copy_msg(COPY_PROJECT + n, MSG_MS);
 }
 
 static void copy_key(int b)
@@ -1474,6 +1498,7 @@ void app_backup_hold(int on) { save_held = (uint8_t)on; }
 void app_backup_restored(void)
 {
     rec_set(R_OFF);                     /* (ui_init clears ui.rec: LISTEN must tell the render first) */
+    store_project = store_last();
     store_load(ui.p);
     for (int t = 0; t < Q_TRACKS; t++)  /* the render takes each track's model from the restored project */
         audio_track_model(t);
@@ -1799,6 +1824,11 @@ static void key_down(int k)
             audio_track_model(i);
         ui_init(ui.p);
         ui.dirty = 1;
+        return;
+    }
+    for (b = 1; b <= Q_PROJECTS && BLACK[b] != k; b++) {}
+    if (b <= Q_PROJECTS && ui.savedown) {   /* SAVE held: black keys 2-5, the projects */
+        project_key(b - 1);
         return;
     }
     if (w < 16 && ui.savedown) {        /* SAVE held: the white keys 1..8 add the scene to the song */
@@ -2328,7 +2358,8 @@ static uint32_t layer_keys(int b)
             keys |= 1u << BLACK[0];
         if (b == B_SEQ)                 /* SEQ: and the copies */
             keys |= 1u << BLACK[0] | 1u << BLACK[1] | 1u << BLACK[2] | 1u << BLACK[3];
-        return b == B_SAVE ? keys | 1u << BLACK[0] : keys;   /* SAVE: and the new project */
+        return b == B_SAVE ? keys | 1u << BLACK[0] | 1u << BLACK[1] | 1u << BLACK[2] | 1u << BLACK[3] | 1u << BLACK[4]
+                           : keys;      /* SAVE: and the new project, the projects */
     case B_SEL:
         if (!notes_on())
             break;
@@ -3143,7 +3174,12 @@ static void draw_layer(const q_view *v, int32_t oy)
             tags[n] = tb[i], names[n++] = nb[i];
         }
         if (b == B_SAVE) {
+            static const char *const PROJ[Q_PROJECTS][2] = {{"PROJECT 1", "PROJECT 1 (NOW)"}, {"PROJECT 2", "PROJECT 2 (NOW)"},
+                                                            {"PROJECT 3", "PROJECT 3 (NOW)"}, {"PROJECT 4", "PROJECT 4 (NOW)"}};
+            static const char *const PTAG[Q_PROJECTS] = {"#2", "#3", "#4", "#5"};
             tags[n] = "#1", names[n++] = "NEW PROJECT";
+            for (i = 0; i < Q_PROJECTS; i++)
+                tags[n] = PTAG[i], names[n++] = PROJ[i][i == store_project];
             combo[0][0] = "TAP", combo[0][1] = "SAVE, STOPPED";
         } else {
             tags[n] = "#1", names[n++] = "COPY PATTERN";
@@ -3999,6 +4035,7 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "msg_wipe")) *got = plat_ms() < ui.wipe_until;
     else if (!strcmp(what, "msg_random")) *got = plat_ms() < ui.rnd_until ? ui.rnd_kind : 0;
     else if (!strcmp(what, "msg_copy")) *got = plat_ms() < ui.copy_until ? ui.copy_kind : 0;
+    else if (!strcmp(what, "project")) *got = store_project + 1;
     else if (!strcmp(what, "msg_tap")) *got = plat_ms() < ui.tap_until;
     else if (!strcmp(what, "head_page_name")) *got = head_page_name;
     else if (!strcmp(what, "active")) *got = (int)audio_load().active;

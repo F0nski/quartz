@@ -1,0 +1,70 @@
+# Four projects: SAVE held and black keys 2-5 load project 1-4 (pressed twice); SAVE writes the project loaded; at
+# power-on the project saved last; the clipboards go from one project to another
+wait 600
+expect project 1
+tap GLO
+turn K1 5
+expect tempo 125
+tap SAVE
+# project 2: empty, the defaults; a single press only asks
+press SAVE
+wait 500
+shot layer_save.png
+key 5 down
+key 5 up
+expect msg_copy 10
+expect project 1
+key 5 down
+key 5 up
+release SAVE
+expect project 2
+expect msg_copy 12
+expect tempo 120
+expect dirty 0
+tap GLO
+turn K1 10
+expect tempo 130
+tap SAVE
+# back to project 1, as saved
+press SAVE
+key 3 down
+key 3 up
+key 3 down
+key 3 up
+release SAVE
+expect project 1
+expect tempo 125
+# a pattern copied in project 1, pasted in project 2
+tap SEQ
+tap REC
+key 0 down
+key 0 up
+tap REC
+tap REC
+expect stepon_1 1
+press SEQ
+key 1 down
+key 1 up
+release SEQ
+press SAVE
+key 5 down
+key 5 up
+key 5 down
+key 5 up
+release SAVE
+expect project 2
+expect stepon_1 0
+tap SEQ
+press SEQ
+key 3 down
+key 3 up
+key 3 down
+key 3 up
+release SEQ
+expect stepon_1 1
+# power-on: project 2, saved last
+reboot
+wait 600
+expect project 2
+expect tempo 130
+expect stepon_1 0

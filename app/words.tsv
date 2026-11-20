@@ -565,6 +565,15 @@ UNDO	undo
 UNDONE	undone
 REDONE	redone
 NOTHING TO UNDO	nothing to undo
+AGAIN: LOAD	again: load
+PROJECT 1	project 1
+PROJECT 1 (NOW)	project 1, loaded
+PROJECT 2	project 2
+PROJECT 2 (NOW)	project 2, loaded
+PROJECT 3	project 3
+PROJECT 3 (NOW)	project 3, loaded
+PROJECT 4	project 4
+PROJECT 4 (NOW)	project 4, loaded
 SONG ON	song on
 SONG OFF	song off
 LVL 1	level 1

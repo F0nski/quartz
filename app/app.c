@@ -14,6 +14,7 @@ static q_project project PLAT_POOL;   /* too big for the core's RAM: the 336 KB 
 
 void app_init(void)
 {
+    store_project = store_last();
     store_load(&project);
     if (boot_step)
         boot_step(1);

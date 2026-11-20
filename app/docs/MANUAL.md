@@ -111,7 +111,7 @@ screen.
 | SEQ | The pattern: STEPS, then its source's pages. | White keys 1–8 pick the track's pattern; black keys 1–4 copy and paste. |
 | GLO | The project: TEMPO, SCALE, KEYS, FX, CPU. | Black key 1 taps the tempo (section 10). |
 | HOME | The four tracks and the song: TRACKS, SONG. | White keys 1–4 mute the tracks, 9–16 are the scenes. |
-| SAVE | Saves the project (stopped only). | White keys 1–8 add a scene to the song; black key 1 twice starts a new project. |
+| SAVE | Saves the project (stopped only). | White keys 1–8 add a scene to the song; black key 1 twice starts a new project; black keys 2–5 twice load project 1–4. |
 | SEL | On SONG, removes the entry shown. | Selects steps on the grid ([Sequencer](sequencer.html#several-steps-at-once)). |
 | PLAY | Starts or stops every track. | — |
 | REC | Arms the recording ([Sequencer](sequencer.html#playing-writing-recording)). | Black key 1 clears the pattern, black key 2 its p-locks, black keys 6–8 draw at random ([Sequencer](sequencer.html#random)). With PLAY: records live. |
@@ -138,7 +138,8 @@ left, as the screen numbers them.
 
 Messages show in the header for a moment: `STOP TO SAVE` (SAVE while playing), `LOCKS FULL` (no room for another
 p-lock in the pattern), `AGAIN: ERASE` (press again to start a new project), `AGAIN: PASTE` (press again to paste),
-`PATTERN COPIED` and the other copies' (section 5), `UNDONE` and `REDONE` (REC held, black key 3), `TAP 120` (the tempo just tapped), or the name of a punch-in.
+`AGAIN: LOAD` and `PROJECT 2` (section 11), `PATTERN COPIED` and the other copies' (section 5), `UNDONE` and `REDONE`
+(REC held, black key 3), `TAP 120` (the tempo just tapped), or the name of a punch-in.
 
 ### Held buttons show their map
 
@@ -236,7 +237,8 @@ to remove the entry shown.
 ### New project
 
 Hold SAVE and press black key 1: the header says `AGAIN: ERASE`. Press black key 1 again within three seconds to
-replace the project with a new one. The old one is still in the FM-1 until you press SAVE.
+replace the project with a new one. The old one is still in the FM-1 until you press SAVE. To keep it and start
+another, load an empty project instead (section 11).
 
 ---
 
@@ -551,21 +553,30 @@ Press GLO for the project's settings, shared by the four tracks.
 
 ## 11. Saving
 
-QUARTZ keeps one project: the four tracks, their patterns and sounds, the scenes, the song and the global settings.
+QUARTZ keeps four projects, each with its four tracks, their patterns and sounds, the scenes, the song and the global
+settings. One is in memory at a time: the one you play and edit.
 
-- Press SAVE while stopped to write it to the FM-1. The FM-1 loads it when it starts.
+- Press SAVE while stopped to write it to the FM-1, in its own place. At power-on, the FM-1 loads the project saved
+  last.
+- To load another, hold SAVE and press black key 2, 3, 4 or 5 for project 1, 2, 3 or 4: the header says `AGAIN: LOAD`;
+  press it again within three seconds. The header then says `PROJECT 2`, for example, and SAVE writes project 2. Loading
+  stops playing, and what you changed since the last SAVE is lost; loading the same project goes back to its last SAVE.
+  A project never saved is a new one. SAVE's map marks the project loaded, `(NOW)`.
+- What you copied (SEQ held, black keys 1 and 3) stays when you load another project: copy a pattern or a sound in one,
+  paste it in the other.
 - While playing, SAVE only shows `STOP TO SAVE`: writing to the flash would stall the sound.
 - Nothing is saved on its own (but by a backup, below): turning the FM-1 off loses what changed since the last SAVE.
-- A new project (SAVE held, black key 1 twice) replaces the one in memory; the saved one stays until the next SAVE.
+- A new project (SAVE held, black key 1 twice) replaces the one in memory; the saved one stays until the next SAVE,
+  which writes the new project in its place.
 
-To keep the project on a computer, use the site's backup page in Chrome or Edge, with the FM-1 connected by USB, or
+To keep the projects on a computer, use the site's backup page in Chrome or Edge, with the FM-1 connected by USB, or
 fm1-base's `python3 tools/fm1_backup.py`. The emulator saves and loads the same files, so a project started in the
-browser goes on the FM-1, and back.
+browser goes on the FM-1, and back. A backup holds the four projects.
 
 - Taken while stopped, a backup first saves what changed, as SAVE does, and holds it. Taken while playing, it holds the
   project as last saved.
-- A restore replaces the project, after the FM-1 asks `RESTORE FROM USB?` (SEL yes, HOME no). Stop playing first: a
-  restore is refused while playing.
+- A restore replaces the four projects, after the FM-1 asks `RESTORE FROM USB?` (SEL yes, HOME no). Stop playing first: a
+  restore is refused while playing. Then the FM-1 loads the project saved last in the backup.
 - A backup restores only on a version that saves projects the same way: one taken before an update that starts a new
   project is refused, and nothing changes.
 

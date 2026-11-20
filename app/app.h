@@ -3,7 +3,8 @@
 #include <stdint.h>
 #include "plat.h"
 
-#define Q_CHUNKS 11                      /* store objects holding the project (store.c) */
+#define Q_CHUNKS 11                      /* store objects holding a project (store.c) */
+#define Q_PROJECTS 4                     /* the projects kept: project n's chunks are objects OBJ_CHUNK0 + n * Q_CHUNKS.. */
 
 #define APP_NAME "QUARTZ"
 #define APP_SPLASH_RGB RGB(80, 160, 255)
@@ -24,25 +25,27 @@ extern void (*boot_step)(int n);        /* the boot screen at step n (0..2), fro
 /* the store, each object at its flash offset (A/B sector pair). The numbering is fm1-base's template's: the panel
  * calibration record must stay readable across apps (storage rejects a record whose type is not its object number).
  * OBJ_SETTINGS is reserved and unused by QUARTZ. */
-enum { OBJ_SETTINGS, OBJ_PANEL, OBJ_PROJECT, OBJ_CHUNK0, OBJ_NOBJ = OBJ_CHUNK0 + Q_CHUNKS };
-/* OBJ_PROJECT is the v1 project's object, reserved and no longer read. The project's chunks are pooled (device/storage.c):
- * 20 sectors from 0x99000 for 11 objects, so a save always finds a sector that holds no current copy. The map's other
+enum { OBJ_SETTINGS, OBJ_PANEL, OBJ_PROJECT, OBJ_CHUNK0, OBJ_NOBJ = OBJ_CHUNK0 + Q_PROJECTS * Q_CHUNKS };
+/* OBJ_PROJECT is the v1 project's object, reserved and no longer read. The projects' chunks are pooled (device/storage.c):
+ * 53 sectors from 0x99000 (up to 0xCE000, below OBJ_PANEL's pair at 0xDC000) for 44 objects, so a save always finds a
+ * sector that holds no current copy. Project 1's objects are the single project's of before: it is kept. The map's other
  * entries are the pool's, unused. */
 #define APP_STORE_MAP {0xFC000u, 0xDC000u, 0x97000u}
 #define APP_STORE_POOL
 #define APP_STORE_POOL_BASE 0x99000u
-#define APP_STORE_POOL_N 20
+#define APP_STORE_POOL_N 53
 #define APP_STORE_POOL_OBJ0 OBJ_CHUNK0
-#define APP_STORE_POOL_OBJN Q_CHUNKS
+#define APP_STORE_POOL_OBJN (Q_PROJECTS * Q_CHUNKS)
 #define APP_STORE_POOL_OLD 0
 
-/* backup and restore over USB (fm1.toml backup = true; fm1-base device/backup.c): the project's chunks, as last saved.
+/* backup and restore over USB (fm1.toml backup = true; fm1-base device/backup.c): the projects' chunks, as last saved.
  * The version is Q_VERSION's (store.c checks): a backup of another layout is refused, not loaded as a new project */
-#define APP_BACKUP_OBJS {OBJ_CHUNK0, OBJ_CHUNK0 + 1, OBJ_CHUNK0 + 2, OBJ_CHUNK0 + 3, OBJ_CHUNK0 + 4, OBJ_CHUNK0 + 5, \
-                         OBJ_CHUNK0 + 6, OBJ_CHUNK0 + 7, OBJ_CHUNK0 + 8, OBJ_CHUNK0 + 9, OBJ_CHUNK0 + 10}
+#define Q_PROJECT_OBJS(o) o, o + 1, o + 2, o + 3, o + 4, o + 5, o + 6, o + 7, o + 8, o + 9, o + 10   /* a project's chunks */
+#define APP_BACKUP_OBJS {Q_PROJECT_OBJS(OBJ_CHUNK0), Q_PROJECT_OBJS(OBJ_CHUNK0 + Q_CHUNKS), \
+                         Q_PROJECT_OBJS(OBJ_CHUNK0 + 2 * Q_CHUNKS), Q_PROJECT_OBJS(OBJ_CHUNK0 + 3 * Q_CHUNKS)}
 #define APP_BACKUP_MAGIC 0x5A545251u     /* "QRTZ" */
 #define APP_BACKUP_VERSION 17
-#define APP_BACKUP_WHAT "replaces the project"
+#define APP_BACKUP_WHAT "replaces the 4 projects"
 #define APP_BACKUP_BUF chunk_buf         /* store.c's: the restore takes none of the pool */
 int app_backup_playing(void);
 void app_backup_flush(void);
