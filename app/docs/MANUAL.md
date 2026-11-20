@@ -565,6 +565,7 @@ QUARTZ is made by f0nski. It stands on the work of others: code it runs, and ide
 | Domains, held-button maps, punch-ins, this guide's shape | The OP-Z (idea) | teenage engineering | — | [guide](https://teenage.engineering/guides/op-z) |
 | The scenes' look | Rez (idea) | United Game Artists (Tetsuya Mizuguchi), 2001 | — | [Wikipedia](https://en.wikipedia.org/wiki/Rez_%28video_game%29) |
 | CHLADNI's name and scene | Chladni figures (idea) | Ernst Chladni, 1787 | — | [Wikipedia](https://en.wikipedia.org/wiki/Ernst_Chladni#Chladni_figures) |
+| CIPHER | Bytebeat (idea) | viznut, 2011 | — | [post](http://countercomplex.blogspot.com/2011/10/algorithmic-symphonies-from-one-line-of.html) |
 | CADENCE, MOONS, the scenes | QUARTZ's own | f0nski | GPL-3.0 | — |
 | The platform | fm1-base, on felucca-bsp | Charles Vestal; Leo Kuroshita (Hügelton Instruments) | MPL-2.0 | [fm1-base](https://github.com/charlesvestal/fm1-base) |
 
@@ -580,11 +581,11 @@ Instruments, monome, Make Noise, Elektron or teenage engineering.
 | Problem | What to check |
 | --- | --- |
 | No sound | MASTER; HOME, the track's mute (HOME held, keys 1–4) and its LVL; FX's MIX LEVEL; ENV's CUTOFF on LP. |
-| A key does nothing | A button may still be held (its map is on the screen). With KEYS at FLEET or ALL, the black keys are silent. |
+| A key does nothing | A button may still be held (its map is on the screen). With KEYS at ALL, the black keys are silent. |
 | REC does nothing | The pattern is generative: only LOOM, CADENCE and LATTICE have a GRID, and IMPROV listens. To record notes, set SOURCE to STEP. |
 | The pattern doesn't change | While playing, it waits for the end of the loop (`P1 > P2` in the header). |
 | `STOP TO SAVE` | Stop, then press SAVE. |
 | `LOCKS FULL` | The pattern holds 128 p-locks: clear some (REC held, black key 2 clears them all). |
-| Clicks in the sound | GLO's CPU page: LOST BLOCKS counts them. Lower POLY, use lighter models than HEX A–C or CHLADNI on several tracks, or fewer inserts. |
+| Clicks in the sound | GLO's CPU page: LOST BLOCKS counts them. Lower POLY, use lighter models than CHLADNI or FACETS on several tracks, or fewer inserts. |
 | The project is gone after an update | The new version saves projects differently and starts from a new one (section 2). |
 | Back to the stock firmware | The installer's last section writes M-VAVE's firmware back. |
