@@ -548,6 +548,18 @@ RANDOM MODEL	random model
 RND PAGE	random page
 RND ALL	random all
 RND MODEL	random model
+COPY PATTERN	copy pattern
+PASTE PATTERN	paste pattern
+COPY SOUND	copy sound
+PASTE SOUND	paste sound
+PASTE	paste
+PRESS TWICE	press twice
+PATTERN COPIED	pattern copied
+AGAIN: PASTE	again: paste
+PATTERN PASTED	pattern pasted
+SOUND COPIED	sound copied
+SOUND PASTED	sound pasted
+NOTHING COPIED	nothing copied
 SONG ON	song on
 SONG OFF	song off
 LVL 1	level 1

@@ -108,7 +108,7 @@ screen.
 | LFO | The LFO. | — |
 | ARP | The arpeggiator. | The notes you press stay in the arpeggio after you let go (latch). |
 | FX | The track's effects: MIX, INSERT. | The white keys are the 16 punch-ins. |
-| SEQ | The pattern: STEPS, then its source's pages. | White keys 1–8 pick the track's pattern. |
+| SEQ | The pattern: STEPS, then its source's pages. | White keys 1–8 pick the track's pattern; black keys 1–4 copy and paste. |
 | GLO | The project: TEMPO, SCALE, KEYS, FX, CPU. | Black key 1 taps the tempo (section 10). |
 | HOME | The four tracks and the song: TRACKS, SONG. | White keys 1–4 mute the tracks, 9–16 are the scenes. |
 | SAVE | Saves the project (stopped only). | White keys 1–8 add a scene to the song; black key 1 twice starts a new project. |
@@ -137,8 +137,8 @@ left, as the screen numbers them.
 - **Footer**: K1–K4, their names and values in their colours. A grey one is not in use on this page.
 
 Messages show in the header for a moment: `STOP TO SAVE` (SAVE while playing), `LOCKS FULL` (no room for another
-p-lock in the pattern), `AGAIN: ERASE` (press again to start a new project), `TAP 120` (the tempo just tapped),
-or the name of a punch-in.
+p-lock in the pattern), `AGAIN: ERASE` (press again to start a new project), `AGAIN: PASTE` (press again to paste),
+`PATTERN COPIED` and the other copies' (section 5), `TAP 120` (the tempo just tapped), or the name of a punch-in.
 
 ### Held buttons show their map
 
@@ -196,6 +196,15 @@ shows `P1 > P2` meanwhile.
 To clear the pattern shown, hold REC and press black key 1. To remove only its p-locks, hold REC and press black key 2.
 Neither can be undone.
 
+To copy a pattern, hold SEQ and press black key 1 (`PATTERN COPIED`): its steps, p-locks, LEN, DIV, PATH and the
+settings of every source. Then pick where it goes, another pattern or another track, hold SEQ and press black key 2
+twice: the first press asks (`AGAIN: PASTE`), the second replaces the pattern shown. A pattern with chords pasted on a
+synth track sets its POLY to 3 at least, as SOURCE does.
+
+The same way, black key 3 copies the track's sound: its model, its EDIT, ENV, LFO and ARP settings, its insert, sends,
+pan and level, and on a KIT its 16 pads. Black key 4, pressed twice, pastes it on the track shown. What you copied
+stays until you turn the FM-1 off; a paste can't be undone.
+
 ### Scenes
 
 A scene keeps the pattern of each track and the mutes. Hold HOME and press white key 9–16 for scene 1–8:
@@ -235,7 +244,8 @@ replace the project with a new one. The old one is still in the FM-1 until you p
 ## 6. Sound
 
 Press EDIT. The ENGINE page sets the model's own four controls, SOUND picks the model and how it is played. PRESET
-browses the models from any EDIT page.
+browses the models from any EDIT page. To copy a track's sound to another, hold SEQ and press black key 3, then black
+key 4 twice on the other track (section 5).
 
 ![EDIT's ENGINE page with CREST: a ship flying over crests that carry the waveform](img/sound-engine.png "ENGINE, with the model's scene")
 

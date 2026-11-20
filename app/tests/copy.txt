@@ -1,0 +1,113 @@
+# SEQ held: black 1 copies the pattern shown, black 2 pastes it there (pressed twice), black 3 copies the track's
+# sound, black 4 pastes it (pressed twice)
+wait 600
+tap SEQ
+# nothing copied yet
+press SEQ
+key 8 down
+key 8 up
+expect msg_copy 6
+release SEQ
+# P1: a step and LEN 12
+tap REC
+key 0 down
+key 0 up
+expect stepon_1 1
+tap REC
+tap REC
+expect rec 0
+spin K1 -4
+expect len 12
+press SEQ
+wait 500
+expect layer 10
+shot layer_seq.png
+key 1 down
+key 1 up
+expect msg_copy 1
+key 2 down
+key 2 up
+release SEQ
+expect pattern 2
+expect stepon_1 0
+expect len 16
+# a single press only asks
+press SEQ
+key 3 down
+key 3 up
+expect msg_copy 2
+wait 3100
+expect msg_copy 0
+key 3 down
+key 3 up
+expect msg_copy 2
+expect stepon_1 0
+key 3 down
+key 3 up
+expect msg_copy 3
+release SEQ
+expect pattern 2
+expect stepon_1 1
+expect len 12
+expect dirty 1
+# onto another track
+turn ALGO 1
+expect track 2
+press SEQ
+key 3 down
+key 3 up
+key 3 down
+key 3 up
+release SEQ
+expect stepon_1 1
+expect len 12
+# a CHORDS pattern on a POLY 1 track: POLY 3, as SOURCE does
+turn ALGO -1
+expect track 1
+turn K4 5
+expect src 5
+press SEQ
+key 1 down
+key 1 up
+release SEQ
+turn ALGO 3
+expect track 4
+expect poly 1
+press SEQ
+key 3 down
+key 3 up
+key 3 down
+key 3 up
+release SEQ
+expect src 5
+expect poly 3
+# the sound: track 1 a KIT, pasted on track 3; the render plays its pads
+turn ALGO -3
+tap EDIT
+spin PRESET -30
+spin PRESET 24
+expect model 24
+tap SEQ
+press SEQ
+key 5 down
+key 5 up
+expect msg_copy 4
+release SEQ
+turn ALGO 2
+expect track 3
+expect model 8
+press SEQ
+key 8 down
+key 8 up
+expect msg_copy 2
+expect model 8
+key 8 down
+key 8 up
+expect msg_copy 5
+release SEQ
+expect model 24
+key 0 down
+wait 100
+key 0 up
+expect hits 1
+expect kit_hits_1 1

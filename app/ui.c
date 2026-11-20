@@ -217,6 +217,8 @@ static struct {
     uint32_t wipe_until;                       /* SAVE held, black key 1 pressed once: a second press before it erases the project */
     uint32_t rng, rnd_until;                   /* RANDOM: its xorshift; its message shown until rnd_until */
     int rnd_kind;                              /* the message: 1 RANDOM PAGE, 2 RANDOM ALL, 3 RANDOM MODEL */
+    uint32_t copy_until;                       /* SEQ held, black keys 1-4: copy_kind's message shown until then */
+    int copy_kind, paste_key;                  /* COPY_*; paste_key: the paste armed (1: black key 2, 3: black key 4), 0 none */
     uint32_t tap_ms[4], tap_until;             /* TAP TEMPO: the last taps' times (ntap of them); its message until tap_until */
     int ntap;
     uint32_t down_ms[NB], used;                /* when each button went down; used: bit b, a key or button came while b was held */
@@ -502,6 +504,14 @@ static int knob_get(int pid, int k)
     return 0;
 }
 
+/* a source that plays chords or conjunctions on a synth track: POLY 3 at least */
+static void poly_for_src(int src)
+{
+    q_sound *s = &ui.p->sound[ui.track];
+    if ((src == SRC_CHORDS || src == SRC_TONNETZ || src == SRC_ORBITS || src == SRC_MIMIC) && !kit() && s->poly < 3)
+        s->poly = 3;
+}
+
 static void knob_set(int pid, int k, int v)
 {
     q_sound *s = &ui.p->sound[ui.track];
@@ -620,8 +630,7 @@ static void knob_set(int pid, int k, int v)
     case P_CIPHER * 4 + 3:
     case P_CIPHERK * 4 + 3:
         t->src = (uint8_t)v;
-        if ((v == SRC_CHORDS || v == SRC_TONNETZ || v == SRC_ORBITS || v == SRC_MIMIC) && !kit() && s->poly < 3)   /* chords, conjunctions: POLY 3 at least */
-            s->poly = 3;
+        poly_for_src(v);
         break;
     case P_GRIDS * 4 + 1:
     case P_GRIDSK * 4 + 1: t->grids.voice = (uint8_t)v; break;
@@ -1061,6 +1070,62 @@ static void pattern_set(int n)
     if (ui.cursor > pat()->len)
         ui.cursor = 1;
     ui.dirty = 1;
+}
+
+/* SEQ held, black keys 1-4: copy the pattern shown, paste it there, copy the track's sound (a KIT: its pads too),
+   paste it. A paste replaces what is there: it asks for a second press. The clipboards stay till power-off */
+enum { COPY_PAT = 1, COPY_AGAIN, COPY_PAT_PASTED, COPY_SND, COPY_SND_PASTED, COPY_NONE };
+static const char *const COPY_NAME[COPY_NONE] = {"PATTERN COPIED", "AGAIN: PASTE", "PATTERN PASTED", "SOUND COPIED",
+                                                  "SOUND PASTED", "NOTHING COPIED"};   /* COPY_* - 1 */
+static struct { q_pattern pat; q_sound snd; q_pad pads[Q_PADS]; uint8_t has_pat, has_snd; } clip PLAT_POOL;
+
+static void copy_msg(int kind, uint32_t ms)
+{
+    ui.copy_kind = kind;
+    ui.copy_until = plat_ms() + ms;
+}
+
+static void copy_key(int b)
+{
+    q_pattern *t = pat();
+    int paste = b == 1 || b == 3, has = b < 2 ? clip.has_pat : clip.has_snd;
+    if (paste && !has) {
+        copy_msg(COPY_NONE, MSG_MS);
+        return;
+    }
+    if (paste && (ui.paste_key != b || plat_ms() >= ui.copy_until)) {
+        ui.paste_key = b;
+        copy_msg(COPY_AGAIN, 2 * MSG_MS);
+        return;
+    }
+    ui.paste_key = 0;
+    switch (b) {
+    case 0:
+        clip.pat = *t;
+        clip.has_pat = 1;
+        copy_msg(COPY_PAT, MSG_MS);
+        return;
+    case 1:
+        if (ui.rec == R_LISTEN)
+            rec_set(R_OFF);             /* LISTEN writes its phrase into the pattern shown */
+        *t = clip.pat;
+        poly_for_src(t->src);           /* as SOURCE does */
+        pattern_set(ui.p->pattern[ui.track]);  /* the hold, the selection, the cursor: as for another pattern */
+        copy_msg(COPY_PAT_PASTED, MSG_MS);
+        return;
+    case 2:
+        clip.snd = ui.p->sound[ui.track];
+        __builtin_memcpy(clip.pads, ui.p->kit[ui.track], sizeof clip.pads);
+        clip.has_snd = 1;
+        copy_msg(COPY_SND, MSG_MS);
+        return;
+    default:
+        ui.p->sound[ui.track] = clip.snd;
+        __builtin_memcpy(ui.p->kit[ui.track], clip.pads, sizeof clip.pads);
+        audio_track_model(ui.track);    /* the render takes the model from the sound */
+        ui.dirty = 1;
+        copy_msg(COPY_SND_PASTED, MSG_MS);
+    }
 }
 
 /* a KIT's pad in or out of the held step's notes, 4 at most: the last one out switches the step off */
@@ -1692,9 +1757,12 @@ static void key_down(int k)
         ui.dirty = 1;
         return;
     }
-    if (ui.domain == D_SEQ && ui.seqdown) {    /* SEQ held: the white keys 1..8 are the patterns */
+    if (ui.domain == D_SEQ && ui.seqdown) {    /* SEQ held: the white keys 1..8 are the patterns, black 1-4 copy */
+        for (b = 0; b < 4 && BLACK[b] != k; b++) {}
         if (w < Q_PATTERNS)
             pattern_set(w);
+        else if (b < 4)
+            copy_key(b);
         return;
     }
     if (tonnetz_on() && ui.rec == R_GRID) {    /* TONNETZ on the grid: the white keys 1-8 are the steps */
@@ -2168,6 +2236,8 @@ static uint32_t layer_keys(int b)
     case B_SEQ:
         for (i = 0; i < (b == B_FX ? 16 : 8); i++)
             keys |= 1u << WHITE[i];
+        if (b == B_SEQ)                 /* SEQ: and the copies */
+            keys |= 1u << BLACK[0] | 1u << BLACK[1] | 1u << BLACK[2] | 1u << BLACK[3];
         return b == B_SAVE ? keys | 1u << BLACK[0] : keys;   /* SAVE: and the new project */
     case B_SEL:
         if (!notes_on())
@@ -2600,7 +2670,8 @@ static void view_now(q_view *v)
     v->head.page = (int8_t)ui.page[ui.domain];
     v->head.n = (int8_t)domain_n(ui.domain);
     v->head.msg = plat_ms() < ui.msg_until ? 1 : plat_ms() < ui.locks_until ? 2 : plat_ms() < ui.wipe_until ? 3 :
-                  plat_ms() < ui.rnd_until ? 3 + ui.rnd_kind : plat_ms() < ui.tap_until ? 7 : 0;
+                  plat_ms() < ui.rnd_until ? 3 + ui.rnd_kind : plat_ms() < ui.tap_until ? 7 :
+                  plat_ms() < ui.copy_until ? 7 + ui.copy_kind : 0;
     v->head.bpm = (uint8_t)ui.p->tempo;
     v->head.pat = (int8_t)(ui.p->pattern[ui.track] + 1);
     v->head.scene = (int8_t)ui.msg_scene;
@@ -2832,7 +2903,8 @@ static void draw_head(const q_view *v)
     head_page_name = 0;
     if (v->head.msg) {
         x = cv_text(x + 10, 7, &FONT_B, v->head.msg == 1 ? "STOP TO SAVE" : v->head.msg == 2 ? "LOCKS FULL" : v->head.msg == 3 ? "AGAIN: ERASE"
-                    : v->head.msg == 4 ? "RANDOM PAGE" : v->head.msg == 5 ? "RANDOM ALL" : v->head.msg == 6 ? "RANDOM MODEL" : "TAP",
+                    : v->head.msg == 4 ? "RANDOM PAGE" : v->head.msg == 5 ? "RANDOM ALL" : v->head.msg == 6 ? "RANDOM MODEL"
+                    : v->head.msg == 7 ? "TAP" : COPY_NAME[v->head.msg - 8],
                     KCOL[3]);
         if (v->head.msg == 7) {         /* TAP and the tempo */
             int_text(v->head.bpm, t);
@@ -2983,6 +3055,12 @@ static void draw_layer(const q_view *v, int32_t oy)
         if (b == B_SAVE) {
             tags[n] = "#1", names[n++] = "NEW PROJECT";
             combo[0][0] = "TAP", combo[0][1] = "SAVE, STOPPED";
+        } else {
+            tags[n] = "#1", names[n++] = "COPY PATTERN";
+            tags[n] = "#2", names[n++] = "PASTE PATTERN";
+            tags[n] = "#3", names[n++] = "COPY SOUND";
+            tags[n] = "#4", names[n++] = "PASTE SOUND";
+            combo[0][0] = "PASTE", combo[0][1] = "PRESS TWICE";
         }
         break;
     case B_ARP:
@@ -3827,6 +3905,7 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "msg_stop_to_save")) *got = plat_ms() < ui.msg_until;
     else if (!strcmp(what, "msg_wipe")) *got = plat_ms() < ui.wipe_until;
     else if (!strcmp(what, "msg_random")) *got = plat_ms() < ui.rnd_until ? ui.rnd_kind : 0;
+    else if (!strcmp(what, "msg_copy")) *got = plat_ms() < ui.copy_until ? ui.copy_kind : 0;
     else if (!strcmp(what, "msg_tap")) *got = plat_ms() < ui.tap_until;
     else if (!strcmp(what, "head_page_name")) *got = head_page_name;
     else if (!strcmp(what, "active")) *got = (int)audio_load().active;
