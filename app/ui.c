@@ -1587,6 +1587,29 @@ static void sel_copy(void)
     ui.dirty = 1;
 }
 
+/* PRESET on NOTE with a selection: every lit step's notes moved, in degrees of the scale with KEYS ALL (each note kept in
+   it), else in semitones (attr_turn); a KIT's pads stay */
+static void sel_shift(int d)
+{
+    q_pattern *t = pat();
+    uint16_t m = sel_others(), sc = gen_scale(ui.p);
+    int c, i, ref = ui.spage * 16 + ui.sel_ref;
+    if (ref < t->len && t->steps[ref].flags & SF_ON)
+        m |= (uint16_t)(1u << ui.sel_ref);
+    for (c = 0; c < 16; c++) {
+        q_step *s = &t->steps[ui.spage * 16 + c];
+        if (!(m >> c & 1u))
+            continue;
+        if (ui.p->keys != KEYS_ALL || kit())
+            attr_turn(s, A_NOTE, d);
+        else
+            for (i = 0; i < 4; i++)
+                if (i == 0 || s->note[i])
+                    s->note[i] = (uint8_t)gen_degrees(s->note[i], sc, d);
+    }
+    ui.dirty = 1;
+}
+
 /* K on the selection: the reference's p-lock turned, its value on the others */
 static void sel_lock(int k, int d)
 {
@@ -2441,6 +2464,8 @@ void ui_input(void)
         } else if (ui.held) {
             attr_turn(&pat()->steps[ui.held - 1], ui.attr, e);
             ui.edited = ui.dirty = 1;
+        } else if (ui.sel_ref >= 0 && ui.attr == A_NOTE) {   /* NOTE: each step moved, not set alike */
+            sel_shift(e);
         } else if (ui.sel_ref >= 0) {
             attr_turn(&pat()->steps[ui.spage * 16 + ui.sel_ref], ui.attr, e);
             sel_copy();

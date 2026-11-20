@@ -36,6 +36,15 @@ void gen_reset(q_gen *g, uint32_t *rng)
     g->drum_step = 8;          /* the first step draws a drum pattern */
 }
 
+int gen_degrees(int note, uint16_t scale, int d)
+{
+    while (d > 0 && note < 127)
+        if (scale >> (++note % 12) & 1) d--;
+    while (d < 0 && note > 1)
+        if (scale >> (--note % 12) & 1) d++;
+    return note;
+}
+
 int gen_loop(const q_pattern *pt)
 {
     return pt->src == SRC_MARBLES ? pt->marbles.len : pt->src == SRC_LIFE || pt->src == SRC_LANES || pt->src == SRC_CHORDS || pt->src == SRC_TONNETZ || pt->src == SRC_ORBITS || pt->src == SRC_MIMIC ? LIFE_W

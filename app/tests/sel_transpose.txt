@@ -1,0 +1,32 @@
+# SEL held, black key 4 (NOTE) and PRESET: each selected step's notes moved, not set alike; KEYS ALL: in degrees
+wait 600
+tap SEQ
+tap REC
+tapkey w0
+key w2 down
+tapkey 11
+key w2 up
+expect stepnote_1 60
+expect stepnote_3 64
+press SEL
+tapkey w0
+tapkey w2
+tapkey b3
+expect attr 6
+turn PRESET 2
+expect stepnote_1 62
+expect stepnote_3 66
+release SEL
+tap GLO
+turn SELECT 2
+turn K1 1
+expect keys 1
+tap SEQ
+press SEL
+tapkey w0
+tapkey w2
+tapkey b3
+turn PRESET 1
+release SEL
+expect stepnote_1 64
+expect stepnote_3 67

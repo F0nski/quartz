@@ -473,15 +473,7 @@ static int transposed(const q_seq *s, const q_project *p, int t, int note)
     int d = s->transpose;
     if (!d || p->sound[t].model == M_KIT)
         return note;
-    if (!s->tdeg) {
-        note += d;
-    } else {
-        uint16_t m = gen_scale(p);
-        while (d > 0 && note < 127)
-            if (m >> (++note % 12) & 1) d--;
-        while (d < 0 && note > 1)
-            if (m >> (--note % 12) & 1) d++;
-    }
+    note = s->tdeg ? gen_degrees(note, gen_scale(p), d) : note + d;
     return note < 1 ? 1 : note > 127 ? 127 : note;
 }
 

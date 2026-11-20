@@ -49,6 +49,7 @@ uint16_t gen_allowed(const q_project *p, const q_pattern *pt);  /* absolute pitc
 int gen_grids_level(const q_grids *g, int step, int voice);  /* a step's level 0..255 for the voice 0..2, without CHAOS */
 uint16_t gen_kept(uint16_t allowed, int tonic, int steps);  /* the pitch classes STEPS keeps, the strongest from the tonic */
 int gen_quantize(int note, uint16_t allowed, int tonic, int steps);  /* 1..127, in the notes STEPS keeps */
+int gen_degrees(int note, uint16_t scale, int d);   /* note moved d notes of the scale up (down: d < 0), within 1..127 */
 
 void gen_reset(q_gen *g, uint32_t *rng);   /* rng fills the deja vu loops */
 void gen_marbles_draw(q_gen *g, uint32_t *rng);   /* MARBLES: its deja vu loops drawn again (PRESET) */
