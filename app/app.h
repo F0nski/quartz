@@ -36,6 +36,19 @@ enum { OBJ_SETTINGS, OBJ_PANEL, OBJ_PROJECT, OBJ_CHUNK0, OBJ_NOBJ = OBJ_CHUNK0 +
 #define APP_STORE_POOL_OBJN Q_CHUNKS
 #define APP_STORE_POOL_OLD 0
 
+/* backup and restore over USB (fm1.toml backup = true; fm1-base device/backup.c): the project's chunks, as last saved.
+ * The version is Q_VERSION's (store.c checks): a backup of another layout is refused, not loaded as a new project */
+#define APP_BACKUP_OBJS {OBJ_CHUNK0, OBJ_CHUNK0 + 1, OBJ_CHUNK0 + 2, OBJ_CHUNK0 + 3, OBJ_CHUNK0 + 4, OBJ_CHUNK0 + 5, \
+                         OBJ_CHUNK0 + 6, OBJ_CHUNK0 + 7, OBJ_CHUNK0 + 8, OBJ_CHUNK0 + 9, OBJ_CHUNK0 + 10}
+#define APP_BACKUP_MAGIC 0x5A545251u     /* "QRTZ" */
+#define APP_BACKUP_VERSION 16
+#define APP_BACKUP_WHAT "replaces the project"
+#define APP_BACKUP_BUF chunk_buf         /* store.c's: the restore takes none of the pool */
+int app_backup_playing(void);
+void app_backup_flush(void);
+void app_backup_hold(int on);
+void app_backup_restored(void);
+
 void app_init(void);
 void app_render(int32_t *lr, uint32_t n, uint32_t master_q12);   /* audio interrupt: n stereo frames, 24-bit */
 void app_panic(void);

@@ -37,3 +37,24 @@ reboot
 wait 600
 expect tempo 125
 expect stepon_1 1
+# a new project over a KIT: the render leaves the KIT too, so a key's note (F, no pad) sounds
+tap EDIT
+expect model 8
+spin PRESET -30
+spin PRESET 24
+expect model 24
+tap HOME
+key 0 down
+key 0 up
+expect hits 1
+press SAVE
+key 1 down
+key 1 up
+key 1 down
+key 1 up
+release SAVE
+expect model 8
+key 0 down
+wait 100
+key 0 up
+expect hits 2

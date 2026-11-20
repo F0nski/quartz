@@ -1,0 +1,51 @@
+# Backup and restore over USB: stopped, a backup saves what changed first and holds it; a restore is refused while
+# playing or when the file is damaged, and otherwise brings back the project, its models included
+wait 600
+tap GLO
+turn K1 5
+expect tempo 125
+expect dirty 1
+backup out:quartz.bak
+expect dirty 0
+# changed after the backup, a KIT on track 1 and a step
+turn K1 5
+expect tempo 130
+tap EDIT
+expect model 8
+spin PRESET -30
+spin PRESET 24
+expect model 24
+tap SEQ
+tap REC
+key 0 down
+key 0 up
+expect stepon_1 1
+expect dirty 1
+tap PLAY
+restore out:quartz.bak
+expect restore_rc 10
+expect tempo 130
+tap PLAY
+restore out:quartz.bak
+expect restore_rc 0
+expect tempo 125
+expect model 8
+expect stepon_1 0
+expect dirty 0
+expect rec 0
+# the sound is back: the restore's mute lifted
+peakreset
+key 0 down
+wait 300
+key 0 up
+expect peak_db_min -60
+# the render left the KIT: the key's note (F, no pad) sounds; the first hit is the step recorded on the KIT
+expect hits 2
+# a damaged backup changes nothing
+tap GLO
+turn K1 3
+expect tempo 128
+backup_damage out:quartz.bak
+restore out:quartz.bak
+expect restore_rc 5
+expect tempo 128

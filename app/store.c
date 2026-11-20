@@ -9,7 +9,10 @@ typedef struct { uint16_t magic; uint8_t version, index; uint32_t gen; } chunk_h
 _Static_assert(sizeof(chunk_hdr) == 8, "chunk header");
 _Static_assert(sizeof(q_project) <= Q_CHUNKS * CHUNK_DATA, "q_project must fit its chunks");
 
-static uint8_t chunk_buf[PLAT_STORE_MAX] __attribute__((aligned(4)));   /* one chunk: no q_project on the stack */
+uint8_t chunk_buf[PLAT_STORE_MAX] __attribute__((aligned(4)));   /* one chunk: no q_project on the stack; lent to a
+                                                                    restore (app.h APP_BACKUP_BUF) */
+_Static_assert(APP_BACKUP_VERSION == Q_VERSION, "a backup's version is the project's layout");
+_Static_assert(sizeof (uint16_t[])APP_BACKUP_OBJS == Q_CHUNKS * sizeof(uint16_t), "a backup holds every chunk");
 static uint32_t save_gen;                            /* chunk 0's last read or written: the highest gen */
 
 static uint32_t chunk_len(int i)                     /* payload bytes of chunk i */
