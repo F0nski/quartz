@@ -1,0 +1,42 @@
+# PRINT (SEQ held, black key 5 twice): a generator's next pass written as STEP steps; UNDO gives the generator back
+wait 600
+tap SEQ
+turn K4 2
+expect src 2
+press SEQ
+wait 500
+expect leds_lit >0
+shot print_map.png
+tapkey b4
+release SEQ
+expect msg_copy 15
+tap PLAY
+wait 300
+press SEQ
+tapkey b4
+expect msg_copy 12
+tapkey b4
+release SEQ
+expect msg_copy 13
+expect src 2
+wait 2600
+expect src 0
+expect len 8
+expect path 0
+expect msg_copy 14
+expect dirty 1
+expect nsteps_on >0
+shot print_done.png
+press REC
+tapkey b2
+release REC
+expect src 2
+# stopped while it waits: no PRINT
+press SEQ
+tapkey b4
+tapkey b4
+release SEQ
+expect msg_copy 13
+tap PLAY
+expect msg_copy 0
+expect src 2

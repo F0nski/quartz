@@ -1584,15 +1584,47 @@ static void chords_strum_overlaps(void)
     for (int k = 0; k < 2; k++)
         for (int i = 0; i < 3; i++) assert(nth(0, 1, 3 * k + i) == at16(k, 1400 * i));
 }
-static void step_ignores_strum_bits(void)
+/* a STEP pattern printed from a generator keeps its strum */
+static void step_plays_strum_bits(void)
 {
     setup();
     only_step(0, 2);
     q_step *st = &P.pat[0][0].steps[2];
-    st->note[1] = 64; st->note[2] = 67; st->flags |= 7 << 5;
+    st->note[1] = 64; st->note[2] = 67; st->flags |= 2 << 5;
     P.sound[0].poly = 3;
     run(80);
-    for (int i = 0; i < 3; i++) assert(nth(0, 1, i) == at16(2, 0));
+    for (int i = 0; i < 3; i++) assert(nth(0, 1, i) == at16(2, 400 * i));
+}
+
+/* PRINT: the generator's next pass from rank 0, each step as played (the notes the queue got), then nothing more */
+static void print_sends_next_pass(void)
+{
+    q_print r[16];
+    uint32_t seen = 0;
+    int n = 0;
+    setup();
+    P.pat[0][0].src = SRC_GRIDS;
+    P.pat[0][0].grids.len = 8;
+    P.pat[0][0].grids.dens[0] = 127;
+    seq_start(&S, &P, 0);
+    run_to((uint64_t)at16(3, 0));
+    seq_print(&S, 0, 0);
+    run_to((uint64_t)at16(7, 0));
+    assert(!seq_printed(&S, &seen, &r[0]));             /* not before the next pass */
+    while (T < (uint64_t)at16(17, 0)) {
+        run(1);
+        while (n < 16 && seq_printed(&S, &seen, &r[n])) n++;
+    }
+    assert(n == 8 && S.print == 0);
+    for (int k = 0; k < 8; k++) {
+        assert(r[k].k == k && r[k].n == 8);
+        int on = 0;
+        for (int i = 0; i < NEV; i++)
+            if (EV[i].e.on && EV[i].e.step == k && (int64_t)EV[i].at >= at16(8, 0) && (int64_t)EV[i].at < at16(16, 0)) on++;
+        assert((r[k].st.flags & SF_ON) ? on > 0 : on == 0);
+    }
+    run(300);
+    assert(S.pr_w == 8);                                /* one pass only */
 }
 
 /* SOURCE switched away and back while playing: the generator starts over, its bars on the tour (CHORDS, TONNETZ) */
@@ -1643,7 +1675,8 @@ int main(void)
     chords_strum_staggers();
     chords_strum_zero();
     chords_strum_overlaps();
-    step_ignores_strum_bits();
+    step_plays_strum_bits();
+    print_sends_next_pass();
     source_back_restarts_generator();
     swing_delays_odd_steps();
     ratchet_repeats();

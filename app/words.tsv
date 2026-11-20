@@ -557,6 +557,12 @@ COPY SOUND	copy sound
 PASTE SOUND	paste sound
 PASTE	paste
 PRESS TWICE	press twice
+PRESS TWICE (PRINT TOO)	press twice, print too
+PRINT THE NEXT LOOP	print the next loop
+AGAIN: PRINT	again: print
+PRINTING	printing
+PRINTED	printed
+PLAY TO PRINT	play to print
 PATTERN AT ONCE	pattern at once
 PATTERN COPIED	pattern copied
 AGAIN: PASTE	again: paste

@@ -260,10 +260,11 @@ void seq_start(q_seq *s, const q_project *p, int count_in)
 {
     uint64_t now = s->now;
     q_clock a = { now, 0, 0, 0, 0, 0 };
-    uint32_t gcount[Q_TRACKS];          /* the scenes' readers keep their place in the notes across a restart */
+    uint32_t gcount[Q_TRACKS], pr_w = s->pr_w;   /* the readers keep their place in the notes and PRINT's steps */
     __builtin_memcpy(gcount, s->gcount, sizeof gcount);
     __builtin_memset(s, 0, sizeof *s);
     __builtin_memcpy(s->gcount, gcount, sizeof gcount);
+    s->pr_w = pr_w;
     s->now = now;
     s->running = 1;
     s->rng = (uint32_t)now | 1;         /* xorshift: never 0 */
@@ -288,6 +289,26 @@ void seq_start(q_seq *s, const q_project *p, int count_in)
 void seq_click(q_seq *s, int on) { s->click = on; }
 
 void seq_launch(q_seq *s, int scene) { pend(s, scene, -1, -1); }
+
+void seq_print(q_seq *s, int track, int pat)
+{
+    s->print_pat = pat;
+    s->printing = 0;
+    s->print = track + 1;
+}
+
+int seq_printed(const q_seq *s, uint32_t *seen, q_print *out)
+{
+    uint32_t w = s->pr_w;
+    if (*seen == w)
+        return 0;
+    if (w - *seen > SEQ_PRINT)
+        *seen = w - SEQ_PRINT;
+    __asm__ volatile("" ::: "memory");   /* the step after its index */
+    *out = s->pr[*seen % SEQ_PRINT];
+    ++*seen;
+    return 1;
+}
 
 void seq_jump(q_seq *s, int track, int pat)
 {
@@ -450,7 +471,7 @@ static void plan_notes(q_seq *s, const q_project *p, int t, const q_step *st, in
     q_queue *q = &s->q[t];
     int r = STEP_RATCHET(st), g = r > 1 && st->len > 8 ? 8 : st->len, hold = 0;
     int64_t f = 200 * st->micro + (tr->k & 1 ? 96 * (p->swing - 50) : 0), from = tie_date(q);
-    int strum = gen ? 200 * SF_STRUM(st) : 0;   /* a generator's notes one after the other */
+    int strum = 200 * SF_STRUM(st);     /* a generator's notes one after the other (a STEP's: printed from one) */
     if (st->flags & SF_ACCENT) acc = 15;
     for (int j = 0; j < r; j++) {
         for (int i = 0; i < 4; i++) {
@@ -514,7 +535,8 @@ static void plan(q_seq *s, const q_project *p, int t, uint64_t end, const q_cloc
             tr->jump = 0;
         }
         uint32_t n = tr->pos / DIV96[pt->div];
-        tr->k = (int)(n % (uint32_t)loop_len(tr, pt, src));
+        int len = loop_len(tr, pt, src);
+        tr->k = (int)(n % (uint32_t)len);
         /* XY's rows run on the bar from the anchor, so a tempo change keeps them on the X steps: every division is a
            whole number of 96ths of a bar. A row starting with the X step applies to it */
         tr->row = (int)(tr->pos / DIV96[pt->ydiv] % pt->ylen);
@@ -531,6 +553,17 @@ static void plan(q_seq *s, const q_project *p, int t, uint64_t end, const q_cloc
         tr->src = src + 1;
         if (gen) acc = gen_step(&s->g[t], p, t, pt, tr->k, &s->rng, &g);
         else st = &pt->steps[step];
+        if (gen && s->print == t + 1 && tr->pat == s->print_pat && (s->printing || tr->k == 0)) {   /* PRINT, from rank 0 */
+            q_print *r = &s->pr[s->pr_w % SEQ_PRINT];
+            r->st = g;
+            if (acc) r->st.flags |= SF_ACCENT;
+            r->k = (uint8_t)tr->k;
+            r->n = (uint8_t)len;
+            __asm__ volatile("" ::: "memory");   /* the step before its index */
+            s->pr_w++;
+            s->printing = tr->k + 1 < len;
+            if (!s->printing) s->print = 0;
+        }
         if ((st->flags & SF_ON) && (gen || decide(s, tr, st)) && !(s->mute >> t & 1))
             plan_notes(s, p, t, st, step, acc, gen);
         else if (tr->tie) untie(s, t);

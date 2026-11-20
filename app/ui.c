@@ -225,6 +225,8 @@ static struct {
     int undo, undo_track, undo_pat, undone;    /* UNDO_* kept in chunk_buf, 0 none; for which pattern; undone: the next swap redoes */
     int load_key;                              /* SAVE held, black keys 2-5: the project armed + 1, until copy_until; 0 none */
     int save_at_stop;                          /* SAVE pressed while playing: the save is made at the stop */
+    int print, print_pat, print_src;           /* PRINT: the track + 1 whose pattern print_pat (of SOURCE print_src) is
+                                                  written as it plays its next pass, 0 none */
     uint32_t tap_ms[4], tap_until;             /* TAP TEMPO: the last taps' times (ntap of them); its message until tap_until */
     int ntap;
     uint32_t down_ms[NB], used;                /* when each button went down; used: bit b, a key or button came while b was held */
@@ -834,6 +836,10 @@ static uint8_t save_held;               /* a backup streams to the computer: a s
 static void play_stop(void)
 {
     audio_play(0);
+    if (ui.print) {                     /* PRINT's pass will not come */
+        ui.print = 0;
+        ui.copy_until = 0;
+    }
     if (!ui.save_at_stop || save_held)
         return;
     if (store_save(ui.p) == 0)
@@ -1111,11 +1117,13 @@ static void pattern_set(int n)
 /* SEQ held, black keys 1-4: copy the pattern shown, paste it there, copy the track's sound (a KIT: its pads too),
    paste it. A paste replaces what is there: it asks for a second press. The clipboards stay till power-off */
 enum { COPY_PAT = 1, COPY_AGAIN, COPY_PAT_PASTED, COPY_SND, COPY_SND_PASTED, COPY_NONE, COPY_UNDONE, COPY_REDONE,
-       COPY_NO_UNDO, COPY_AGAIN_LOAD, COPY_UNSAVED_LOAD, COPY_PROJECT, COPY_N = COPY_PROJECT + Q_PROJECTS };   /* (the header's messages for
+       COPY_NO_UNDO, COPY_AGAIN_LOAD, COPY_UNSAVED_LOAD, COPY_AGAIN_PRINT, COPY_PRINTING, COPY_PRINTED, COPY_PLAY_PRINT,
+       COPY_PROJECT, COPY_N = COPY_PROJECT + Q_PROJECTS };   /* (the header's messages for
                                                        the copies, UNDO and the projects: COPY_PROJECT + n, project n) */
 static const char *const COPY_NAME[COPY_N - 1] = {"PATTERN COPIED", "AGAIN: PASTE", "PATTERN PASTED", "SOUND COPIED",
                                                    "SOUND PASTED", "NOTHING COPIED", "UNDONE", "REDONE",
-                                                   "NOTHING TO UNDO", "AGAIN: LOAD", "UNSAVED: LOAD?", "PROJECT 1", "PROJECT 2",
+                                                   "NOTHING TO UNDO", "AGAIN: LOAD", "UNSAVED: LOAD?", "AGAIN: PRINT",
+                                                   "PRINTING", "PRINTED", "PLAY TO PRINT", "PROJECT 1", "PROJECT 2",
                                                    "PROJECT 3", "PROJECT 4"};   /* COPY_* - 1 */
 static struct { q_pattern pat; q_sound snd; q_pad pads[Q_PADS]; uint8_t has_pat, has_snd; } clip;   /* (.bss: the pool
                                                                          keeps its 4 KB spare, fm1.toml pool_spare) */
@@ -1253,6 +1261,55 @@ static void copy_key(int b)
         ui.dirty = 1;
         copy_msg(COPY_SND_PASTED, MSG_MS);
     }
+}
+
+/* SEQ held, black key 5 twice: PRINT, the generator pattern shown written as STEP steps from its next pass (played) */
+static void print_key(void)
+{
+    if (pat()->src == SRC_STEP)
+        return;
+    if (!audio_playing()) {
+        copy_msg(COPY_PLAY_PRINT, MSG_MS);
+        return;
+    }
+    if (ui.paste_key != 4 || plat_ms() >= ui.copy_until) {
+        ui.paste_key = 4;
+        copy_msg(COPY_AGAIN_PRINT, 2 * MSG_MS);
+        return;
+    }
+    ui.paste_key = 0;
+    if (ui.rec == R_LISTEN)
+        rec_set(R_OFF);                 /* LISTEN writes its phrase into the pattern shown */
+    undo_keep(UNDO_PAT);
+    ui.print = ui.track + 1, ui.print_pat = ui.p->pattern[ui.track], ui.print_src = pat()->src;
+    audio_print(ui.track, ui.print_pat);
+    copy_msg(COPY_PRINTING, 0x7FFFFFFFu);
+}
+
+/* a PRINT step lands on its rank (the generator's pattern does not read its steps); the last one makes it STEP: its
+   LEN the pass's, FWD, the steps after cleared, no p-locks (a STEP pattern's from before) */
+static void print_write(const q_print *r)
+{
+    q_pattern *t;
+    int i;
+    if (!ui.print)
+        return;
+    t = &ui.p->pat[ui.print - 1][ui.print_pat];
+    t->steps[r->k] = r->st;
+    if (!(r->st.flags & SF_ON))
+        step_default(&t->steps[r->k]);
+    if (r->k + 1 < r->n)
+        return;
+    t->nlocks = 0;
+    for (i = r->n; i < Q_STEPS; i++)
+        step_clear(t, i);
+    t->len = r->n;
+    t->path = PATH_FWD;
+    __asm__ volatile("" ::: "memory");  /* the steps before the source */
+    t->src = SRC_STEP;
+    ui.print = 0;
+    ui.dirty = 1;
+    copy_msg(COPY_PRINTED, MSG_MS);
 }
 
 /* a KIT's pad in or out of the held step's notes, 4 at most: the last one out switches the step off */
@@ -1904,7 +1961,11 @@ static void key_down(int k)
         return;
     }
     if (ui.domain == D_SEQ && ui.seqdown) {    /* SEQ held: the white keys 1..8 are the patterns (SEL held too: at once,
-                                                  at the same place), black 1-4 copy */
+                                                  at the same place), black 1-4 copy, 5 PRINT */
+        if (k == BLACK[4]) {
+            print_key();
+            return;
+        }
         for (b = 0; b < 4 && BLACK[b] != k; b++) {}
         if (w < Q_PATTERNS) {
             pattern_set(w);
@@ -2150,12 +2211,19 @@ void ui_input(void)
     uint32_t btn = plat_buttons(), keys = plat_keys();
     int i, e, d, n, kpid;
     q_rec rec;
+    q_print pr;
     if ((n = audio_scene_started()) >= 0) {     /* first of the frame: before any other write to the mute mask */
         scene_apply(&ui.p->scene[n]);
         ui.msg_scene = 0;
     }
     while (audio_take_rec(&rec))
         rec_write(&rec);
+    while (audio_take_print(&pr))
+        print_write(&pr);
+    if (ui.print && ui.p->pat[ui.print - 1][ui.print_pat].src != ui.print_src) {   /* its SOURCE changed: no pass */
+        ui.print = 0;
+        ui.copy_until = 0;
+    }
     ui.seqdown = btn >> B_SEQ & 1u;
     ui.homedown = btn >> B_HOME & 1u;
     ui.savedown = btn >> B_SAVE & 1u;
@@ -2393,8 +2461,8 @@ static uint32_t layer_keys(int b)
             keys |= 1u << WHITE[i];
         if (b == B_FX)                  /* FX: and FILL */
             keys |= 1u << BLACK[0];
-        if (b == B_SEQ)                 /* SEQ: and the copies */
-            keys |= 1u << BLACK[0] | 1u << BLACK[1] | 1u << BLACK[2] | 1u << BLACK[3];
+        if (b == B_SEQ)                 /* SEQ: and the copies, PRINT on a generator */
+            keys |= 1u << BLACK[0] | 1u << BLACK[1] | 1u << BLACK[2] | 1u << BLACK[3] | (uint32_t)(pat()->src != SRC_STEP) << BLACK[4];
         return b == B_SAVE ? keys | 1u << BLACK[0] | 1u << BLACK[1] | 1u << BLACK[2] | 1u << BLACK[3] | 1u << BLACK[4]
                            : keys;      /* SAVE: and the new project, the projects */
     case B_SEL:
@@ -3229,7 +3297,9 @@ static void draw_layer(const q_view *v, int32_t oy)
             tags[n] = "#2", names[n++] = "PASTE PATTERN";
             tags[n] = "#3", names[n++] = "COPY SOUND";
             tags[n] = "#4", names[n++] = "PASTE SOUND";
-            combo[0][0] = "PASTE", combo[0][1] = "PRESS TWICE";
+            if (v->scene.lkeys >> BLACK[4] & 1u)
+                tags[n] = "#5", names[n++] = "PRINT THE NEXT LOOP";
+            combo[0][0] = "PASTE", combo[0][1] = "PRESS TWICE (PRINT TOO)";
             combo[1][0] = "+ SEL", combo[1][1] = "PATTERN AT ONCE";
         }
         break;

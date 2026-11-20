@@ -20,6 +20,8 @@ typedef struct {
 typedef struct { uint64_t at; uint32_t gate; q_event e; } q_queued;
 typedef struct { int n, ons; q_queued e[SEQ_QUEUE]; } q_queue;           /* by date, offs before ons at a date */
 typedef struct { int step, pat, rank; q_clock c; } q_planned;            /* a step and its clock when planned */
+#define SEQ_PRINT 8
+typedef struct { q_step st; uint8_t k, n; } q_print;   /* PRINT: a generator's step, rank k of a pass of n (accents: SF_ACCENT) */
 typedef struct {
     q_clock x;                  /* the start of the next step not begun */
     uint32_t pos;               /* that step's place since the anchor, in 96ths of a bar: XY's row */
@@ -49,6 +51,11 @@ typedef struct {
        n % 16, gcount[t] notes so far (the render writes, the main loop reads: seq_gen_notes) */
     uint8_t gnote[Q_TRACKS][16];
     uint32_t gat[Q_TRACKS][16], gcount[Q_TRACKS];
+    /* PRINT (seq_print): the track + 1 whose pattern print_pat sends its next pass, from rank 0, 0 none; printing: that pass
+       under way. Its steps go out in pr, pr_w so far (the render writes, the main loop reads: seq_printed) */
+    int print, print_pat, printing;
+    q_print pr[SEQ_PRINT];
+    uint32_t pr_w;
 } q_seq;
 
 /* frames per step as num / den, exact: the FM-1's rate is 750000/17 Hz */
@@ -58,6 +65,9 @@ void seq_start(q_seq *s, const q_project *p, int count_in);
 void seq_click(q_seq *s, int on);                             /* metronome events while on (and during a count-in) */
 void seq_launch(q_seq *s, int scene);                         /* at the next bar while running; by hand ends the song */
 void seq_jump(q_seq *s, int track, int pat);                  /* the track plays pat from its next step, at the same place */
+void seq_print(q_seq *s, int track, int pat);                 /* PRINT: the generator pattern's next pass, step by step */
+/* the PRINT step sent after the *seen-th: 1 and *out, *seen moves on; 0 none. More than SEQ_PRINT behind: lost */
+int  seq_printed(const q_seq *s, uint32_t *seen, q_print *out);
 int  seq_scene_started(q_seq *s);                             /* the scene launched since the last call, -1 none */
 int  seq_song_entry(const q_seq *s);                          /* the song entry playing, -1 when not in song mode */
 void seq_stop(q_seq *s, q_event *out, int *n);                /* out holds Q_TRACKS * SEQ_QUEUE */
