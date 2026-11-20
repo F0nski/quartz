@@ -75,7 +75,7 @@ void mod_init(void)
 {
     __builtin_memset(MV, 0, sizeof MV);
     for (int v = 0; v < PQ_VOICES; v++)
-        MV[v].p = (q_vparam){ 0, 64, 127, 20, FT_LP, 127, 0, 0, LS_SIN, 0, 5, 0, LD_CUT, LS_SIN, 0, 5, 0, LD_PITCH };
+        MV[v].p = (q_vparam){ 0, 64, 127, 20, FT_LP, 127, 0, 0, LS_SIN, 0, 5, 0, LD_CUT, LS_SIN, 0, 5, 0, LD_PITCH, LD_CUT };
     for (int i = 0; i < NRATE - LRATE_SYNC; i++) RHZ[i] = 0.05f * __builtin_powf(600.f, i / 63.f);
     mod_restart();
 }
@@ -142,10 +142,17 @@ void mod_voice_block(int v, pq_mod *m)
     s->lv += (lfo_value(s, v) - s->lv) * LFO_GLIDE;
     if (p->l2depth)                                  /* (DEPTH 0: LFO 2 off, its wave not computed) */
         s->lv2 += (lfo2_value(s, v) - s->lv2) * LFO_GLIDE;
-    float semi = 15.5f + p->cutoff * (119.5f / 127) + s->env * (p->envamt / 63.f) * 96 * (s->acc ? 1.5f : 1);
+    float e = s->env * (p->envamt / 63.f) * (s->acc ? 1.5f : 1), semi = 15.5f + p->cutoff * (119.5f / 127);
     float res = p->res / 127.f;
     m->env = s->env; m->type = p->ftype;
     m->pitch = m->harm = m->timb = m->morph = 0; m->gain = 1;
+    switch (p->edest) {                              /* ENV AMT: 96 semitones of cutoff, 24 of pitch, a whole knob */
+    case LD_HARM: m->harm = e; break;
+    case LD_TIMB: m->timb = e; break;
+    case LD_MORPH: m->morph = e; break;
+    case LD_PITCH: m->pitch = 24 * e; break;
+    default: semi += 96 * e; break;
+    }
     lfo_apply(m, p->ldest, p->ldepth, s->lv, &semi, &res);
     if (p->l2depth)
         lfo_apply(m, p->l2dest, p->l2depth, s->lv2, &semi, &res);

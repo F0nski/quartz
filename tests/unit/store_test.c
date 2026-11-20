@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -551,27 +552,49 @@ static void mimic_clamped_on_load(void)
     assert(a.pat[2][2].mimic.order == 2);
 }
 
-/* version 18 (0.9): loaded as this one, its punch-in locks (34, 35 then) moved past the pads' locks */
+/* version 18 (0.9), written by hand: its sounds a byte shorter (no edest), its punch-in locks 34 and 35, no pad locks.
+   Loaded as this version, every field in place, ENV DEST on CUTOFF */
 static void store_migrates_18(void)
 {
     static q_project a, b;
+    static uint16_t oldw[sizeof(q_project) / 2];        /* 2-aligned, as q_pattern */
+    uint8_t *old = (uint8_t *)oldw;
+    const uint8_t *raw = (const uint8_t *)&a;
+    uint32_t s0 = offsetof(q_project, sound), sz = sizeof(q_sound) - 1, pat = offsetof(q_project, pat);
+    uint32_t opat = (s0 + Q_TRACKS * sz + 1) & ~1u, osize = sizeof(q_project) - (pat - opat);
+    fill_random(&a);
+    for (int t = 0; t < Q_TRACKS; t++) {
+        a.sound[t].edest = LD_CUT;
+        for (int n = 0; n < Q_PATTERNS; n++)
+            for (int k = 0; k < Q_LOCKS; k++)
+                if (a.pat[t][n].locks[k].param >= LK_PTUNE && a.pat[t][n].locks[k].param <= LK_PDECAY)
+                    a.pat[t][n].locks[k].param = LK_HARM;
+    }
+    a.pat[1][3].locks[1] = (q_lock){ 2, LK_PUNCH_LO, 0x81 };
+    a.pat[1][3].locks[2] = (q_lock){ 5, LK_PUNCH_HI, 0x02 };
+    memset(oldw, 0, sizeof oldw);
+    memcpy(old, raw, s0);
+    old[0] = 18;
+    for (int t = 0; t < Q_TRACKS; t++) memcpy(old + s0 + t * sz, raw + s0 + t * (sz + 1), sz);
+    memcpy(old + opat, raw + pat, sizeof(q_project) - pat);
+    q_pattern *op = (q_pattern *)(void *)(old + opat);
+    for (int i = 0; i < Q_TRACKS * Q_PATTERNS; i++)
+        for (int k = 0; k < Q_LOCKS; k++)
+            if (op[i].locks[k].param >= LK_PUNCH_LO) op[i].locks[k].param = (uint8_t)(op[i].locks[k].param - LK_PUNCH_LO + 34);
     forget();
     store_project = 0;
-    project_defaults(&a);
-    lock_set(&a.pat[1][3], 2, LK_HARM, 99);
-    lock_set(&a.pat[1][3], 2, LK_DEST2 + 1, 0x81);
-    lock_set(&a.pat[1][3], 5, LK_DEST2 + 2, 0x02);
-    a.version = 18;
-    assert(store_save(&a) == 0);
-    for (int i = 0; i < Q_CHUNKS; i++) mem[i][2] = 18;
+    for (int i = 0; i < Q_CHUNKS; i++) {
+        uint32_t off = (uint32_t)i * (PLAT_STORE_MAX - 8u), n = osize - off < PLAT_STORE_MAX - 8u ? osize - off : PLAT_STORE_MAX - 8u;
+        chunk_hdr h = { CHUNK_MAGIC, 18, (uint8_t)i, 7 };
+        memcpy(mem[i], &h, sizeof h);
+        memcpy(mem[i] + 8, old + off, n);
+        mem_len[i] = (int)(8 + n);
+    }
     assert(store_last() == 0);
+    memset(&b, 0xAA, sizeof b);
     assert(store_load(&b) == 0 && b.version == Q_VERSION);
-    const q_pattern *pt = &b.pat[1][3];
-    assert(pt->nlocks == 3);
-    assert(pt->locks[lock_find(pt, 2, LK_HARM)].value == 99);
-    assert(pt->locks[lock_find(pt, 2, LK_PUNCH_LO)].value == 0x81);
-    assert(pt->locks[lock_find(pt, 5, LK_PUNCH_HI)].value == 0x02);
-    assert(lock_find(pt, 2, LK_PTUNE) < 0);
+    assert(b.pat[1][3].locks[1].param == LK_PUNCH_LO && b.pat[1][3].locks[2].param == LK_PUNCH_HI);
+    assert(!memcmp(&a, &b, sizeof a));
     mem[0][2] = 17;                                 /* older: the defaults */
     check_defaults();
     forget();

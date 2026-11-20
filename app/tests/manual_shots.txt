@@ -122,7 +122,10 @@ key w7 down
 wait 500
 shot shape-adsr.png
 spin SELECT 1
-wait 300
+spin K2 -57
+spin K3 70
+spin K4 40
+wait 1200
 shot shape-filter.png
 key w7 up
 tap LFO

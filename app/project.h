@@ -108,13 +108,15 @@ typedef struct { uint8_t used, mute, pat[Q_TRACKS]; } q_scene;
 typedef struct { uint8_t scene, reps; } q_entry;          /* scene 0..7, reps 1..16 */
 /* 0..127 except model 0..24, poly 1..4, tune -24..24, ftype 0..2, envamt and ldepth -64..63, lshape 0..4, ltrig 0 FREE 1 TRIG,
  * lrate 0..75, ldest 0..6, amode 0..5, aoct 1..4, adiv a DIV_*, agate 5..100, itype 0..7 (IT_*), pan -64..63;
- * i1..i3 the insert's knobs, imix its dry/wet, dsend and rsend the sends to the delay and the reverb; l2*: LFO 2, as l* */
+ * i1..i3 the insert's knobs, imix its dry/wet, dsend and rsend the sends to the delay and the reverb; l2*: LFO 2, as l*;
+ * edest: where ENV AMT sends the envelope, LD_HARM..LD_CUT (HARM, TIMB, MORPH, PITCH or the filter's CUTOFF) */
 typedef struct {
     uint8_t model, poly, glide, level; int8_t tune; uint8_t harm, timb, morph, decay;
     uint8_t atk, dec, sus, rel, ftype, cutoff, res; int8_t envamt;
     uint8_t lshape, ltrig, lrate; int8_t ldepth; uint8_t ldest, amode, aoct, adiv, agate;
     uint8_t itype, i1, i2, i3, imix, dsend, rsend; int8_t pan;
     uint8_t l2shape, l2trig, l2rate; int8_t l2depth; uint8_t l2dest;
+    uint8_t edest;
 } q_sound;
 enum { PAD_BD, PAD_SN, PAD_HH };                          /* q_pad.engine */
 /* tune -24..24; the rest 0..127; chr: 0 the engine's analog sound, 127 its synthetic one (Plaits' aux) */

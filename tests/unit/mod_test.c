@@ -5,7 +5,7 @@
 #include "gen.c"
 #include "seq.c"
 
-static q_vparam dflt(void) { return (q_vparam){ 0, 64, 127, 20, FT_LP, 127, 0, 0, LS_SIN, 0, 5, 0, LD_CUT, LS_SIN, 0, 5, 0, LD_PITCH }; }
+static q_vparam dflt(void) { return (q_vparam){ 0, 64, 127, 20, FT_LP, 127, 0, 0, LS_SIN, 0, 5, 0, LD_CUT, LS_SIN, 0, 5, 0, LD_PITCH, LD_CUT }; }
 static pq_mod blk(int v, const q_vparam *p, int tempo) { pq_mod m; mod_set(v, p, tempo); mod_voice_block(v, &m); return m; }
 static float semis(float cutoff) { return 12 * log2f(cutoff * Q_SR / 440) + 69; }
 static const float DT = MOD_BLK / Q_SR;
@@ -84,6 +84,21 @@ static void filter_env_amount_and_accent(void)
     assert(fabsf(semis(blk(0, &p, 120).cutoff) - (s0 + 20 / 63.f * 144)) < 0.01f);
     p.cutoff = 127; p.envamt = 63; mod_set(0, &p, 120);
     assert(blk(0, &p, 120).cutoff == 0.45f);
+}
+
+/* ENV DEST: the envelope at ENV AMT on PITCH (24 semitones), HARM, TIMB or MORPH (a whole knob) instead of the cutoff */
+static void env_dest(void)
+{
+    static const int dest[4] = { LD_PITCH, LD_HARM, LD_TIMB, LD_MORPH };
+    for (int i = 0; i < 4; i++) {
+        setup(); q_vparam p = dflt(); p.cutoff = 64; p.envamt = -32; p.sus = 127; p.edest = (uint8_t)dest[i];
+        mod_set(0, &p, 120); mod_note_on(0, 0);
+        for (int k = 0; k < 4; k++) blk(0, &p, 120);  /* past the attack: env 1 */
+        pq_mod m = blk(0, &p, 120);
+        float e = -32 / 63.f, got = i == 0 ? m.pitch / 24 : i == 1 ? m.harm : i == 2 ? m.timb : m.morph;
+        assert(fabsf(got - e) < 1e-5f);
+        assert(fabsf(semis(m.cutoff) - (15.5f + 64 * 119.5f / 127)) < 0.01f);   /* the cutoff left as set */
+    }
 }
 
 /* cutoff offset in semitones at an LFO phase reached through the FREE clock */
@@ -417,7 +432,7 @@ static void arp_untracked_noteoff_passes(void)
 int main(void)
 {
     adsr_default_is_gate(); adsr_times(); adsr_release_from_attack(); adsr_attack_from_current_level();
-    filter_env_amount_and_accent(); lfo_shapes(); lfo_jumps_softened(); lfo_free_shared_phase(); lfo_trig_restarts(); lfo_phase_advances();
+    filter_env_amount_and_accent(); env_dest(); lfo_shapes(); lfo_jumps_softened(); lfo_free_shared_phase(); lfo_trig_restarts(); lfo_phase_advances();
     lfo_sync_tempo_change_continuous(); lfo_level_depth(); lfo_pitch_range(); sh_changes_once_per_cycle(); lfo2_adds();
     arp_up_two_octaves(); arp_down(); arp_updown_no_repeat(); arp_order_follows_arrival(); arp_rand_in_set();
     arp_single_note_repeats(); arp_starts_at_first_note(); arp_gate_min(); arp_stops_when_empty(); arp_latch();

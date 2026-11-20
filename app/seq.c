@@ -24,6 +24,7 @@ void sound_defaults(q_sound *s, q_pad *pads)
     s->dec = 64; s->sus = 127; s->rel = 20; s->cutoff = 127;    /* the rest of the fields: 0 (LP, SIN, FREE, OFF...) */
     s->lrate = 5; s->ldest = LD_CUT; s->aoct = 1; s->adiv = DIV_16; s->agate = 50;
     s->l2rate = 5; s->l2dest = LD_PITCH;                        /* LFO 2: DEPTH 0, off until turned */
+    s->edest = LD_CUT;
     s->i1 = s->i2 = s->i3 = 64; s->imix = 127;                  /* itype, dsend, rsend, pan: 0 (no insert, no send, centre) */
     for (int k = 0; k < Q_PADS; k++) pads[k] = KIT_DEFAULT[k];
 }

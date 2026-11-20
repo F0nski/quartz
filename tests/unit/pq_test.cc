@@ -210,7 +210,7 @@ static void off_on_between_renders_retriggers(void)
 // The voice as audio.c drives it: the project's defaults (ADSR 0/64/127/20, LP open) unless v is edited.
 static q_vparam defaults(void)
 {
-    return (q_vparam){ 0, 64, 127, 20, FT_LP, 127, 0, 0, LS_SIN, 0, 5, 0, LD_CUT };
+    return (q_vparam){ 0, 64, 127, 20, FT_LP, 127, 0, 0, LS_SIN, 0, 5, 0, LD_CUT, LS_SIN, 0, 5, 0, LD_PITCH, LD_CUT };
 }
 
 static void start(int v, int model, const q_vparam &p, float note, float vel, int accent = 0)

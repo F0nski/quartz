@@ -19,10 +19,10 @@ int store_project;                                   /* the project loaded and s
 
 static uint32_t chunk_obj(int i) { return OBJ_CHUNK0 + (uint32_t)(store_project * Q_CHUNKS + i); }
 
-static uint32_t chunk_len(int i)                     /* payload bytes of chunk i */
+static uint32_t chunk_len(int i, uint32_t size)      /* payload bytes of chunk i, of a project of size bytes */
 {
     uint32_t off = (uint32_t)i * CHUNK_DATA;
-    return sizeof(q_project) - off < CHUNK_DATA ? (uint32_t)sizeof(q_project) - off : CHUNK_DATA;
+    return size - off < CHUNK_DATA ? size - off : CHUNK_DATA;
 }
 
 static int clampi(int v, int lo, int hi) { return v < lo ? lo : v > hi ? hi : v; }
@@ -39,12 +39,32 @@ static const int8_t lk_range[LK_N][2] = {
     [LK_SHAPE2] = {0, LS_SH}, [LK_RATE2] = {0, 75}, [LK_DEPTH2] = {-64, 63}, [LK_DEST2] = {0, LD_LEVEL},
     [LK_PTUNE] = {-24, 24}, [LK_PHARM] = {0, 127}, [LK_PTIMB] = {0, 127}, [LK_PDECAY] = {0, 127} };
 
-/* version 18 (0.9), loaded and brought to this one: the same layout, its punch-in locks right after LK_DEST2, before
-   the pads' locks */
+/* version 18 (0.9), loaded and brought to this one: its q_sound a byte shorter (no edest, last), so all after the sounds
+   V18_SHIFT bytes earlier; its punch-in locks right after LK_DEST2, before the pads' locks */
 #define V_MIGRATED 18
 #define V18_PUNCH_LO (LK_DEST2 + 1)
+#define V18_SOUND (sizeof(q_sound) - 1)
+#define V18_PAT ((__builtin_offsetof(q_project, sound) + Q_TRACKS * V18_SOUND + 1) & ~1u)   /* (q_pattern: 2-aligned) */
+#define V18_SHIFT (__builtin_offsetof(q_project, pat) - V18_PAT)
+#define V18_SIZE ((uint32_t)(sizeof(q_project) - V18_SHIFT))
+_Static_assert(__builtin_offsetof(q_sound, edest) == V18_SOUND && _Alignof(q_pattern) == 2 && V18_SHIFT == Q_TRACKS,
+               "version 18's layout: this one's without edest");
+_Static_assert((V18_SIZE + CHUNK_DATA - 1) / CHUNK_DATA == Q_CHUNKS, "version 18: as many chunks");
+
+/* the V18_SIZE bytes loaded moved to this layout, in place, from the end */
 static void migrate_18(q_project *p)
 {
+    uint8_t *b = (uint8_t *)p;
+    uint32_t i, s0 = __builtin_offsetof(q_project, sound);
+    for (i = V18_SIZE; i-- > V18_PAT;)
+        b[i + V18_SHIFT] = b[i];
+    for (i = s0 + Q_TRACKS * (uint32_t)sizeof(q_sound); i < __builtin_offsetof(q_project, pat); i++)
+        b[i] = 0;                       /* the padding before the patterns */
+    for (int t = Q_TRACKS - 1; t >= 0; t--) {
+        for (i = V18_SOUND; i-- > 0;)
+            b[s0 + (uint32_t)t * sizeof(q_sound) + i] = b[s0 + (uint32_t)t * V18_SOUND + i];
+        p->sound[t].edest = LD_CUT;
+    }
     for (int t = 0; t < Q_TRACKS; t++)
         for (int n = 0; n < Q_PATTERNS; n++)
             for (int k = 0; k < Q_LOCKS; k++) {
@@ -99,6 +119,7 @@ static void clamp_project(q_project *p)
         s->l2shape = (uint8_t)clampi(s->l2shape, 0, LS_SH); s->l2trig = (uint8_t)clampi(s->l2trig, 0, 1);
         s->l2rate = (uint8_t)clampi(s->l2rate, 0, 75); s->l2depth = (int8_t)clampi(s->l2depth, -64, 63);
         s->l2dest = (uint8_t)clampi(s->l2dest, 0, LD_LEVEL);
+        s->edest = (uint8_t)clampi(s->edest, 0, LD_CUT);
         s->aoct = (uint8_t)clampi(s->aoct, 1, 4); s->adiv = (uint8_t)clampi(s->adiv, 0, DIV_N - 1);
         s->agate = (uint8_t)clampi(s->agate, 5, 100);
         s->itype = (uint8_t)clampi(s->itype, 0, IT_N - 1);
@@ -205,16 +226,22 @@ static void clamp_project(q_project *p)
 /* chunks straight into *p: a failure leaves it half written, so the caller falls back to the defaults */
 static int load_chunks(q_project *p)
 {
-    uint32_t gen = 0;
+    uint32_t gen = 0, size = sizeof(q_project);
+    int ver = Q_VERSION;
+    chunk_hdr h;
+    if (plat_store_load(chunk_obj(0), chunk_buf, sizeof h) == (int)sizeof h) {   /* its version: its size */
+        __builtin_memcpy(&h, chunk_buf, sizeof h);
+        if (h.version == V_MIGRATED)
+            ver = V_MIGRATED, size = V18_SIZE;
+    }
     for (int i = 0; i < Q_CHUNKS; i++) {
-        chunk_hdr h;
-        uint32_t n = chunk_len(i);
+        uint32_t n = chunk_len(i, size);
         if (plat_store_size(chunk_obj(i)) != (int)(sizeof h + n)) return -1;   /* (plat_store_load cuts a longer one) */
         if (plat_store_load(chunk_obj(i), chunk_buf, sizeof h + n) != (int)(sizeof h + n)) return -1;
         __builtin_memcpy(&h, chunk_buf, sizeof h);
         if (i == 0 && (gen = h.gen) > save_gen)   /* written first: a failed load still saves past it */
             save_gen = gen;
-        if (h.magic != CHUNK_MAGIC || (h.version != Q_VERSION && h.version != V_MIGRATED) || h.index != i || h.gen != gen) return -1;
+        if (h.magic != CHUNK_MAGIC || h.version != ver || h.index != i || h.gen != gen) return -1;
         __builtin_memcpy((uint8_t *)p + (uint32_t)i * CHUNK_DATA, chunk_buf + sizeof h, n);
     }
     return 0;
@@ -259,7 +286,7 @@ int store_save(const q_project *p)
     save_gen++;
     for (int i = 0; i < Q_CHUNKS; i++) {
         chunk_hdr h = { CHUNK_MAGIC, Q_VERSION, (uint8_t)i, save_gen };
-        uint32_t n = chunk_len(i);
+        uint32_t n = chunk_len(i, sizeof(q_project));
         __builtin_memcpy(chunk_buf, &h, sizeof h);
         __builtin_memcpy(chunk_buf + sizeof h, (const uint8_t *)p + (uint32_t)i * CHUNK_DATA, n);
         int r = plat_store_save(chunk_obj(i), chunk_buf, sizeof h + n);

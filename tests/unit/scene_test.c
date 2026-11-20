@@ -1094,7 +1094,7 @@ static q_pview PV;
 static void preset(int page, int16_t k0, int16_t k1, int16_t k2, int16_t k3)
 {
     memset(&PV, 0, sizeof PV);
-    PV.page = (uint8_t)page, PV.k[0] = k0, PV.k[1] = k1, PV.k[2] = k2, PV.k[3] = k3, PV.lfo_ph = -1.0f;
+    PV.page = (uint8_t)page, PV.k[0] = k0, PV.k[1] = k1, PV.k[2] = k2, PV.k[3] = k3, PV.lfo_ph = -1.0f, PV.edest = LD_CUT;
 }
 static void pvframe(uint32_t ms) { sound_frame(&PV, ms); }
 static void pvfull(void)
@@ -1177,12 +1177,15 @@ static void sound_budget_extremes(void)
     for (int ty = 0; ty < 3; ty++)
         for (int e = 0; e < 2; e++)
             for (int c = 0; c < 2; c++) {
-                preset(SP_FILTER, (int16_t)ty, CUT[c], 127, ENV[e]);
-                assert(pv_run(1300000) < 300);
-                pv_inside();
-                PV.hits++;
-                pvframe(1300000 + 1600);
-                pv_inside();
+                for (int d = 0; d < 5; d++) {   /* ENV DEST: every destination, the gauge or the target */
+                    preset(SP_FILTER, (int16_t)ty, CUT[c], 127, ENV[e]);
+                    PV.edest = (uint8_t)d;
+                    assert(pv_run(1300000) < 300);
+                    pv_inside();
+                    PV.hits++;
+                    pvframe(1300000 + 1600);
+                    pv_inside();
+                }
             }
     for (int sh = 0; sh < 5; sh++)
         for (int d = 0; d < 2; d++) {

@@ -356,10 +356,17 @@ track. The scenes show the model's name and draw what the knobs set.
 - CUTOFF goes from 20 Hz to 20 kHz; 127 on LP lets everything through. RES goes up to the edge of self-oscillation.
 - ENV AMT is how far the ADSR moves the cutoff, up to eight octaves either way. An accented step moves it 1.5 times as
   far ([step functions](sequencer.html#step-functions)).
+- ENV DEST: on the FILTER page, PRESET sends the envelope elsewhere than the cutoff: CUTOFF, PITCH (up to two octaves
+  either way, for a pitched kick or a pluck that falls into tune), HARM, TIMB or MORPH (the whole knob's travel, for a
+  sound whose timbre opens and closes with each note). The scene says `ENV → PITCH`, and ENV AMT's gauge shows how far
+  and which way. A new project's is CUTOFF.
+- The scene draws the filter's response over the frequencies, 20 Hz on the left to 20 kHz on the right: the cutoff's
+  pillar, the resonance's peak with its crystal, and in orange wire the response the envelope takes it to (with ENV
+  DEST on CUTOFF). A note sweeps the curve, in pink.
 
 ![ENV's ADSR page: the envelope drawn as blocks, ATTACK 0, DECAY 64, SUSTAIN 127, RELEASE 20](img/shape-adsr.png "ADSR")
 
-![ENV's FILTER page: LOW-PASS, the cutoff as a wall](img/shape-filter.png "FILTER")
+![ENV's FILTER page: the LOW-PASS response, CUTOFF 70, RES 70 and its peak, ENV AMT 40 and the response it reaches in orange](img/shape-filter.png "FILTER")
 
 ### LFO
 

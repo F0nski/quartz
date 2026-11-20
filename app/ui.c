@@ -2565,6 +2565,13 @@ void ui_input(void)
         } else if (ui.domain == D_FX && page_id() == P_INSERT) {   /* the insert's type */
             ui.p->sound[ui.track].itype = (uint8_t)clamp(ui.p->sound[ui.track].itype + e, 0, IT_N - 1);
             ui.dirty = 1;
+        } else if (ui.domain == D_ENV && page_id() == P_FILTER) {   /* ENV DEST: CUTOFF, PITCH, HARM, TIMB, MORPH */
+            static const uint8_t EDEST[5] = {LD_CUT, LD_PITCH, LD_HARM, LD_TIMB, LD_MORPH};
+            q_sound *s = &ui.p->sound[ui.track];
+            int i;
+            for (i = 0; i < 4 && EDEST[i] != s->edest; i++) {}
+            s->edest = EDEST[clamp(i + e, 0, 4)];
+            ui.dirty = 1;
         } else if (ui.domain == D_LFO) {        /* FREE / TRIG, of the page shown */
             uint8_t *tr = page_id() == P_LFO2 ? &ui.p->sound[ui.track].l2trig : &ui.p->sound[ui.track].ltrig;
             *tr = (uint8_t)clamp(*tr + e, 0, 1);
@@ -3882,7 +3889,7 @@ void ui_frame(void)
                 const q_sound *s = &ui.p->sound[ui.track];
                 int lfo2 = v.scene.pid == P_LFO2;          /* LFO 2: LFO's scene, with its knobs and phase */
                 q_pview pv = {(uint8_t)(lfo2 ? SP_LFO : v.scene.pid - P_ADSR), v.scene.model, s->itype,
-                              (uint8_t)own_env(v.scene.model), v.scene.model == M_KIT,
+                              (uint8_t)own_env(v.scene.model), v.scene.model == M_KIT, s->edest,
                               {v.scene.v[0], v.scene.v[1], v.scene.v[2], v.scene.v[3]},
                               audio_hits(ui.track), audio_lfo_phase(ui.track, lfo2), {0}, {0}, 0, 0};
                 int sounding, n = 0, k;
@@ -4408,6 +4415,7 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "save_at_stop")) *got = ui.save_at_stop;
     else if (!strcmp(what, "msg_wipe")) *got = plat_ms() < ui.wipe_until;
     else if (!strcmp(what, "msg_random")) *got = plat_ms() < ui.rnd_until ? ui.rnd_kind : 0;
+    else if (!strcmp(what, "edest")) *got = ui.p->sound[ui.track].edest;
     else if (!strcmp(what, "euclid")) *got = ui.euclid;
     else if (!strcmp(what, "solo")) *got = ui.solo;
     else if (!strcmp(what, "latch")) *got = ui.latch;

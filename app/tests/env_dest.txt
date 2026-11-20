@@ -1,0 +1,14 @@
+# ENV DEST: PRESET on the FILTER page sends the envelope to CUTOFF, PITCH, HARM, TIMB or MORPH
+wait 600
+tap ENV
+turn SELECT 1
+expect edest 4
+turn PRESET 1
+expect edest 3
+turn PRESET 3
+expect edest 2
+turn PRESET 5
+expect edest 2
+turn PRESET -9
+expect edest 4
+expect dirty 1

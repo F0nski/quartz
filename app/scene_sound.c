@@ -133,48 +133,79 @@ static void sp_adsr(const q_pview *v)
     sp_ribbon(x, y, 5, SP_YB, 0.0f, 1.0f, t);
 }
 
-/* the filter's response at x (0..1) for its type (ui.c's: LP, HP, BP), cutoff and resonance (0..1) */
-static float sp_resp(int type, float cut, float q, float x)
+/* the filter's response at x (0..1, the CUTOFF knob's scale: 119.5 semitones from 20 Hz) for its type (ui.c's: LP, HP,
+   BP), cutoff xc and resonance q (0..1): mod.c's SVF, Q 0.5 .. 30, as 0 at -36 dB, 1 at +6 dB (0 dB: 6/7) */
+static float sp_resp(int type, float xc, float q, float x)
 {
-    float m = type == 0 ? (x < cut ? 1.0f : fm_maxf(0.0f, 1.0f - (x - cut) * 3.5f))
-              : type == 1 ? (x > cut ? 1.0f : fm_maxf(0.0f, 1.0f - (cut - x) * 3.5f))
-                          : fm_maxf(0.0f, 1.0f - fm_fabsf(x - cut) * 3.5f);
-    return m + q * 0.7f * fm_maxf(0.0f, 1.0f - fm_fabsf(x - cut) * 14.0f);
+    float r = fm_exp2f((x - xc) * (119.5f / 12.0f)), Q = 0.5f * fm_powf(60.0f, q), a = 1.0f - r * r;
+    float d = fm_sqrtf(a * a + r * r / (Q * Q)), g = (type == 0 ? 1.0f : type == 1 ? r * r : r) / d;
+    return fm_clampf((6.0206f * fm_log2f(fm_maxf(g, 1e-4f)) + 36.0f) / 42.0f, 0.0f, 1.6f);
 }
 
-/* FILTER: a saw's 16 harmonics behind (in wire, what passes in blocks), the response's ribbon in front, the cutoff's
-   pillar, the resonance's crystal, ENV AMT's target; a note: the knee comes back from the target in 0.9 s */
+/* a band over the polyline x, y, pushed back k rows, d rows deep: only its top, as sp_ribbon's (no front: the curve floats
+   over the floor), its back edge a light line */
+static void sp_band(const float *x, const float *y, int n, float k, float d, const uint16_t *const *t)
+{
+    float ox = SP_DX * k, oy = SP_DY * k, dx = SP_DX * d, dy = SP_DY * d;
+    for (int i = 0; i < n - 1; i++) {
+        float ax = x[i] + ox, ay = y[i] + oy, bx = x[i + 1] + ox, by = y[i + 1] + oy;
+        const uint16_t *c = t[i];
+        sp_quad(ax, ay, bx, by, bx + dx, by + dy, ax + dx, ay + dy,
+                by < ay - 0.5f ? c[0] : by > ay + 0.5f ? p3d_mix(c[1], 0, 0.25f) : c[1]);
+        p3d_line(ax, ay, bx, by, 0.0f, 1, c[2]);
+        p3d_line(ax + dx, ay + dy, bx + dx, by + dy, 0.0f, 1, c[0]);
+    }
+}
+
+/* FILTER: the response floating over a log-frequency floor, on stilts; the cutoff's pillar, the resonance's crystal on
+   the peak. ENV AMT on CUTOFF: the response the envelope reaches, in wire, and its arrow; a note: the curve comes back
+   from there in 0.9 s, pink. ENV AMT elsewhere (ENV DEST): its gauge at the right, up or down, and the destination's name
+   (sound_band) */
 static void sp_filter(const q_pview *v)
 {
-    int type = v->k[0];
-    float cut = 0.1f + 0.8f * (float)v->k[1] / 127.0f, q = (float)v->k[2] / 127.0f, tn = sp.tn;
-    float cut2 = fm_clampf(cut + 0.4f * (float)v->k[3] / 64.0f, 0.02f, 0.98f), env = tn < 0.9f ? (1.0f - tn / 0.9f) * (1.0f - tn / 0.9f) : 0.0f;
-    float cc = cut + (cut2 - cut) * env;
-    const uint16_t pass[3] = {p3d_mix(HM_WHITE[0], 0, 0.25f), p3d_mix(HM_WHITE[1], 0, 0.25f), p3d_mix(HM_WHITE[2], 0, 0.25f)};
-    for (int i = 0; i < 16; i++) {
-        float x = ((float)i + 0.5f) / 16.0f, h = 92.0f / (1.0f + 0.35f * (float)i), p = h * fm_minf(1.0f, sp_resp(type, cc, q, x));
-        sp_wbox(SP_FX(x) - 3.0f, 6.0f, SP_FY(0) - h, SP_FY(0), SP_WIRE, 2.0f);
-        if (p > 1.0f)
-            sp_box(SP_FX(x) - 3.0f, 6.0f, SP_FY(0) - p, SP_FY(0), tn < 0.4f ? PINK3 : pass, 2.0f, 0.5f);
+    int type = v->k[0], cutdest = v->edest == LD_CUT;
+    float cut = (float)v->k[1] / 127.0f, q = (float)v->k[2] / 127.0f, amt = (float)v->k[3] / 63.0f, tn = sp.tn;
+    float env = tn < 0.9f ? (1.0f - tn / 0.9f) * (1.0f - tn / 0.9f) : 0.0f;
+    float cut2 = fm_clampf(cut + amt * (96.0f / 119.5f), 0.0f, 1.0f), cc = cutdest ? cut + (cut2 - cut) * env : cut;
+    const uint16_t *tone = tn < 0.4f ? PINK3 : HM_GREEN;
+    if (cutdest && v->k[3]) {           /* where the envelope takes it: in wire, two rows back */
+        float px = 0.0f, py = 0.0f;
+        for (int i = 0; i <= 40; i++) {
+            float x = SP_FX((float)i / 40.0f) + 2.0f * SP_DX, y = SP_FY(sp_resp(type, cut2, q, (float)i / 40.0f)) + 2.0f * SP_DY;
+            if (i)
+                p3d_line(px, py, x, y, 0.0f, 1, HM_ORANGE[2]);
+            px = x, py = y;
+        }
     }
     sp.n = 0;
-    for (int i = 0; i <= 40; i++)
-        sp_pt(SP_FX((float)i / 40.0f), SP_FY(fm_minf(1.5f, sp_resp(type, cut, q, (float)i / 40.0f))));
+    for (int i = 0; i <= 48; i++)
+        sp_pt(SP_FX((float)i / 48.0f), SP_FY(sp_resp(type, cc, q, (float)i / 48.0f)));
+    for (int i = 0; i < 16; i++) {      /* the stilts, every 1/16 */
+        float x = ((float)i + 0.5f) / 16.0f, y = SP_FY(sp_resp(type, cc, q, x));
+        if (y < SP_FY(0) - 2.0f)
+            p3d_line(SP_FX(x) + SP_DX * 0.5f, y + SP_DY * 0.5f, SP_FX(x) + SP_DX * 0.5f, SP_FY(0) + SP_DY * 0.5f, 0.0f, 1, SP_WIRE);
+    }
     for (int i = 0; i < sp.n; i++)
-        sp.tone[i] = HM_GREEN;
-    sp_ribbon(sp.px, sp.py, sp.n, SP_FY(0), 0.0f, 0.6f, sp.tone);
-    float tt = SP_FY(sp_resp(type, cut2, q, cut2)) - 10.0f, tc = SP_FY(sp_resp(type, cut, q, cut)) - 10.0f;
-    sp_wbox(SP_FX(cut2) - 2.0f, 4.0f, tt, SP_FY(0), HM_ORANGE[1], 0.0f);
-    sp_box(SP_FX(cut) - 2.0f, 4.0f, tc, SP_FY(0), HM_GREEN, 0.0f, 0.4f);
-    p3d_line(SP_FX(cut), tc - 4.0f, SP_FX(cut2), tt - 4.0f, 0.0f, 1, HM_ORANGE[1]);
-    sp_diamond(SP_FX(cut2), tt - 4.0f, 3.0f, HM_ORANGE[1]);
+        sp.tone[i] = tone;
+    sp_band(sp.px, sp.py, sp.n, 0.0f, 1.0f, sp.tone);
+    float tc = SP_FY(sp_resp(type, cc, q, cc));
+    sp_box(SP_FX(cc) - 2.0f, 4.0f, tc + 3.0f, SP_FY(0), tone, 0.3f, 0.4f);   /* the cutoff's pillar, under the curve */
+    if (cutdest && v->k[3]) {           /* the arrow on the floor, cutoff to target */
+        float y = SP_FY(0) + 6.0f;
+        p3d_line(SP_FX(cut), y, SP_FX(cut2), y, 0.0f, 1, HM_ORANGE[1]);
+        sp_diamond(SP_FX(cut2), y, 3.0f, HM_ORANGE[1]);
+    }
     if (q > 0.08f) {                    /* the crystal: its lit half, then its shaded one */
-        float x = SP_FX(cut) + 4.0f, y = SP_FY(sp_resp(type, cut, q, cut)) - 4.0f, r = 3.0f + 4.0f * q;
+        float x = SP_FX(cc) + SP_DX * 0.5f, y = tc + SP_DY * 0.5f - 3.0f, r = 3.0f + 4.0f * q;
         sp_quad(x, y - 2.2f * r, x + r, y - r, x, y, x - r, y - r, HM_WHITE[0]);
         sp_tri(x, y - 2.2f * r, x + r, y - r, x, y, HM_WHITE[1]);
     }
-    if (tn < 0.9f)
-        p3d_line(SP_FX(cc), SP_FY(0), SP_FX(cc), SP_FY(0) - 80.0f, 0.0f, 1, PINK3[1]);
+    if (!cutdest) {                     /* ENV AMT's gauge: up or down from the middle, pink on a note */
+        float ym = SP_FY(0.55f), h = 40.0f * amt * (tn < 0.9f ? 0.5f + 0.5f * env : 1.0f);
+        if (h > 1.0f || h < -1.0f)
+            sp_box(212.0f, 9.0f, h > 0.0f ? ym - h : ym, h > 0.0f ? ym : ym - h, tn < 0.4f ? PINK3 : HM_ORANGE, 0.0f, 0.5f);
+        p3d_line(206.0f, ym, 228.0f, ym, 0.0f, 1, HM_ORANGE[2]);
+    }
 }
 
 /* the LFO's shapes (SIN, TRI, SAW, SQR, S&H) at p cycles, -1..1 */
@@ -462,6 +493,14 @@ void sound_band(int32_t oy)
         break;
     case SP_FILTER:
         sp_right(oy, SP_FTYPE[v->k[0]], HM_BLUE[1]);
+        if (v->edest != LD_CUT) {       /* ENV DEST: ENV, an arrow, the destination */
+            int32_t x = 230 - text_w(&FONT_S, SP_DEST[v->edest]), y = oy + 30;
+            cv_text(x, oy + 22, &FONT_S, SP_DEST[v->edest], HM_ORANGE[1]);
+            cv_line(x - 12, y, x - 5, y, HM_ORANGE[1]);
+            cv_line(x - 8, y - 3, x - 5, y, HM_ORANGE[1]);
+            cv_line(x - 8, y + 3, x - 5, y, HM_ORANGE[1]);
+            cv_text(x - 14 - text_w(&FONT_S, "ENV"), oy + 22, &FONT_S, "ENV", HM_ORANGE[1]);
+        }
         break;
     case SP_LFO: {                      /* an arrow, then the destination */
         int32_t x = sp_right(oy, SP_DEST[v->k[3]], HM_ORANGE[1]) - 12, y = oy + 12;

@@ -41,7 +41,7 @@ void home_band(int32_t oy);
    none); chord: the tonic's 1-3-5 when nothing is held */
 enum { SP_ADSR, SP_FILTER, SP_LFO, SP_ARP, SP_INSERT, SP_MIX };
 typedef struct {
-    uint8_t page, model, itype, own_env, kit;
+    uint8_t page, model, itype, own_env, kit, edest;   /* edest: ENV DEST, an LD_* */
     int16_t k[4];
     uint32_t hits;
     float lfo_ph;

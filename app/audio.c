@@ -344,7 +344,7 @@ static void vparam(int v, const q_sound *s, q_vparam *q)
                      (uint8_t)param(v, LK_SHAPE, s->lshape), s->ltrig, (uint8_t)param(v, LK_RATE, s->lrate),
                      (int8_t)param(v, LK_DEPTH, (uint8_t)s->ldepth), (uint8_t)param(v, LK_DEST, s->ldest),
                      (uint8_t)param(v, LK_SHAPE2, s->l2shape), s->l2trig, (uint8_t)param(v, LK_RATE2, s->l2rate),
-                     (int8_t)param(v, LK_DEPTH2, (uint8_t)s->l2depth), (uint8_t)param(v, LK_DEST2, s->l2dest) };
+                     (int8_t)param(v, LK_DEPTH2, (uint8_t)s->l2depth), (uint8_t)param(v, LK_DEST2, s->l2dest), s->edest };
 }
 
 /* a KIT's voice: its pad's harm, timb and decay, or the step's pad locks (the track's HARM, TIMB, DECAY locks do not
