@@ -1,6 +1,6 @@
 # Chords: CHORALE, ENSEMBLE, ARCADE
 
-[← Manual](index.html#s6)
+[← Manual](index.html#s6) · [All pages](index.html#pages)
 
 The chords family plays a whole chord from a single note: one key, one voice, four notes. It frees the track's POLY
 for other things and turns any pattern source into a chord progression. HARM picks the chord, the same eleven on the

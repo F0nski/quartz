@@ -1,6 +1,6 @@
 # Tables: PIPE, BOWL
 
-[← Manual](index.html#s6)
+[← Manual](index.html#s6) · [All pages](index.html#pages)
 
 The tables family plays stored waveforms and travels through them: TIMB and MORPH move from one wave to the next, so
 turning them, or putting an LFO on them, makes the sound evolve while a note holds. Good for pads, textures and

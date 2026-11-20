@@ -1,6 +1,6 @@
 # Voice: ORATOR
 
-[← Manual](index.html#s6)
+[← Manual](index.html#s6) · [All pages](index.html#pages)
 
 The voice family has one model, ORATOR: a speech synthesizer that sings vowels and says words in time with the
 notes. It does not make its own envelope: ENV's ADSR shapes its level.

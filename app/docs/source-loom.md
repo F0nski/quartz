@@ -1,6 +1,6 @@
 # LOOM
 
-[← Manual](index.html#s9)
+[← Manual](index.html#s9) · [All pages](index.html#pages)
 
 LOOM is a step sequencer pulled apart: five lanes, TRIG, NOTE, OCT, DUR and VEL, each a loop of 1 to 16 cells with
 its own length. All the heads move one cell a step; with different lengths they drift apart, and the melody takes a

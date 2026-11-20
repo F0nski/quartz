@@ -1,6 +1,6 @@
 # ATLAS
 
-[← Manual](index.html#s9)
+[← Manual](index.html#s9) · [All pages](index.html#pages)
 
 ATLAS plays drums from a map of 25 drum rhythms of 32 steps, each with three parts: bass drum, snare and hi-hat. You
 don't write the beat: you move around the map with X and Y, between the rhythms, and thin each part out or fill it in

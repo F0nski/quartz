@@ -1,6 +1,6 @@
 # Drums: BASS DRUM, SNARE, HI-HAT, KIT
 
-[← Manual](index.html#s6)
+[← Manual](index.html#s6) · [All pages](index.html#pages)
 
 The drums family is Plaits' three analog-style drums, each playable as a model on its own, and KIT, which puts sixteen
 of them on the keys as pads. The drums make their own envelope: ENV's ADSR then shapes only the filter, and MORPH (on a

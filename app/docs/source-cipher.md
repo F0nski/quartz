@@ -1,6 +1,6 @@
 # CIPHER
 
-[← Manual](index.html#s9)
+[← Manual](index.html#s9) · [All pages](index.html#pages)
 
 CIPHER plays bytebeat: music from one line of arithmetic on time. At each step a formula turns a time `t` into a
 byte, 0 to 255, and the byte decides everything about the step: whether it plays, its note (or its pad on a kit) and

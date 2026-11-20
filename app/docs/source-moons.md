@@ -1,6 +1,6 @@
 # MOONS
 
-[← Manual](index.html#s9)
+[← Manual](index.html#s9) · [All pages](index.html#pages)
 
 MOONS puts one to four moons on orbits around a planet. Each moon goes round in PERIOD steps and plays its note each
 time it passes the top. Moons with different periods meet now and then: those meetings play accented. It makes

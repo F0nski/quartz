@@ -1,6 +1,6 @@
 # Noise: CROWD, STATIC, GLITTER
 
-[← Manual](index.html#s6)
+[← Manual](index.html#s6) · [All pages](index.html#pages)
 
 The noise family makes sounds without a clear single pitch: swarms, filtered hiss and crackle. The note still matters:
 it tunes the swarm or the filter, so play high for hiss and low for rumble. None of the three makes its own envelope:

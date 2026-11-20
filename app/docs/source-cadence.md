@@ -1,6 +1,6 @@
 # CADENCE
 
-[← Manual](index.html#s9)
+[← Manual](index.html#s9) · [All pages](index.html#pages)
 
 CADENCE plays a chord progression: 1 to 8 chords, one a bar (16 steps), in degrees of the project's scale. Major,
 minor or diminished come from the scale, so every chord fits. A new pattern plays I – vi – IV – V. It is the backbone

@@ -1,6 +1,6 @@
 # Spectral: FACETS, POLLEN
 
-[← Manual](index.html#s6)
+[← Manual](index.html#s6) · [All pages](index.html#pages)
 
 The spectral family builds its sound from where the energy sits in the spectrum: FACETS stacks harmonics around a
 peak, POLLEN shapes formants like a voice or a resonant tube. TIMB moves the peak; it is the knob to play. Neither

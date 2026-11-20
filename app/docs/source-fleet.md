@@ -1,6 +1,6 @@
 # FLEET
 
-[← Manual](index.html#s9)
+[← Manual](index.html#s9) · [All pages](index.html#pages)
 
 FLEET draws random rhythms and random notes, and DEJA VU turns the draws into loops: from pure chance to a riff that
 repeats, with everything in between. The T section decides when notes play, the X section which notes. It is the

@@ -1,6 +1,6 @@
 # Physical: WIRE, CHLADNI
 
-[← Manual](index.html#s6)
+[← Manual](index.html#s6) · [All pages](index.html#pages)
 
 The physical family models a struck or plucked object and lets it ring: strings, marimbas, bells, metal. Both models
 make their own envelope: ENV's ADSR then shapes only the filter, and MORPH sets how long the object rings (ENGINE has no DECAY on them).

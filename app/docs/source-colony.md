@@ -1,6 +1,6 @@
 # COLONY
 
-[← Manual](index.html#s9)
+[← Manual](index.html#s9) · [All pages](index.html#pages)
 
 COLONY is a grid of 16 × 8 cells living by the Game of Life, read as music. A head reads one column a step, from left
 to right; the living cells of the column play, from the bottom up. Every few loops, the grid moves on by a generation:

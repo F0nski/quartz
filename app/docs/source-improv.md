@@ -1,6 +1,6 @@
 # IMPROV
 
-[← Manual](index.html#s9)
+[← Manual](index.html#s9) · [All pages](index.html#pages)
 
 You play a phrase, IMPROV improvises on it: it picks a place in the phrase where the last notes it played appear, and
 goes on from there. The result sounds like your phrase, rearranged: a duet partner that only knows what you taught it.

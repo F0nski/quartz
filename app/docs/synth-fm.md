@@ -1,6 +1,6 @@
 # FM: MOON, HEX A, HEX B, HEX C
 
-[← Manual](index.html#s6)
+[← Manual](index.html#s6) · [All pages](index.html#pages)
 
 FM makes its sounds by letting sine waves bend each other's pitch: bells, electric pianos, glassy keys, punchy basses
 and brass. MOON is a simple two-operator FM synth built from scratch with the knobs; HEX A–C are six-operator FM with

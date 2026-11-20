@@ -1,6 +1,6 @@
 # LATTICE
 
-[← Manual](index.html#s9)
+[← Manual](index.html#s9) · [All pages](index.html#pages)
 
 LATTICE plays a chord a bar that walks on the Tonnetz, the lattice of notes where neighbouring triads share two
 notes. Each step of a sequence of up to 8 transforms the chord by P, L or R, and each keeps two of its three notes, so

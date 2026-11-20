@@ -1,6 +1,6 @@
 # Analog: CREST, SWEEP, KINK, PRISM
 
-[← Manual](index.html#s6)
+[← Manual](index.html#s6) · [All pages](index.html#pages)
 
 The analog family is the place to start for basses, leads and plucks: simple waveforms that HARM, TIMB and MORPH bend
 in plain, predictable ways. None of the four makes its own envelope: ENV's ADSR shapes their level, and DECAY how long
