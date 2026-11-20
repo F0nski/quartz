@@ -11,16 +11,28 @@ expect stepon_1 1
 expect dirty 1
 tap PLAY
 tap SAVE
-expect msg_stop_to_save 1
+expect msg_save_at_stop 1
+expect save_at_stop 1
 expect dirty 1
-shot save_refused.png
+shot save_at_stop.png
 wait 1600
-expect msg_stop_to_save 0
+expect msg_save_at_stop 0
+expect dirty 1
 tap PLAY
-tap SAVE
+expect save_at_stop 0
 expect dirty 0
+expect store_writes >0
 reboot
 wait 600
 expect tempo 125
 expect stepon_1 1
 expect dirty 0
+# a change: UNSAVED: LOAD? instead of AGAIN: LOAD
+tap GLO
+turn K1 1
+expect dirty 1
+press SAVE
+key b1 down
+key b1 up
+release SAVE
+expect msg_copy 11

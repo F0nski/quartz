@@ -173,7 +173,7 @@ typedef struct { q_step st; uint8_t nlocks; q_lock lk[16]; } q_clip;   /* a step
 
 /* what is on the screen, part by part: a part is drawn again when its view changes */
 typedef struct {
-    struct { int8_t track, domain, page, n, msg, pat, playing, scene, pad, ltrig, itype, punch, badge, bnum, model; uint8_t bpm; } head;   /* badge: REC's
+    struct { int8_t track, domain, page, n, msg, pat, playing, scene, pad, ltrig, itype, punch, badge, bnum, model, dirty; uint8_t bpm; } head;   /* badge: REC's
                                                                                    state, 1 GRID .. 4 ARM (0 none or ARM's blink off); bnum: NOTES' step */   /* pat: P1..P8 asked; playing: the one playing when it differs, else 0;
                                                                                    pad: a KIT's in EDIT 1..16, else 0;
                                                                                    ltrig: LFO's FREE 1 / TRIG 2, else 0; itype: the insert's, in the page name */
@@ -224,6 +224,7 @@ static struct {
     int copy_kind, paste_key;                  /* COPY_*; paste_key: the paste armed (1: black key 2, 3: black key 4), 0 none */
     int undo, undo_track, undo_pat, undone;    /* UNDO_* kept in chunk_buf, 0 none; for which pattern; undone: the next swap redoes */
     int load_key;                              /* SAVE held, black keys 2-5: the project armed + 1, until copy_until; 0 none */
+    int save_at_stop;                          /* SAVE pressed while playing: the save is made at the stop */
     uint32_t tap_ms[4], tap_until;             /* TAP TEMPO: the last taps' times (ntap of them); its message until tap_until */
     int ntap;
     uint32_t down_ms[NB], used;                /* when each button went down; used: bit b, a key or button came while b was held */
@@ -826,6 +827,21 @@ static int len_step(int len, int d)
     return d > 0 ? up > 64 ? 64 : up : len <= 8 ? len : ((len - 1) / 8) * 8;
 }
 
+static uint8_t save_held;               /* a backup streams to the computer: a save would change what it reads */
+
+/* the play stops; a SAVE pressed while playing is written then (not while a backup reads: it waits for the next SAVE
+   or stop) */
+static void play_stop(void)
+{
+    audio_play(0);
+    if (!ui.save_at_stop || save_held)
+        return;
+    if (store_save(ui.p) == 0)
+        ui.dirty = 0;
+    ui.undo = 0;                        /* (a save writes through chunk_buf, UNDO's copy) */
+    ui.save_at_stop = 0;
+}
+
 static void button(int b)
 {
     int d;
@@ -852,7 +868,7 @@ static void button(int b)
         } else if (audio_playing()) {   /* the stop ends LIVE; GRID and NOTES stay */
             if (ui.rec == R_LIVE || ui.rec == R_ARM)
                 rec_set(R_OFF);
-            audio_play(0);
+            play_stop();
         } else {                        /* NOTES out of SEQ starts LIVE; armed before the start: the count-in */
             if (ui.rec == R_ARM || ((ui.rec == R_NOTES || ui.rec == R_GRID) && ui.domain != D_SEQ))
                 rec_set(R_LIVE);
@@ -1092,11 +1108,11 @@ static void pattern_set(int n)
 /* SEQ held, black keys 1-4: copy the pattern shown, paste it there, copy the track's sound (a KIT: its pads too),
    paste it. A paste replaces what is there: it asks for a second press. The clipboards stay till power-off */
 enum { COPY_PAT = 1, COPY_AGAIN, COPY_PAT_PASTED, COPY_SND, COPY_SND_PASTED, COPY_NONE, COPY_UNDONE, COPY_REDONE,
-       COPY_NO_UNDO, COPY_AGAIN_LOAD, COPY_PROJECT, COPY_N = COPY_PROJECT + Q_PROJECTS };   /* (the header's messages for
+       COPY_NO_UNDO, COPY_AGAIN_LOAD, COPY_UNSAVED_LOAD, COPY_PROJECT, COPY_N = COPY_PROJECT + Q_PROJECTS };   /* (the header's messages for
                                                        the copies, UNDO and the projects: COPY_PROJECT + n, project n) */
 static const char *const COPY_NAME[COPY_N - 1] = {"PATTERN COPIED", "AGAIN: PASTE", "PATTERN PASTED", "SOUND COPIED",
                                                    "SOUND PASTED", "NOTHING COPIED", "UNDONE", "REDONE",
-                                                   "NOTHING TO UNDO", "AGAIN: LOAD", "PROJECT 1", "PROJECT 2",
+                                                   "NOTHING TO UNDO", "AGAIN: LOAD", "UNSAVED: LOAD?", "PROJECT 1", "PROJECT 2",
                                                    "PROJECT 3", "PROJECT 4"};   /* COPY_* - 1 */
 static struct { q_pattern pat; q_sound snd; q_pad pads[Q_PADS]; uint8_t has_pat, has_snd; } clip;   /* (.bss: the pool
                                                                          keeps its 4 KB spare, fm1.toml pool_spare) */
@@ -1177,11 +1193,11 @@ static void project_key(int n)
     int t;
     if (ui.load_key != n + 1 || plat_ms() >= ui.copy_until) {
         ui.load_key = n + 1;
-        copy_msg(COPY_AGAIN_LOAD, 2 * MSG_MS);
+        copy_msg(ui.dirty ? COPY_UNSAVED_LOAD : COPY_AGAIN_LOAD, 2 * MSG_MS);
         return;
     }
     rec_set(R_OFF);                     /* (ui_init clears ui.rec: LISTEN must tell the render first) */
-    audio_play(0);
+    play_stop();
     store_project = n;
     store_load(ui.p);
     for (t = 0; t < Q_TRACKS; t++)      /* the render takes each track's model from the project */
@@ -1483,16 +1499,17 @@ static void live_erase(void)
     ui.erase_pos = pos;
 }
 
-static uint8_t save_held;               /* a backup streams to the computer: a save would change what it reads */
-
 static void save_release(void)
 {
     if (!short_press(B_SAVE))
         return;
-    if (audio_playing())                /* a flash write stalls the render */
+    if (audio_playing()) {              /* a flash write stalls the render: at the stop */
+        ui.save_at_stop = 1;
         ui.msg_until = plat_ms() + MSG_MS;
-    else if (!save_held && store_save(ui.p) == 0)
-        ui.dirty = 0;
+        return;
+    }
+    if (!save_held && store_save(ui.p) == 0)
+        ui.dirty = ui.save_at_stop = 0;
     ui.undo = 0;                        /* (a save writes through chunk_buf, UNDO's copy) */
 }
 
@@ -1830,7 +1847,7 @@ static void key_down(int k)
             return;
         }
         rec_set(R_OFF);                 /* (ui_init clears ui.rec: LISTEN must tell the render first) */
-        audio_play(0);
+        play_stop();
         project_defaults(ui.p);
         for (i = 0; i < Q_TRACKS; i++)  /* the render takes each track's model from the new project */
             audio_track_model(i);
@@ -2807,6 +2824,7 @@ static void view_now(q_view *v)
     int hs = shown_step(), pid = page_id(), k, fpid = hs ? lock_pid() : knob_page(), locked;
     __builtin_memset(v, 0, sizeof *v);  /* the padding too: views are compared whole */
     v->head.track = (int8_t)ui.track;
+    v->head.dirty = (int8_t)ui.dirty;
     v->head.domain = (int8_t)ui.domain;
     v->head.page = (int8_t)ui.page[ui.domain];
     v->head.n = (int8_t)domain_n(ui.domain);
@@ -3040,10 +3058,12 @@ static void draw_head(const q_view *v)
     cv_rect(6, 5, 20, 20, C_HI);
     int_text(v->head.track + 1, t);
     cv_text(6 + (20 - text_w(&FONT_B, t)) / 2, 7, &FONT_B, t, C_BLACK);
+    if (v->head.dirty)                  /* changed since the last SAVE */
+        cv_text(28, 3, &FONT_S, "*", KCOL[3]);
     x = cv_text(34, 7, &FONT_B, DOMAIN_NAME[v->head.domain], C_WHITE);
     head_page_name = 0;
     if (v->head.msg) {
-        x = cv_text(x + 10, 7, &FONT_B, v->head.msg == 1 ? "STOP TO SAVE" : v->head.msg == 2 ? "LOCKS FULL" : v->head.msg == 3 ? "AGAIN: ERASE"
+        x = cv_text(x + 10, 7, &FONT_B, v->head.msg == 1 ? "SAVE AT STOP" : v->head.msg == 2 ? "LOCKS FULL" : v->head.msg == 3 ? "AGAIN: ERASE"
                     : v->head.msg == 4 ? "RANDOM PAGE" : v->head.msg == 5 ? "RANDOM ALL" : v->head.msg == 6 ? "RANDOM MODEL"
                     : v->head.msg == 7 ? "TAP" : COPY_NAME[v->head.msg - 8],
                     KCOL[3]);
@@ -4059,7 +4079,8 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "fill")) *got = ui.fill;
     else if (!strcmp(what, "msg_locks_full")) *got = plat_ms() < ui.locks_until;
     else if (!strcmp(what, "dirty")) *got = ui.dirty;
-    else if (!strcmp(what, "msg_stop_to_save")) *got = plat_ms() < ui.msg_until;
+    else if (!strcmp(what, "msg_save_at_stop")) *got = plat_ms() < ui.msg_until;
+    else if (!strcmp(what, "save_at_stop")) *got = ui.save_at_stop;
     else if (!strcmp(what, "msg_wipe")) *got = plat_ms() < ui.wipe_until;
     else if (!strcmp(what, "msg_random")) *got = plat_ms() < ui.rnd_until ? ui.rnd_kind : 0;
     else if (!strcmp(what, "msg_copy")) *got = plat_ms() < ui.copy_until ? ui.copy_kind : 0;

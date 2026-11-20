@@ -7,7 +7,8 @@ ENGINE	engine
 SOUND	sound
 STEPS	steps
 TEMPO	tempo
-STOP TO SAVE	stop to save
+SAVE AT STOP	save at stop
+*	unsaved
 REC TO TEACH	rec to teach
 HARM	harmonics
 TIMB	timbre
@@ -568,6 +569,7 @@ UNDONE	undone
 REDONE	redone
 NOTHING TO UNDO	nothing to undo
 AGAIN: LOAD	again: load
+UNSAVED: LOAD?	unsaved: load?
 PROJECT 1	project 1
 PROJECT 1 (NOW)	project 1, loaded
 PROJECT 2	project 2

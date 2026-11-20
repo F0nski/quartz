@@ -130,15 +130,15 @@ left, as the screen numbers them.
 
 ![EDIT's ENGINE page on track 2: the header with 2, EDIT, ENGINE and the model CREST, page 1/2; the scene; HARM, TIMB, MORPH and DECAY at 64 in the footer](img/screen-anatomy.png "A page: header, scene, knobs")
 
-- **Header**: the track in a box, the domain and the page (on ENGINE and SOUND, the model too; on SEQ, the pattern: `P1 > P2` while the next one waits
+- **Header**: the track in a box (an orange `*` beside it: something changed since the last SAVE), the domain and the page (on ENGINE and SOUND, the model too; on SEQ, the pattern: `P1 > P2` while the next one waits
   for the end of the loop), the page's number, and REC's state when it is armed (GRID, NOTES, LIVE; ARM and LISTEN
   blink).
 - **Scene**: what the page sets, animated. It reacts to every knob of the page and to each note played, in pink.
 - **Footer**: K1–K4, their names and values in their colours. A grey one is not in use on this page.
 
-Messages show in the header for a moment: `STOP TO SAVE` (SAVE while playing), `LOCKS FULL` (no room for another
+Messages show in the header for a moment: `SAVE AT STOP` (SAVE while playing), `LOCKS FULL` (no room for another
 p-lock in the pattern), `AGAIN: ERASE` (press again to start a new project), `AGAIN: PASTE` (press again to paste),
-`AGAIN: LOAD` and `PROJECT 2` (section 11), `PATTERN COPIED` and the other copies' (section 5), `UNDONE` and `REDONE`
+`AGAIN: LOAD`, `UNSAVED: LOAD?` and `PROJECT 2` (section 11), `PATTERN COPIED` and the other copies' (section 5), `UNDONE` and `REDONE`
 (REC held, black key 3), `TAP 120` (the tempo just tapped), or the name of a punch-in.
 
 ### Held buttons show their map
@@ -567,13 +567,15 @@ settings. One is in memory at a time: the one you play and edit.
 
 - Press SAVE while stopped to write it to the FM-1, in its own place. At power-on, the FM-1 loads the project saved
   last.
-- To load another, hold SAVE and press black key 2, 3, 4 or 5 for project 1, 2, 3 or 4: the header says `AGAIN: LOAD`;
-  press it again within three seconds. The header then says `PROJECT 2`, for example, and SAVE writes project 2. Loading
+- To load another, hold SAVE and press black key 2, 3, 4 or 5 for project 1, 2, 3 or 4: the header says `AGAIN: LOAD`,
+  or `UNSAVED: LOAD?` when the project in memory changed since its last SAVE; press it again within three seconds. The header then says `PROJECT 2`, for example, and SAVE writes project 2. Loading
   stops playing, and what you changed since the last SAVE is lost; loading the same project goes back to its last SAVE.
   A project never saved is a new one. SAVE's map marks the project loaded, `(NOW)`.
 - What you copied (SEQ held, black keys 1 and 3) stays when you load another project: copy a pattern or a sound in one,
   paste it in the other.
-- While playing, SAVE only shows `STOP TO SAVE`: writing to the flash would stall the sound.
+- The `*` beside the track's number in the header says the project changed since its last SAVE.
+- While playing, SAVE shows `SAVE AT STOP`: writing to the flash would stall the sound, so the save is made when you
+  stop (PLAY, or a project loaded or started meanwhile). It cannot be called off; the `*` goes once it is done.
 - Nothing is saved on its own (but by a backup, below): turning the FM-1 off loses what changed since the last SAVE.
 - A new project (SAVE held, black key 1 twice) replaces the one in memory; the saved one stays until the next SAVE,
   which writes the new project in its place.
@@ -630,7 +632,7 @@ Instruments, monome, Make Noise, Elektron or teenage engineering.
 | A key does nothing | A button may still be held (its map is on the screen). With KEYS at ALL, the black keys are silent. |
 | REC does nothing | The pattern is generative: only LOOM, CADENCE and LATTICE have a GRID, and IMPROV listens. To record notes, set SOURCE to STEP. |
 | The pattern doesn't change | While playing, it waits for the end of the loop (`P1 > P2` in the header); hold SEL too for at once. |
-| `STOP TO SAVE` | Stop, then press SAVE. |
+| `SAVE AT STOP` | The save is made when you stop. |
 | `LOCKS FULL` | The pattern holds 128 p-locks: clear some (REC held, black key 2 clears them all). |
 | Clicks in the sound | GLO's CPU page: LOST BLOCKS counts them. Lower POLY, use lighter models than CHLADNI or FACETS on several tracks, or fewer inserts. |
 | The project is gone after an update | The new version saves projects differently and starts from a new one (section 2). |
