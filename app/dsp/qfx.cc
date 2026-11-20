@@ -35,8 +35,8 @@ float lp_coef(float hz) { return 1.0f - fm_expf(-kTwoPi * hz / kSr); }
 struct Track {
   int type;
   float lp;            // TONE's and COMB's low-pass
-  float phase;         // LFO or ring modulator, in cycles
-  float ap[4];         // PHASER's all-pass states
+  float phase;         // LFO or ring modulator, in cycles; TAPE's wow
+  float ap[4];         // PHASER's all-pass states; FILTER's two states; TAPE's flutter phase
   float last;          // PHASER's feedback sample
   float fg;            // WAVEFOLD's level gain, the input's RMS over the output's
   unsigned wpos;       // delay line write position
@@ -231,6 +231,43 @@ void comb(Track& s, int t, float d, float fb, float a, float* x, unsigned n) {
     s.wpos = (s.wpos + 1) & kDelayMask;
     x[i] = y * (1.0f - fb);   // the wet follows the feedback's gain at the resonance
   }
+}
+
+// FILTER: a resonant state-variable filter (stmlib's Svf, inline: its two states in ap), its output morphed from
+// low-pass (MODE 0) through band-pass (64) to high-pass (127), then softly clipped: the resonance rings, never bursts.
+void filter(Track& s, int p1, int p2, int p3, float* x, unsigned n) {
+  const float f = e(20.0f, 18000.0f, p1), g = fm_tanf(3.14159265f * f / kSr), r = 1.0f / (0.5f * fm_powf(40.0f, p2 / 127.0f));
+  const float h = 1.0f / (1.0f + r * g + g * g), m = p3 / 63.5f;
+  const float wl = m < 1.0f ? 1.0f - m : 0.0f, wb = m < 1.0f ? m : 2.0f - m, wh = m > 1.0f ? m - 1.0f : 0.0f;
+  float s1 = s.ap[0], s2 = s.ap[1];
+  for (unsigned i = 0; i < n; ++i) {
+    const float hp = (x[i] - r * s1 - g * s1 - s2) * h, bp = g * hp + s1;
+    s1 = g * hp + bp;
+    const float lp = g * bp + s2;
+    s2 = g * bp + lp;
+    float y = wl * lp + wb * bp + wh * hp;
+    y = y > 3.0f ? 3.0f : y < -3.0f ? -3.0f : y;
+    x[i] = y * (27.0f + y * y) / (27.0f + 9.0f * y * y);   // tanh's rational fit, 1 at 3
+  }
+  s.ap[0] = s1, s.ap[1] = s2;
+}
+
+// TAPE: the delay line read 6 ms behind, that delay moved by a slow wow (0.6 Hz, up to 3 ms) and a fast flutter (9 Hz,
+// up to 0.25 ms); then Overdrive's saturation and a high cut that darkens with it
+void tape(Track& s, int t, int p1, int p2, int p3, float* x, unsigned n) {
+  float* line = ibuf[t];
+  const float wow = 0.003f * kSr * p1 / 127.0f, flutter = 0.00025f * kSr * p2 / 127.0f;
+  for (unsigned i = 0; i < n; ++i) {
+    s.phase += 0.6f / kSr;
+    if (s.phase >= 1.0f) s.phase -= 1.0f;
+    s.ap[0] += 9.0f / kSr;
+    if (s.ap[0] >= 1.0f) s.ap[0] -= 1.0f;
+    line[s.wpos] = x[i];
+    x[i] = tap(line, s.wpos + 1, 0.006f * kSr + wow * plaits::Sine(s.phase) + flutter * plaits::Sine(s.ap[0]));
+    s.wpos = (s.wpos + 1) & kDelayMask;
+  }
+  s.od.Process(0.5f + 0.4f * p3 / 127.0f, x, n);
+  tone(s, 127 - p3 / 2, x, n);
 }
 
 Mix targets(const qfx_track& tr) {
@@ -741,6 +778,8 @@ extern "C" void qfx_insert(int t, int type, int p1, int p2, int p3, int mix, flo
       case IT_PHASER: phaser(s, lfo, octaves, phaser_fb, x, k); break;
       case IT_RING: ring(s, ring_inc, x, k); break;
       case IT_COMB: comb(s, t, comb_d, comb_fb, comb_a, x, k); break;
+      case IT_FILTER: filter(s, p1, p2, p3, x, k); break;
+      case IT_TAPE: tape(s, t, p1, p2, p3, x, k); break;
     }
     for (unsigned i = 0; i < k; ++i) x[i] = dry[i] * (1.0f - m) + x[i] * m;
   }

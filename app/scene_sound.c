@@ -371,9 +371,26 @@ static void sp_insert(const q_pview *v, float t)
             o /= 1.0f + 2.0f * b, sm = c;
             break;
         }
+        case 8: o = 0.0f; break;        /* FILTER: below, the whole run */
+        case 9: {                       /* TAPE: the wave wobbling in time, then saturated */
+            float g = 1.0f + 3.0f * c, w = q + 0.03f * a * fm_sinf(t * 1.5f + q * 3.0f) + 0.008f * b * fm_sinf(t * 9.0f + q * 40.0f);
+            o = fm_tanhf(SP_S(w) * g) / fm_tanhf(g), sm = 0.5f * c;
+            break;
+        }
         default: o = x, m = 0.0f;
         }
         y0[i] = o;
+    }
+    if (v->itype == 8) {                /* FILTER: a saw through the insert's SVF, twice for its steady state; MODE's morph */
+        float g = 0.04f + 1.4f * a * a, r = 1.0f / (0.5f + 7.5f * b), h = 1.0f / (1.0f + r * g + g * g), s1 = 0.0f, s2 = 0.0f;
+        float mm = 2.0f * c, wl = mm < 1.0f ? 1.0f - mm : 0.0f, wb = mm < 1.0f ? mm : 2.0f - mm, wh = mm > 1.0f ? mm - 1.0f : 0.0f;
+        for (int pass = 0; pass < 2; pass++)
+            for (int i = 0; i <= N; i++) {
+                float q = (float)i / (float)N, in = 2.0f * (2.0f * q - fm_floorf(2.0f * q)) - 1.0f;
+                float hp = (in - r * s1 - g * s1 - s2) * h, bp = g * hp + s1, lp;
+                s1 = g * hp + bp, lp = g * bp + s2, s2 = g * bp + lp;
+                y0[i] = fm_clampf(wl * lp + wb * bp + wh * hp, -1.2f, 1.2f);
+            }
     }
     int r = (int)(sm * 4.5f + 0.5f);        /* TONE, DAMP: a moving average, the ends over what there is */
     for (int i = 0; i <= N; i++) {
@@ -382,11 +399,20 @@ static void sp_insert(const q_pview *v, float t)
         for (int j = i - r; j <= i + r; j++)
             if (j >= 0 && j <= N)
                 s += y0[j], n++;
-        y[i] = SP_S((float)i / (float)N) * (1.0f - m) + s / (float)n * m;
+        float dry = v->itype == 8 ? 2.0f * ((float)(2 * i) / (float)N - fm_floorf((float)(2 * i) / (float)N)) - 1.0f
+                                  : SP_S((float)i / (float)N);   /* (FILTER's input: the saw) */
+        y[i] = dry * (1.0f - m) + s / (float)n * m;
     }
-    for (int i = 0; i < 18; i++)
-        p3d_line(SP_XQ((float)i / 18), ym - A * SP_S((float)i / 18), SP_XQ((float)(i + 1) / 18), ym - A * SP_S((float)(i + 1) / 18),
-                 0.0f, 1, SP_GRAY[0]);
+    if (v->itype == 8)                      /* the input in wire: FILTER's saw, the others' sine */
+        for (int c2 = 0; c2 < 2; c2++) {
+            float x0 = SP_XQ(0.5f * (float)c2), x1 = SP_XQ(0.5f * (float)c2 + 0.5f);
+            p3d_line(x0, ym + A, x1, ym - A, 0.0f, 1, SP_GRAY[0]);
+            p3d_line(x1, ym - A, x1, ym + A, 0.0f, 1, SP_GRAY[0]);
+        }
+    else
+        for (int i = 0; i < 18; i++)
+            p3d_line(SP_XQ((float)i / 18), ym - A * SP_S((float)i / 18), SP_XQ((float)(i + 1) / 18), ym - A * SP_S((float)(i + 1) / 18),
+                     0.0f, 1, SP_GRAY[0]);
     sp.n = 0;                               /* merged within a tone only: the wave stays 8 segments */
     for (int i = 0; i <= N; i++) {
         float x = SP_XQ((float)i / N), yy = ym - A * y[i];

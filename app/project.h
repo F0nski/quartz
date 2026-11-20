@@ -28,7 +28,7 @@ enum { LK_HARM, LK_TIMB, LK_MORPH, LK_DECAY, LK_TUNE, LK_GLIDE,
        LK_PTUNE, LK_PHARM, LK_PTIMB, LK_PDECAY, LK_N };   /* lockable q_sound fields, then a KIT's pads' (every pad of the
                                                              step: q_pad's tune, harm, timb, decay); LK_N <= 64: audio.c's lk_mask */
 enum { LK_PUNCH_LO = LK_N, LK_PUNCH_HI };   /* a step's punch-ins, not q_sound fields: white keys 1-8 and 9-16, bit k = key k + 1 */
-enum { IT_OFF, IT_DRIVE, IT_FOLD, IT_CRUSH, IT_CHORUS, IT_PHASER, IT_RING, IT_COMB, IT_N };   /* q_sound.itype: the insert */
+enum { IT_OFF, IT_DRIVE, IT_FOLD, IT_CRUSH, IT_CHORUS, IT_PHASER, IT_RING, IT_COMB, IT_FILTER, IT_TAPE, IT_N };   /* q_sound.itype: the insert */
 enum { FT_LP, FT_HP, FT_BP };
 enum { LS_SIN, LS_TRI, LS_SAW, LS_SQR, LS_SH };
 enum { LD_HARM, LD_TIMB, LD_MORPH, LD_PITCH, LD_CUT, LD_RES, LD_LEVEL, LD_PAN, LD_INS };   /* PAN, INS (the insert's K1): per
@@ -108,7 +108,7 @@ typedef struct { uint8_t len, div, nlocks, path, xlen, ylen, ydiv, src; q_grids 
 typedef struct { uint8_t used, mute, pat[Q_TRACKS]; } q_scene;
 typedef struct { uint8_t scene, reps; } q_entry;          /* scene 0..7, reps 1..16 */
 /* 0..127 except model 0..24, poly 1..4, tune -24..24, ftype 0..2, envamt and ldepth -64..63, lshape 0..4, ltrig 0 FREE 1 TRIG,
- * lrate 0..75, ldest 0..8 (LD_*), amode 0..5, aoct 1..4, adiv a DIV_*, agate 5..100, itype 0..7 (IT_*), pan -64..63;
+ * lrate 0..75, ldest 0..8 (LD_*), amode 0..5, aoct 1..4, adiv a DIV_*, agate 5..100, itype 0..9 (IT_*), pan -64..63;
  * i1..i3 the insert's knobs, imix its dry/wet, dsend and rsend the sends to the delay and the reverb; l2*: LFO 2, as l*;
  * edest: where ENV AMT sends the envelope, LD_HARM..LD_CUT (HARM, TIMB, MORPH, PITCH or the filter's CUTOFF) */
 typedef struct {

@@ -1157,7 +1157,7 @@ static void sound_budget(void)
             assert(pv_run(1210000) < 300);
             pv_inside();
         }
-    for (int ty = 0; ty < 8; ty++)          /* INSERT: every type, the knobs low and high */
+    for (int ty = 0; ty < IT_N; ty++)          /* INSERT: every type, the knobs low and high */
         for (int k = 0; k < 2; k++) {
             preset(SP_INSERT, (int16_t)(127 * k), (int16_t)(127 * k), (int16_t)(127 - 127 * k), 127);
             PV.itype = (uint8_t)ty;

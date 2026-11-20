@@ -17,6 +17,8 @@ expect page 2
 turn PRESET 7
 expect itype 7
 turn PRESET 5
+expect itype 9
+turn PRESET -2
 expect itype 7
 wait 100
 shot fx_insert.png

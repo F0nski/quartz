@@ -628,3 +628,8 @@ SONG + S8	add scene 8 to the song
 PROJECT	project
 SCENES	scenes
 A FOUR-TRACK GROOVEBOX	a four-track groovebox
+LP+BP	low-pass and band-pass
+BP+HP	band-pass and high-pass
+WOW	wow
+FLUTTER	flutter
+TAPE	tape

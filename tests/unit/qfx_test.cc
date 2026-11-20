@@ -172,6 +172,43 @@ static void phaser_tuned_low(void)
     assert(lo < hi * 0.1);
 }
 
+// RMS of a sine at hz through the FILTER insert at FREQ 64 (~620 Hz), RES 0, MODE mode
+static double filter_gain(float hz, int mode)
+{
+    static float b[8192];
+    qfx_init();
+    for (unsigned i = 0; i < 8192; i++) b[i] = 0.25f * sinf(6.2831853f * hz * i / kRate);
+    for (unsigned i = 0; i < 8192; i += kBlock) qfx_insert(0, IT_FILTER, 64, 0, mode, 127, b + i, kBlock);
+    double sq = 0.0;
+    for (unsigned i = 4096; i < 8192; i++) sq += (double)b[i] * b[i];
+    return sqrt(sq / 4096) / (0.25 / sqrt(2.0));
+}
+
+// LP passes the lows and cuts the highs, HP the reverse, BP the middle; RES rings at FREQ
+static void filter_modes(void)
+{
+    const double lp_lo = filter_gain(80.0f, 0), lp_hi = filter_gain(8000.0f, 0);
+    const double hp_lo = filter_gain(80.0f, 127), hp_hi = filter_gain(8000.0f, 127);
+    const double bp_mid = filter_gain(620.0f, 64), bp_hi = filter_gain(8000.0f, 64);
+    printf("  filter: LP %.3f / %.3f, HP %.3f / %.3f, BP %.3f / %.3f\n", lp_lo, lp_hi, hp_lo, hp_hi, bp_mid, bp_hi);
+    assert(lp_lo > 0.9 && lp_hi < 0.02 && hp_lo < 0.02 && hp_hi > 0.9 && bp_mid > 4.0 * bp_hi);
+}
+
+static unsigned peak_at(const float *x, unsigned from, unsigned to);
+
+// TAPE, WOW and FLUTTER 0, DRIVE 0: the input 6 ms later
+static void tape_delays(void)
+{
+    static float b[1024];
+    qfx_init();
+    memset(b, 0, sizeof(b));
+    b[0] = 0.5f;
+    qfx_insert(0, IT_TAPE, 0, 0, 0, 127, b, 1024);
+    const unsigned at = peak_at(b, 0, 1024), want = (unsigned)(0.006f * kRate);
+    printf("  tape: impulse at %u (expected %u)\n", at, want);
+    assert(at >= want - 1 && at <= want + 1);
+}
+
 // --- qfx_block: track mix, delay, reverb, ducking, compressor, limiter ---
 
 static qfx_track tr[QFX_TRACKS];
@@ -966,6 +1003,8 @@ int main(void)
     type_switch_resets_state();
     drive_zero_not_silent();
     phaser_tuned_low();
+    filter_modes();
+    tape_delays();
     defaults_are_transparent();
     pan_law();
     delay_lands_on_division();

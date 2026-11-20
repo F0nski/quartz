@@ -141,9 +141,11 @@ static const char *const LRATE_NAME[LRATE_SYNC] = {"8 BAR", "4 BAR", "2 BAR", "1
                                                    "1/16", "1/16T", "1/32"};
 static const char *const LDEST_NAME[LD_INS + 1] = {"HARM", "TIMB", "MORPH", "PITCH", "CUTOFF", "RES", "LEVEL", "PAN", "INSERT"};
 /* the insert's page name and its 3 knobs by type: "" a knob with no role (K4 is always MIX) */
-static const char *const INS_NAME[IT_N] = {"INSERT OFF", "OVERDRIVE", "WAVEFOLD", "BITCRUSH", "CHORUS", "PHASER", "RING MOD", "COMB"};
+static const char *const INS_NAME[IT_N] = {"INSERT OFF", "OVERDRIVE", "WAVEFOLD", "BITCRUSH", "CHORUS", "PHASER", "RING MOD", "COMB",
+                                           "FILTER", "TAPE"};
 static const char *const INS_LABEL[IT_N][3] = {{"", "", ""}, {"DRIVE", "TONE", ""}, {"FOLD", "BIAS", "TONE"}, {"BITS", "RATE", ""},
-                                                {"RATE", "DEPTH", ""}, {"RATE", "DEPTH", "FEEDBK"}, {"FREQ", "", ""}, {"NOTE", "FEEDBK", "DAMP"}};
+                                                {"RATE", "DEPTH", ""}, {"RATE", "DEPTH", "FEEDBK"}, {"FREQ", "", ""}, {"NOTE", "FEEDBK", "DAMP"},
+                                                {"FREQ", "RES", "MODE"}, {"WOW", "FLUTTER", "DRIVE"}};
 static const char *const AMODE_NAME[6] = {"OFF", "UP", "DOWN", "UP-DN", "RAND", "ORDER"};
 static const char *const SRC_NAME[SRC_N] = {"STEP", "ATLAS", "FLEET", "COLONY", "LOOM", "CADENCE", "LATTICE", "MOONS", "IMPROV", "CIPHER"};
 /* Marbles' T models, its TGeneratorModel order (gen.c) */
@@ -2954,6 +2956,16 @@ static void knob_text(int pid, int k, int v, int model, char *b)
         }
         if (it == IT_COMB && !k) {
             note_name(v < 29 ? 29 : v, b);      /* the comb's lowest note is F1 */
+            return;
+        }
+        if (it == IT_FILTER && !k) {
+            hz_text(20.f * __builtin_powf(900.f, (float)v / 127.f), b);
+            return;
+        }
+        if (it == IT_FILTER && k == 2) {        /* MODE: LP, BP, HP and the mixes between */
+            static const char *const MODE[5] = {"LP", "LP+BP", "BP", "BP+HP", "HP"};
+            const char *s = MODE[(v * 4 + 63) / 127];
+            while ((*b++ = *s++) != 0) {}
             return;
         }
     }

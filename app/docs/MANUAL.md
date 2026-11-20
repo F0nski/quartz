@@ -421,6 +421,11 @@ only, 127 is the effect only. The three other knobs keep their values when you c
 WAVEFOLD starts almost clean at FOLD 0 and folds more as you turn it; its level follows the dry sound's, so folding
 changes the tone, not the volume. BIAS makes the folds uneven.
 
+FILTER is a second, resonant filter after the voices, for the whole track: MODE blends low-pass into band-pass into
+high-pass, and a soft clip keeps a high RES ringing without bursting. With an LFO on INSERT (DEST), FREQ sweeps.
+TAPE plays the track through a worn tape: WOW bends the pitch slowly (0.6 Hz), FLUTTER quickly (9 Hz), DRIVE saturates
+and darkens it.
+
 | Type | K1 | K2 | K3 |
 | --- | --- | --- | --- |
 | INSERT OFF | — | — | — |
@@ -431,6 +436,8 @@ changes the tone, not the volume. BIAS makes the folds uneven.
 | PHASER | RATE, 0.05 to 5 Hz | DEPTH | FEEDBK |
 | RING MOD | FREQ, 20 Hz to 5 kHz | — | — |
 | COMB | NOTE, F1 and up | FEEDBK | DAMP |
+| FILTER | FREQ, 20 Hz to 18 kHz | RES | MODE: LP, then BP, then HP |
+| TAPE | WOW | FLUTTER | DRIVE |
 
 The delay and the reverb are shared by the four tracks; DELAY and REVERB set how much of the track goes to each.
 They are set on GLO's FX page (section 10): the delay is a ping-pong in time with the tempo, the reverb is Clouds'.
