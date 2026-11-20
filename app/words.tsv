@@ -565,6 +565,9 @@ PRINT THE NEXT LOOP	print the next loop
 AGAIN: PRINT	again: print
 PRINTING	printing
 PRINTED	printed
+LEN DOUBLED	length doubled
+TOO LONG TO DOUBLE	too long to double
+LEN X2, STEPS COPIED	length times two, steps copied
 PLAY TO PRINT	play to print
 PATTERN AT ONCE	pattern at once
 PATTERN COPIED	pattern copied

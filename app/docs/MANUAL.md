@@ -212,6 +212,10 @@ The same way, black key 3 copies the track's sound: its model, its EDIT, ENV, LF
 pan and level, and on a KIT its 16 pads. Black key 4, pressed twice, pastes it on the track shown. What you copied
 stays until you turn the FM-1 off. REC held and black key 3 undoes a paste.
 
+To double a STEP pattern, hold SEQ and press black key 6 (`LEN DOUBLED`): LEN 16 becomes 32, and steps 1–16 with
+their p-locks are copied onto steps 17–32, ready for a variation on the second half. A pattern longer than 32 steps
+says `TOO LONG TO DOUBLE`, and one whose p-locks would not fit `LOCKS FULL`. REC held and black key 3 undoes it.
+
 To keep what a generative source plays, PRINT it: while playing, hold SEQ and press black key 5 twice (`AGAIN: PRINT`,
 then `PRINTING`). The next loop the pattern plays is written into its steps as it goes, then the pattern becomes STEP
 (`PRINTED`): its LEN the loop's, PATH FWD, ready to edit by hand, p-locks and conditions included. A note accented in

@@ -1120,12 +1120,13 @@ static void pattern_set(int n)
    paste it. A paste replaces what is there: it asks for a second press. The clipboards stay till power-off */
 enum { COPY_PAT = 1, COPY_AGAIN, COPY_PAT_PASTED, COPY_SND, COPY_SND_PASTED, COPY_NONE, COPY_UNDONE, COPY_REDONE,
        COPY_NO_UNDO, COPY_AGAIN_LOAD, COPY_UNSAVED_LOAD, COPY_AGAIN_PRINT, COPY_PRINTING, COPY_PRINTED, COPY_PLAY_PRINT,
-       COPY_PROJECT, COPY_N = COPY_PROJECT + Q_PROJECTS };   /* (the header's messages for
+       COPY_DOUBLED, COPY_TOO_LONG, COPY_PROJECT, COPY_N = COPY_PROJECT + Q_PROJECTS };   /* (the header's messages for
                                                        the copies, UNDO and the projects: COPY_PROJECT + n, project n) */
 static const char *const COPY_NAME[COPY_N - 1] = {"PATTERN COPIED", "AGAIN: PASTE", "PATTERN PASTED", "SOUND COPIED",
                                                    "SOUND PASTED", "NOTHING COPIED", "UNDONE", "REDONE",
                                                    "NOTHING TO UNDO", "AGAIN: LOAD", "UNSAVED: LOAD?", "AGAIN: PRINT",
-                                                   "PRINTING", "PRINTED", "PLAY TO PRINT", "PROJECT 1", "PROJECT 2",
+                                                   "PRINTING", "PRINTED", "PLAY TO PRINT", "LEN DOUBLED",
+                                                   "TOO LONG TO DOUBLE", "PROJECT 1", "PROJECT 2",
                                                    "PROJECT 3", "PROJECT 4"};   /* COPY_* - 1 */
 static struct { q_pattern pat; q_sound snd; q_pad pads[Q_PADS]; uint8_t has_pat, has_snd; } clip;   /* (.bss: the pool
                                                                          keeps its 4 KB spare, fm1.toml pool_spare) */
@@ -1286,6 +1287,41 @@ static void print_key(void)
     ui.print = ui.track + 1, ui.print_pat = ui.p->pattern[ui.track], ui.print_src = pat()->src;
     audio_print(ui.track, ui.print_pat);
     copy_msg(COPY_PRINTING, 0x7FFFFFFFu);
+}
+
+/* SEQ held, black key 6: a STEP pattern's LEN doubled, its steps and p-locks copied after them (the steps there cleared
+   first); refused past 32 steps or when the p-locks would not fit */
+static void double_key(void)
+{
+    q_pattern *t = pat();
+    int i, n = t->len, need = t->nlocks;
+    if (t->src != SRC_STEP)
+        return;
+    if (n > Q_STEPS / 2) {
+        copy_msg(COPY_TOO_LONG, MSG_MS);
+        return;
+    }
+    for (i = 0; i < t->nlocks; i++)     /* the copies come, the locks on the steps cleared go */
+        need += t->locks[i].step < n ? 1 : t->locks[i].step < 2 * n ? -1 : 0;
+    if (need > Q_LOCKS) {
+        ui.locks_until = plat_ms() + MSG_MS;
+        return;
+    }
+    undo_keep(UNDO_PAT);
+    for (i = n; i < 2 * n; i++)
+        step_clear(t, i);
+    for (i = 0, need = t->nlocks; i < need; i++)
+        if (t->locks[i].step < n)
+            lock_set(t, t->locks[i].step + n, t->locks[i].param, t->locks[i].value);
+    for (i = 0; i < n; i++) {           /* the flag last: the render never reads half a step */
+        t->steps[n + i] = t->steps[i];
+        t->steps[n + i].flags &= (uint8_t)~SF_ON;
+        if (t->steps[i].flags & SF_ON)
+            step_on(&t->steps[n + i]);
+    }
+    t->len = (uint8_t)(2 * n);
+    ui.dirty = 1;
+    copy_msg(COPY_DOUBLED, MSG_MS);
 }
 
 /* a PRINT step lands on its rank (the generator's pattern does not read its steps); the last one makes it STEP: its
@@ -1985,6 +2021,10 @@ static void key_down(int k)
             print_key();
             return;
         }
+        if (k == BLACK[5]) {
+            double_key();
+            return;
+        }
         for (b = 0; b < 4 && BLACK[b] != k; b++) {}
         if (w < Q_PATTERNS) {
             pattern_set(w);
@@ -2483,7 +2523,8 @@ static uint32_t layer_keys(int b)
         if (b == B_FX)                  /* FX: and FILL */
             keys |= 1u << BLACK[0];
         if (b == B_SEQ)                 /* SEQ: and the copies, PRINT on a generator */
-            keys |= 1u << BLACK[0] | 1u << BLACK[1] | 1u << BLACK[2] | 1u << BLACK[3] | (uint32_t)(pat()->src != SRC_STEP) << BLACK[4];
+            keys |= 1u << BLACK[0] | 1u << BLACK[1] | 1u << BLACK[2] | 1u << BLACK[3] | (uint32_t)(pat()->src != SRC_STEP) << BLACK[4]
+                    | (uint32_t)(pat()->src == SRC_STEP) << BLACK[5];
         return b == B_SAVE ? keys | 1u << BLACK[0] | 1u << BLACK[1] | 1u << BLACK[2] | 1u << BLACK[3] | 1u << BLACK[4]
                            : keys;      /* SAVE: and the new project, the projects */
     case B_SEL:
@@ -3325,6 +3366,8 @@ static void draw_layer(const q_view *v, int32_t oy)
             tags[n] = "#4", names[n++] = "PASTE SOUND";
             if (v->scene.lkeys >> BLACK[4] & 1u)
                 tags[n] = "#5", names[n++] = "PRINT THE NEXT LOOP";
+            if (v->scene.lkeys >> BLACK[5] & 1u)
+                tags[n] = "#6", names[n++] = "LEN X2, STEPS COPIED";
             combo[0][0] = "PASTE", combo[0][1] = "PRESS TWICE (PRINT TOO)";
             combo[1][0] = "+ SEL", combo[1][1] = "PATTERN AT ONCE";
         }

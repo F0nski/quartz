@@ -1,0 +1,31 @@
+# SEQ held, black key 6: LEN x2, the steps and p-locks copied after them; past 32 steps, refused; UNDO
+wait 600
+tap SEQ
+tap REC
+key w0 down
+turn K1 3
+key w0 up
+tapkey w3
+expect lock_0_1 67
+expect len 16
+press SEQ
+tapkey b5
+release SEQ
+expect len 32
+expect msg_copy 16
+expect stepon_17 1
+expect stepon_20 1
+expect stepon_18 0
+expect lock_0_17 67
+expect nsteps_on 4
+press SEQ
+tapkey b5
+tapkey b5
+release SEQ
+expect len 64
+expect msg_copy 17
+expect lock_0_49 67
+press REC
+tapkey b2
+release REC
+expect len 32
