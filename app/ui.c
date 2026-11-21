@@ -220,6 +220,7 @@ static struct {
     uint16_t punch;                            /* the punch-ins held under FX, bit k = white key k + 1 */
     uint16_t latch;                            /* FX held, black key 2: the punch-ins kept after their keys and FX, until a
                                                   tap on FX */
+    uint8_t latching;                          /* black key 2 pressed in this FX hold: the punch-ins pressed after it latch too */
     uint8_t last_note[Q_TRACKS];               /* a step switched on by hand takes it */
     int8_t key_note[NKEYS], key_track[NKEYS];  /* what each held key sounds, for its note-off; -1 none */
     uint32_t btn, keys, msg_until, locks_until, path_until, punch_until;
@@ -2118,6 +2119,9 @@ static void transpose_key(int k)
     ui.trans_until = plat_ms() + MSG_MS;
 }
 
+/* the punch-ins LATCH keeps: not those that end in silence or a wash (TAPE STOP, DELAY THROW, FREEZE) */
+#define PUNCH_LATCHES ((uint16_t)~(1u << 4 | 1u << 12 | 1u << 13))
+
 static void key_down(int k)
 {
     q_pattern *t = pat();
@@ -2138,13 +2142,14 @@ static void key_down(int k)
     if (ui.fxdown) {                    /* FX held: the white keys are the punch-ins, black key 1 FILL, black key 2 LATCH */
         if (k == BLACK[0])
             audio_fill(ui.fill = 1);
-        if (k == BLACK[1]) {            /* the ones that end in silence or a wash are not kept: TAPE STOP, DELAY THROW,
-                                           FREEZE */
-            ui.latch = ui.punch & (uint16_t)~(1u << 4 | 1u << 12 | 1u << 13);
-            if (ui.latch)
-                copy_msg(COPY_LATCHED, MSG_MS);
+        if (k == BLACK[1]) {            /* the ones held, and the ones pressed after while FX stays held */
+            ui.latching = 1;
+            ui.latch |= ui.punch & PUNCH_LATCHES;
+            copy_msg(COPY_LATCHED, MSG_MS);
         }
         if (w < 16) {
+            if (ui.latching)
+                ui.latch |= (uint16_t)(1u << w) & PUNCH_LATCHES;
             ui.punch |= (uint16_t)(1u << w);
             audio_punch(ui.punch);
             ui.msg_punch = w + 1;
@@ -2503,6 +2508,8 @@ void ui_input(void)
         ui.latch = 0;
         copy_msg(COPY_UNLATCHED, MSG_MS);
     }
+    if (!ui.fxdown)
+        ui.latching = 0;
     if (!ui.fxdown && ui.punch != ui.latch) {   /* FX let go: every punch-in with it, but the latched ones */
         ui.punch = ui.latch;
         audio_punch(ui.punch);

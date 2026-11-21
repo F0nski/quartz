@@ -39,3 +39,21 @@ expect locks >1
 tap PLAY
 expect punch 64
 tap FX
+# black key 2 first, then the punch-ins: they latch too, until FX is let go; TAPE STOP never
+press FX
+tapkey b1
+key w7 down
+key w4 down
+key w7 up
+key w4 up
+release FX
+expect latch 128
+expect punch 128
+press FX
+key w8 down
+key w8 up
+release FX
+expect punch 128
+tap FX
+expect latch 0
+expect punch 0
