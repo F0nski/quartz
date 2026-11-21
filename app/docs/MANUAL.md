@@ -572,7 +572,7 @@ Press GLO for the project's settings, shared by the four tracks.
 - **Transpose**: hold GLO and press another key: the steps of every synth track play transposed, so that the tonic
   sounds as that key's note (`TRANSPOSE +4`). The tonic's key puts them back. With KEYS at ALL, the white keys are
   degrees of the scale (white key 1 the tonic, as when playing; OCT moves an octave of the scale), and the notes stay
-  in the scale; with KEYS OFF, the keys are semitones from the tonic nearest the middle of the keyboard. Only the
+  in the scale (on FLEET, in its allowed notes); with KEYS OFF, the keys are semitones from the tonic nearest the middle of the keyboard. Only the
   sequencer is transposed, not the keys you play nor the KIT tracks; it lasts until changed, and is not saved.
 - **SWING** delays every other step; 50 % is straight.
 - **COMP** compresses the whole mix; 0 is off. A limiter always protects the output.

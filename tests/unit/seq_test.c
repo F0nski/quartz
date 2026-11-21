@@ -1609,6 +1609,20 @@ static void transpose_moves_notes(void)
     }
 }
 
+/* in degrees on a FLEET pattern: its allowed notes, not the project's scale (here C, E, G: E up one is G) */
+static void transpose_fleet_in_its_notes(void)
+{
+    setup();
+    P.pat[0][0].src = SRC_MARBLES;
+    P.pat[0][0].marbles.notes[0] = 1 | 1 << 4 | 1 << 7;
+    P.pat[0][0].marbles.notes[1] = 0;
+    S.transpose = 1;
+    S.tdeg = 1;
+    assert(transposed(&S, &P, 0, 64) == 67 && transposed(&S, &P, 0, 67) == 72);
+    P.pat[0][0].src = SRC_STEP;
+    assert(transposed(&S, &P, 0, 64) == 65);             /* STEP: the project's C major */
+}
+
 /* a STEP pattern printed from a generator keeps its strum */
 static void step_plays_strum_bits(void)
 {
@@ -1702,6 +1716,7 @@ int main(void)
     chords_strum_overlaps();
     step_plays_strum_bits();
     transpose_moves_notes();
+    transpose_fleet_in_its_notes();
     print_sends_next_pass();
     source_back_restarts_generator();
     swing_delays_odd_steps();

@@ -467,14 +467,15 @@ static int decide(q_seq *s, q_seq_track *tr, const q_step *st)
     return ok;
 }
 
-/* the note the live transposition makes of a step's note: semitones, or degrees of the project's scale (a note out of
-   the scale counts from where it is); a KIT's pads stay */
+/* the note the live transposition makes of a step's note: semitones, or degrees of the project's scale (FLEET: of its
+   allowed notes; a note out of them counts from where it is); a KIT's pads stay */
 static int transposed(const q_seq *s, const q_project *p, int t, int note)
 {
     int d = s->transpose;
     if (!d || p->sound[t].model == M_KIT)
         return note;
-    note = s->tdeg ? gen_degrees(note, gen_scale(p), d) : note + d;
+    const q_pattern *pt = &p->pat[t][s->t[t].pat];   /* FLEET: in its own notes, as KEYS plays them */
+    note = s->tdeg ? gen_degrees(note, pt->src == SRC_MARBLES ? gen_allowed(p, pt) : gen_scale(p), d) : note + d;
     return note < 1 ? 1 : note > 127 ? 127 : note;
 }
 
