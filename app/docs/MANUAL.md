@@ -381,8 +381,8 @@ track. The scenes show the model's name and draw what the knobs set.
   value set on the page, or to its p-lock.
 - PAN and INSERT move the whole track, not each note: PAN sweeps it left and right around MIX's PAN (an auto-pan),
   INSERT turns the insert's first knob around its setting (a phaser's or a comb's sweep, a moving wavefold). At DEPTH
-  63 they cover the knob's whole travel. TRIG follows the track's note sounding; with none, it waits at the wave's
-  start.
+  63 they cover the knob's whole travel. While a note sounds, its step's LFO p-locks apply (a step can send the LFO to PAN on its own);
+  TRIG follows that note. With none, the track's settings, and TRIG waits at the wave's start.
 - PRESET switches FREE and TRIG, shown in the header. FREE runs on its own, and a synced rate starts with the bar at
   PLAY. TRIG starts the shape again on each note.
 - S&H takes a new random value each cycle.

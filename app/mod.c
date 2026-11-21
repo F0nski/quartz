@@ -71,6 +71,8 @@ static void lfo_apply(pq_mod *m, int dest, int depth, float l, float *semi, floa
     }                                                /* (PAN, INSERT: per track, mod_track_lfo) */
 }
 
+const q_vparam *mod_params(int v) { return &MV[v].p; }
+
 /* a track's LFO (lfo2: LFO 2) on PAN or INSERT, -1..1, once a block: FREE on the clock's phase for its RATE, TRIG
    softened as voice v's (-1: no voice sounding, the wave's start) */
 float mod_track_lfo(int shape, int trig, int rate, int lfo2, int v)

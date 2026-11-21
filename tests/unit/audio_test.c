@@ -1535,6 +1535,22 @@ static void lfo_to_pan_and_insert(void)
     assert(m.gain == 1.0f);
 }
 
+/* a step's LFO locks reach PAN while its note sounds: DEST locked to PAN, DEPTH locked, the track's LFO on CUTOFF */
+static void lfo_pan_from_step_locks(void)
+{
+    setup();
+    P.sound[0].ldest = LD_CUT; P.sound[0].ldepth = 0; P.sound[0].lshape = LS_SQR; P.sound[0].lrate = 5;
+    P.pat[0][0].steps[0].flags = SF_ON;
+    P.pat[0][0].steps[0].len = 64;
+    lock_set(&P.pat[0][0], 0, LK_DEST, LD_PAN);
+    lock_set(&P.pat[0][0], 0, LK_DEPTH, 63);
+    mod_restart();
+    audio_play(1);
+    block(256);
+    block(256);
+    assert(QTR[0].pan == 63);                           /* SQR's first half, at full depth */
+}
+
 static void level_moves_to_fx(void)
 {
     setup();
@@ -2063,6 +2079,7 @@ int main(void)
     voices_reach_their_track_bus();
     level_moves_to_fx();
     lfo_to_pan_and_insert();
+    lfo_pan_from_step_locks();
     fx_lock_on_its_step();
     fx_lock_negative_micro();
     fx_lock_positive_micro_clears();

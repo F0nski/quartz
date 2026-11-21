@@ -547,19 +547,24 @@ static void fx_take(const q_event *e)
     }
 }
 
-/* the track's LFOs on dest (LD_PAN, LD_INS), depth included, -1..1 each: TRIG's from its first sounding voice */
+/* the track's LFOs on dest (LD_PAN, LD_INS), depth included, -1..1 each: with a voice sounding, its settings (its
+   step's LFO locks) and TRIG's phase; else the track's */
 static float track_lfo(int t, int dest)
 {
     const q_sound *s = &prj->sound[t];
     float sum = 0.0f;
     int v;
     for (v = 0; v < PQ_VOICES && !(pool.v[v].track == t && sounding(v)); v++) {}
+    q_vparam q = v < PQ_VOICES ? *mod_params(v)
+                               : (q_vparam){ .lshape = s->lshape, .ltrig = s->ltrig, .lrate = s->lrate, .ldepth = s->ldepth,
+                                             .ldest = s->ldest, .l2shape = s->l2shape, .l2trig = s->l2trig,
+                                             .l2rate = s->l2rate, .l2depth = s->l2depth, .l2dest = s->l2dest };
     for (int l = 0; l < 2; l++) {
-        int depth = l ? s->l2depth : s->ldepth;
-        if ((l ? s->l2dest : s->ldest) != dest || !depth)
+        int depth = l ? q.l2depth : q.ldepth;
+        if ((l ? q.l2dest : q.ldest) != dest || !depth)
             continue;
-        sum += (depth < -63 ? -63 : depth) / 63.0f * mod_track_lfo(l ? s->l2shape : s->lshape, l ? s->l2trig : s->ltrig,
-                                                                  l ? s->l2rate : s->lrate, l, v < PQ_VOICES ? v : -1);
+        sum += (depth < -63 ? -63 : depth) / 63.0f * mod_track_lfo(l ? q.l2shape : q.lshape, l ? q.l2trig : q.ltrig,
+                                                                  l ? q.l2rate : q.lrate, l, v < PQ_VOICES ? v : -1);
     }
     return sum;
 }
