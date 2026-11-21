@@ -41,3 +41,12 @@ tapkey b2
 release REC
 expect nsteps_on 1
 expect stepon_3 1
+# OCT down: a new hit plays the tonic an octave lower
+tap OCT-
+expect octave -1
+press REC
+tapkey b0
+tapkey b4
+turn PRESET 16
+release REC
+expect stepnote_1 50

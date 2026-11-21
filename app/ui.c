@@ -1113,6 +1113,11 @@ static void rec_lock(int pid, int k)
             param = LOCK_OF[r][k];
     if (param < 0 || knob_hidden(pid, k) || pos < 0 || t->src != SRC_STEP || audio_pattern(ui.track) != ui.p->pattern[ui.track] || !(t->steps[pos].flags & SF_ON))
         return;
+    if (pid == P_PAD) {                 /* a pad's knob locks only the steps that play that pad */
+        for (r = 0; r < 4 && t->steps[pos].note[r] != KIT_NOTE + ui.pad; r++) {}
+        if (r == 4)
+            return;
+    }
     if (lock_set(t, pos, param, (uint8_t)knob_get(pid, k)))
         ui.locks_until = plat_ms() + MSG_MS;
 }
@@ -1951,7 +1956,7 @@ static void euclid_draw(void)
             on = m > 0;
         } else if (on && !(v.flags & SF_ON)) {
             step_default(&v);
-            v.note[0] = (uint8_t)(60 + tonic - (tonic > 6 ? 12 : 0));
+            v.note[0] = (uint8_t)clamp(60 + tonic - (tonic > 6 ? 12 : 0) + 12 * ui.octave, 1, 127);   /* in the keys' octave */
         }
         s->flags &= (uint8_t)~SF_ON;    /* the flag last: the render never reads half a step */
         __asm__ volatile("" ::: "memory");
@@ -2314,6 +2319,8 @@ static void key_down(int k)
             ui.edited = ui.lpage = ui.nwrote = 0;
             ui.attr = A_VEL;
             s = &t->steps[ui.held - 1];
+            if (kit() && s->flags & SF_ON && s->note[0] >= KIT_NOTE && s->note[0] < KIT_NOTE + Q_PADS)
+                ui.pad = s->note[0] - KIT_NOTE;     /* PAD's lock page starts from the step's first pad */
             if (s->flags & SF_ON && !audio_playing())   /* stopped: a lit step sounds until its release */
                 for (i = 0; i < 4 && (i == 0 || s->note[i]); i++)
                     audio_live_note(ui.track, ui.preview[i] = s->note[i], 2);

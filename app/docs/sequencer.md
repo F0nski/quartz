@@ -128,7 +128,8 @@ others with the page's. SELECT turns the pages: ENGINE, SOUND, ADSR, FILTER, LFO
 PAD, ADSR, FILTER, LFO, LFO 2, INSERT, MIX). A pattern holds up to 128 p-locks; past that, the header says `LOCKS FULL`.
 
 On a kit, PAD locks TUNE, HARM, TIMB and DECAY for every pad of the step: a hat more open on one step, a tom higher.
-Its knobs start from the pad last played. Two pads on the step take the same values.
+Its knobs start from the step's first pad. Two pads on the step take the same values. In LIVE, a PAD knob turned in
+EDIT locks only the steps that play the pad it sets.
 
 ## Several steps at once
 
@@ -210,8 +211,9 @@ REC (short) disarms and the pattern keeps playing. PLAY stops and disarms.
 
 EUCLID spreads hits as evenly as it can over steps 1 to LEN, from a place drawn at random: 3 hits in 8 make the
 tresillo, 5 in 16 a bossa-like line. It draws a quarter to a half of LEN; turn PRESET while still holding REC for more
-or fewer, from 1 to LEN (`EUCLID 5/16`). A step that was on stays as written, a new one plays the tonic, and a step
-turned off keeps its notes for the next draw. REC held and black key 3 gives the pattern back.
+or fewer, from 1 to LEN (`EUCLID 5/16`). A step that was on stays as written, a new one plays the tonic (in the octave
+OCT gives the keys), and a step turned off keeps its notes for the next draw. REC held and black key 3 gives the
+pattern back.
 
 On a kit, EUCLID writes one pad only, the last one played (`PAD 3` in EDIT's header): tap it first. The pad goes in the
 hits' steps (a step holds 4 pads at most) and out of the others; the other pads stay where they are. Draw the kick,

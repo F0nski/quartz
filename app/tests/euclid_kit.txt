@@ -31,3 +31,11 @@ release REC
 expect stepnote_2 36
 expect nsteps_on >0
 expect nsteps_on <3
+# a held step's PAD lock page starts from its first pad
+tap REC
+key w1 down
+expect pad 1
+key w1 up
+tap REC
+tap REC
+expect rec 0

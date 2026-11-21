@@ -1,0 +1,31 @@
+# LIVE on a KIT: a PAD knob locks only the steps that play the pad it sets
+wait 600
+tap EDIT
+spin PRESET 30
+expect model 24
+tap SEQ
+tap REC
+strum 0 15
+expect nsteps_on 16
+tap REC
+tap REC
+tap EDIT
+tapkey w2
+expect pad 3
+tap PLAY
+press REC
+tap PLAY
+release REC
+expect rec 3
+turn K1 3
+wait 300
+tap SEQ
+expect locks 0
+tap EDIT
+tapkey w0
+expect pad 1
+turn K1 3
+wait 300
+tap PLAY
+tap SEQ
+expect locks >0
