@@ -31,7 +31,7 @@ licence = "GPL-3.0-or-later"
 credits = "QUARTZ is built on fm1-base and on Mutable Instruments' Plaits, Grids, Marbles and Clouds by Emilie Gillet."
 # firmware.json, for firmware hubs (base/docs/FIRMWARE-JSON.md)
 author = "f0nski"
-description = "A four-track groovebox: Plaits' 24 models and a 16-pad kit, a step sequencer with p-locks, trig conditions and FILL, nine generative sources (drum map, random loops, Game of Life, polymetric lanes, chord progressions, Tonnetz walks, orbits, an improviser that learns from you, bytebeat), two LFOs per track, punch-in effects, undo, four projects backed up over USB and an animated scene on every page."
+description = "A four-track groovebox: Plaits' 24 models and a 16-pad kit, a step sequencer with p-locks, trig conditions and FILL, nine generative sources (drum map, random loops, Game of Life, polymetric lanes, chord progressions, Tonnetz walks, orbits, an improviser that learns from you, bytebeat), PRINT a generative loop into steps, live transposition, Euclidean rhythms, two LFOs per track, latchable punch-in effects, undo, four projects backed up over USB and an animated scene on every page."
 tags = ["groovebox", "synth", "drum-machine", "sequencer", "generative", "chords"]
 install = "https://f0nski.github.io/quartz/install/"
 site = "https://f0nski.github.io/quartz/"

@@ -4,8 +4,9 @@ QUARTZ turns the M-VAVE FM-1 into a four-track groovebox. Each track plays one o
 and each pattern takes its notes from a step sequencer or from one of nine generative sources: a drum map, random
 rhythms, the Game of Life, polymetric lanes, chord progressions, a walk on the Tonnetz, moons on orbits, an
 improviser that learns what you play, or bytebeat formulas. Every page shows an animated scene of what you hear.
-It keeps four projects, copies patterns and sounds between them, undoes the last clear, draw or paste, and backs
-them up to a computer over USB.
+PRINT freezes what a generative source plays into steps you can edit; live transposition, solo, latched punch-ins and
+Euclidean rhythms are a gesture away. It keeps four projects, copies patterns and sounds between them, undoes the last
+clear, draw or paste, and backs them up to a computer over USB.
 
 ![The HOME page: the four tracks on their pedestals](manual/img/home.png "QUARTZ on the FM-1's screen")
 
