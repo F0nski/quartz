@@ -1,5 +1,5 @@
 {
-  "what": "A four-track groovebox: Plaits' 24 models, a 16-pad kit, a step sequencer with p-locks, trig conditions and FILL, nine generative sources (Game of Life, chord progressions, Tonnetz walks, orbits, bytebeat, an improviser that learns from you...), PRINT a generative loop into steps, live transposition, Euclidean rhythms, two LFOs per track, latchable punch-in effects, undo, four projects backed up over USB and an animated scene on every page.",
+  "what": "A four-track groovebox: Plaits' 24 models, a 16-pad kit, a step sequencer with p-locks and trig conditions, nine generative sources you can PRINT into steps (Game of Life, chords, Tonnetz, orbits, bytebeat, an improviser...), live transposition, punch-in effects, four projects and a scene per page.",
   "author": "f0nski",
   "kinds": "groove",
   "play": "https://f0nski.github.io/quartz/emu/",
