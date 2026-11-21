@@ -1051,7 +1051,7 @@ static int lock_value(const q_pattern *t, int step, int k, int *locked)
     *locked = i >= 0;
     if (i < 0)
         return knob_get(lock_pid(), k);
-    return param == LK_TUNE || param == LK_ENVAMT || param == LK_DEPTH || param == LK_PAN || param == LK_PTUNE
+    return param == LK_TUNE || param == LK_ENVAMT || param == LK_DEPTH || param == LK_PAN || param == LK_DEPTH2 || param == LK_PTUNE
            ? (int8_t)t->locks[i].value : t->locks[i].value;
 }
 

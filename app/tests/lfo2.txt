@@ -33,3 +33,11 @@ expect lpage 6
 turn K3 -10
 key 0 up
 expect lock_32_1 53
+# a negative DEPTH lock turns on from its value
+key 0 down
+turn SELECT 5
+spin K3 -60
+expect lock_32_1 -7
+spin K3 -1
+key 0 up
+expect lock_32_1 -8
