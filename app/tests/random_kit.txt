@@ -1,0 +1,41 @@
+# RANDOM on a KIT: the last pad played only, drawn over the steps; the other pads stay, LEN too
+wait 600
+tap EDIT
+spin PRESET 30
+expect model 24
+tap SEQ
+tap REC
+key w1 down
+tapkey w0
+tapkey w2
+key w1 up
+key w5 down
+tapkey w0
+key w5 up
+expect stepnotes_2 2
+expect nsteps_on 2
+tap REC
+tap REC
+expect rec 0
+tap EDIT
+tapkey w2
+expect pad 3
+tap SEQ
+press REC
+tapkey b5
+release REC
+expect stepnote_2 36
+expect stepnote_6 36
+expect stepon_6 1
+expect len 16
+press REC
+tapkey b6
+release REC
+expect len 16
+expect stepnote_2 36
+expect stepon_6 1
+press REC
+tapkey b2
+release REC
+expect stepnote_2 36
+expect stepon_6 1

@@ -263,8 +263,11 @@ In SEQ, black key 7 also draws the source's content:
 
 - STEP: a new pattern, DIV drawn and LEN 16, 32, 48 or 64 (whole pages of the grid); PATH and the XY page are kept.
   The steps and their p-locks are cleared, then each step is lit at a density drawn between 25 and 75 %, as a step
-  made by hand, with a note of the project's scale between C3 and C5 (a KIT: one of the 16 pads) and a velocity from
-  60 to 127. Black key 6 does the same on the grid's page shown only: keep the pages you like, draw the others again.
+  made by hand, with a note of the project's scale between C3 and C5 and a velocity from 60 to 127. Black key 6 does
+  the same on the grid's page shown only: keep the pages you like, draw the others again.
+- STEP on a kit: only the last pad played (`PAD 3` in EDIT's header) is drawn, as EUCLID does: it leaves the steps and
+  comes back on some at a density drawn (4 pads a step at most); the other pads and LEN stay. Tap the pad first, draw
+  it, then the next one.
 - CADENCE: the 8 chords. LATTICE: the 8 steps. MOONS: every moon. LOOM: every cell of every lane.
 
 The other sources have only their knobs. The keys do nothing (unlit on the map) in LIVE, where REC held erases notes;

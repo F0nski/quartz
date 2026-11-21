@@ -1901,13 +1901,47 @@ static void dice_page(int pid)
     }
 }
 
+/* a KIT's RANDOM: the last pad played only, out of the steps from..to - 1 and back in those within LEN drawn at a
+   density (4 pads a step at most); the other pads stay. A step it lights takes a velocity drawn */
+static void dice_pad(int from, int to)
+{
+    q_pattern *t = pat();
+    int pad = KIT_NOTE + ui.pad, d = 25 + (int)dice_rand(51), i, j;
+    for (i = from; i < to && i < t->len; i++) {
+        q_step v = t->steps[i], *s = &t->steps[i];
+        uint8_t pads[4] = {0};
+        int m = 0, was = v.flags & SF_ON;
+        for (j = 0; j < 4 && was && (j == 0 || v.note[j]); j++)
+            if (v.note[j] != pad)
+                pads[m++] = v.note[j];
+        if ((int)dice_rand(100) < d && m < 4)
+            pads[m++] = (uint8_t)pad;
+        if (m && !was) {
+            step_default(&v);
+            v.vel = (uint8_t)(60 + dice_rand(68));
+        }
+        if (m)
+            __builtin_memcpy(v.note, pads, sizeof pads);
+        s->flags &= (uint8_t)~SF_ON;    /* the flag last: the render never reads half a step */
+        __asm__ volatile("" ::: "memory");
+        v.flags &= (uint8_t)~SF_ON;
+        *s = v;
+        if (m)
+            step_on(s);
+    }
+}
+
 /* STEP: the steps from..to - 1 cleared with their p-locks, then those within LEN lit at a density drawn, as a step made
-   by hand, with a note of the scale between 48 and 72 (a KIT: a pad) */
+   by hand, with a note of the scale between 48 and 72 (a KIT: dice_pad) */
 static void dice_steps(int from, int to)
 {
     q_pattern *t = pat();
     uint16_t m = gen_scale(ui.p);
     int nn = 0, n, i, c, d;
+    if (kit()) {
+        dice_pad(from, to);
+        return;
+    }
     for (n = 48; n <= 72; n++)
         nn += m >> n % 12 & 1;
     for (i = from; i < to; i++)
@@ -1918,12 +1952,8 @@ static void dice_steps(int from, int to)
         if ((int)dice_rand(100) >= d)
             continue;
         step_default(s);
-        if (kit()) {
-            s->note[0] = (uint8_t)(KIT_NOTE + dice_rand(16));
-        } else {
-            for (c = (int)dice_rand((uint32_t)nn), n = 48; !(m >> n % 12 & 1) || c--; n++) {}
-            s->note[0] = (uint8_t)n;
-        }
+        for (c = (int)dice_rand((uint32_t)nn), n = 48; !(m >> n % 12 & 1) || c--; n++) {}
+        s->note[0] = (uint8_t)n;
         s->vel = (uint8_t)(60 + dice_rand(68));
         step_on(s);
     }
@@ -1994,8 +2024,9 @@ static void dice_all(void)
     if (ui.domain != D_SEQ)
         return;
     switch (t->src) {
-    case SRC_STEP:                      /* a new pattern, its pages full */
-        knob_set(P_STEPS, 0, 16 * (1 + (int)dice_rand(Q_STEPS / 16)));
+    case SRC_STEP:                      /* a new pattern, its pages full (a KIT: its LEN kept, the other pads' rhythms with it) */
+        if (!kit())
+            knob_set(P_STEPS, 0, 16 * (1 + (int)dice_rand(Q_STEPS / 16)));
         dice_steps(0, Q_STEPS);
         break;
     case SRC_CHORDS:                    /* each of the 8 chords, PRESET's cursor back after */
