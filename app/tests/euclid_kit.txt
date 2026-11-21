@@ -1,0 +1,33 @@
+# EUCLID on a KIT: the last pad played only, in the hits' steps and out of the others; the other pads stay
+wait 600
+tap EDIT
+spin PRESET 30
+expect model 24
+tap SEQ
+tap REC
+key w1 down
+tapkey w0
+tapkey w2
+key w1 up
+expect stepnotes_2 2
+tap REC
+tap REC
+expect rec 0
+tap EDIT
+tapkey w2
+expect pad 3
+tap SEQ
+press REC
+tapkey b4
+turn PRESET 16
+expect euclid 16
+expect nsteps_on 16
+expect stepnotes_2 2
+expect stepnotes_1 1
+expect stepnote_1 38
+turn PRESET -15
+expect euclid 1
+release REC
+expect stepnote_2 36
+expect nsteps_on >0
+expect nsteps_on <3

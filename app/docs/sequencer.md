@@ -210,8 +210,12 @@ REC (short) disarms and the pattern keeps playing. PLAY stops and disarms.
 
 EUCLID spreads hits as evenly as it can over steps 1 to LEN, from a place drawn at random: 3 hits in 8 make the
 tresillo, 5 in 16 a bossa-like line. It draws a quarter to a half of LEN; turn PRESET while still holding REC for more
-or fewer, from 1 to LEN (`EUCLID 5/16`). A step that was on stays as written, a new one plays the tonic (a kit: pad
-1), and a step turned off keeps its notes for the next draw. REC held and black key 3 gives the pattern back.
+or fewer, from 1 to LEN (`EUCLID 5/16`). A step that was on stays as written, a new one plays the tonic, and a step
+turned off keeps its notes for the next draw. REC held and black key 3 gives the pattern back.
+
+On a kit, EUCLID writes one pad only, the last one played (`PAD 3` in EDIT's header): tap it first. The pad goes in the
+hits' steps (a step holds 4 pads at most) and out of the others; the other pads stay where they are. Draw the kick,
+then tap the hat and draw it, then the clap: three rhythms on one pattern.
 
 **Inspired by** Godfried Toussaint's [The Euclidean Algorithm Generates Traditional Musical
 Rhythms](http://cgm.cs.mcgill.ca/~godfried/publications/banff.pdf): Bjorklund's even spreading of hits over steps.

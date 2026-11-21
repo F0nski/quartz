@@ -1926,18 +1926,32 @@ static void dice_steps(int from, int to)
 
 /* EUCLID: steps 1..LEN on at ui.euclid places spread evenly (Bresenham's line, Bjorklund's rhythm turned), from
    ui.euclid_rot; drawn from the pattern before (UNDO's copy). A step on that was on keeps its notes, one that was not
-   takes the tonic (a KIT: pad 1); one off keeps its notes behind the flag */
+   takes the tonic; one off keeps its notes behind the flag. A KIT: only the last pad played, put in the hits' steps
+   (4 pads at most) and taken out of the others, the other pads left as they are */
 static void euclid_draw(void)
 {
     q_pattern *t = pat();
     const q_pattern *o = (const q_pattern *)chunk_buf;
-    int n = t->len, i, tonic = ui.p->tonic;
+    int n = t->len, i, j, tonic = ui.p->tonic, pad = KIT_NOTE + ui.pad;
     for (i = 0; i < n; i++) {
         q_step v = o->steps[i], *s = &t->steps[i];
         int on = (i + ui.euclid_rot) % n * ui.euclid % n < ui.euclid;
-        if (on && !(v.flags & SF_ON)) {
+        if (kit()) {                    /* the step's pads without this one, then with it on a hit */
+            uint8_t pads[4] = {0};
+            int m = 0;
+            for (j = 0; j < 4 && v.flags & SF_ON && (j == 0 || v.note[j]); j++)
+                if (v.note[j] != pad)
+                    pads[m++] = v.note[j];
+            if (on && m < 4)
+                pads[m++] = (uint8_t)pad;
+            if (m && !(v.flags & SF_ON))
+                step_default(&v);
+            if (m)
+                __builtin_memcpy(v.note, pads, sizeof pads);
+            on = m > 0;
+        } else if (on && !(v.flags & SF_ON)) {
             step_default(&v);
-            v.note[0] = (uint8_t)(kit() ? KIT_NOTE : 60 + tonic - (tonic > 6 ? 12 : 0));
+            v.note[0] = (uint8_t)(60 + tonic - (tonic > 6 ? 12 : 0));
         }
         s->flags &= (uint8_t)~SF_ON;    /* the flag last: the render never reads half a step */
         __asm__ volatile("" ::: "memory");
