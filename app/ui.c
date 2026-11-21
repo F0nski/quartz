@@ -2147,9 +2147,13 @@ static void key_down(int k)
             ui.latch |= ui.punch & PUNCH_LATCHES;
             copy_msg(COPY_LATCHED, MSG_MS);
         }
+        if (w < 16 && ui.latch >> w & 1) {   /* a latched one pressed again: let go with its key */
+            ui.latch &= (uint16_t)~(1u << w);
+            copy_msg(COPY_UNLATCHED, MSG_MS);
+        } else if (w < 16 && ui.latching) {
+            ui.latch |= (uint16_t)(1u << w) & PUNCH_LATCHES;
+        }
         if (w < 16) {
-            if (ui.latching)
-                ui.latch |= (uint16_t)(1u << w) & PUNCH_LATCHES;
             ui.punch |= (uint16_t)(1u << w);
             audio_punch(ui.punch);
             ui.msg_punch = w + 1;

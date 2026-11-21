@@ -57,3 +57,21 @@ expect punch 128
 tap FX
 expect latch 0
 expect punch 0
+# FX held, a latched punch-in's key again: that one goes with its key, the others stay
+press FX
+tapkey b1
+key w5 down
+key w7 down
+key w5 up
+key w7 up
+release FX
+expect latch 160
+press FX
+key w5 down
+expect latch 128
+expect punch 160
+key w5 up
+release FX
+expect punch 128
+tap FX
+expect punch 0

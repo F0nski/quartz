@@ -475,7 +475,7 @@ every track ([COND](sequencer.html#step-functions)). Let go of the key or of FX 
 FILL is not recorded.
 
 Black key 2, with FX held, LATCHes the punch-ins you hold, and those you press after it while FX stays held: they stay
-on after you let go of their keys and of FX, so that both hands are free (`LATCHED`). Tap FX to let them go (`LATCH OFF`). TAPE STOP, DELAY THROW and FREEZE are never
+on after you let go of their keys and of FX, so that both hands are free (`LATCHED`). Tap FX to let them all go (`LATCH OFF`); to let one go, hold FX and press its key again: it stops with the key. TAPE STOP, DELAY THROW and FREEZE are never
 latched: they would leave the mix silent or drowned. While recording LIVE, the latched ones are written on every step
 crossed.
 
