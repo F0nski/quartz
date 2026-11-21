@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QUARTZ: FLEET</title>
+<meta name="description" content="FLEET for QUARTZ, a firmware for the M-VAVE FM-1.">
+<style>
+/* paper and ink: warm white paper, ink-blue type, vermilion for what is played, mustard for asides; a shade of the
+   paper for code and callouts (CTL-1's; a firmware may restyle its site) */
+:root {
+  --paper: #fbf8f1; --sheet: #efe9dc; --rule: #ddd4c2; --ink: #1e2b5a; --muted: #5d6585;
+  --hot: #e5482e; --hot-t: #f8d3c9; --cool: #d9a21b; --cool-t: #f5e4b8;
+  --hot-ink: #c23a22;                                 /* the vermilion as text: 4.5:1 on the paper */
+  color-scheme: light;
+}
+body {
+  background: var(--paper); color: var(--ink); margin: 0;
+  font: 400 17px/1.6 "Helvetica Neue", Helvetica, Arial, sans-serif;
+  padding-inline: 16px; padding-block: 32px 64px;
+}
+main { max-width: 46rem; margin: 0 auto; }
+.page > .site { max-width: 46rem; margin-inline: auto; }
+main:focus { outline: none; }
+h1, h2, h3 { font-family: inherit; text-wrap: balance; line-height: 1.2; }
+h1 { font-size: 2.2rem; font-weight: 700; margin: 0 0 .4rem; letter-spacing: .02em; }
+h2 { font-size: 1.3rem; font-weight: 700; margin: 3rem 0 .8rem; padding-top: .8rem; border-top: 2px solid var(--ink); }
+h2 .num { color: var(--hot); margin-right: .5em; font-variant-numeric: tabular-nums; }
+h3 { font-size: 1.1rem; font-weight: 700; margin: 2rem 0 .5rem; }
+p, li { max-width: 65ch; }
+p { margin: 0 0 1rem; }
+ul, ol { padding-left: 1.3rem; margin: 0 0 1rem; }
+li { margin: .2rem 0; }
+li::marker { color: var(--hot); }
+strong { font-weight: 700; }
+a { color: var(--ink); text-decoration-color: var(--hot); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+a:hover { background: var(--hot-t); }
+:focus-visible { outline: 3px solid var(--hot-ink); outline-offset: 2px; }
+.skip { position: absolute; left: 16px; top: -100px; background: var(--ink); color: var(--paper); padding: 8px 14px; border-radius: 0 0 6px 6px; z-index: 1; }
+.skip:focus { top: 0; }
+code, pre { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .86em; }
+code { background: var(--sheet); padding: .08em .35em; border-radius: 3px; }
+pre { background: var(--sheet); border-radius: 6px; padding: 14px 16px; overflow-x: auto; line-height: 1.45; margin: 0 0 1.2rem; }
+pre code { background: none; padding: 0; font-size: inherit; }
+hr { display: none; }
+.table { overflow-x: auto; margin: 0 0 1.3rem; }
+table { border-collapse: collapse; width: 100%; font-size: .95rem; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; vertical-align: top; padding: .45rem .7rem .45rem 0; border-bottom: 1px solid var(--rule); }
+th { font-weight: 700; text-transform: uppercase; letter-spacing: .06em; font-size: .78rem; color: var(--muted); border-bottom: 2px solid var(--ink); }
+td:first-child { white-space: nowrap; }
+.lede { margin-bottom: 1.6rem; }
+.status { background: var(--sheet); border-radius: 6px; padding: 12px 16px; }
+.status p { margin: 0; }
+.site { display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem 1.2rem; margin: 0 0 1.6rem; padding-bottom: .5rem; border-bottom: 2px solid var(--ink); }
+.site .home { font-size: 1.1rem; font-weight: 700; letter-spacing: .04em; color: var(--ink); text-decoration: none; }
+.site .home:hover { color: var(--hot-ink); background: none; }
+.site nav { margin-left: auto; display: flex; flex-wrap: wrap; gap: .2rem 1rem; font-size: .92rem; }
+.site nav a { color: var(--ink); text-underline-offset: 3px; }
+.site nav a[aria-current] { text-decoration: none; color: var(--hot-ink); }
+a.home { color: inherit; text-decoration: none; }
+a.home:hover { background: none; color: var(--hot-ink); }
+main > a.home { display: inline-block; font-size: .9rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 .4rem; }
+.callout { border-left: 4px solid var(--cool); background: var(--cool-t); padding: 10px 16px; margin: 0 0 1.2rem; max-width: 65ch; border-radius: 0 6px 6px 0; }
+.callout p { margin: 0; }
+details { background: var(--sheet); border-radius: 6px; padding: 0 16px; margin: 0 0 1.2rem; }
+details > summary { cursor: pointer; padding: 10px 0; }
+details[open] > summary { margin-bottom: .4rem; }
+details > :last-child { margin-bottom: 1rem; }
+.swatch { display: inline-block; width: .7em; height: .7em; margin-right: .4em; vertical-align: .02em; }
+nav.contents ol { columns: 2 14rem; column-gap: 2rem; padding-left: 1.3rem; }
+.figs { display: flex; flex-wrap: wrap; gap: 20px; margin: .4rem 0 1.6rem; }
+figure { margin: 0; flex: 0 1 auto; }
+figure img { display: block; max-width: 100%; height: auto; }
+figure.shot img { width: 300px; image-rendering: pixelated; border-radius: 4px; box-shadow: 0 0 0 1px var(--rule); }
+figure.wide { flex-basis: 100%; }
+figure.wide img { width: 100%; }
+figcaption { color: var(--muted); font-size: .88rem; margin-top: .4rem; max-width: 300px; }
+figure.wide figcaption { max-width: none; }
+nav.contents li { break-inside: avoid; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<div class="page">
+<main id="content" tabindex="-1">
+<a class="home" href="../">QUARTZ</a>
+<h1>FLEET</h1>
+<p><a href="index.html#s9">← Manual</a> · <a href="index.html#pages">All pages</a></p>
+<p>FLEET draws random rhythms and random notes, and DEJA VU turns the draws into loops: from pure chance to a riff that repeats, with everything in between. The T section decides when notes play, the X section which notes. It is the source for melodies and bass lines you didn't have to write, and for keeping a part alive without changing it.</p>
+<h2 id="pages-and-knobs">Pages and knobs</h2>
+<div class="table" tabindex="0" role="region" aria-label="Table: Pages and knobs (Page, K1, K2, K3, K4)"><table><thead><tr><th>Page</th><th>K1</th><th>K2</th><th>K3</th><th>K4</th></tr></thead><tbody><tr><td>FLEET</td><td>DIV</td><td>T OUT, 1–3</td><td>LEN, 1–16</td><td>SOURCE</td></tr><tr><td>T</td><td>MODE</td><td>BIAS</td><td>JITTER</td><td>DEJA VU</td></tr><tr><td>X</td><td>SPREAD</td><td>X BIAS</td><td>STEPS</td><td>GATE, 1/8 to 4 steps</td></tr><tr><td>NOTES</td><td>NOTE</td><td>RANGE, 1–4 octaves</td><td>—</td><td>—</td></tr></tbody></table></div>
+<ul><li><strong>T</strong>: each step, t2 plays and t1 and t3 are drawn by MODE: C.BERN (one or the other, a coin toss), CLUSTERS, DRUMS (patterns like a kick and a snare), I.BERN (each its own coin), DIVIDER, 3 STATES, MARKOV. BIAS leans towards t1 or t3; JITTER shifts the notes in time, up to almost half a step.</li><li><strong>X</strong>: each note is drawn between NOTE and RANGE octaves above it. SPREAD sets how widely, X BIAS leans low or high, and STEPS keeps only the strongest notes of the scale as it goes up (the tonic, then the fifth, the third…).</li><li><strong>GATE</strong> is how long each note lasts, in steps (1/2 by default). Past one step, the notes overlap: they ring together up to POLY; with POLY 1, each note cuts the one before. A ratcheted note stays within one step. In the scene, the crystal a note hits stays lit for as long as the note lasts.</li><li><strong>NOTES</strong> page: the keys switch the notes FLEET may play on and off, in any octave; the scene shows the 12 notes. By default they are the project's scale.</li><li>GLO's KEYS at ALL makes the white keys play the allowed notes on FLEET tracks.</li></ul>
+<p>The numbers below were counted in the simulator at 120 BPM with DIV 1/16 (8 steps a second), on a synth track with T OUT 1 unless said otherwise.</p>
+<div class="table" tabindex="0" role="region" aria-label="Table: Pages and knobs (Knob, At its start, Middle, At its end)"><table><thead><tr><th>Knob</th><th>At its start</th><th>Middle</th><th>At its end</th></tr></thead><tbody><tr><td>T OUT</td><td>1: t1, a note on about half the steps</td><td>2: t2, a note on every step</td><td>3: t3, a note on about half the steps, those t1 skips</td></tr><tr><td>BIAS (C.BERN)</td><td>0: t1 on every step, t3 never</td><td>64: a fair coin, each about half the steps</td><td>127: t3 on every step, t1 never</td></tr><tr><td>JITTER</td><td>0: on the grid</td><td>Notes a little early or late</td><td>Up to almost half a step off: loose, human</td></tr><tr><td>DEJA VU</td><td>0: every draw new</td><td>Middle: the draws repeat as a loop of LEN steps</td><td>127: the loop in a shuffled order</td></tr><tr><td>SPREAD</td><td>Every note the same, at the X BIAS point</td><td>Notes spread around X BIAS</td><td>Only the two ends of the range: jumps</td></tr><tr><td>X BIAS</td><td>Notes lean to the bottom of the range</td><td>Centred</td><td>Notes lean to the top</td></tr><tr><td>STEPS</td><td>Every allowed note</td><td>Fewer: the strongest ones kept</td><td>Only the tonic</td></tr></tbody></table></div>
+<h2 id="the-scene">The scene</h2>
+<div class="figs"><figure class="shot"><img src="img/source-fleet.png" alt="FLEET: a squadron of ships over crystals named C to B, LEN 8" width="240" height="240" loading="lazy"><figcaption>FLEET</figcaption></figure></div>
+<p>A squadron of ships over twelve crystals, one per note, C to B: each note fires at its crystal, which stays lit as long as the note lasts.</p>
+<div class="figs"><figure class="shot"><img src="img/source-fleet-t.png" alt="FLEET&#x27;s T page: MODE C.BERN, BIAS 64, JITTER 0, DEJA VU 0" width="240" height="240" loading="lazy"><figcaption>T</figcaption></figure><figure class="shot"><img src="img/source-fleet-x.png" alt="FLEET&#x27;s X page: SPREAD, X BIAS, STEPS and GATE 1/2" width="240" height="240" loading="lazy"><figcaption>X</figcaption></figure><figure class="shot"><img src="img/source-fleet-notes.png" alt="FLEET&#x27;s NOTES page: the 12 notes as keys, the seven of C major lit" width="240" height="240" loading="lazy"><figcaption>NOTES</figcaption></figure></div>
+<h2 id="on-a-kit">On a kit</h2>
+<p>t1, t2 and t3 play pads 1, 2 and 3: with the defaults, two hits on every step (16 a second), t2 on pad 2 and one of pads 1 and 3. MODE DRUMS draws kick-and-snare-like patterns instead: about 10 hits a second. T OUT and the X section do nothing on a kit.</p>
+<h2 id="preset">PRESET</h2>
+<p>PRESET draws new loops at once: with DEJA VU in the middle, turn it until a loop you like comes up, then leave it.</p>
+<h2 id="recipes">Recipes</h2>
+<div class="table" tabindex="0" role="region" aria-label="Table: Recipes (Effect, Settings)"><table><thead><tr><th>Effect</th><th>Settings</th></tr></thead><tbody><tr><td>A random riff that loops</td><td>DEJA VU 64, LEN 8: the draws repeat every 8 steps; PRESET for another riff</td></tr><tr><td>A bass line on the strong notes</td><td>NOTE C2, RANGE 1, X BIAS 30, STEPS 100 (in a seven-note scale: tonic, fifth and third)</td></tr><tr><td>Every step, a new note</td><td>T OUT 2: a note on every step, its pitch drawn each time</td></tr><tr><td>A drum machine that never repeats</td><td>On a kit, MODE DRUMS, DEJA VU 0</td></tr></tbody></table></div>
+<p><strong>Inspired by</strong> <a href="https://pichenettes.github.io/mutable-instruments-documentation/modules/marbles/manual/">Marbles</a> by Mutable Instruments: QUARTZ runs Marbles' t models, its X draws and its DEJA VU, one step at a time. LEN is the loop's length here, 1–16; the X outputs play one at a time, and Marbles' ramps and external clock are not there.</p>
+<hr>
+<p><a href="source-atlas.html">← ATLAS</a> · <a href="source-colony.html">COLONY →</a></p>
+</main>
+</div>
+</body>
+</html>

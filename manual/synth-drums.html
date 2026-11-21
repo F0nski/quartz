@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QUARTZ: Drums: BASS DRUM, SNARE, HI-HAT, KIT</title>
+<meta name="description" content="Drums: BASS DRUM, SNARE, HI-HAT, KIT for QUARTZ, a firmware for the M-VAVE FM-1.">
+<style>
+/* paper and ink: warm white paper, ink-blue type, vermilion for what is played, mustard for asides; a shade of the
+   paper for code and callouts (CTL-1's; a firmware may restyle its site) */
+:root {
+  --paper: #fbf8f1; --sheet: #efe9dc; --rule: #ddd4c2; --ink: #1e2b5a; --muted: #5d6585;
+  --hot: #e5482e; --hot-t: #f8d3c9; --cool: #d9a21b; --cool-t: #f5e4b8;
+  --hot-ink: #c23a22;                                 /* the vermilion as text: 4.5:1 on the paper */
+  color-scheme: light;
+}
+body {
+  background: var(--paper); color: var(--ink); margin: 0;
+  font: 400 17px/1.6 "Helvetica Neue", Helvetica, Arial, sans-serif;
+  padding-inline: 16px; padding-block: 32px 64px;
+}
+main { max-width: 46rem; margin: 0 auto; }
+.page > .site { max-width: 46rem; margin-inline: auto; }
+main:focus { outline: none; }
+h1, h2, h3 { font-family: inherit; text-wrap: balance; line-height: 1.2; }
+h1 { font-size: 2.2rem; font-weight: 700; margin: 0 0 .4rem; letter-spacing: .02em; }
+h2 { font-size: 1.3rem; font-weight: 700; margin: 3rem 0 .8rem; padding-top: .8rem; border-top: 2px solid var(--ink); }
+h2 .num { color: var(--hot); margin-right: .5em; font-variant-numeric: tabular-nums; }
+h3 { font-size: 1.1rem; font-weight: 700; margin: 2rem 0 .5rem; }
+p, li { max-width: 65ch; }
+p { margin: 0 0 1rem; }
+ul, ol { padding-left: 1.3rem; margin: 0 0 1rem; }
+li { margin: .2rem 0; }
+li::marker { color: var(--hot); }
+strong { font-weight: 700; }
+a { color: var(--ink); text-decoration-color: var(--hot); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+a:hover { background: var(--hot-t); }
+:focus-visible { outline: 3px solid var(--hot-ink); outline-offset: 2px; }
+.skip { position: absolute; left: 16px; top: -100px; background: var(--ink); color: var(--paper); padding: 8px 14px; border-radius: 0 0 6px 6px; z-index: 1; }
+.skip:focus { top: 0; }
+code, pre { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .86em; }
+code { background: var(--sheet); padding: .08em .35em; border-radius: 3px; }
+pre { background: var(--sheet); border-radius: 6px; padding: 14px 16px; overflow-x: auto; line-height: 1.45; margin: 0 0 1.2rem; }
+pre code { background: none; padding: 0; font-size: inherit; }
+hr { display: none; }
+.table { overflow-x: auto; margin: 0 0 1.3rem; }
+table { border-collapse: collapse; width: 100%; font-size: .95rem; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; vertical-align: top; padding: .45rem .7rem .45rem 0; border-bottom: 1px solid var(--rule); }
+th { font-weight: 700; text-transform: uppercase; letter-spacing: .06em; font-size: .78rem; color: var(--muted); border-bottom: 2px solid var(--ink); }
+td:first-child { white-space: nowrap; }
+.lede { margin-bottom: 1.6rem; }
+.status { background: var(--sheet); border-radius: 6px; padding: 12px 16px; }
+.status p { margin: 0; }
+.site { display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem 1.2rem; margin: 0 0 1.6rem; padding-bottom: .5rem; border-bottom: 2px solid var(--ink); }
+.site .home { font-size: 1.1rem; font-weight: 700; letter-spacing: .04em; color: var(--ink); text-decoration: none; }
+.site .home:hover { color: var(--hot-ink); background: none; }
+.site nav { margin-left: auto; display: flex; flex-wrap: wrap; gap: .2rem 1rem; font-size: .92rem; }
+.site nav a { color: var(--ink); text-underline-offset: 3px; }
+.site nav a[aria-current] { text-decoration: none; color: var(--hot-ink); }
+a.home { color: inherit; text-decoration: none; }
+a.home:hover { background: none; color: var(--hot-ink); }
+main > a.home { display: inline-block; font-size: .9rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 .4rem; }
+.callout { border-left: 4px solid var(--cool); background: var(--cool-t); padding: 10px 16px; margin: 0 0 1.2rem; max-width: 65ch; border-radius: 0 6px 6px 0; }
+.callout p { margin: 0; }
+details { background: var(--sheet); border-radius: 6px; padding: 0 16px; margin: 0 0 1.2rem; }
+details > summary { cursor: pointer; padding: 10px 0; }
+details[open] > summary { margin-bottom: .4rem; }
+details > :last-child { margin-bottom: 1rem; }
+.swatch { display: inline-block; width: .7em; height: .7em; margin-right: .4em; vertical-align: .02em; }
+nav.contents ol { columns: 2 14rem; column-gap: 2rem; padding-left: 1.3rem; }
+.figs { display: flex; flex-wrap: wrap; gap: 20px; margin: .4rem 0 1.6rem; }
+figure { margin: 0; flex: 0 1 auto; }
+figure img { display: block; max-width: 100%; height: auto; }
+figure.shot img { width: 300px; image-rendering: pixelated; border-radius: 4px; box-shadow: 0 0 0 1px var(--rule); }
+figure.wide { flex-basis: 100%; }
+figure.wide img { width: 100%; }
+figcaption { color: var(--muted); font-size: .88rem; margin-top: .4rem; max-width: 300px; }
+figure.wide figcaption { max-width: none; }
+nav.contents li { break-inside: avoid; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<div class="page">
+<main id="content" tabindex="-1">
+<a class="home" href="../">QUARTZ</a>
+<h1>Drums: BASS DRUM, SNARE, HI-HAT, KIT</h1>
+<p><a href="index.html#s6">← Manual</a> · <a href="index.html#pages">All pages</a></p>
+<p>The drums family is Plaits' three analog-style drums, each playable as a model on its own, and KIT, which puts sixteen of them on the keys as pads. The drums make their own envelope: ENV's ADSR then shapes only the filter, and MORPH (on a kit, the pad's DECAY) sets how long a hit rings: a drum played on its own has no DECAY on ENGINE.</p>
+<p>The values below were measured with the two other knobs at 64, the bass drum on C2 and the others on C3. A bass drum lives below 150 Hz: it is clear on headphones and faint on the FM-1's speaker; raise its TUNE or its HARM to hear it there.</p>
+<div class="figs"><figure class="shot"><img src="img/sound-drums.png" alt="EDIT&#x27;s ENGINE page with BASS DRUM: a faceted blue shape in a neon tunnel" width="240" height="240" loading="lazy"><figcaption>BASS DRUM's scene</figcaption></figure></div>
+<p>A drum played on its own is a faceted shape in a neon tunnel (the snare a cube), struck on each hit: HARM, TIMB and MORPH reshape it. On a kit's PAD page, the scene shows the three drums, the one the knobs set lit.</p>
+<h2 id="bass-drum">BASS DRUM</h2>
+<p><strong>Sound.</strong> An analog bass drum: from a deep, soft thump to a driven, punchy kick.</p>
+<div class="table" tabindex="0" role="region" aria-label="Table: BASS DRUM (Knob, At 0, Middle, At 127)"><table><thead><tr><th>Knob</th><th>At 0</th><th>Middle</th><th>At 127</th></tr></thead><tbody><tr><td>HARM, attack and drive</td><td>Soft and quiet</td><td>Firm</td><td>Driven: much louder, a click on top</td></tr><tr><td>TIMB, the brightness</td><td>Pure sub</td><td>A little body</td><td>The same, a little brighter</td></tr><tr><td>MORPH, the decay</td><td>A short thump</td><td>—</td><td>A long boom</td></tr></tbody></table></div>
+<p><strong>Start with</strong> MORPH at 100 for a long kick, HARM at 90 to hear it on the speaker.</p>
+<p><strong>Recipes</strong></p>
+<div class="table" tabindex="0" role="region" aria-label="Table: BASS DRUM (Sound, Settings)"><table><thead><tr><th>Sound</th><th>Settings</th></tr></thead><tbody><tr><td>Long boom</td><td>HARM 90, MORPH 110: loud, nearly all below 150 Hz</td></tr><tr><td>Tight kick</td><td>HARM 100, MORPH 30: short, half as loud</td></tr></tbody></table></div>
+<h2 id="snare">SNARE</h2>
+<p><strong>Sound.</strong> An analog snare: a tuned drum head and a noise of snares.</p>
+<div class="table" tabindex="0" role="region" aria-label="Table: SNARE (Knob, At 0, Middle, At 127)"><table><thead><tr><th>Knob</th><th>At 0</th><th>Middle</th><th>At 127</th></tr></thead><tbody><tr><td>HARM, tone to noise</td><td>The head's tone: 150–300 Hz</td><td>Both</td><td>The snares' noise: 1.2–9.6 kHz, louder</td></tr><tr><td>TIMB, the drum's modes</td><td>Bright</td><td>Body and noise</td><td>More body: energy moves down to 300–600 Hz</td></tr><tr><td>MORPH, the decay</td><td>Short and quiet</td><td>—</td><td>Long</td></tr></tbody></table></div>
+<p><strong>Start with</strong> HARM at 64: the head and the snares together.</p>
+<p><strong>Recipes</strong></p>
+<div class="table" tabindex="0" role="region" aria-label="Table: SNARE (Sound, Settings)"><table><thead><tr><th>Sound</th><th>Settings</th></tr></thead><tbody><tr><td>Tight snare</td><td>HARM 64, MORPH 30: short, the head and a little noise</td></tr><tr><td>Noisy snare</td><td>HARM 127, MORPH 50: the snares alone, 1.2–9.6 kHz</td></tr></tbody></table></div>
+<h2 id="hi-hat">HI-HAT</h2>
+<p><strong>Sound.</strong> An analog hi-hat: metallic squares through a high-pass filter, mixed with noise.</p>
+<div class="table" tabindex="0" role="region" aria-label="Table: HI-HAT (Knob, At 0, Middle, At 127)"><table><thead><tr><th>Knob</th><th>At 0</th><th>Middle</th><th>At 127</th></tr></thead><tbody><tr><td>HARM, metal to noise</td><td>Metallic</td><td>Mixed</td><td>Noisier: more energy above 4.8 kHz</td></tr><tr><td>TIMB, the high-pass</td><td>Open: low and middle in, a clang</td><td>Around 600 Hz–2.4 kHz</td><td>Only the top: thin, above 4.8 kHz</td></tr><tr><td>MORPH, the decay</td><td>Closed hat: very short</td><td>—</td><td>Open hat: long</td></tr></tbody></table></div>
+<p><strong>Start with</strong> MORPH at 30 for a closed hat and 110 for an open one.</p>
+<p><strong>Recipes</strong></p>
+<div class="table" tabindex="0" role="region" aria-label="Table: HI-HAT (Sound, Settings)"><table><thead><tr><th>Sound</th><th>Settings</th></tr></thead><tbody><tr><td>Closed hat</td><td>MORPH 30</td></tr><tr><td>Open hat</td><td>TIMB 90, MORPH 110: long, most of it at 2.4–4.8 kHz</td></tr></tbody></table></div>
+<h2 id="kit">KIT</h2>
+<p>KIT turns the track into 16 drum pads on the white keys. Each pad is one of Plaits' three drums (BD, SN or HH) with its own tuning and settings, and a kit plays up to three pads at once. With KIT, EDIT has two pages:</p>
+<div class="table" tabindex="0" role="region" aria-label="Table: KIT (Page, K1, K2, K3, K4)"><table><thead><tr><th>Page</th><th>K1</th><th>K2</th><th>K3</th><th>K4</th></tr></thead><tbody><tr><td>PAD</td><td>TUNE, −24 to +24</td><td>HARM, 0–127</td><td>TIMB, 0–127</td><td>DECAY, 0–127</td></tr><tr><td>KIT</td><td>MODEL, by name</td><td>ENGINE, BD SN HH</td><td>LEVEL, 0–127</td><td>CHAR, 0–127</td></tr></tbody></table></div>
+<p>The knobs set the last pad played, named in the header (<code>PAD 1</code>). In EDIT, hold a pad: K1–K4 set that pad and PRESET changes its engine. A step held on the grid locks PAD's four knobs for its pads (<a href="sequencer.html#p-locks">P-locks</a>). KIT's scene is the 16 pads, each with its engine, the one the knobs set lit, and a bar under each pad that shows its CHAR.</p>
+<p>CHAR mixes the two sounds each drum engine makes: 0 the analog one, 127 a synthetic take on the same drum (on HH, a ring-modulated noise instead of metallic squares), between them a blend.</p>
+<div class="table" tabindex="0" role="region" aria-label="Table: KIT (Pad, 1, 2, 3, 4, 5, 6, 7, 8)"><table><thead><tr><th>Pad</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th></tr></thead><tbody><tr><td>Default</td><td>Bass drum</td><td>Snare</td><td>Closed hat</td><td>Open hat</td><td>Rim</td><td>Clap</td><td>Low tom</td><td>Mid tom</td></tr><tr><td><strong>Pad</strong></td><td><strong>9</strong></td><td><strong>10</strong></td><td><strong>11</strong></td><td><strong>12</strong></td><td><strong>13</strong></td><td><strong>14</strong></td><td><strong>15</strong></td><td><strong>16</strong></td></tr><tr><td>Default</td><td>High tom</td><td>Synth bass drum</td><td>Synth snare</td><td>Synth hat</td><td>Conga</td><td>Cowbell</td><td>Shaker</td><td>Ride</td></tr></tbody></table></div>
+<div class="figs"><figure class="shot"><img src="img/sound-pad.png" alt="The PAD page: the kit&#x27;s BD, SN and HH, TUNE -12, HARM 72, TIMB 50, DECAY 70" width="240" height="240" loading="lazy"><figcaption>PAD, pad 1</figcaption></figure><figure class="shot"><img src="img/sound-kit.png" alt="The KIT page: the 16 pads with their engines, pad 1 lit, a CHAR bar under pads 10–12" width="240" height="240" loading="lazy"><figcaption>KIT</figcaption></figure></div>
+<p><strong>Recipes</strong></p>
+<div class="table" tabindex="0" role="region" aria-label="Table: KIT (Sound, Settings)"><table><thead><tr><th>Sound</th><th>Settings</th></tr></thead><tbody><tr><td>Long sub kick</td><td>A BD pad, TUNE −5, HARM 30, TIMB 30, DECAY 115: almost all of it below 150 Hz, for headphones and big speakers</td></tr><tr><td>Punchy kick</td><td>A BD pad, TUNE 0, HARM 110, TIMB 80, DECAY 40: louder, with a click at 300–600 Hz the speaker plays</td></tr><tr><td>Synth snare</td><td>A SN pad, CHAR 127: more body at 150–300 Hz, less sizzle at 2.4–4.8 kHz</td></tr><tr><td>Bright hat</td><td>A HH pad, CHAR 127: most of its energy at 2.4–4.8 kHz</td></tr></tbody></table></div>
+<p><strong>Inspired by</strong> <a href="https://pichenettes.github.io/mutable-instruments-documentation/modules/plaits/manual/">Plaits</a> by Mutable Instruments, whose analog bass drum, snare and hi-hat models these are; CHAR mixes in the synthetic version each one makes on Plaits' second output.</p>
+<hr>
+<p><a href="synth-physical.html">← Physical</a></p>
+</main>
+</div>
+</body>
+</html>

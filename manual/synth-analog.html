@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QUARTZ: Analog: CREST, SWEEP, KINK, PRISM</title>
+<meta name="description" content="Analog: CREST, SWEEP, KINK, PRISM for QUARTZ, a firmware for the M-VAVE FM-1.">
+<style>
+/* paper and ink: warm white paper, ink-blue type, vermilion for what is played, mustard for asides; a shade of the
+   paper for code and callouts (CTL-1's; a firmware may restyle its site) */
+:root {
+  --paper: #fbf8f1; --sheet: #efe9dc; --rule: #ddd4c2; --ink: #1e2b5a; --muted: #5d6585;
+  --hot: #e5482e; --hot-t: #f8d3c9; --cool: #d9a21b; --cool-t: #f5e4b8;
+  --hot-ink: #c23a22;                                 /* the vermilion as text: 4.5:1 on the paper */
+  color-scheme: light;
+}
+body {
+  background: var(--paper); color: var(--ink); margin: 0;
+  font: 400 17px/1.6 "Helvetica Neue", Helvetica, Arial, sans-serif;
+  padding-inline: 16px; padding-block: 32px 64px;
+}
+main { max-width: 46rem; margin: 0 auto; }
+.page > .site { max-width: 46rem; margin-inline: auto; }
+main:focus { outline: none; }
+h1, h2, h3 { font-family: inherit; text-wrap: balance; line-height: 1.2; }
+h1 { font-size: 2.2rem; font-weight: 700; margin: 0 0 .4rem; letter-spacing: .02em; }
+h2 { font-size: 1.3rem; font-weight: 700; margin: 3rem 0 .8rem; padding-top: .8rem; border-top: 2px solid var(--ink); }
+h2 .num { color: var(--hot); margin-right: .5em; font-variant-numeric: tabular-nums; }
+h3 { font-size: 1.1rem; font-weight: 700; margin: 2rem 0 .5rem; }
+p, li { max-width: 65ch; }
+p { margin: 0 0 1rem; }
+ul, ol { padding-left: 1.3rem; margin: 0 0 1rem; }
+li { margin: .2rem 0; }
+li::marker { color: var(--hot); }
+strong { font-weight: 700; }
+a { color: var(--ink); text-decoration-color: var(--hot); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+a:hover { background: var(--hot-t); }
+:focus-visible { outline: 3px solid var(--hot-ink); outline-offset: 2px; }
+.skip { position: absolute; left: 16px; top: -100px; background: var(--ink); color: var(--paper); padding: 8px 14px; border-radius: 0 0 6px 6px; z-index: 1; }
+.skip:focus { top: 0; }
+code, pre { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .86em; }
+code { background: var(--sheet); padding: .08em .35em; border-radius: 3px; }
+pre { background: var(--sheet); border-radius: 6px; padding: 14px 16px; overflow-x: auto; line-height: 1.45; margin: 0 0 1.2rem; }
+pre code { background: none; padding: 0; font-size: inherit; }
+hr { display: none; }
+.table { overflow-x: auto; margin: 0 0 1.3rem; }
+table { border-collapse: collapse; width: 100%; font-size: .95rem; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; vertical-align: top; padding: .45rem .7rem .45rem 0; border-bottom: 1px solid var(--rule); }
+th { font-weight: 700; text-transform: uppercase; letter-spacing: .06em; font-size: .78rem; color: var(--muted); border-bottom: 2px solid var(--ink); }
+td:first-child { white-space: nowrap; }
+.lede { margin-bottom: 1.6rem; }
+.status { background: var(--sheet); border-radius: 6px; padding: 12px 16px; }
+.status p { margin: 0; }
+.site { display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem 1.2rem; margin: 0 0 1.6rem; padding-bottom: .5rem; border-bottom: 2px solid var(--ink); }
+.site .home { font-size: 1.1rem; font-weight: 700; letter-spacing: .04em; color: var(--ink); text-decoration: none; }
+.site .home:hover { color: var(--hot-ink); background: none; }
+.site nav { margin-left: auto; display: flex; flex-wrap: wrap; gap: .2rem 1rem; font-size: .92rem; }
+.site nav a { color: var(--ink); text-underline-offset: 3px; }
+.site nav a[aria-current] { text-decoration: none; color: var(--hot-ink); }
+a.home { color: inherit; text-decoration: none; }
+a.home:hover { background: none; color: var(--hot-ink); }
+main > a.home { display: inline-block; font-size: .9rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 .4rem; }
+.callout { border-left: 4px solid var(--cool); background: var(--cool-t); padding: 10px 16px; margin: 0 0 1.2rem; max-width: 65ch; border-radius: 0 6px 6px 0; }
+.callout p { margin: 0; }
+details { background: var(--sheet); border-radius: 6px; padding: 0 16px; margin: 0 0 1.2rem; }
+details > summary { cursor: pointer; padding: 10px 0; }
+details[open] > summary { margin-bottom: .4rem; }
+details > :last-child { margin-bottom: 1rem; }
+.swatch { display: inline-block; width: .7em; height: .7em; margin-right: .4em; vertical-align: .02em; }
+nav.contents ol { columns: 2 14rem; column-gap: 2rem; padding-left: 1.3rem; }
+.figs { display: flex; flex-wrap: wrap; gap: 20px; margin: .4rem 0 1.6rem; }
+figure { margin: 0; flex: 0 1 auto; }
+figure img { display: block; max-width: 100%; height: auto; }
+figure.shot img { width: 300px; image-rendering: pixelated; border-radius: 4px; box-shadow: 0 0 0 1px var(--rule); }
+figure.wide { flex-basis: 100%; }
+figure.wide img { width: 100%; }
+figcaption { color: var(--muted); font-size: .88rem; margin-top: .4rem; max-width: 300px; }
+figure.wide figcaption { max-width: none; }
+nav.contents li { break-inside: avoid; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<div class="page">
+<main id="content" tabindex="-1">
+<a class="home" href="../">QUARTZ</a>
+<h1>Analog: CREST, SWEEP, KINK, PRISM</h1>
+<p><a href="index.html#s6">← Manual</a> · <a href="index.html#pages">All pages</a></p>
+<p>The analog family is the place to start for basses, leads and plucks: simple waveforms that HARM, TIMB and MORPH bend in plain, predictable ways. None of the four makes its own envelope: ENV's ADSR shapes their level, and DECAY how long a note rings after its gate closes.</p>
+<p>The values below were measured on the note C3 with the two other knobs at 64. A change below 300 Hz is clear on headphones and faint on the FM-1's speaker.</p>
+<div class="figs"><figure class="shot"><img src="img/sound-engine.png" alt="EDIT&#x27;s ENGINE page with CREST: a ship flying over crests that carry the waveform" width="240" height="240" loading="lazy"><figcaption>The analog scene</figcaption></figure></div>
+<p>The scene flies over crests drawn with the model's own waveform: HARM, TIMB and MORPH reshape the crests as they reshape the sound, and DECAY sets how long the ship's shot lasts. The ship fires at the next crest on each note.</p>
+<h2 id="crest">CREST</h2>
+<p><strong>Sound.</strong> Two classic analog waveforms played together, a pulse and a saw. The plainest model of the four: a good first choice for a bass or a lead.</p>
+<div class="table" tabindex="0" role="region" aria-label="Table: CREST (Knob, At 0, Middle, At 127)"><table><thead><tr><th>Knob</th><th>At 0</th><th>Middle</th><th>At 127</th></tr></thead><tbody><tr><td>HARM, the second wave's pitch</td><td>Both waves on the same note: round, most of the energy on the note itself</td><td>The second wave apart: a fuller, wider sound</td><td>The second wave higher up: the body moves up an octave and more</td></tr><tr><td>TIMB, the pulse</td><td>A thin pulse: quieter, nasal</td><td>A square: full</td><td>Hard sync: a bright, cutting edge (most of the energy around 1.2–2.4 kHz)</td></tr><tr><td>MORPH, the saw</td><td>A triangle</td><td>A saw: the loudest setting</td><td>A saw with a wide notch: quieter</td></tr></tbody></table></div>
+<p><strong>Start with</strong> the defaults (64 everywhere), then turn TIMB: it changes the character more than the two others.</p>
+<p><strong>Recipes</strong></p>
+<div class="table" tabindex="0" role="region" aria-label="Table: CREST (Sound, Settings)"><table><thead><tr><th>Sound</th><th>Settings</th></tr></thead><tbody><tr><td>Bright bass</td><td>Low notes (C2), HARM 0, TIMB 0, MORPH 127</td></tr><tr><td>Round bass</td><td>HARM 40, the rest at 64: the energy sits on the note itself</td></tr><tr><td>Cutting lead</td><td>Notes around C4, HARM 64, TIMB 100, MORPH 64</td></tr></tbody></table></div>
+<h2 id="sweep">SWEEP</h2>
+<p><strong>Sound.</strong> Classic waves through a resonant filter, as on a subtractive synth: TIMB is the filter's cutoff. The model for filter sweeps and resonant basses.</p>
+<div class="table" tabindex="0" role="region" aria-label="Table: SWEEP (Knob, At 0, Middle, At 127)"><table><thead><tr><th>Knob</th><th>At 0</th><th>Middle</th><th>At 127</th></tr></thead><tbody><tr><td>HARM, resonance and slope</td><td>A sharp resonant peak at the cutoff</td><td>Smooth: no peak</td><td>A sharp, louder peak, with a steeper slope</td></tr><tr><td>TIMB, the cutoff</td><td>Closed: almost silent</td><td>Half open: the low half of the sound</td><td>Open: bright</td></tr><tr><td>MORPH, waveform and sub</td><td>One end of the waveform and sub mix</td><td>The middle of the mix</td><td>The other end: the level barely changes, the colour does</td></tr></tbody></table></div>
+<p><strong>Start with</strong> TIMB around 60 and turn it while a note plays: below 30 the sound turns dark and quiet fast.</p>
+<p><strong>Recipes</strong></p>
+<div class="table" tabindex="0" role="region" aria-label="Table: SWEEP (Sound, Settings)"><table><thead><tr><th>Sound</th><th>Settings</th></tr></thead><tbody><tr><td>Resonant bass</td><td>Low notes (C2), HARM 110, TIMB 45, MORPH 0: loud, its energy below 300 Hz</td></tr><tr><td>Dark pad</td><td>HARM 64, TIMB 30, POLY 3: soft and low</td></tr><tr><td>Open saw</td><td>HARM 64, TIMB 95: bright, for leads and stabs</td></tr></tbody></table></div>
+<h2 id="kink">KINK</h2>
+<p><strong>Sound.</strong> Phase distortion, as on Casio's CZ synths: a sine bent into brighter shapes. Glassy leads and buzzy basses.</p>
+<div class="table" tabindex="0" role="region" aria-label="Table: KINK (Knob, At 0, Middle, At 127)"><table><thead><tr><th>Knob</th><th>At 0</th><th>Middle</th><th>At 127</th></tr></thead><tbody><tr><td>HARM, the distortion's frequency</td><td>Low: a warm, rounded tone</td><td>Higher: a nasal formant</td><td>Highest: bright and thin</td></tr><tr><td>TIMB, the amount</td><td>None: close to a sine</td><td>Some: nasal</td><td>Full: bright and buzzy (most of the energy around 2.4–4.8 kHz)</td></tr><tr><td>MORPH, asymmetry</td><td>Symmetric</td><td>A little bent</td><td>Bent: the body moves down, hollower</td></tr></tbody></table></div>
+<p><strong>Start with</strong> TIMB at 30 for a clean tone, then raise it.</p>
+<p><strong>Recipes</strong></p>
+<div class="table" tabindex="0" role="region" aria-label="Table: KINK (Sound, Settings)"><table><thead><tr><th>Sound</th><th>Settings</th></tr></thead><tbody><tr><td>Deep bass</td><td>Low notes (C2), HARM 20, TIMB 30, MORPH 64: its energy below 150 Hz</td></tr><tr><td>Nasal lead</td><td>Notes around C4, HARM 64, TIMB 80, MORPH 30: bright and buzzy</td></tr></tbody></table></div>
+<h2 id="prism">PRISM</h2>
+<p><strong>Sound.</strong> A triangle shaped, then folded back on itself: from a soft sine to a metallic growl. Fold sweeps are its speciality.</p>
+<div class="table" tabindex="0" role="region" aria-label="Table: PRISM (Knob, At 0, Middle, At 127)"><table><thead><tr><th>Knob</th><th>At 0</th><th>Middle</th><th>At 127</th></tr></thead><tbody><tr><td>HARM, the waveshape</td><td>Most of the energy around 1 kHz</td><td>Much the same, fuller</td><td>Spread far up: brighter</td></tr><tr><td>TIMB, the fold</td><td>No fold: close to a sine, round</td><td>Folded: the body moves up</td><td>Folded again: louder, harmonics far up</td></tr><tr><td>MORPH, asymmetry</td><td>Symmetric</td><td>A little bent</td><td>Bent: a lower, darker body</td></tr></tbody></table></div>
+<p><strong>Start with</strong> TIMB at 0 for a pure tone, then fold it in.</p>
+<p><strong>Recipes</strong></p>
+<div class="table" tabindex="0" role="region" aria-label="Table: PRISM (Sound, Settings)"><table><thead><tr><th>Sound</th><th>Settings</th></tr></thead><tbody><tr><td>Sine bass</td><td>Low notes, TIMB 0: a soft, pure tone</td></tr><tr><td>Fold growl</td><td>Low notes (C2), HARM 40, TIMB 110, MORPH 64</td></tr><tr><td>Fold sweep</td><td>A note held, an LFO on TIMB (LFO page: DEPTH 40, DEST TIMB)</td></tr></tbody></table></div>
+<p><strong>Inspired by</strong> <a href="https://pichenettes.github.io/mutable-instruments-documentation/modules/plaits/manual/">Plaits</a> by Mutable Instruments, whose virtual analog, VA with VCF (firmware 1.2), phase distortion (1.2) and waveshaper models these are.</p>
+<hr>
+<p><a href="synth-fm.html">FM →</a></p>
+</main>
+</div>
+</body>
+</html>
