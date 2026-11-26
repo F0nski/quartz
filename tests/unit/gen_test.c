@@ -1824,8 +1824,42 @@ static void keys_chord(void)
     chord_is(maj, 124, 0, (const int[]){ 124, 127 }, 2);
 }
 
+/* a chord's quality from its notes and root (gen_keys_chord's), CQ_* (ui.c CHORD_SUFFIX), -1 no name */
+static int quality(uint16_t sc, int root, int mods)
+{
+    uint8_t out[4];
+    int n = gen_keys_chord(sc, root, mods, out);
+    return gen_chord_quality(out, n, root);
+}
+static void chord_names(void)
+{
+    const uint16_t maj = SCALE_MASK[1], hmin = SCALE_MASK[8], penta = SCALE_MASK[9], chrom = SCALE_MASK[0];
+    assert(quality(maj, 60, 0) == CQ_MAJ);
+    assert(quality(maj, 62, 0) == CQ_MIN);
+    assert(quality(maj, 71, 0) == CQ_DIM);
+    assert(quality(hmin, 63, 0) == CQ_AUG);            /* C harmonic minor's III: Eb G B */
+    assert(quality(maj, 60, KM_7) == CQ_MAJ7);
+    assert(quality(maj, 67, KM_7) == CQ_7);
+    assert(quality(maj, 62, KM_7) == CQ_M7);
+    assert(quality(maj, 71, KM_7) == CQ_M7B5);
+    assert(quality(hmin, 71, KM_7) == CQ_DIM7);         /* B D F Ab */
+    assert(quality(hmin, 60, KM_7) == CQ_MMAJ7);
+    assert(quality(maj, 60, KM_SUS2) == CQ_SUS2);
+    assert(quality(maj, 60, KM_SUS4) == CQ_SUS4);
+    assert(quality(maj, 67, KM_7 | KM_SUS4) == CQ_7SUS4);
+    assert(quality(maj, 60, KM_ADD9) == CQ_ADD9);
+    assert(quality(maj, 62, KM_ADD9) == CQ_MADD9);
+    assert(quality(maj, 67, KM_7 | KM_ADD9) == CQ_9);
+    assert(quality(maj, 60, KM_7 | KM_ADD9) == CQ_MAJ9);
+    assert(quality(maj, 62, KM_7 | KM_ADD9) == CQ_M9);
+    assert(quality(maj, 60, KM_INV) == CQ_MAJ);         /* C/E: the quality of C, the bass told apart */
+    assert(quality(penta, 62, 0) < 0);                  /* C pentatonic from D: D G C, no name */
+    assert(quality(chrom, 60, 0) < 0);
+}
+
 int main(void)
 {
+    chord_names();
     keys_chord();
     cipher_matches_search();
     cipher_extremes_safe();

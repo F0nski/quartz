@@ -54,6 +54,11 @@ enum { KM_7 = 1, KM_SUS2 = 2, KM_SUS4 = 4, KM_ADD9 = 8, KM_INV = 16 };   /* KEYS
 /* the chord of the scale's note root (scale: absolute pitch classes) with the modifiers mods: its notes low to high in
    out, those past 127 left out; returns their number (4 at most) */
 int gen_keys_chord(uint16_t scale, int root, int mods, uint8_t out[4]);
+/* a chord's quality (ui.c CHORD_SUFFIX names them, in this order) */
+enum { CQ_MAJ, CQ_MIN, CQ_DIM, CQ_AUG, CQ_SUS2, CQ_SUS4, CQ_7, CQ_MAJ7, CQ_M7, CQ_M7B5, CQ_DIM7, CQ_MMAJ7, CQ_AUGMAJ7,
+       CQ_7SUS4, CQ_7SUS2, CQ_MAJ7SUS4, CQ_MAJ7SUS2, CQ_ADD9, CQ_MADD9, CQ_SUS4ADD9, CQ_9, CQ_MAJ9, CQ_M9, CQ_N };
+/* the quality of the chord notes[0..n - 1] over root, from the pitch classes above it (CQ_*); -1: no name */
+int gen_chord_quality(const uint8_t *notes, int n, int root);
 
 void gen_reset(q_gen *g, uint32_t *rng);   /* rng fills the deja vu loops */
 void gen_marbles_draw(q_gen *g, uint32_t *rng);   /* MARBLES: its deja vu loops drawn again (PRESET) */

@@ -74,6 +74,27 @@ int gen_keys_chord(uint16_t scale, int root, int mods, uint8_t out[4])
     return j;
 }
 
+/* CQ_*'s pitch classes above the root (bit n: n semitones); a 9th is its class, 2 */
+static const uint16_t CQ_MASK[CQ_N] = {
+    1 << 4 | 1 << 7, 1 << 3 | 1 << 7, 1 << 3 | 1 << 6, 1 << 4 | 1 << 8, 1 << 2 | 1 << 7, 1 << 5 | 1 << 7,
+    1 << 4 | 1 << 7 | 1 << 10, 1 << 4 | 1 << 7 | 1 << 11, 1 << 3 | 1 << 7 | 1 << 10, 1 << 3 | 1 << 6 | 1 << 10,
+    1 << 3 | 1 << 6 | 1 << 9, 1 << 3 | 1 << 7 | 1 << 11, 1 << 4 | 1 << 8 | 1 << 11,
+    1 << 5 | 1 << 7 | 1 << 10, 1 << 2 | 1 << 7 | 1 << 10, 1 << 5 | 1 << 7 | 1 << 11, 1 << 2 | 1 << 7 | 1 << 11,
+    1 << 2 | 1 << 4 | 1 << 7, 1 << 2 | 1 << 3 | 1 << 7, 1 << 2 | 1 << 5 | 1 << 7,
+    1 << 2 | 1 << 4 | 1 << 10, 1 << 2 | 1 << 4 | 1 << 11, 1 << 2 | 1 << 3 | 1 << 10};   /* the 9ths: 7 + ADD9 has no 5th */
+
+int gen_chord_quality(const uint8_t *notes, int n, int root)
+{
+    uint16_t m = 0;
+    for (int i = 0; i < n; i++)
+        if ((notes[i] - root + 120) % 12)
+            m |= (uint16_t)(1u << (notes[i] - root + 120) % 12);
+    for (int q = 0; q < CQ_N; q++)
+        if (CQ_MASK[q] == m)
+            return q;
+    return -1;
+}
+
 int gen_loop(const q_pattern *pt)
 {
     return pt->src == SRC_MARBLES ? pt->marbles.len : pt->src == SRC_LIFE || pt->src == SRC_LANES || pt->src == SRC_CHORDS || pt->src == SRC_TONNETZ || pt->src == SRC_ORBITS || pt->src == SRC_MIMIC ? LIFE_W
