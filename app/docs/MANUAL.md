@@ -612,7 +612,9 @@ splits in two. Each of white keys 1–7 plays the chord of its degree of the sca
 third apart (in C major: C, Dm, Em, F, G, Am, B°); white keys 8–16 go on playing one note each, from the tonic an
 octave up, for the melody. SPLIT is per track: a bass on track 1 can stay note by note.
 
-Hold black keys 1–5 while you strike a chord to change it, in the scale; two at once add up:
+Black keys 1–5 change a chord, in the scale: hold them before you strike it, or press them while it sounds, and only
+the notes that differ change (the others go on sounding); let go of a black key and the chord goes back. Two at once
+add up:
 
 | Black key | Name | The chord (from C, in C major) |
 | --- | --- | --- |
@@ -622,6 +624,10 @@ Hold black keys 1–5 while you strike a chord to change it, in the scale; two a
 | 4 | ADD9 | adds the ninth: Cadd9 (with 1: the fifth makes room, four notes at most) |
 | 5 | INV | the root an octave up: C/E |
 
+While you hold a chord, the header names it, and GLO's KEYS page shows the name big: the root, its quality (`m`,
+`dim`, `+`, `7`, `maj7`, `m7`, `m7b5`, `dim7`, `sus2`, `sus4`, `add9`, `9`, `maj9`, `m9`…) and, inverted, `/` and the
+bass (`C/E`). A shape with no name (a cluster of CHROM, some of PENTA) shows its root alone.
+
 STRUM (GLO's KEYS page, 0–7) plays a chord's notes one after the other from the lowest, 1/24 of a step apart at 1,
 half a step at 7, as CADENCE's STRUM. Letting go of the key stops every note of its chord, even those not struck yet.
 
@@ -629,7 +635,7 @@ The chords record as you play them: LIVE and NOTES write the chord and the melod
 (POLY 4 holds a chord and one more note), and the step keeps the STRUM. Disarmed, a chord is the clipboard; IMPROV's
 LISTEN learns its root.
 
-![GLO's KEYS page with SPLIT ON and STRUM 4: white keys 1–7 green for the chords, a bar, 8–16 blue for the melody, the C chord held](img/glo-keys-split.png "SPLIT")
+![GLO's KEYS page with SPLIT ON and STRUM 4: Cmaj7 big over the keyboard and in the header, white keys 1–7 green for the chords, a bar, 8–16 blue for the melody](img/glo-keys-split.png "SPLIT")
 
 **Inspired by** the one-finger chords of home keyboards, such as Casio's Casio Chord: one key, one chord, the other
 hand free for the melody.

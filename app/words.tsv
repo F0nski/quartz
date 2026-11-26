@@ -202,6 +202,24 @@ FIFTH	fifth
 m	minor
 m7	minor 7
 m9	minor 9
+dim	diminished
++	augmented
+sus2	sus two
+sus4	sus four
+maj7	major 7
+m7b5	half diminished 7
+dim7	diminished 7
+mM7	minor major 7
++maj7	augmented major 7
+7sus4	7 sus four
+7sus2	7 sus two
+maj7sus4	major 7 sus four
+maj7sus2	major 7 sus two
+add9	add 9
+madd9	minor add 9
+sus4add9	sus four add 9
+maj9	major 9
+/	over
 m11	minor 11
 6/9	six nine
 M9	major 9

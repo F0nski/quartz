@@ -152,6 +152,10 @@ static const char *const SRC_NAME[SRC_N] = {"STEP", "ATLAS", "FLEET", "COLONY", 
 static const char *const T_MODE_NAME[7] = {"C.BERN", "CLUSTERS", "DRUMS", "I.BERN", "DIVIDER", "3 STATES", "MARKOV"};
 static const char *const PATH_NAME[PATH_N] = {"FWD", "REV", "PING-PONG", "SNAKE", "COLUMNS", "SPIRAL", "RANDOM", "XY"};
 static const char *const TONIC_NAME[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+/* KEYS SPLIT's chord qualities, gen.h CQ_* (after the root's name) */
+static const char *const CHORD_SUFFIX[CQ_N] = {"", "m", "dim", "+", "sus2", "sus4", "7", "maj7", "m7", "m7b5", "dim7",
+                                               "mM7", "+maj7", "7sus4", "7sus2", "maj7sus4", "maj7sus2", "add9",
+                                               "madd9", "sus4add9", "9", "maj9", "m9"};
 static const char *const MODE_NAME[11] = {"CHROM", "MAJOR", "MINOR", "DORIAN", "PHRYG", "LYDIAN", "MIXO", "LOCRIAN",
                                           "HARM MIN", "PENTA", "MIN PENTA"};
 static const char *const QUANT_NAME[3] = {"OFF", "50 %", "100 %"};
@@ -175,7 +179,7 @@ typedef struct { q_step st; uint8_t nlocks; q_lock lk[16]; } q_clip;   /* a step
 
 /* what is on the screen, part by part: a part is drawn again when its view changes */
 typedef struct {
-    struct { int8_t track, domain, page, n, msg, pat, playing, scene, pad, ltrig, itype, punch, badge, bnum, model, dirty, trans; uint8_t bpm, hits, len; } head;   /* badge: REC's
+    struct { int8_t track, domain, page, n, msg, pat, playing, scene, pad, ltrig, itype, punch, badge, bnum, model, dirty, trans, croot, cqual, cbass; uint8_t bpm, hits, len; } head;   /* badge: REC's
                                                                                    state, 1 GRID .. 4 ARM (0 none or ARM's blink off); bnum: NOTES' step */   /* pat: P1..P8 asked; playing: the one playing when it differs, else 0;
                                                                                    pad: a KIT's in EDIT 1..16, else 0;
                                                                                    ltrig: LFO's FREE 1 / TRIG 2, else 0; itype: the insert's, in the page name */
@@ -1942,6 +1946,26 @@ static void chord_glide(void)
     }
 }
 
+/* the chord of the last key struck, while held: its root, CQ_* quality (-1 no name) and bass (-1: the root); 0 none */
+static int held_chord(int *root, int *qual, int *bass)
+{
+    int w, n = 1, k = ui.last_key;
+    uint8_t notes[4];
+    if (k < 0 || ui.key_note[k] < 0)
+        return 0;
+    for (w = 0; w < 7 && WHITE[w] != k; w++) {}
+    if (w == 7 || ui.chord_root[w] < 0)
+        return 0;
+    notes[0] = (uint8_t)ui.key_note[k];
+    for (int i = 0; i < 3; i++)
+        if (ui.chord_note[w][i] >= 0)
+            notes[n++] = (uint8_t)ui.chord_note[w][i];
+    *root = ui.chord_root[w] % 12;
+    *qual = gen_chord_quality(notes, n, ui.chord_root[w]);
+    *bass = notes[0] % 12 != *root ? notes[0] % 12 : -1;
+    return 1;
+}
+
 /* NOTES: the cursor d steps on, looping on LEN */
 static void cursor_move(int d)
 {
@@ -2452,6 +2476,8 @@ static void key_down(int k)
         ui.dirty = 1;
         audio_live_chord(ui.track, notes, n, 2, n > 1 ? w + 1 : 0);
         key_hold(k, notes, n);
+        if (n > 1)
+            ui.chord_root[w] = (int8_t)scale_note(w);
         return;
     } else if (grid_on()) {             /* the white keys are the page's 16 steps */
         if (ui.seldown && !ui.held) {   /* SEL held: the selection, the black keys on it */
@@ -2538,7 +2564,7 @@ static void key_down(int k)
         }
     }
     key_hold(k, notes, n);
-    if (n > 1 && !s)                    /* played live: the black keys can change it while held */
+    if (n > 1)                          /* its name shown; played live, the black keys change it while held */
         ui.chord_root[w] = (int8_t)note;
     ui.last_note[ui.track] = (uint8_t)note;
     if (s && kit()) {
@@ -2558,7 +2584,7 @@ static void key_up(int k)
 {
     int w;
     for (w = 0; w < 5 && BLACK[w] != k; w++) {}
-    if (w < 5 && keys_split())          /* a modifier let go: the chords held change back */
+    if (w < 5 && keys_split() && !notes_on() && !ui.held)   /* a modifier let go: the chords played live change back */
         chord_glide();
     for (w = 0; w < 16 && WHITE[w] != k; w++) {}
     if (w < 16 && ui.punch >> w & 1 && !(ui.latch >> w & 1)) {
@@ -3360,6 +3386,11 @@ static void view_now(q_view *v)
                   plat_ms() < ui.copy_until ? 7 + ui.copy_kind : plat_ms() < ui.trans_until ? 7 + COPY_N :
                   plat_ms() < ui.euclid_until ? 8 + COPY_N : 0;
     v->head.hits = (uint8_t)ui.euclid;
+    {
+        int r, q, b;
+        if (held_chord(&r, &q, &b))
+            v->head.croot = (int8_t)(r + 1), v->head.cqual = (int8_t)q, v->head.cbass = (int8_t)(b + 1);
+    }
     v->head.len = (uint8_t)t->len;
     v->head.trans = (int8_t)ui.transpose;
     v->head.bpm = (uint8_t)ui.p->tempo;
@@ -3612,6 +3643,14 @@ static void draw_head(const q_view *v)
             t[0] = v->head.trans < 0 ? '-' : '+';
             int_text(v->head.trans < 0 ? -v->head.trans : v->head.trans, t + 1);
             cv_text(x + 4, 7, &FONT_B, t, KCOL[3]);
+        }
+    } else if (v->head.croot) {         /* a chord held: its name */
+        x = cv_text(x + 10, 7, &FONT_B, TONIC_NAME[v->head.croot - 1], KCOL[3]);
+        if (v->head.cqual >= 0)
+            x = cv_text(x, 7, &FONT_B, CHORD_SUFFIX[v->head.cqual], KCOL[3]);
+        if (v->head.cbass) {
+            x = cv_text(x, 7, &FONT_B, "/", KCOL[3]);
+            cv_text(x, 7, &FONT_B, TONIC_NAME[v->head.cbass - 1], KCOL[3]);
         }
     } else if (v->head.punch)
         cv_text(x + 10, 7, &FONT_B, PUNCH_NAME[v->head.punch - 1], C_AMB);
@@ -4397,6 +4436,12 @@ void ui_frame(void)
                 glv.mask = SCALE_MASK[ui.p->mode];
                 glv.pos = (int8_t)audio_pos(ui.track);
                 glv.inscale = (uint8_t)keys_in_scale();
+                glv.cname = glv.csuf = glv.cbass = 0;
+                if (pid == P_KEYS && held_chord(&k, &w, &b)) {
+                    glv.cname = TONIC_NAME[k];
+                    glv.csuf = w >= 0 ? CHORD_SUFFIX[w] : "";
+                    glv.cbass = b >= 0 ? TONIC_NAME[b] : 0;
+                }
                 glv.kit = (uint8_t)kit();
                 glv.held = 0;
                 for (k = 0; k < NKEYS; k++) {
@@ -4627,6 +4672,11 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "click")) *got = ui.p->click;
     else if (!strcmp(what, "keys")) *got = ui.p->keys;
     else if (!strcmp(what, "keynote")) *got = ui.last_note[ui.track];
+    else if (!strcmp(what, "croot") || !strcmp(what, "cqual") || !strcmp(what, "cbass")) {
+        static q_view cv;
+        view_now(&cv);
+        *got = what[1] == 'r' ? cv.head.croot : what[1] == 'q' ? cv.head.cqual : cv.head.cbass;
+    }
     else if (!strncmp(what, "chord_", 6) && ui.last_key >= 0) {   /* the last key's notes, 0 none */
         int i = atoi(what + 6), w;
         for (w = 0; w < 7 && WHITE[w] != ui.last_key; w++) {}

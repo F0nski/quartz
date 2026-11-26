@@ -131,9 +131,22 @@ static void glo_keys(const q_glview *v, int32_t oy)
     static const char *const SAY[3] = {"CHROMATIC KEYBOARD", "SCALE ON EVERY TRACK", "CHORDS 1-7, MELODY 8-16"};
     int split = v->inscale && !v->kit && v->k[1];
     glo_opts("IN SCALE", v->opt[0], v->nopt[0], v->k[0], oy + 14, HM_BLUE[1]);
-    glo_text(120, oy + 42, &FONT_S, SAY[split ? 2 : v->k[0]], GL_INK, 0);
-    if (v->inscale)
-        glo_text(120, oy + 56, &FONT_S, v->title, GL_UI, 0);
+    if (v->cname) {                     /* a chord held: its name, the root big, the quality beside it, "/" and the bass */
+        int32_t w = text_w(&FONT_L, v->cname) + text_w(&FONT_B, v->csuf) + (v->cbass ? text_w(&FONT_L, "/") + text_w(&FONT_L, v->cbass) : 0);
+        int32_t x = 120 - w / 2;
+        glo_text(x, oy + 46, &FONT_L, v->cname, PINK3[1], 2);
+        x += text_w(&FONT_L, v->cname);
+        glo_text(x, oy + 40, &FONT_B, v->csuf, PINK3[1], 2);
+        x += text_w(&FONT_B, v->csuf);
+        if (v->cbass) {
+            glo_text(x, oy + 46, &FONT_L, "/", GL_UI, 2);
+            glo_text(x + text_w(&FONT_L, "/"), oy + 46, &FONT_L, v->cbass, PINK3[1], 2);
+        }
+    } else {
+        glo_text(120, oy + 42, &FONT_S, SAY[split ? 2 : v->k[0]], GL_INK, 0);
+        if (v->inscale)
+            glo_text(120, oy + 56, &FONT_S, v->title, GL_UI, 0);
+    }
     static const uint8_t W[16] = PLAT_WHITE_KEYS;
     int mute = v->inscale || v->kit;    /* the black keys play nothing */
     for (int i = 0; i < 16; i++) {      /* 13.5 px a key */

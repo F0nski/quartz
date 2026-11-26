@@ -54,7 +54,7 @@ void sound_band(int32_t oy);
    FX: the delay's division); notes: the 12 pitch classes' names from C; opt: the option rows' names (SCALE QUANT, CLICK;
    KEYS IN SCALE); tonic, mask (bit n: n semitones above it); inscale: KEYS' white keys play the scale; pos: the track's
    step, -1 stopped; held: SCALE the track's pitch classes held (bit n), KEYS the keys held (bit k, plat.h's numbering);
-   keyn: the MIDI note each white key plays, -1 none; kit: the track is a KIT (the white keys are its pads); hits: FX the note-ons of all tracks; song: SONG's entries, the cursor and the one playing (1..n) */
+   keyn: the MIDI note each white key plays, -1 none; cname: the chord held (KEYS), 0 none; kit: the track is a KIT (the white keys are its pads); hits: FX the note-ons of all tracks; song: SONG's entries, the cursor and the one playing (1..n) */
 enum { GP_TEMPO, GP_SCALE, GP_KEYS, GP_FX, GP_SONG };
 typedef struct {
     uint8_t page;
@@ -68,6 +68,7 @@ typedef struct {
     int8_t pos;
     uint32_t held;
     int8_t keyn[16];
+    const char *cname, *csuf, *cbass;   /* KEYS SPLIT: the chord held, its root, quality and bass (0 none) */
     uint32_t hits;
     struct { int8_t n, cursor, playing, on; q_entry e[Q_SONG]; } song;
 } q_glview;

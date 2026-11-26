@@ -14,6 +14,10 @@ key 0 down
 wait 50
 expect hits 3
 expect chord_3 0
+# its name, in the header and on GLO KEYS: C (root 1 + C, quality CQ_MAJ, no bass)
+expect croot 1
+expect cqual 0
+expect cbass 0
 # black key 1: the seventh joins
 key 1 down
 wait 50
@@ -22,6 +26,7 @@ expect chord_0 48
 expect chord_1 52
 expect chord_2 55
 expect chord_3 59
+expect cqual 7
 key 1 up
 wait 50
 expect hits 4
@@ -47,3 +52,13 @@ key 7 up
 key 0 up
 wait 3000
 expect active 0
+expect croot 0
+# INV: C/E, the bass named
+key 10 down
+key 0 down
+wait 50
+expect croot 1
+expect cqual 0
+expect cbass 5
+key 0 up
+key 10 up

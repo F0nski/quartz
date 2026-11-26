@@ -1615,6 +1615,20 @@ static void glo_keys_strum(void)    /* STRUM: the ticks under the keyboard sprea
     assert(memcmp(a + 240 * 148, FULL + 240 * 148, 240 * 18 * sizeof *a) != 0);
 }
 
+static void glo_keys_chord_name(void)    /* a chord held: its name, big, over the keyboard */
+{
+    static uint16_t a[240 * 166];
+    gkeys(1);
+    GV.k[1] = 1;
+    glo_frame(&GV, 1000);
+    gfull();
+    memcpy(a, FULL, sizeof a);
+    GV.cname = "C", GV.csuf = "maj7", GV.cbass = "E";
+    glo_frame(&GV, 1040);
+    gfull();
+    assert(memcmp(a + 240 * 26, FULL + 240 * 26, 240 * 38 * sizeof *a) != 0);
+}
+
 static void gsong(int n, int reps)  /* SONG with n entries of reps repeats, scenes cycling */
 {
     greset(GP_SONG);
@@ -1699,6 +1713,7 @@ static void glo_tests(void)
     glo_keys_midi();
     glo_keys_split();
     glo_keys_strum();
+    glo_keys_chord_name();
     glo_fx_note();
     glo_fresh();
     glo_song_empty();
