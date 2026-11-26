@@ -137,6 +137,7 @@ SPLIT	split
 SPLIT ON	split on
 SPLIT OFF	split off
 SPLIT: CHORDS + MELODY	split: chords and melody
+CHORDS 1-7, MELODY 8-16	chords on keys 1 to 7, melody on 8 to 16
 ALL	all
 C	C
 C#	C sharp

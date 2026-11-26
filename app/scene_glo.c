@@ -123,13 +123,15 @@ static void glo_scale(const q_glview *v, int32_t oy)
 }
 
 /* KEYS: IN SCALE, what it means, and the 16 white keys with the note each plays (in the scale: dark blue, the tonic
-   blue; else ordinary; a KIT: its pad numbers), the black keys where a piano has them, crossed out where they play
-   nothing (in the scale, a KIT); the held keys pink */
+   blue; SPLIT: white keys 1-7, the chords, green, a bar before the melody; else ordinary; a KIT: its pad numbers), the
+   black keys where a piano has them, crossed out where they play nothing (in the scale, a KIT); the held keys pink;
+   under the keyboard STRUM, four ticks as far apart as it spreads a chord */
 static void glo_keys(const q_glview *v, int32_t oy)
 {
-    static const char *const SAY[2] = {"CHROMATIC KEYBOARD", "SCALE ON EVERY TRACK"};
+    static const char *const SAY[3] = {"CHROMATIC KEYBOARD", "SCALE ON EVERY TRACK", "CHORDS 1-7, MELODY 8-16"};
+    int split = v->inscale && !v->kit && v->k[1];
     glo_opts("IN SCALE", v->opt[0], v->nopt[0], v->k[0], oy + 14, HM_BLUE[1]);
-    glo_text(120, oy + 42, &FONT_S, SAY[v->k[0]], GL_INK, 0);
+    glo_text(120, oy + 42, &FONT_S, SAY[split ? 2 : v->k[0]], GL_INK, 0);
     if (v->inscale)
         glo_text(120, oy + 56, &FONT_S, v->title, GL_UI, 0);
     static const uint8_t W[16] = PLAT_WHITE_KEYS;
@@ -137,7 +139,8 @@ static void glo_keys(const q_glview *v, int32_t oy)
     for (int i = 0; i < 16; i++) {      /* 13.5 px a key */
         int n = v->keyn[i] % 12, hit = v->held >> W[i] & 1, lit = v->inscale && !v->kit && v->keyn[i] >= 0;
         int32_t x = 12 + i * 27 / 2;
-        uint16_t f = hit ? PINK3[1] : lit ? (n == v->tonic ? HM_BLUE[1] : HM_BLUE[2]) : GL_KEY, ink = hit || !lit ? SP_BAR : GL_INK;
+        const uint16_t *hue = split && i < 7 ? HM_GREEN : HM_BLUE;
+        uint16_t f = hit ? PINK3[1] : lit ? (n == v->tonic ? hue[1] : hue[2]) : GL_KEY, ink = hit || !lit ? SP_BAR : GL_INK;
         cv_rect(x + 1, oy + 70, 12, 76, f);
         if (v->kit) {
             char l[3] = {(char)(i < 9 ? '1' + i : '1'), (char)(i < 9 ? 0 : '0' + i - 9), 0};
@@ -161,6 +164,11 @@ static void glo_keys(const q_glview *v, int32_t oy)
             cv_line(x + 8, oy + 72, x + 1, oy + 112, SP_WIRE);
         }
     }
+    if (split)                          /* between white keys 7 and 8 */
+        cv_rect(12 + 7 * 27 / 2 - 1, oy + 66, 2, 84, HM_ORANGE[1]);
+    glo_text(14, oy + 158, &FONT_XS, "STRUM", HM_WHITE[1], 2);
+    for (int i = 0; i < 4; i++)
+        cv_rect(64 + i * (3 + 5 * v->k[2]), oy + 152, 2, 10, split ? HM_GREEN[1] : GL_UI);
 }
 
 /* FX: DELAY (a note and its echoes on a time line, spaced by the division, each lower by the feedback) and REVERB (a

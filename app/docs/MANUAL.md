@@ -585,7 +585,8 @@ Press GLO for the project's settings, shared by the four tracks.
 - **CLICK**: METRO plays a click while recording LIVE, COUNT a bar of count-in before LIVE, BOTH both.
 - **KEYS**: IN SCALE OFF, the keys are a chromatic keyboard. ON: on every synth track, the white keys play the scale
   up from the tonic (on FLEET tracks, their allowed notes) and the black keys are silent. SPLIT, the selected track's
-  (also GLO held + black key 2, `SPLIT ON` / `SPLIT OFF`): white keys 1–7 play the scale's chords, 8–16 the melody. STRUM spreads those chords' notes, as CADENCE's STRUM. A kit keeps its pads: on a KIT
+  (also GLO held + black key 2, `SPLIT ON` / `SPLIT OFF`): white keys 1–7 play the scale's chords, 8–16 the melody
+  ([Chords on the keys](#chords-on-the-keys)). STRUM spreads those chords' notes, as CADENCE's STRUM. A kit keeps its pads: on a KIT
   track, the page numbers the white keys 1–16 and crosses out the black ones. The keys you hold light up pink.
 - **FX**: the shared ping-pong delay, its time in steps of the tempo and its feedback; the reverb's size and its
   tone (how much of the highs it keeps).
@@ -594,7 +595,7 @@ Press GLO for the project's settings, shared by the four tracks.
 
 ![GLO's TEMPO page: 120 BPM, SWING 50 %, COMP and DUCK bars](img/glo-tempo.png "TEMPO")
 
-![GLO held: black key 1 named TAP TEMPO, black key 2 SPLIT: CHORDS + MELODY, every key TRANSPOSE THE STEPS, 2 TAPS to set the BPM; TAP 100 in the header](img/glo-tap.png "TAP TEMPO")
+![GLO held: black key 1 named TAP TEMPO, every key TRANSPOSE THE STEPS, 2 TAPS to set the BPM; TAP 100 in the header](img/glo-tap.png "TAP TEMPO")
 
 ![GLO's SCALE page: C MAJOR on a keyboard, QUANT 100 %, CLICK OFF](img/glo-scale.png "SCALE")
 
@@ -603,6 +604,35 @@ Press GLO for the project's settings, shared by the four tracks.
 ![GLO's FX page: the delay's echoes at 1/8, FB 40, and the reverb's tail, SIZE 80, TONE 64](img/glo-fx.png "FX")
 
 ![GLO's CPU page: CORE 1, CORE 2, LOST BLOCKS, VOICES, BYTES/VOICE, CORE 2 STACK, EFFECTS, SCENE FPS](img/glo-cpu.png "CPU")
+
+### Chords on the keys
+
+With IN SCALE ON, turn SPLIT on for a synth track (GLO's KEYS page, or hold GLO and press black key 2): its keyboard
+splits in two. Each of white keys 1–7 plays the chord of its degree of the scale, three notes of the scale stacked a
+third apart (in C major: C, Dm, Em, F, G, Am, B°); white keys 8–16 go on playing one note each, from the tonic an
+octave up, for the melody. SPLIT is per track: a bass on track 1 can stay note by note.
+
+Hold black keys 1–5 while you strike a chord to change it, in the scale; two at once add up:
+
+| Black key | Name | The chord (from C, in C major) |
+| --- | --- | --- |
+| 1 | 7 | adds the seventh: Cmaj7, Dm7, G7 |
+| 2 | SUS2 | the third becomes the second: Csus2 |
+| 3 | SUS4 | the third becomes the fourth: Csus4 (with 2, SUS4 wins) |
+| 4 | ADD9 | adds the ninth: Cadd9 (with 1: the fifth makes room, four notes at most) |
+| 5 | INV | the root an octave up: C/E |
+
+STRUM (GLO's KEYS page, 0–7) plays a chord's notes one after the other from the lowest, 1/24 of a step apart at 1,
+half a step at 7, as CADENCE's STRUM. Letting go of the key stops every note of its chord, even those not struck yet.
+
+The chords record as you play them: LIVE and NOTES write the chord and the melody's notes on the step, up to POLY
+(POLY 4 holds a chord and one more note), and the step keeps the STRUM. Disarmed, a chord is the clipboard; IMPROV's
+LISTEN learns its root.
+
+![GLO's KEYS page with SPLIT ON and STRUM 4: white keys 1–7 green for the chords, a bar, 8–16 blue for the melody, the C chord held](img/glo-keys-split.png "SPLIT")
+
+**Inspired by** the one-finger chords of home keyboards, such as Casio's Casio Chord: one key, one chord, the other
+hand free for the melody.
 
 ---
 

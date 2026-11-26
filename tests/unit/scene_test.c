@@ -1590,6 +1590,31 @@ static void glo_keys_midi(void)     /* keyn holds MIDI notes: the class tells th
     assert(gcount(HM_BLUE[2], 27, 38, 120, 124) > 0 && gcount(HM_BLUE[1], 27, 38, 120, 124) == 0);
 }
 
+static void glo_keys_split(void)    /* SPLIT: white keys 1-7 green (the chords), 8-16 blue (the melody) */
+{
+    for (int sp = 0; sp < 2; sp++) {
+        gkeys(1);
+        GV.k[1] = (int16_t)sp;
+        glo_frame(&GV, 1000);
+        gfull();
+        assert((gcount(HM_GREEN[2], 27, 38, 80, 110) > 0) == sp);
+        assert(gcount(HM_GREEN[2], 122, 133, 80, 110) == 0);
+    }
+}
+
+static void glo_keys_strum(void)    /* STRUM: the ticks under the keyboard spread */
+{
+    static uint16_t a[240 * 166];
+    gkeys(1);
+    glo_frame(&GV, 1000);
+    gfull();
+    memcpy(a, FULL, sizeof a);
+    GV.k[2] = 7;
+    glo_frame(&GV, 1040);
+    gfull();
+    assert(memcmp(a + 240 * 148, FULL + 240 * 148, 240 * 18 * sizeof *a) != 0);
+}
+
 static void gsong(int n, int reps)  /* SONG with n entries of reps repeats, scenes cycling */
 {
     greset(GP_SONG);
@@ -1672,6 +1697,8 @@ static void glo_tests(void)
     glo_keys_blacks();
     glo_keys_held();
     glo_keys_midi();
+    glo_keys_split();
+    glo_keys_strum();
     glo_fx_note();
     glo_fresh();
     glo_song_empty();

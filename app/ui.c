@@ -3717,7 +3717,7 @@ static void draw_layer(const q_view *v, int32_t oy)
         break;
     case B_GLO:
         tags[n] = "#1", names[n++] = "TAP TEMPO";
-        if (v->scene.lkeys >> BLACK[1] & 1u)
+        if (KEYS_SCALE(ui.p))
             tags[n] = "#2", names[n++] = "SPLIT: CHORDS + MELODY";
         tags[n] = "KEY", names[n++] = "TRANSPOSE THE STEPS";
         combo[0][0] = "2 TAPS", combo[0][1] = "SET THE BPM";
