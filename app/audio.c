@@ -49,7 +49,8 @@ static float fade[Q_VOICES], fstep[Q_VOICES];   /* its level left, 1 down to 0, 
 /* one engine switch per block in the render: the note-ons needing another wait here, in order */
 typedef struct { uint8_t track, note, vel, pat, accent; int8_t step; } q_later;   /* step -1: the keyboard's */
 static q_later later[LATER_N];
-typedef struct { uint8_t track, note, on; uint32_t due; } q_strum;   /* due: the frame (now's count) */
+typedef struct { uint8_t track, note, on, key; uint32_t due; } q_strum;   /* due: the frame (now's count); key: the
+                                                                             chord's white key 1-7 */
 static q_strum strums[STRUM_N];
 static int n_strums;
 /* a track not on M_KIT plays through its arp (MODE OFF: a pass-through). apat/astep: the step of the last note-on
@@ -83,7 +84,8 @@ static uint16_t punch_last;         /* the last block's punch-ins */
 static float punch_free;            /* stopped: the bar's position since the punch-ins began, or since the STOP */
 static float clk_c, clk_s, clk_cw, clk_sw, clk_env;   /* the click: a phasor turning by (clk_cw, clk_sw) a frame */
 /* live notes held while recording; now: the render's clock, since audio_setup */
-typedef struct { uint8_t on, track, note, pat, step; int8_t micro; uint32_t t0; } q_held;
+typedef struct { uint8_t on, track, note, pat, step; int8_t micro; uint8_t key; uint32_t t0; } q_held;   /* key: KEYS
+                                     SPLIT's chord key 1-7 that struck it, 0 none */
 static q_held held[HELD_N];
 static uint32_t now;
 
@@ -171,11 +173,11 @@ void audio_play(int on)
 }
 
 void audio_live_note(int track, int note, int on) { push(CMD_NOTE, track, note, on); }
-/* the i-th note of a chord: on | i << 2 (the render dates it) */
-void audio_live_chord(int track, const uint8_t *notes, int n, int on)
+/* the i-th note of the chord of white key key: on | i << 2 | key << 4 (the render dates it, and cancels it with its key) */
+void audio_live_chord(int track, const uint8_t *notes, int n, int on, int key)
 {
     for (int i = 0; i < n; i++)
-        push(CMD_NOTE, track, notes[i], on ? on | i << 2 : 0);
+        push(CMD_NOTE, track, notes[i], (on ? on | i << 2 : 0) | key << 4);
 }
 void audio_track_model(int track) { push(CMD_MODEL, track, 0, 0); }
 void audio_mute(void) { muted = 1; }
@@ -617,22 +619,22 @@ static void rec_send(const q_held *h)
         return;                     /* full: the note is lost */
     rec[w % REC_N] = (q_rec){ h->track, h->pat, h->step, h->note, 100, (uint8_t)(len < 1 ? 1 : len > 64 ? 64 : len),
                               (int8_t)seq_quantize(h->micro, prj->quant),
-                              (uint8_t)(KEYS_SPLIT(prj, h->track) ? KEYS_STRUM(prj) : 0) };
+                              (uint8_t)(h->key ? 0x80 | KEYS_STRUM(prj) : 0) };
     __asm__ volatile("" ::: "memory");   /* the ring's publish barrier */
     rec_w = w + 1;
 }
 
 /* a live note while recording: held from its nearest step (none while stopped or counting in) to its note-off */
-static void rec_note(int track, int note, int on)
+static void rec_note(int track, int note, int on, int key)
 {
     int micro, pat, step;
     for (int i = 0; i < HELD_N; i++)
-        if (held[i].on && held[i].track == track && held[i].note == note) {
-            if (!on) {
-                rec_send(&held[i]);
-                held[i].on = 0;
-            }
-            return;
+        if (held[i].on && held[i].track == track && held[i].note == note && (on || held[i].key == key)) {
+            rec_send(&held[i]);         /* struck again (a chord sharing it): it ends here, the new one starts */
+            held[i].on = 0;
+            if (!on)
+                return;
+            break;
         }
     if (!on || !recording || (step = seq_locate(&seq, prj, track, &micro, &pat)) < 0)
         return;
@@ -641,7 +643,7 @@ static void rec_note(int track, int note, int on)
     for (int i = 0; i < HELD_N; i++)
         if (!held[i].on) {
             held[i] = (q_held){ 1, (uint8_t)track, (uint8_t)note, (uint8_t)pat, (uint8_t)step,
-                                (int8_t)micro, now };
+                                (int8_t)micro, (uint8_t)key, now };
             return;
         }
 }
@@ -730,24 +732,29 @@ static void arp_run(int t, int ni, int *ne, uint32_t n)
 }
 
 /* a chord's i-th note-on dated i strums after now: 1, or 0 when it goes at once (STRUM 0, or no room) */
-static int strum_wait(int track, int note, int on, int i)
+static int strum_wait(int track, int note, int on, int i, int key)
 {
     uint32_t num, den, d = STRUM_TICKS[KEYS_STRUM(prj)];
     if (!d || n_strums == STRUM_N)
         return 0;
-    seq_step_ratio(prj->tempo, DIV_16, &num, &den);
-    strums[n_strums++] = (q_strum){ (uint8_t)track, (uint8_t)note, (uint8_t)on,
+    seq_step_ratio(prj->tempo, prj->pat[track][seq_pattern(&seq, track)].div, &num, &den);   /* the track's steps */
+    strums[n_strums++] = (q_strum){ (uint8_t)track, (uint8_t)note, (uint8_t)on, (uint8_t)key,
                                     now + (uint32_t)((uint64_t)i * d * num / ((uint64_t)den * 4800u)) };
     return 1;
 }
 
-static void strum_cancel(int track, int note)
+/* chord key key let go: its note still waiting, 1 (cancelled: no note-off for it either), 0 none. A latched one
+   stays while the arp plays (MODE not OFF): it joins the latch */
+static int strum_cancel(int track, int note, int key)
 {
     for (int i = 0; i < n_strums; i++)
-        if (strums[i].track == track && strums[i].note == note) {
+        if (strums[i].track == track && strums[i].note == note && strums[i].key == key) {
+            if (strums[i].on == 3 && prj->sound[track].amode != AM_OFF)
+                return 0;
             strums[i] = strums[--n_strums];
-            return;
+            return 1;
         }
+    return 0;
 }
 
 /* the strums due in this block of n frames: their note-ons at their offsets */
@@ -772,13 +779,13 @@ static void commands(void)
         q_cmd c = cmd[cmd_r % CMD_N];
         cmd_r++;
         if (c.kind == CMD_NOTE) {
-            int i = c.on >> 2;
+            int i = c.on >> 2 & 3, key = c.on >> 4;
             c.on &= 3;
             if (c.on < 2)
-                rec_note(c.track, c.note, c.on);   /* a chord's notes all recorded at the strike: on one step */
-            if (!c.on)
-                strum_cancel(c.track, c.note);
-            if (i && strum_wait(c.track, c.note, c.on, i))
+                rec_note(c.track, c.note, c.on, key);   /* a chord's notes all recorded at the strike: on one step */
+            if (!c.on && key && strum_cancel(c.track, c.note, key))
+                continue;
+            if (i && strum_wait(c.track, c.note, c.on, i, key))
                 continue;
             if (arping(c.track) && (c.on == 1 || c.on == 2))
                 arp_unlatch(&arp[c.track]);   /* a key without latch ends the latch */

@@ -360,15 +360,16 @@ static void free_voices_skipped(void)
 static const uint8_t CHORD[3] = { 60, 64, 67 };
 static uint32_t FR;                     /* frames rendered since the chord */
 static void run_to(uint32_t f) { while (FR < f) { block(256); FR += 256; } }
-static void strum_chord(void)
+static void strum_chord_with(const uint8_t *notes, int key)
 {
     setup();
     P.tempo = 120;
     P.keys = 7 << 5;
     P.sound[0].poly = 4;
-    audio_live_chord(0, CHORD, 3, 1);
+    audio_live_chord(0, notes, 3, 1, key);
     FR = 0;
 }
+static void strum_chord(void) { strum_chord_with(CHORD, 1); }
 static void strum_waits(void)
 {
     strum_chord();
@@ -394,7 +395,7 @@ static void strum_cancelled(void)
 {
     strum_chord();
     run_to(256);
-    for (int i = 0; i < 3; i++) audio_live_note(0, CHORD[i], 0);
+    audio_live_chord(0, CHORD, 3, 0, 1);
     run_to(6000);
     assert(chord_ons() == 1);
     for (int v = 0; v < Q_VOICES; v++) silent[v] = 1;
@@ -408,6 +409,62 @@ static void strum_model_switch(void)
     set_model(0, 8);
     run_to(6000);
     assert(chord_ons() == 1);
+}
+
+/* chords a third apart (vi then IV, C major): vi let go while IV's notes wait; IV's own still come */
+static void strum_cancel_own_key(void)
+{
+    static const uint8_t VI[3] = { 57, 60, 64 }, IV[3] = { 53, 57, 60 };
+    strum_chord_with(VI, 6);
+    audio_live_chord(0, IV, 3, 1, 4);
+    run_to(256);
+    audio_live_chord(0, VI, 3, 0, 6);
+    run_to(6000);
+    assert(chord_ons() == 4);           /* vi's 57, IV's 53, 57, 60 */
+}
+/* a melody note held under a chord whose same note still waits: the chord let go, the melody's voice stays */
+static void strum_spares_melody(void)
+{
+    static const uint8_t V[3] = { 55, 59, 62 };
+    setup();
+    P.tempo = 120, P.keys = 7 << 5, P.sound[0].poly = 4;
+    audio_live_note(0, 62, 1);
+    audio_live_chord(0, V, 3, 1, 5);
+    FR = 0;
+    run_to(256);
+    audio_live_chord(0, V, 3, 0, 5);
+    run_to(6000);
+    int offs = 0;
+    for (int i = 0; i < NLOG; i++) offs += LOG[i].op == 'f';
+    assert(offs == 1);                  /* 55's only */
+}
+/* ARP on, latch: the strummed notes still come after a short tap; ARP OFF: they go with the key */
+static void strum_latch_kept(void)
+{
+    for (int a = 0; a < 2; a++) {
+        setup();
+        P.tempo = 120, P.keys = 7 << 5, P.sound[0].poly = 4;
+        P.sound[0].amode = (uint8_t)(a ? 1 : AM_OFF);
+        block(256);
+        audio_live_chord(0, CHORD, 3, 3, 1);
+        block(256);
+        audio_live_chord(0, CHORD, 3, 0, 1);
+        block(256);
+        assert(n_strums == (a ? 2 : 0));
+    }
+}
+/* the strum in the track's steps: DIV 1/8, twice 1/16's */
+static void strum_track_div(void)
+{
+    setup();
+    P.tempo = 120, P.keys = 7 << 5, P.sound[0].poly = 4;
+    P.pat[0][0].div = DIV_8;
+    audio_live_chord(0, CHORD, 3, 1, 1);
+    FR = 0;
+    run_to(5376);
+    assert(chord_ons() == 1);
+    run_to(5632);
+    assert(chord_ons() == 2);
 }
 
 static void live_notes_reach_voices(void)
@@ -2082,6 +2139,10 @@ int main(void)
     strum_none_at_zero();
     strum_cancelled();
     strum_model_switch();
+    strum_cancel_own_key();
+    strum_spares_melody();
+    strum_latch_kept();
+    strum_track_div();
     reverb_on_core2_once_per_block();
     splits_block_at_events();
     cores_get_their_voices();

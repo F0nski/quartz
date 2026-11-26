@@ -10,16 +10,17 @@
 /* fx_pct: qfx_block's part of core 1; since the start, steals: the voices taken from a sounding note (another track's,
  * origin's or a KIT engine's), cuts: those of them that cut another track's held note */
 typedef struct { uint32_t core1_pct, core2_pct, xruns, active; int cpu2; uint32_t cpu2_stack, fx_pct, steals, cuts; } q_load;
-typedef struct { uint8_t track, pat, step, note, vel, len; int8_t micro; uint8_t strum; } q_rec;   /* a note overdubbed:
-                                                     q_step's; strum: KEYS SPLIT's, for SF_STRUM (0 none) */
+typedef struct { uint8_t track, pat, step, note, vel, len; int8_t micro; uint8_t chord; } q_rec;   /* a note overdubbed:
+                                                     q_step's; chord: 0x80 | STRUM for a KEYS SPLIT chord's, 0 else */
 
 void audio_setup(q_project *p);                         /* app_init, before the audio starts (fm1-base has its own audio_init) */
 void audio_play(int on);                                /* the sounding steps get their note-offs; on 1: from step 0 */
 /* the keyboard, velocity 100; a note-off is never dropped; on 2: a note-on not overdubbed (written to a held step); on 3: 2, held by the arp after its key is released (latch) */
 void audio_live_note(int track, int note, int on);
-/* KEYS SPLIT: a chord's n notes, low to high, as audio_live_note's; the note-ons STRUM_TICKS[KEYS_STRUM] apart at the
-   tempo, the first at once (a note-off for a note still waiting cancels it) */
-void audio_live_chord(int track, const uint8_t *notes, int n, int on);
+/* KEYS SPLIT: the chord of white key key (1-7)'s n notes, low to high, as audio_live_note's; the note-ons
+   STRUM_TICKS[KEYS_STRUM] apart in the track's steps, the first at once; its note-offs (on 0, the same key) cancel its
+   notes still waiting. key 0: notes of no chord key, at once */
+void audio_live_chord(int track, const uint8_t *notes, int n, int on, int key);
 /* Overdub armed: the live notes while playing (count-in aside) are recorded, 8 held at most; the metronome per
  * prj->click (METRO), and a count-in on play (COUNT) */
 void audio_rec(int on);

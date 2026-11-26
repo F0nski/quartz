@@ -55,6 +55,12 @@ tapkey b1
 expect keys 135
 expect msg_copy 26
 release GLO
+# GLO KEYS's SPLIT knob on a KIT: refused as the gesture
+tap GLO
+turn K2 1
+expect keys 135
+expect msg_copy 26
+tap EDIT
 # playing: track 1 POLY 4, SPLIT on (C major from C3); white keys 1-7 chords, 8-16 the melody
 turn ALGO -1
 expect track 1

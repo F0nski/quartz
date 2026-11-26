@@ -272,6 +272,7 @@ static struct {
 
 static q_pattern *pat(void) { return &ui.p->pat[ui.track][ui.p->pattern[ui.track]]; }
 static int notes_on(void);
+static void split_set(int on);
 static int cond_index(int c);
 static void step_on(q_step *s);
 static void step_default(q_step *s);
@@ -733,7 +734,7 @@ static void knob_set(int pid, int k, int v)
     case P_SCALE * 4 + 2: ui.p->quant = (uint8_t)v; break;
     case P_SCALE * 4 + 3: ui.p->click = (uint8_t)v; break;
     case P_KEYS * 4: ui.p->keys = (uint8_t)((ui.p->keys & ~1u) | (unsigned)v); break;
-    case P_KEYS * 4 + 1: ui.p->keys = (uint8_t)((ui.p->keys & ~(2u << ui.track)) | (unsigned)v << (1 + ui.track)); break;
+    case P_KEYS * 4 + 1: split_set(v); break;
     case P_KEYS * 4 + 2: ui.p->keys = (uint8_t)((ui.p->keys & 0x1Fu) | (unsigned)v << 5); break;
     case P_XY * 4: t->xlen = (uint8_t)v; break;
     case P_XY * 4 + 1: t->div = (uint8_t)v; break;
@@ -1094,8 +1095,10 @@ static void rec_write(const q_rec *r)
         s->micro = r->micro;
         s->prob = 20;
         step_on(s);
-        s->flags = (uint8_t)((s->flags & 0x1Fu) | r->strum << 5);   /* KEYS SPLIT: the chord plays strummed */
+        s->flags = (uint8_t)((s->flags & 0x1Fu) | (r->chord & 7) << 5);   /* KEYS SPLIT: the chord plays strummed */
     } else if (poly == 1) {
+        if (r->chord)                   /* a chord's: its first note kept, as NOTES writes it */
+            return;
         s->note[0] = r->note;
         s->vel = r->vel;
         s->len = r->len;
@@ -1107,8 +1110,8 @@ static void rec_write(const q_rec *r)
         for (i = 1; i < poly && s->note[i]; i++) {}
         if (i < poly)
             s->note[i] = r->note;
-        if (r->strum)
-            s->flags = (uint8_t)((s->flags & 0x1Fu) | r->strum << 5);
+        if (r->chord)
+            s->flags = (uint8_t)((s->flags & 0x1Fu) | (r->chord & 7) << 5);
     }
     ui.dirty = 1;
 }
@@ -2140,16 +2143,23 @@ static void dice(int b)
 }
 
 /* TAP TEMPO (GLO held, black key 1): from the 2nd tap, the mean gap of the last 4 taps; a gap over 2 s starts again */
-/* GLO held, black key 2 (IN SCALE ON): the track's SPLIT on or off; a KIT has no chords */
-static void split_toggle(void)
+/* the track's SPLIT on or off (GLO KEYS's knob); a KIT has no chords: refused */
+static void split_set(int on)
 {
     if (kit()) {
         copy_msg(COPY_KIT_CHORDS, MSG_MS);
         return;
     }
-    ui.p->keys ^= (uint8_t)(2u << ui.track);
+    ui.p->keys = (uint8_t)((ui.p->keys & ~(2u << ui.track)) | (unsigned)on << (1 + ui.track));
     ui.dirty = 1;
-    copy_msg(KEYS_SPLIT(ui.p, ui.track) ? COPY_SPLIT_ON : COPY_SPLIT_OFF, MSG_MS);
+}
+
+/* GLO held, black key 2 (IN SCALE ON): the track's SPLIT on or off */
+static void split_toggle(void)
+{
+    split_set(!KEYS_SPLIT(ui.p, ui.track));
+    if (!kit())
+        copy_msg(KEYS_SPLIT(ui.p, ui.track) ? COPY_SPLIT_ON : COPY_SPLIT_OFF, MSG_MS);
 }
 
 static void tap_tempo(void)
@@ -2255,11 +2265,12 @@ static void key_down(int k)
         }
         return;
     }
-    if (ui.rec == R_LIVE && ui.btn >> B_REC & 1u) {    /* REC held in LIVE: the key's note is erased, not played */
-        if ((note = key_play_note(k)) >= 0)
+    if (ui.rec == R_LIVE && ui.btn >> B_REC & 1u) {    /* REC held in LIVE: the key's notes are erased, not played */
+        uint8_t er[4];
+        for (int j = 0, n = key_notes(k, er); j < n; j++)
             for (i = 0; i < 8; i++)
                 if (!ui.erase_notes[i]) {
-                    ui.erase_notes[i] = (uint8_t)note;
+                    ui.erase_notes[i] = er[j];
                     break;
                 }
         return;
@@ -2403,7 +2414,7 @@ static void key_down(int k)
         step_on(s);
         chord_strum(s, n);
         ui.dirty = 1;
-        audio_live_chord(ui.track, notes, n, 2);
+        audio_live_chord(ui.track, notes, n, 2, n > 1 ? w + 1 : 0);
         key_hold(k, notes, n);
         return;
     } else if (grid_on()) {             /* the white keys are the page's 16 steps */
@@ -2450,7 +2461,7 @@ static void key_down(int k)
     int n = key_notes(k, notes);
     if (!n)
         return;
-    note = notes[0];
+    note = n > 1 ? scale_note(w) : notes[0];   /* a chord's root (INV puts it on top) */
     if (kit()) {                        /* the white keys are the pads */
         ui.pad = w;
         if (!s)
@@ -2463,7 +2474,7 @@ static void key_down(int k)
         return;
     }
     /* written to the held step: not overdubbed too; ARP held: the arp keeps the note after its key is released */
-    audio_live_chord(ui.track, notes, n, s ? 2 : ui.arpdown && !kit() ? 3 : 1);
+    audio_live_chord(ui.track, notes, n, s ? 2 : ui.arpdown && !kit() ? 3 : 1, n > 1 ? w + 1 : 0);
     if (!s && ui.rec == R_LISTEN) {     /* learnt: the first note of LISTEN starts a new phrase */
         q_mimic *m = &pat()->mimic;
         uint32_t now = plat_ms();
@@ -2478,6 +2489,7 @@ static void key_down(int k)
         for (i = 0; i < NKEYS && ui.key_note[i] < 0; i++) {}
         if (i == NKEYS) {
             clip_notes(notes, n);
+            chord_strum(&ui.clip.st, n);
         } else {
             for (int j = 0; j < n; j++) {
                 for (i = 0; i < 4 && ui.clip.st.note[i] && ui.clip.st.note[i] != notes[j]; i++) {}
@@ -2540,19 +2552,29 @@ static void key_up(int k)
         preview_off();
     if (ui.padheld == k + 1)
         ui.padheld = 0;
-    for (w = 0; w < 8; w++)             /* (OCT is not changed while REC is held: the note is the one pressed) */
-        if (ui.erase_notes[w] && ui.erase_notes[w] == key_play_note(k))
-            ui.erase_notes[w] = 0;
+    {
+        uint8_t er[4];
+        int n = key_notes(k, er);
+        for (w = 0; w < 8; w++)         /* (OCT is not changed while REC is held: the notes are the ones pressed) */
+            for (int j = 0; j < n; j++)
+                if (ui.erase_notes[w] == er[j])
+                    ui.erase_notes[w] = 0;
+    }
     if (ui.key_note[k] < 0)
         return;
-    audio_live_note(ui.key_track[k], ui.key_note[k], 0);
-    ui.key_note[k] = -1;
-    for (w = 0; w < 7 && WHITE[w] != k; w++) {}
-    for (int i = 0; w < 7 && i < 3; i++)
-        if (ui.chord_note[w][i] >= 0) {
-            audio_live_note(ui.key_track[k], ui.chord_note[w][i], 0);
-            ui.chord_note[w][i] = -1;
-        }
+    {
+        uint8_t off[4];
+        int n = 0;
+        off[n++] = (uint8_t)ui.key_note[k];
+        for (w = 0; w < 7 && WHITE[w] != k; w++) {}
+        for (int i = 0; w < 7 && i < 3; i++)
+            if (ui.chord_note[w][i] >= 0) {
+                off[n++] = (uint8_t)ui.chord_note[w][i];
+                ui.chord_note[w][i] = -1;
+            }
+        audio_live_chord(ui.key_track[k], off, n, 0, n > 1 ? w + 1 : 0);   /* the chord's key: its strums cancelled */
+        ui.key_note[k] = -1;
+    }
     for (w = 0; w < NKEYS && ui.key_note[w] < 0; w++) {}
     if (ui.nchord && w == NKEYS) {      /* NOTES, all the keys up: the cursor moves on by the step's length */
         const q_pattern *t = pat();
@@ -4482,6 +4504,8 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "clip_n")) for (*got = 1; *got < 4 && ui.clip.st.note[*got]; ++*got) {}
     else if (!strcmp(what, "clip_note")) *got = ui.clip.st.note[0];
     else if (!strcmp(what, "clip_on")) *got = ui.clip.st.flags & SF_ON;
+    else if (!strcmp(what, "clip_strum")) *got = SF_STRUM(&ui.clip.st);
+    else if (!strcmp(what, "erase_n")) for (int i = *got = 0; i < 8; i++) *got += ui.erase_notes[i] != 0;
     else if (!strcmp(what, "clip_locks")) *got = ui.clip.nlocks;
     else if (!strcmp(what, "spage")) *got = ui.spage + 1;
     else if (!strcmp(what, "model")) *got = s->model;

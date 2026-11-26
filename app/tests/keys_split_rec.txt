@@ -33,6 +33,7 @@ key 2 down
 key 2 up
 expect clip_n 3
 expect clip_note 50
+expect clip_strum 4
 # a held step on the grid: white key 6, A's chord
 tap REC
 expect rec 1
@@ -88,6 +89,54 @@ expect stepon_7 1
 expect stepnotes_7 2
 expect stepnote_7 48
 expect stepnote2_7 52
+# legato chords sharing notes (I then iii): iii's step gets all three; two melody keys: no strum; POLY 1: the lowest
+turn K4 2
+expect poly 4
+tap REC
+tap PLAY
+wait 2000
+key 0 down
+wait 500
+key 4 down
+wait 100
+key 0 up
+wait 100
+key 4 up
+wait 300
+key 14 down
+key 16 down
+wait 100
+key 14 up
+key 16 up
+wait 50
+tap PLAY
+expect stepnote_11 52
+expect stepnote2_11 55
+expect stepnote3_11 59
+expect stepnotes_13 2
+expect stepstrum_13 0
+turn K4 -3
+expect poly 1
+tap REC
+tap PLAY
+wait 3500
+key 0 down
+wait 100
+key 0 up
+wait 50
+tap PLAY
+expect stepnote_15 48
+# REC held in LIVE: a chord key erases its three notes
+turn K4 3
+tap REC
+tap PLAY
+wait 100
+press REC
+key 0 down
+expect erase_n 3
+key 0 up
+release REC
+tap PLAY
 # MIMIC LISTEN on track 3: the chord's root only
 turn ALGO 2
 expect track 3
@@ -105,4 +154,14 @@ wait 100
 tap REC
 expect rec 0
 expect mn 1
+expect mnote_1 52
+# INV (black key 5): still the root learnt
+tap REC
+expect rec 5
+key 10 down
+key 4 down
+key 4 up
+key 10 up
+wait 100
+tap REC
 expect mnote_1 52
