@@ -1,0 +1,57 @@
+# KEYS SPLIT: GLO held + black key 2 turns the selected track's SPLIT on and off (IN SCALE ON only, not on a KIT);
+# GLO KEYS: IN SCALE OFF/ON, SPLIT (the track's), STRUM
+wait 600
+expect keys 0
+# IN SCALE OFF: black key 2 transposes as every key, SPLIT stays off
+press GLO
+wait 100
+tapkey b1
+expect keys 0
+expect msg_copy 0
+release GLO
+# IN SCALE ON on GLO KEYS
+tap GLO
+turn SELECT 2
+expect page 3
+turn K1 1
+expect keys 1
+tap EDIT
+press GLO
+wait 100
+tapkey b1
+expect keys 3
+expect msg_copy 24
+release GLO
+# track 2: its own SPLIT, track 1's kept
+turn ALGO 1
+expect track 2
+press GLO
+wait 100
+tapkey b1
+expect keys 7
+release GLO
+press GLO
+wait 100
+tapkey b1
+expect keys 3
+expect msg_copy 25
+release GLO
+# GLO KEYS's SPLIT knob is the track's, STRUM the project's
+tap GLO
+turn K2 1
+expect keys 7
+turn K3 5
+expect keys 167
+turn K3 -1
+expect keys 135
+tap EDIT
+# a KIT: no chords
+spin PRESET -30
+spin PRESET 24
+expect model 24
+press GLO
+wait 100
+tapkey b1
+expect keys 135
+expect msg_copy 26
+release GLO

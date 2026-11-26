@@ -256,6 +256,18 @@ static void store_clamps_fields(void)
     assert(a.click == 3);
 }
 
+/* q_project.keys: IN SCALE (bit 0), SPLIT per track (bits 1-4), STRUM (bits 5-7) all kept */
+static void keys_bits_kept(void)
+{
+    static q_project a;
+    project_defaults(&a);
+    a.keys = 0xB5;
+    assert(store_save(&a) == 0);
+    memset(&a, 0, sizeof a);
+    assert(store_load(&a) == 0);
+    assert(a.keys == 0xB5);
+}
+
 static void store_roundtrip_v3(void)
 {
     static q_project a, b;
@@ -631,6 +643,7 @@ static void projects_apart(void)
 int main(void)
 {
     forget();
+    keys_bits_kept();
     store_keeps_punch_locks();
     store_migrates_18();
     roundtrip();

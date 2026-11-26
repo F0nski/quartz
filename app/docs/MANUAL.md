@@ -109,7 +109,7 @@ screen.
 | ARP | The arpeggiator. | The notes you press stay in the arpeggio after you let go (latch). |
 | FX | The track's effects: MIX, INSERT. | The white keys are the 16 punch-ins; black key 1 is FILL. |
 | SEQ | The pattern: STEPS, then its source's pages. | White keys 1–8 pick the track's pattern; black keys 1–4 copy and paste. |
-| GLO | The project: TEMPO, SCALE, KEYS, FX, CPU. | Black key 1 taps the tempo (section 10). |
+| GLO | The project: TEMPO, SCALE, KEYS, FX, CPU. | Black key 1 taps the tempo; with IN SCALE ON, black key 2 turns the track's SPLIT on or off (section 10). |
 | HOME | The four tracks and the song: TRACKS, SONG. | White keys 1–4 mute the tracks, 9–16 are the scenes. |
 | SAVE | Saves the project (while playing: at the stop). | White keys 1–8 add a scene to the song; black key 1 twice starts a new project; black keys 2–5 twice load project 1–4. |
 | SEL | On SONG, removes the entry shown. | Selects steps on the grid ([Sequencer](sequencer.html#several-steps-at-once)). |
@@ -562,7 +562,7 @@ Press GLO for the project's settings, shared by the four tracks.
 | --- | --- | --- | --- | --- |
 | TEMPO | TEMPO, 40–240 BPM | SWING, 50–75 % | COMP, 0–127 | DUCK, 0–127 |
 | SCALE | TONIC, C to B | MODE | QUANT: OFF, 50 %, 100 % | CLICK: OFF, METRO, COUNT, BOTH |
-| KEYS | IN SCALE: OFF, ALL | — | — | — |
+| KEYS | IN SCALE: OFF, ON | SPLIT: OFF, ON (the track's) | STRUM, 0–7 | — |
 | FX | DLY TIME, 1/32 to 1/1 | DLY FB | REV SIZE | REV TONE |
 | CPU | — | — | — | — |
 
@@ -570,9 +570,9 @@ Press GLO for the project's settings, shared by the four tracks.
   mean gap of your last four taps, in whole BPM, 40–240; the header shows `TAP` and the tempo. A pause over 2 s
   starts the count again. While playing, only the speed changes: the patterns go on from the step they are at.
 - **Transpose**: hold GLO and press another key: the steps of every synth track play transposed, so that the tonic
-  sounds as that key's note (`TRANSPOSE +4`). The tonic's key puts them back. With KEYS at ALL, the white keys are
+  sounds as that key's note (`TRANSPOSE +4`). The tonic's key puts them back. With IN SCALE ON, the white keys are
   degrees of the scale (white key 1 the tonic, as when playing; OCT moves an octave of the scale), and the notes stay
-  in the scale (on FLEET, in its allowed notes); with KEYS OFF, the keys are semitones from the tonic nearest the middle of the keyboard. Only the
+  in the scale (on FLEET, in its allowed notes); with IN SCALE OFF, the keys are semitones from the tonic nearest the middle of the keyboard. Only the
   sequencer is transposed, not the keys you play nor the KIT tracks; it lasts until changed, and is not saved.
 - **SWING** delays every other step; 50 % is straight.
 - **COMP** compresses the whole mix; 0 is off. A limiter always protects the output.
@@ -583,8 +583,9 @@ Press GLO for the project's settings, shared by the four tracks.
   MIN PENTA.
 - **QUANT** pulls the notes recorded in LIVE onto the steps: OFF keeps your timing, 100 % puts them on the step.
 - **CLICK**: METRO plays a click while recording LIVE, COUNT a bar of count-in before LIVE, BOTH both.
-- **KEYS**: OFF, the keys are a chromatic keyboard. ALL: on every synth track, the white keys play the scale up from
-  the tonic (on FLEET tracks, their allowed notes) and the black keys are silent. A kit keeps its pads: on a KIT
+- **KEYS**: IN SCALE OFF, the keys are a chromatic keyboard. ON: on every synth track, the white keys play the scale
+  up from the tonic (on FLEET tracks, their allowed notes) and the black keys are silent. SPLIT, the selected track's
+  (also GLO held + black key 2, `SPLIT ON` / `SPLIT OFF`): white keys 1–7 play the scale's chords, 8–16 the melody. STRUM spreads those chords' notes, as CADENCE's STRUM. A kit keeps its pads: on a KIT
   track, the page numbers the white keys 1–16 and crosses out the black ones. The keys you hold light up pink.
 - **FX**: the shared ping-pong delay, its time in steps of the tempo and its feedback; the reverb's size and its
   tone (how much of the highs it keeps).
@@ -593,7 +594,7 @@ Press GLO for the project's settings, shared by the four tracks.
 
 ![GLO's TEMPO page: 120 BPM, SWING 50 %, COMP and DUCK bars](img/glo-tempo.png "TEMPO")
 
-![GLO held: black key 1 named TAP TEMPO, every key TRANSPOSE THE STEPS, 2 TAPS to set the BPM; TAP 100 in the header](img/glo-tap.png "TAP TEMPO")
+![GLO held: black key 1 named TAP TEMPO, black key 2 SPLIT: CHORDS + MELODY, every key TRANSPOSE THE STEPS, 2 TAPS to set the BPM; TAP 100 in the header](img/glo-tap.png "TAP TEMPO")
 
 ![GLO's SCALE page: C MAJOR on a keyboard, QUANT 100 %, CLICK OFF](img/glo-scale.png "SCALE")
 
@@ -675,7 +676,7 @@ Instruments, monome, Make Noise, Elektron or teenage engineering.
 | Problem | What to check |
 | --- | --- |
 | No sound | MASTER; HOME, the track's mute (HOME held, keys 1–4) and its LVL; FX's MIX LEVEL; ENV's CUTOFF on LP. |
-| A key does nothing | A button may still be held (its map is on the screen). With KEYS at ALL, the black keys are silent. |
+| A key does nothing | A button may still be held (its map is on the screen). With IN SCALE ON, the black keys are silent (with SPLIT, black keys 1–5 change the chords). |
 | REC does nothing | The pattern is generative: only LOOM, CADENCE and LATTICE have a GRID, and IMPROV listens. To record notes, set SOURCE to STEP. |
 | The pattern doesn't change | While playing, it waits for the end of the loop (`P1 > P2` in the header); hold SEL too for at once. |
 | `SAVE AT STOP` | The save is made when you stop. |

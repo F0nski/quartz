@@ -25,7 +25,7 @@ source for melodies and bass lines you didn't have to write, and for keeping a p
   scene, the crystal a note hits stays lit for as long as the note lasts.
 - **NOTES** page: the keys switch the notes FLEET may play on and off, in any octave; the scene shows the 12 notes.
   By default they are the project's scale.
-- GLO's KEYS at ALL makes the white keys play the allowed notes on FLEET tracks.
+- GLO's KEYS IN SCALE ON makes the white keys play the allowed notes on FLEET tracks.
 
 The numbers below were counted in the simulator at 120 BPM with DIV 1/16 (8 steps a second), on a synth track with
 T OUT 1 unless said otherwise.

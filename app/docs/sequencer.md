@@ -138,7 +138,7 @@ off. The first one is the reference, whose functions are shown. Still holding SE
 
 - a black key and PRESET: every step takes the reference's value, as you turn it (all at PROB 50 %, say);
 - black key 4 (NOTE) and PRESET: every step's notes move by as much, a melody transposed: in semitones, or with GLO's
-  KEYS at ALL in degrees of the scale (the notes stay in it). The selection holds the page shown: a pattern of 64
+  IN SCALE ON in degrees of the scale (the notes stay in it). The selection holds the page shown: a pattern of 64
   steps moves a page at a time;
 - black key 6 or 7: SLIDE or ACCENT switches on the reference, and every step takes its new value;
 - K1–K4: the same p-lock on every step;

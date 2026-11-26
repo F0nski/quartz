@@ -133,6 +133,10 @@ QUANT	quantize
 CLICK	click
 KEYS	keys
 IN SCALE	in scale
+SPLIT	split
+SPLIT ON	split on
+SPLIT OFF	split off
+SPLIT: CHORDS + MELODY	split: chords and melody
 ALL	all
 C	C
 C#	C sharp

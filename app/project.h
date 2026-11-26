@@ -125,8 +125,12 @@ enum { PAD_BD, PAD_SN, PAD_HH };                          /* q_pad.engine */
 /* tune -24..24; the rest 0..127; chr: 0 the engine's analog sound, 127 its synthetic one (Plaits' aux) */
 typedef struct { uint8_t engine; int8_t tune; uint8_t harm, timb, decay, level, chr; } q_pad;
 /* tempo in whole BPM, 40..240; dtime a DIV_*, dfb rsize rtone comp duck 0..127 (the delay and reverb returns, the master's compressor and duck) */
-/* q_project.keys: where the white keys play the scale's notes, the black ones nothing */
+/* q_project.keys: bit 0 IN SCALE (KEYS_ALL: the white keys play the scale's notes, the black ones nothing); bits 1-4
+   SPLIT, track 1-4's (white keys 1-7 chords, 8-16 the melody); bits 5-7 the keys' STRUM */
 enum { KEYS_OFF, KEYS_ALL };
+#define KEYS_SCALE(p) ((p)->keys & 1)
+#define KEYS_SPLIT(p, t) ((p)->keys >> (1 + (t)) & 1)
+#define KEYS_STRUM(p) ((p)->keys >> 5 & 7)
 typedef struct {
     uint8_t version; uint16_t tempo;
     uint8_t swing, tonic, mode, quant, click, keys, mute, song_on, nsong;   /* swing 50..75; tonic 0..11; mode 0..10;

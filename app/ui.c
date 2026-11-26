@@ -70,7 +70,7 @@ static const q_page PAGE[] = {
     {"INSERT", {"", "", "", "MIX"}, {0, 0, 0, 0}, {127, 127, 127, 127}},      /* its name and knobs: INS_NAME, INS_LABEL */
     {"MIX", {"DELAY", "REVERB", "PAN", "LEVEL"}, {0, 0, -64, 0}, {127, 127, 63, 127}},
     {"FX", {"DLY TIME", "DLY FB", "REV SIZE", "REV TONE"}, {0, 0, 0, 0}, {DIV_N - 1, 127, 127, 127}},
-    {"KEYS", {"IN SCALE"}, {0}, {KEYS_ALL}},
+    {"KEYS", {"IN SCALE", "SPLIT", "STRUM"}, {0, 0, 0}, {1, 1, 7}},    /* SPLIT: the track's */
     {"STEP", {"NOTE", "LEN", "VEL", "PROB"}, {1, 1, 1, 0}, {127, 64, 127, 20}},
     {"STEP", {"RATCHET", "COND", "MICRO"}, {1, 0, -11}, {4, 41, 11}},      /* COND: its index, COND_N - 1 at most */
     {"STEP", {"SLIDE", "ACCENT"}, {0, 0}, {1, 1}},
@@ -156,7 +156,7 @@ static const char *const MODE_NAME[11] = {"CHROM", "MAJOR", "MINOR", "DORIAN", "
                                           "HARM MIN", "PENTA", "MIN PENTA"};
 static const char *const QUANT_NAME[3] = {"OFF", "50 %", "100 %"};
 static const char *const CLICK_NAME[4] = {"OFF", "METRO", "COUNT", "BOTH"};
-static const char *const KEYS_NAME[2] = {"OFF", "ALL"};
+static const char *const KEYS_NAME[2] = {"OFF", "ON"};
 static const char *const ATTR_NAME[A_N] = {"VEL", "RATCHET", "PROB", "COND", "SLIDE", "ACCENT", "NOTE", "LEN", "MICRO"};
 static const uint8_t ATTR_ROW[A_N] = {A_RATCHET, A_VEL, A_PROB, A_COND, A_NOTE, A_LEN, A_MICRO, A_SLIDE, A_ACCENT};
 /* each black key's family of step functions, 0xFF none: a press picks the first, a press again the next (the empty ones
@@ -513,7 +513,9 @@ static int knob_get(int pid, int k)
     case P_SCALE * 4 + 1: return ui.p->mode;
     case P_SCALE * 4 + 2: return ui.p->quant;
     case P_SCALE * 4 + 3: return ui.p->click;
-    case P_KEYS * 4: return ui.p->keys;
+    case P_KEYS * 4: return KEYS_SCALE(ui.p);
+    case P_KEYS * 4 + 1: return KEYS_SPLIT(ui.p, ui.track);
+    case P_KEYS * 4 + 2: return KEYS_STRUM(ui.p);
     case P_XY * 4: return t->xlen;
     case P_XY * 4 + 1: return t->div;
     case P_XY * 4 + 2: return t->ylen;
@@ -728,7 +730,9 @@ static void knob_set(int pid, int k, int v)
     case P_SCALE * 4 + 1: ui.p->mode = (uint8_t)v; break;
     case P_SCALE * 4 + 2: ui.p->quant = (uint8_t)v; break;
     case P_SCALE * 4 + 3: ui.p->click = (uint8_t)v; break;
-    case P_KEYS * 4: ui.p->keys = (uint8_t)v; break;
+    case P_KEYS * 4: ui.p->keys = (uint8_t)((ui.p->keys & ~1u) | (unsigned)v); break;
+    case P_KEYS * 4 + 1: ui.p->keys = (uint8_t)((ui.p->keys & ~(2u << ui.track)) | (unsigned)v << (1 + ui.track)); break;
+    case P_KEYS * 4 + 2: ui.p->keys = (uint8_t)((ui.p->keys & 0x1Fu) | (unsigned)v << 5); break;
     case P_XY * 4: t->xlen = (uint8_t)v; break;
     case P_XY * 4 + 1: t->div = (uint8_t)v; break;
     case P_XY * 4 + 2: t->ylen = (uint8_t)v; break;
@@ -1139,14 +1143,15 @@ static void pattern_set(int n)
 enum { COPY_PAT = 1, COPY_AGAIN, COPY_PAT_PASTED, COPY_SND, COPY_SND_PASTED, COPY_NONE, COPY_UNDONE, COPY_REDONE,
        COPY_NO_UNDO, COPY_AGAIN_LOAD, COPY_UNSAVED_LOAD, COPY_AGAIN_PRINT, COPY_PRINTING, COPY_PRINTED, COPY_PLAY_PRINT,
        COPY_DOUBLED, COPY_TOO_LONG, COPY_NUDGE_L, COPY_NUDGE_R, COPY_LATCHED, COPY_UNLATCHED, COPY_AGAIN_INIT, COPY_INIT,
-       COPY_PROJECT, COPY_N = COPY_PROJECT + Q_PROJECTS };   /* (the header's messages for
+       COPY_SPLIT_ON, COPY_SPLIT_OFF, COPY_KIT_CHORDS, COPY_PROJECT, COPY_N = COPY_PROJECT + Q_PROJECTS };   /* (the header's messages for
                                                        the copies, UNDO and the projects: COPY_PROJECT + n, project n) */
 static const char *const COPY_NAME[COPY_N - 1] = {"PATTERN COPIED", "AGAIN: PASTE", "PATTERN PASTED", "SOUND COPIED",
                                                    "SOUND PASTED", "NOTHING COPIED", "UNDONE", "REDONE",
                                                    "NOTHING TO UNDO", "AGAIN: LOAD", "UNSAVED: LOAD?", "AGAIN: PRINT",
                                                    "PRINTING", "PRINTED", "PLAY TO PRINT", "LEN DOUBLED",
                                                    "TOO LONG TO DOUBLE", "STEPS LEFT", "STEPS RIGHT", "LATCHED",
-                                                   "LATCH OFF", "AGAIN: INIT", "SOUND INIT", "PROJECT 1",
+                                                   "LATCH OFF", "AGAIN: INIT", "SOUND INIT", "SPLIT ON", "SPLIT OFF",
+                                                   "NO CHORDS ON A KIT", "PROJECT 1",
                                                    "PROJECT 2",
                                                    "PROJECT 3", "PROJECT 4"};   /* COPY_* - 1 */
 static struct { q_pattern pat; q_sound snd; q_pad pads[Q_PADS]; uint8_t has_pat, has_snd; } clip;   /* (.bss: the pool
@@ -1614,7 +1619,7 @@ static void sel_shift(int d)
         q_step *s = &t->steps[ui.spage * 16 + c];
         if (!(m >> c & 1u))
             continue;
-        if (ui.p->keys != KEYS_ALL || kit())
+        if (!KEYS_SCALE(ui.p) || kit())
             attr_turn(s, A_NOTE, d);
         else
             for (i = 0; i < 4; i++)
@@ -1824,7 +1829,7 @@ static uint16_t track_scale(void)
 /* KEYS on for the track: its white keys play the scale, the black ones nothing (a KIT keeps its pads) */
 static int keys_in_scale(void)
 {
-    return !kit() && ui.p->keys == KEYS_ALL;
+    return !kit() && KEYS_SCALE(ui.p);
 }
 
 /* KEYS: the white key w (0..15) plays the w-th note of the track's scale up from the tonic in octave 3, -1 past 127
@@ -1890,6 +1895,7 @@ static void dice_page(int pid)
         case P_SOUND * 4: case P_SOUND * 4 + 3: case P_KIT * 4: case P_KIT * 4 + 2: case P_MIX * 4 + 3: case P_TEMPO * 4:
         case P_STEPS * 4: case P_STEPS * 4 + 2:   /* LEN: dice_all's own; PATH: XY could freeze the pattern on a step */
         case P_MAP * 4 + 3:             /* ATLAS's LEN: a length drawn breaks the bar */
+        case P_KEYS * 4 + 1: case P_KEYS * 4 + 2:   /* SPLIT, STRUM: how the keys play, the player's */
             continue;
         }
         if (k == 3 && (pid == P_STEPS || pid == P_GRIDS || pid == P_GRIDSK || pid == P_MARBLES || pid == P_LIFE || pid == P_LIFEK ||
@@ -2087,6 +2093,18 @@ static void dice(int b)
 }
 
 /* TAP TEMPO (GLO held, black key 1): from the 2nd tap, the mean gap of the last 4 taps; a gap over 2 s starts again */
+/* GLO held, black key 2 (IN SCALE ON): the track's SPLIT on or off; a KIT has no chords */
+static void split_toggle(void)
+{
+    if (kit()) {
+        copy_msg(COPY_KIT_CHORDS, MSG_MS);
+        return;
+    }
+    ui.p->keys ^= (uint8_t)(2u << ui.track);
+    ui.dirty = 1;
+    copy_msg(KEYS_SPLIT(ui.p, ui.track) ? COPY_SPLIT_ON : COPY_SPLIT_OFF, MSG_MS);
+}
+
 static void tap_tempo(void)
 {
     uint32_t now = plat_ms(), span;
@@ -2109,7 +2127,7 @@ static void tap_tempo(void)
    nearest the keyboard's middle */
 static void transpose_key(int k)
 {
-    int w, deg = ui.p->keys == KEYS_ALL, t = ui.p->tonic;
+    int w, deg = KEYS_SCALE(ui.p), t = ui.p->tonic;
     for (w = 0; w < 16 && WHITE[w] != k; w++) {}
     if (deg && w == 16)                 /* the black keys are silent there */
         return;
@@ -2127,9 +2145,11 @@ static void key_down(int k)
     q_pattern *t = pat();
     q_step *s = 0;
     int note = 53 + k + 12 * ui.octave, w, b, i;
-    if (ui.btn >> B_GLO & 1u) {         /* GLO held: black key 1 taps the tempo, the other keys transpose */
+    if (ui.btn >> B_GLO & 1u) {         /* GLO held: black key 1 taps the tempo, 2 the track's SPLIT, the others transpose */
         if (k == BLACK[0])
             tap_tempo();
+        else if (k == BLACK[1] && KEYS_SCALE(ui.p))
+            split_toggle();
         else
             transpose_key(k);
         return;
@@ -2737,10 +2757,10 @@ static uint32_t layer_keys(int b)
     uint32_t keys = 0;
     int i;
     switch (b) {
-    case B_GLO:                         /* TAP TEMPO, and the keys that transpose (KEYS ALL: the white ones) */
+    case B_GLO:                         /* TAP TEMPO, SPLIT, and the keys that transpose (KEYS ALL: the white ones) */
         for (i = 0; i < 16; i++)
             keys |= 1u << WHITE[i];
-        return ui.p->keys == KEYS_ALL ? keys | 1u << BLACK[0] : (1u << NKEYS) - 1u;
+        return KEYS_SCALE(ui.p) ? keys | 1u << BLACK[0] | 1u << BLACK[1] : (1u << NKEYS) - 1u;
     case B_HOME:                        /* the mutes, the scenes */
         for (i = 0; i < 16; i++)
             keys |= (uint32_t)(i < Q_TRACKS || i >= 8) << WHITE[i];
@@ -3043,7 +3063,7 @@ static void knob_text(int pid, int k, int v, int model, char *b)
         while ((*b++ = *s++) != 0) {}
         return;
     }
-    if (pid == P_SCALE || pid == P_KEYS) {
+    if (pid == P_SCALE || (pid == P_KEYS && k < 2)) {
         const char *s = pid == P_KEYS ? KEYS_NAME[v] : k == 0 ? TONIC_NAME[v] : k == 1 ? MODE_NAME[v] : k == 2 ? QUANT_NAME[v]
                                                                                                       : CLICK_NAME[v];
         while ((*b++ = *s++) != 0) {}
@@ -3636,6 +3656,8 @@ static void draw_layer(const q_view *v, int32_t oy)
         break;
     case B_GLO:
         tags[n] = "#1", names[n++] = "TAP TEMPO";
+        if (v->scene.lkeys >> BLACK[1] & 1u)
+            tags[n] = "#2", names[n++] = "SPLIT: CHORDS + MELODY";
         tags[n] = "KEY", names[n++] = "TRANSPOSE THE STEPS";
         combo[0][0] = "2 TAPS", combo[0][1] = "SET THE BPM";
         combo[1][0] = "TONIC", combo[1][1] = "NO TRANSPOSITION";
