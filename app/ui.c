@@ -224,6 +224,7 @@ static struct {
     uint8_t last_note[Q_TRACKS];               /* a step switched on by hand takes it */
     int8_t key_note[NKEYS], key_track[NKEYS];  /* what each held key sounds, for its note-off; -1 none */
     int8_t chord_note[7][3];                   /* SPLIT: white keys 1-7's other chord notes, after key_note; -1 none */
+    int8_t chord_root[7];                      /* and the root of the chord each plays live (the black keys change it), -1 */
     int8_t last_key;                           /* the last key that sounded */
     uint32_t btn, keys, msg_until, locks_until, path_until, punch_until;
     uint32_t wipe_until;                       /* SAVE held, black key 1 pressed once: a second press before it erases the project */
@@ -1902,8 +1903,43 @@ static void key_hold(int k, const uint8_t *notes, int n)
     ui.key_note[k] = (int8_t)notes[0];
     for (int i = 1; w < 7 && i < 4; i++)
         ui.chord_note[w][i - 1] = (int8_t)(i < n ? notes[i] : -1);
+    if (w < 7)
+        ui.chord_root[w] = -1;
     ui.key_track[k] = (int8_t)ui.track;
     ui.last_key = (int8_t)k;
+}
+
+/* SPLIT, a black key 1-5 pressed or let go: each chord held live on the track takes the black keys held now, only the
+   notes that differ change (let go, struck at once: no strum) */
+static void chord_glide(void)
+{
+    int w, b, i, j, mods = 0;
+    for (b = 0; b < 5; b++)
+        mods |= (int)(plat_keys() >> BLACK[b] & 1u) << b;
+    for (w = 0; w < 7; w++) {
+        int k = WHITE[w], n = 1, nn;
+        uint8_t old[4], nw[4];
+        if (ui.chord_root[w] < 0 || ui.key_note[k] < 0 || ui.key_track[k] != ui.track)
+            continue;
+        old[0] = (uint8_t)ui.key_note[k];
+        for (i = 0; i < 3; i++)
+            if (ui.chord_note[w][i] >= 0)
+                old[n++] = (uint8_t)ui.chord_note[w][i];
+        nn = gen_keys_chord(track_scale(), ui.chord_root[w], mods, nw);
+        for (i = 0; i < n; i++) {           /* gone */
+            for (j = 0; j < nn && nw[j] != old[i]; j++) {}
+            if (j == nn)
+                audio_live_chord(ui.track, &old[i], 1, 0, w + 1);
+        }
+        for (j = 0; j < nn; j++) {          /* new */
+            for (i = 0; i < n && old[i] != nw[j]; i++) {}
+            if (i == n)
+                audio_live_chord(ui.track, &nw[j], 1, ui.arpdown && !kit() ? 3 : 1, w + 1);
+        }
+        b = ui.chord_root[w];
+        key_hold(k, nw, nn);
+        ui.chord_root[w] = (int8_t)b;
+    }
 }
 
 /* NOTES: the cursor d steps on, looping on LEN */
@@ -2459,6 +2495,9 @@ static void key_down(int k)
     }
     uint8_t notes[4];
     int n = key_notes(k, notes);
+    for (b = 0; b < 5 && BLACK[b] != k; b++) {}
+    if (b < 5 && keys_split())          /* a modifier: the chords held change */
+        chord_glide();
     if (!n)
         return;
     note = n > 1 ? scale_note(w) : notes[0];   /* a chord's root (INV puts it on top) */
@@ -2499,6 +2538,8 @@ static void key_down(int k)
         }
     }
     key_hold(k, notes, n);
+    if (n > 1 && !s)                    /* played live: the black keys can change it while held */
+        ui.chord_root[w] = (int8_t)note;
     ui.last_note[ui.track] = (uint8_t)note;
     if (s && kit()) {
         pad_toggle(s, note);
@@ -2516,6 +2557,9 @@ static void key_down(int k)
 static void key_up(int k)
 {
     int w;
+    for (w = 0; w < 5 && BLACK[w] != k; w++) {}
+    if (w < 5 && keys_split())          /* a modifier let go: the chords held change back */
+        chord_glide();
     for (w = 0; w < 16 && WHITE[w] != k; w++) {}
     if (w < 16 && ui.punch >> w & 1 && !(ui.latch >> w & 1)) {
         ui.punch &= (uint16_t)~(1u << w);
@@ -3939,6 +3983,7 @@ void ui_init(q_project *p)
     audio_transpose(0, 0);
     __builtin_memset(ui.key_note, -1, sizeof ui.key_note);
     __builtin_memset(ui.chord_note, -1, sizeof ui.chord_note);
+    __builtin_memset(ui.chord_root, -1, sizeof ui.chord_root);
     ui.last_key = -1;
     __builtin_memset(ui.last_note, 60, sizeof ui.last_note);
     step_default(&ui.clip.st);

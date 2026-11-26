@@ -137,6 +137,35 @@ expect erase_n 3
 key 0 up
 release REC
 tap PLAY
+# glide in LIVE on track 2: C held from step 9, black key 1 at step 11: the seventh recorded there
+turn ALGO 1
+expect track 2
+tap GLO
+turn SELECT 2
+expect page 3
+turn K2 1
+turn SELECT -2
+tap EDIT
+turn K4 3
+expect poly 4
+expect rec 0
+tap REC
+tap PLAY
+expect overdub 1
+wait 2000
+key 0 down
+wait 500
+key 1 down
+wait 100
+key 1 up
+key 0 up
+wait 50
+tap PLAY
+expect stepnotes_9 3
+expect stepnote_9 48
+expect stepnote_11 59
+turn ALGO -1
+expect track 1
 # MIMIC LISTEN on track 3: the chord's root only
 turn ALGO 2
 expect track 3

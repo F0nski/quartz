@@ -1,0 +1,49 @@
+# KEYS SPLIT: a black key 1-5 pressed or let go while a chord is held changes it at once, only the notes that differ
+# (no note struck again); C major from C3, track 1 POLY 4, SPLIT on, STRUM 0
+wait 600
+tap GLO
+turn SELECT 2
+turn K1 1
+turn K2 1
+expect keys 3
+tap EDIT
+turn SELECT 1
+turn K4 3
+expect poly 4
+key 0 down
+wait 50
+expect hits 3
+expect chord_3 0
+# black key 1: the seventh joins
+key 1 down
+wait 50
+expect hits 4
+expect chord_0 48
+expect chord_1 52
+expect chord_2 55
+expect chord_3 59
+key 1 up
+wait 50
+expect hits 4
+expect chord_3 0
+# black key 3: SUS4, the third goes, the fourth comes; let go: the third back
+key 5 down
+wait 50
+expect hits 5
+expect chord_1 53
+key 5 up
+wait 50
+expect hits 6
+expect chord_1 52
+# two chords held: both take the seventh
+key 7 down
+wait 50
+expect hits 9
+key 1 down
+wait 50
+expect hits 11
+key 1 up
+key 7 up
+key 0 up
+wait 3000
+expect active 0
