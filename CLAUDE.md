@@ -47,8 +47,8 @@ source .tools/emsdk/emsdk_env.sh && ./build.sh --release X.Y && ./build.sh --web
 author asks: from `base/`, with emsdk sourced and `JIELI_TOOLCHAIN`, `AC79_SDK` exported (`../.tools/...`), as
 `tools/publish_site.sh ../app X.Y`. Its commit takes the global identity: recommit it with the noreply address.
 
-Install on the author's FM-1, from `~/perso/fm1`:
-`spike-cpu/.tools/venv/bin/python quartz/base/tools/fm1_install.py --yes --classic quartz/app/build/quartz.fwsc 2>&1 | tr '\r' '\n' | tail -3` (its progress bar floods the output).
+Install on the author's FM-1 (`.tools/venv`: a venv with `mido` and `python-rtmidi`):
+`.tools/venv/bin/python base/tools/fm1_install.py --yes --classic app/build/quartz.fwsc 2>&1 | tr '\r' '\n' | tail -3` (its progress bar floods the output).
 Always `--classic`: the fast install stalls at 3 % on this unit's loader; if it stalls, run it again to resume.
 
 ## Conventions
