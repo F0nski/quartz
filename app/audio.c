@@ -17,7 +17,7 @@
 #define EV_MAX 64                   /* more stays in the sequencer's queues for the next block */
 #define EV_ALL (CMD_N + STRUM_N + Q_TRACKS * SEQ_QUEUE + EV_MAX + 2 * Q_TRACKS * ARP_OUT)   /* the main loop's keys and the
                                      * stop's note-offs, the sequencer's, each track's arp's (two runs at most) */
-#define STRUM_N 12                  /* a chord's note-ons waiting for their strum: beyond, at once */
+#define STRUM_N 8                   /* a chord's note-ons waiting for their strum: beyond, at once */
 #define LATER_N 16                  /* note-ons waiting for an engine switch: beyond, a note-on is dropped */
 #define STEAL_FADE 64               /* frames: a voice taken from another track fades out over them (1.5 ms) first */
 #define HELD_N 8                    /* live notes held, followed for the overdub */
