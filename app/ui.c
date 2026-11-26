@@ -1094,6 +1094,7 @@ static void rec_write(const q_rec *r)
         s->micro = r->micro;
         s->prob = 20;
         step_on(s);
+        s->flags = (uint8_t)((s->flags & 0x1Fu) | r->strum << 5);   /* KEYS SPLIT: the chord plays strummed */
     } else if (poly == 1) {
         s->note[0] = r->note;
         s->vel = r->vel;
@@ -1106,6 +1107,8 @@ static void rec_write(const q_rec *r)
         for (i = 1; i < poly && s->note[i]; i++) {}
         if (i < poly)
             s->note[i] = r->note;
+        if (r->strum)
+            s->flags = (uint8_t)((s->flags & 0x1Fu) | r->strum << 5);
     }
     ui.dirty = 1;
 }
@@ -1881,6 +1884,13 @@ static int key_notes(int k, uint8_t out[4])
     return 1;
 }
 
+/* a SPLIT chord of n notes written to step s: it plays with the keys' STRUM */
+static void chord_strum(q_step *s, int n)
+{
+    if (n > 1)
+        s->flags = (uint8_t)((s->flags & 0x1Fu) | KEYS_STRUM(ui.p) << 5);
+}
+
 /* key k sounds notes[0..n - 1] on the track: kept for their note-offs */
 static void key_hold(int k, const uint8_t *notes, int n)
 {
@@ -2376,7 +2386,9 @@ static void key_down(int k)
                 ui.cursor = ui.spage * 16 + w + 1;
             return;
         }
-        if ((note = key_play_note(k)) < 0)
+        uint8_t notes[4];
+        int n = key_notes(k, notes);
+        if (!n)
             return;
         if (!ui.nchord) {               /* the first note: a new step at the defaults, or a lit one's notes replaced */
             if (!(s->flags & SF_ON)) {
@@ -2385,15 +2397,14 @@ static void key_down(int k)
             }
             __builtin_memset(s->note, 0, sizeof s->note);
         }
-        if (ui.nchord < (kit() ? 4 : ui.p->sound[ui.track].poly))
-            s->note[ui.nchord++] = (uint8_t)note;
+        for (i = 0; i < n; i++)
+            if (ui.nchord < (kit() ? 4 : ui.p->sound[ui.track].poly))
+                s->note[ui.nchord++] = notes[i];
         step_on(s);
+        chord_strum(s, n);
         ui.dirty = 1;
-        audio_live_note(ui.track, note, 2);
-        {
-            uint8_t n1 = (uint8_t)note;
-            key_hold(k, &n1, 1);
-        }
+        audio_live_chord(ui.track, notes, n, 2);
+        key_hold(k, notes, n);
         return;
     } else if (grid_on()) {             /* the white keys are the page's 16 steps */
         if (ui.seldown && !ui.held) {   /* SEL held: the selection, the black keys on it */
@@ -2466,12 +2477,13 @@ static void key_down(int k)
     if (!s && ui.rec == R_OFF) {        /* disarmed: the note, or the chord with the keys still held, is the clipboard */
         for (i = 0; i < NKEYS && ui.key_note[i] < 0; i++) {}
         if (i == NKEYS) {
-            uint8_t n1 = (uint8_t)note;
-            clip_notes(&n1, 1);
+            clip_notes(notes, n);
         } else {
-            for (i = 0; i < 4 && ui.clip.st.note[i] && ui.clip.st.note[i] != note; i++) {}
-            if (i < 4)
-                ui.clip.st.note[i] = (uint8_t)note;
+            for (int j = 0; j < n; j++) {
+                for (i = 0; i < 4 && ui.clip.st.note[i] && ui.clip.st.note[i] != notes[j]; i++) {}
+                if (i < 4)
+                    ui.clip.st.note[i] = notes[j];
+            }
         }
     }
     key_hold(k, notes, n);
@@ -2481,9 +2493,11 @@ static void key_down(int k)
     } else if (s) {                     /* the first note replaces the chord, the next ones fill it up to POLY */
         if (!ui.nwrote)
             __builtin_memset(s->note, 0, sizeof s->note);
-        if (ui.nwrote < ui.p->sound[ui.track].poly)
-            s->note[ui.nwrote++] = (uint8_t)note;
+        for (i = 0; i < n; i++)
+            if (ui.nwrote < ui.p->sound[ui.track].poly)
+                s->note[ui.nwrote++] = notes[i];
         step_on(s);
+        chord_strum(s, n);
     }
 }
 
@@ -4405,9 +4419,10 @@ int ui_expect(const char *what, int *got)
     const q_sound *s = &ui.p->sound[ui.track];
     const q_pattern *t = &ui.p->pat[ui.track][ui.p->pattern[ui.track]];
     static const char *const F[] = {"stepon", "stepnote", "stepnote2", "stepvel", "steplen", "stepprob", "stepcond",
-                                    "stepratchet", "stepslide", "stepaccent", "stepmicro", "lockharm"};
+                                    "stepratchet", "stepslide", "stepaccent", "stepmicro", "lockharm", "stepnote3",
+                                    "stepnote4", "stepstrum"};
     const char *u = strchr(what, '_');
-    int f = 12, n = u ? atoi(u + 1) : 0, m = u ? atoi(strrchr(what, '_') + 1) : 0;   /* m: the index after the last '_' */
+    int f = 15, n = u ? atoi(u + 1) : 0, m = u ? atoi(strrchr(what, '_') + 1) : 0;   /* m: the index after the last '_' */
     while (u && f-- > 0 && !(!strncmp(F[f], what, (size_t)(u - what)) && !F[f][u - what])) {}
     if (u && f >= 0) {
         const q_step *st = &t->steps[n - 1];
@@ -4425,6 +4440,9 @@ int ui_expect(const char *what, int *got)
         case 8: *got = st->flags & SF_SLIDE ? 1 : 0; break;
         case 9: *got = st->flags & SF_ACCENT ? 1 : 0; break;
         case 10: *got = st->micro; break;
+        case 12: *got = st->note[2]; break;
+        case 13: *got = st->note[3]; break;
+        case 14: *got = SF_STRUM(st); break;
         default: {
             int i = lock_find(t, n - 1, LK_HARM);
             *got = i < 0 ? -1 : t->locks[i].value;

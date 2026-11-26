@@ -616,7 +616,8 @@ static void rec_send(const q_held *h)
     if (w - rec_r == REC_N)
         return;                     /* full: the note is lost */
     rec[w % REC_N] = (q_rec){ h->track, h->pat, h->step, h->note, 100, (uint8_t)(len < 1 ? 1 : len > 64 ? 64 : len),
-                              (int8_t)seq_quantize(h->micro, prj->quant) };
+                              (int8_t)seq_quantize(h->micro, prj->quant),
+                              (uint8_t)(KEYS_SPLIT(prj, h->track) ? KEYS_STRUM(prj) : 0) };
     __asm__ volatile("" ::: "memory");   /* the ring's publish barrier */
     rec_w = w + 1;
 }

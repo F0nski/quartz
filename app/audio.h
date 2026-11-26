@@ -10,7 +10,8 @@
 /* fx_pct: qfx_block's part of core 1; since the start, steals: the voices taken from a sounding note (another track's,
  * origin's or a KIT engine's), cuts: those of them that cut another track's held note */
 typedef struct { uint32_t core1_pct, core2_pct, xruns, active; int cpu2; uint32_t cpu2_stack, fx_pct, steals, cuts; } q_load;
-typedef struct { uint8_t track, pat, step, note, vel, len; int8_t micro; } q_rec;   /* a note overdubbed: q_step's */
+typedef struct { uint8_t track, pat, step, note, vel, len; int8_t micro; uint8_t strum; } q_rec;   /* a note overdubbed:
+                                                     q_step's; strum: KEYS SPLIT's, for SF_STRUM (0 none) */
 
 void audio_setup(q_project *p);                         /* app_init, before the audio starts (fm1-base has its own audio_init) */
 void audio_play(int on);                                /* the sounding steps get their note-offs; on 1: from step 0 */
