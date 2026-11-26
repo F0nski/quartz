@@ -5,7 +5,8 @@ and each pattern takes its notes from a step sequencer or from one of nine gener
 rhythms, the Game of Life, polymetric lanes, chord progressions, a walk on the Tonnetz, moons on orbits, an
 improviser that learns what you play, or bytebeat formulas. Every page shows an animated scene of what you hear.
 PRINT freezes what a generative source plays into steps you can edit; live transposition, solo, latched punch-ins and
-Euclidean rhythms are a gesture away. It keeps four projects, copies patterns and sounds between them, undoes the last
+Euclidean rhythms are a gesture away. The keyboard plays in the scale and splits in two: chords of the scale on the
+left, changed by the black keys and named on the screen, the melody on the right. It keeps four projects, copies patterns and sounds between them, undoes the last
 clear, draw or paste, and backs them up to a computer over USB.
 
 ![The HOME page: the four tracks on their pedestals](manual/img/home.png "QUARTZ on the FM-1's screen")
