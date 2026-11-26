@@ -222,7 +222,9 @@ static struct {
                                                   tap on FX */
     uint8_t latching;                          /* black key 2 pressed in this FX hold: the punch-ins pressed after it latch too */
     uint8_t last_note[Q_TRACKS];               /* a step switched on by hand takes it */
-    int8_t key_note[NKEYS], key_track[NKEYS];  /* what each held key sounds, for its note-off; -1 none */
+    int8_t key_note[NKEYS][4], key_track[NKEYS];   /* what each held key sounds (a SPLIT chord: up to 4), for its
+                                                  note-offs; -1 none */
+    int8_t last_key;                           /* the last key that sounded */
     uint32_t btn, keys, msg_until, locks_until, path_until, punch_until;
     uint32_t wipe_until;                       /* SAVE held, black key 1 pressed once: a second press before it erases the project */
     uint32_t rng, rnd_until;                   /* RANDOM: its xorshift; its message shown until rnd_until */
@@ -1856,6 +1858,38 @@ static int key_play_note(int k)
     return 53 + k + 12 * ui.octave;
 }
 
+/* KEYS SPLIT on for the track: white keys 1-7 its chords, 8-16 the melody */
+static int keys_split(void)
+{
+    return keys_in_scale() && KEYS_SPLIT(ui.p, ui.track);
+}
+
+/* the notes key k plays, low to high, in out; their number (0: none). SPLIT: white keys 1-7 the chord of their note,
+   changed by black keys 1-5 held (7, SUS2, SUS4, ADD9, INV) */
+static int key_notes(int k, uint8_t out[4])
+{
+    int w, b, note, mods = 0;
+    for (w = 0; w < 7 && WHITE[w] != k; w++) {}
+    if (w < 7 && keys_split()) {
+        for (b = 0; b < 5; b++)
+            mods |= (int)(plat_keys() >> BLACK[b] & 1u) << b;
+        return (note = scale_note(w)) < 0 ? 0 : gen_keys_chord(track_scale(), note, mods, out);
+    }
+    if ((note = key_play_note(k)) < 0)
+        return 0;
+    out[0] = (uint8_t)note;
+    return 1;
+}
+
+/* key k sounds notes[0..n - 1] on the track: kept for their note-offs */
+static void key_hold(int k, const uint8_t *notes, int n)
+{
+    for (int i = 0; i < 4; i++)
+        ui.key_note[k][i] = (int8_t)(i < n ? notes[i] : -1);
+    ui.key_track[k] = (int8_t)ui.track;
+    ui.last_key = (int8_t)k;
+}
+
 /* NOTES: the cursor d steps on, looping on LEN */
 static void cursor_move(int d)
 {
@@ -2353,8 +2387,10 @@ static void key_down(int k)
         step_on(s);
         ui.dirty = 1;
         audio_live_note(ui.track, note, 2);
-        ui.key_note[k] = (int8_t)note;
-        ui.key_track[k] = (int8_t)ui.track;
+        {
+            uint8_t n1 = (uint8_t)note;
+            key_hold(k, &n1, 1);
+        }
         return;
     } else if (grid_on()) {             /* the white keys are the page's 16 steps */
         if (ui.seldown && !ui.held) {   /* SEL held: the selection, the black keys on it */
@@ -2396,8 +2432,11 @@ static void key_down(int k)
             return;
         }
     }
-    if ((note = key_play_note(k)) < 0)
+    uint8_t notes[4];
+    int n = key_notes(k, notes);
+    if (!n)
         return;
+    note = notes[0];
     if (kit()) {                        /* the white keys are the pads */
         ui.pad = w;
         if (!s)
@@ -2410,7 +2449,7 @@ static void key_down(int k)
         return;
     }
     /* written to the held step: not overdubbed too; ARP held: the arp keeps the note after its key is released */
-    audio_live_note(ui.track, note, s ? 2 : ui.arpdown && !kit() ? 3 : 1);
+    audio_live_chord(ui.track, notes, n, s ? 2 : ui.arpdown && !kit() ? 3 : 1);
     if (!s && ui.rec == R_LISTEN) {     /* learnt: the first note of LISTEN starts a new phrase */
         q_mimic *m = &pat()->mimic;
         uint32_t now = plat_ms();
@@ -2422,18 +2461,17 @@ static void key_down(int k)
         ui.dirty = 1;
     }
     if (!s && ui.rec == R_OFF) {        /* disarmed: the note, or the chord with the keys still held, is the clipboard */
-        for (i = 0; i < NKEYS && ui.key_note[i] < 0; i++) {}
+        for (i = 0; i < NKEYS && ui.key_note[i][0] < 0; i++) {}
         if (i == NKEYS) {
-            uint8_t n = (uint8_t)note;
-            clip_notes(&n, 1);
+            uint8_t n1 = (uint8_t)note;
+            clip_notes(&n1, 1);
         } else {
             for (i = 0; i < 4 && ui.clip.st.note[i] && ui.clip.st.note[i] != note; i++) {}
             if (i < 4)
                 ui.clip.st.note[i] = (uint8_t)note;
         }
     }
-    ui.key_note[k] = (int8_t)note;
-    ui.key_track[k] = (int8_t)ui.track;
+    key_hold(k, notes, n);
     ui.last_note[ui.track] = (uint8_t)note;
     if (s && kit()) {
         pad_toggle(s, note);
@@ -2488,11 +2526,12 @@ static void key_up(int k)
     for (w = 0; w < 8; w++)             /* (OCT is not changed while REC is held: the note is the one pressed) */
         if (ui.erase_notes[w] && ui.erase_notes[w] == key_play_note(k))
             ui.erase_notes[w] = 0;
-    if (ui.key_note[k] < 0)
+    if (ui.key_note[k][0] < 0)
         return;
-    audio_live_note(ui.key_track[k], ui.key_note[k], 0);
-    ui.key_note[k] = -1;
-    for (w = 0; w < NKEYS && ui.key_note[w] < 0; w++) {}
+    for (w = 0; w < 4 && ui.key_note[k][w] >= 0; w++)
+        audio_live_note(ui.key_track[k], ui.key_note[k][w], 0);
+    __builtin_memset(ui.key_note[k], -1, sizeof ui.key_note[k]);
+    for (w = 0; w < NKEYS && ui.key_note[w][0] < 0; w++) {}
     if (ui.nchord && w == NKEYS) {      /* NOTES, all the keys up: the cursor moves on by the step's length */
         const q_pattern *t = pat();
         int n = t->steps[ui.cursor - 1].len / 8;
@@ -2726,7 +2765,7 @@ static uint32_t scale_keys(void)
         return keys;
     }
     for (r = scale_note(0) % 12, i = 0; i < 16; i++)
-        if (scale_note(i) >= 0 && scale_note(i) % 12 == r)
+        if ((scale_note(i) >= 0 && scale_note(i) % 12 == r) || (i < 7 && keys_split()))   /* SPLIT: the chords lit too */
             keys |= 1u << WHITE[i];
     return keys;
 }
@@ -3855,6 +3894,7 @@ void ui_init(q_project *p)
     audio_punch(0);                     /* the render's latch and transposition go with ui's */
     audio_transpose(0, 0);
     __builtin_memset(ui.key_note, -1, sizeof ui.key_note);
+    ui.last_key = -1;
     __builtin_memset(ui.last_note, 60, sizeof ui.last_note);
     step_default(&ui.clip.st);
     ui.p = p;
@@ -4270,10 +4310,11 @@ void ui_frame(void)
                 glv.kit = (uint8_t)kit();
                 glv.held = 0;
                 for (k = 0; k < NKEYS; k++) {
-                    if (ui.key_note[k] < 0)
+                    if (ui.key_note[k][0] < 0)
                         continue;
                     if (pid == P_SCALE && ui.key_track[k] == ui.track && !kit())   /* a pad is no pitch */
-                        glv.held |= 1u << ui.key_note[k] % 12;
+                        for (w = 0; w < 4 && ui.key_note[k][w] >= 0; w++)
+                            glv.held |= 1u << ui.key_note[k][w] % 12;
                     if (pid == P_KEYS)
                         glv.held |= 1u << k;
                 }
@@ -4491,6 +4532,7 @@ int ui_expect(const char *what, int *got)
     else if (!strcmp(what, "click")) *got = ui.p->click;
     else if (!strcmp(what, "keys")) *got = ui.p->keys;
     else if (!strcmp(what, "keynote")) *got = ui.last_note[ui.track];
+    else if (!strncmp(what, "chord_", 6)) *got = ui.last_key >= 0 && ui.key_note[ui.last_key][atoi(what + 6) & 3] > 0 ? ui.key_note[ui.last_key][atoi(what + 6) & 3] : 0;
     else if (!strcmp(what, "keyleds")) *got = (int)scale_keys();
     else if (!strcmp(what, "overdub")) *got = ui.rec == R_LIVE && audio_playing();
     else if (!strcmp(what, "len")) *got = t->len;

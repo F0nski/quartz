@@ -16,6 +16,9 @@ void audio_setup(q_project *p);                         /* app_init, before the 
 void audio_play(int on);                                /* the sounding steps get their note-offs; on 1: from step 0 */
 /* the keyboard, velocity 100; a note-off is never dropped; on 2: a note-on not overdubbed (written to a held step); on 3: 2, held by the arp after its key is released (latch) */
 void audio_live_note(int track, int note, int on);
+/* KEYS SPLIT: a chord's n notes, low to high, as audio_live_note's; the note-ons STRUM_TICKS[KEYS_STRUM] apart at the
+   tempo, the first at once (a note-off for a note still waiting cancels it) */
+void audio_live_chord(int track, const uint8_t *notes, int n, int on);
 /* Overdub armed: the live notes while playing (count-in aside) are recorded, 8 held at most; the metronome per
  * prj->click (METRO), and a count-in on play (COUNT) */
 void audio_rec(int on);

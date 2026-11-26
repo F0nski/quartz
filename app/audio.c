@@ -11,11 +11,13 @@
 #include "dsp/qfx.h"
 
 #define CMD_N 64                    /* a power of two */
-#define OFF_ROOM 32                 /* kept for note-offs, one per held key (27), and the preparation's request (1): the
+#define OFF_ROOM 40                 /* kept for note-offs, one per note held (KEYS SPLIT: 7 chords of 4, 9 melody keys:
+                                     * 37), and the preparation's request (1): the
                                      * render drains the ring each block. The last place is the hand-back's (push) */
 #define EV_MAX 64                   /* more stays in the sequencer's queues for the next block */
-#define EV_ALL (CMD_N + Q_TRACKS * SEQ_QUEUE + EV_MAX + 2 * Q_TRACKS * ARP_OUT)   /* the main loop's keys and the
+#define EV_ALL (CMD_N + STRUM_N + Q_TRACKS * SEQ_QUEUE + EV_MAX + 2 * Q_TRACKS * ARP_OUT)   /* the main loop's keys and the
                                      * stop's note-offs, the sequencer's, each track's arp's (two runs at most) */
+#define STRUM_N 12                  /* a chord's note-ons waiting for their strum: beyond, at once */
 #define LATER_N 16                  /* note-ons waiting for an engine switch: beyond, a note-on is dropped */
 #define STEAL_FADE 64               /* frames: a voice taken from another track fades out over them (1.5 ms) first */
 #define HELD_N 8                    /* live notes held, followed for the overdub */
@@ -47,6 +49,9 @@ static float fade[Q_VOICES], fstep[Q_VOICES];   /* its level left, 1 down to 0, 
 /* one engine switch per block in the render: the note-ons needing another wait here, in order */
 typedef struct { uint8_t track, note, vel, pat, accent; int8_t step; } q_later;   /* step -1: the keyboard's */
 static q_later later[LATER_N];
+typedef struct { uint8_t track, note, on; uint32_t due; } q_strum;   /* due: the frame (now's count) */
+static q_strum strums[STRUM_N];
+static int n_strums;
 /* a track not on M_KIT plays through its arp (MODE OFF: a pass-through). apat/astep: the step of the last note-on
  * it was given, whose locks are its MODE, OCT, DIV and GATE; -1 for the keyboard's */
 static q_arp arp[Q_TRACKS];
@@ -149,6 +154,7 @@ void audio_setup(q_project *p)
     recording = 0;
     rec_w = rec_r = scene_w = scene_r = 0;
     n_later = 0;
+    n_strums = 0;
     prep_slot = -1;
     out_gain = 0;
     playing = 0;
@@ -165,6 +171,12 @@ void audio_play(int on)
 }
 
 void audio_live_note(int track, int note, int on) { push(CMD_NOTE, track, note, on); }
+/* the i-th note of a chord: on | i << 2 (the render dates it) */
+void audio_live_chord(int track, const uint8_t *notes, int n, int on)
+{
+    for (int i = 0; i < n; i++)
+        push(CMD_NOTE, track, notes[i], on ? on | i << 2 : 0);
+}
 void audio_track_model(int track) { push(CMD_MODEL, track, 0, 0); }
 void audio_mute(void) { muted = 1; }
 void audio_unmute(void) { muted = 0; }
@@ -716,6 +728,42 @@ static void arp_run(int t, int ni, int *ne, uint32_t n)
                 ev[i].track = 255;
 }
 
+/* a chord's i-th note-on dated i strums after now: 1, or 0 when it goes at once (STRUM 0, or no room) */
+static int strum_wait(int track, int note, int on, int i)
+{
+    uint32_t num, den, d = STRUM_TICKS[KEYS_STRUM(prj)];
+    if (!d || n_strums == STRUM_N)
+        return 0;
+    seq_step_ratio(prj->tempo, DIV_16, &num, &den);
+    strums[n_strums++] = (q_strum){ (uint8_t)track, (uint8_t)note, (uint8_t)on,
+                                    now + (uint32_t)((uint64_t)i * d * num / ((uint64_t)den * 4800u)) };
+    return 1;
+}
+
+static void strum_cancel(int track, int note)
+{
+    for (int i = 0; i < n_strums; i++)
+        if (strums[i].track == track && strums[i].note == note) {
+            strums[i] = strums[--n_strums];
+            return;
+        }
+}
+
+/* the strums due in this block of n frames: their note-ons at their offsets */
+static void strums_due(uint32_t n)
+{
+    for (int i = 0; i < n_strums;) {
+        int32_t d = (int32_t)(strums[i].due - now);
+        if (d >= (int32_t)n) {
+            i++;
+            continue;
+        }
+        ev[ncmd++] = (q_event){ (uint32_t)(d < 0 ? 0 : d), strums[i].track, strums[i].note, 100, 1, 0, 255,
+                                strums[i].on == 3 ? EV_LATCH : 0, 0 };
+        strums[i] = strums[--n_strums];
+    }
+}
+
 static void commands(void)
 {
     while (cmd_r != cmd_w) {
@@ -723,8 +771,14 @@ static void commands(void)
         q_cmd c = cmd[cmd_r % CMD_N];
         cmd_r++;
         if (c.kind == CMD_NOTE) {
+            int i = c.on >> 2;
+            c.on &= 3;
             if (c.on < 2)
-                rec_note(c.track, c.note, c.on);
+                rec_note(c.track, c.note, c.on);   /* a chord's notes all recorded at the strike: on one step */
+            if (!c.on)
+                strum_cancel(c.track, c.note);
+            if (i && strum_wait(c.track, c.note, c.on, i))
+                continue;
             if (arping(c.track) && (c.on == 1 || c.on == 2))
                 arp_unlatch(&arp[c.track]);   /* a key without latch ends the latch */
             ev[ncmd++] = (q_event){ 0, (uint8_t)c.track, (uint8_t)c.note, 100, (uint8_t)(c.on != 0), 0, 255,
@@ -739,6 +793,11 @@ static void commands(void)
                 if (later[i].track != c.track)
                     later[n++] = later[i];
             n_later = n;
+            n = 0;
+            for (int i = 0; i < n_strums; i++)   /* and its strums' */
+                if (strums[i].track != c.track)
+                    strums[n++] = strums[i];
+            n_strums = n;
             if (!arping(c.track)) {              /* a KIT's pads play direct: its arp ends, its notes with the fade */
                 arp_reset(&arp[c.track]);
                 astep[c.track] = -1;
@@ -887,6 +946,7 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
     start_later();
     ncmd = 0;
     commands();
+    strums_due(n);
     for (int t = 0; t < Q_TRACKS; t++)    /* seq_pos: the block's start */
         if ((fxl_pos[t] = seq_pos(&seq, t)) == fxl_step[t])
             fxl_seen[t] = 1;

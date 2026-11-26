@@ -104,6 +104,13 @@ static void block(uint32_t n) { in_render = 1; app_render(LR, n, 4096); in_rende
 /* what the UI does: the model written, then its command */
 static void set_model(int t, int m) { P.sound[t].model = (uint8_t)m; audio_track_model(t); }
 
+static int chord_ons(void)
+{
+    int c = 0;
+    for (int i = 0; i < NLOG; i++) c += LOG[i].op == 'n';
+    return c;
+}
+
 static int count(char op, int v)
 {
     int c = 0;
@@ -346,6 +353,61 @@ static void free_voices_skipped(void)
     block(256);
     assert(count('r', v) == 0);
     assert(audio_load().active == 0);
+}
+
+/* KEYS SPLIT: a chord's notes STRUM_TICKS apart at the tempo (STRUM 7, 120 BPM: a step 5514.7 frames, half a step
+ * 2757), the first at once */
+static const uint8_t CHORD[3] = { 60, 64, 67 };
+static uint32_t FR;                     /* frames rendered since the chord */
+static void run_to(uint32_t f) { while (FR < f) { block(256); FR += 256; } }
+static void strum_chord(void)
+{
+    setup();
+    P.tempo = 120;
+    P.keys = 7 << 5;
+    P.sound[0].poly = 4;
+    audio_live_chord(0, CHORD, 3, 1);
+    FR = 0;
+}
+static void strum_waits(void)
+{
+    strum_chord();
+    run_to(256);
+    assert(chord_ons() == 1);
+    run_to(2560);
+    assert(chord_ons() == 1);
+    run_to(3072);
+    assert(chord_ons() == 2);
+    run_to(5376);
+    assert(chord_ons() == 2);
+    run_to(5632);
+    assert(chord_ons() == 3);
+}
+static void strum_none_at_zero(void)
+{
+    strum_chord();
+    P.keys = 0;
+    run_to(256);
+    assert(chord_ons() == 3);
+}
+static void strum_cancelled(void)
+{
+    strum_chord();
+    run_to(256);
+    for (int i = 0; i < 3; i++) audio_live_note(0, CHORD[i], 0);
+    run_to(6000);
+    assert(chord_ons() == 1);
+    for (int v = 0; v < Q_VOICES; v++) silent[v] = 1;
+    run_to(6600);
+    assert(audio_load().active == 0);
+}
+static void strum_model_switch(void)
+{
+    strum_chord();
+    run_to(256);
+    set_model(0, 8);
+    run_to(6000);
+    assert(chord_ons() == 1);
 }
 
 static void live_notes_reach_voices(void)
@@ -2016,6 +2078,10 @@ static void held_key_survives_the_pattern(void)
 
 int main(void)
 {
+    strum_waits();
+    strum_none_at_zero();
+    strum_cancelled();
+    strum_model_switch();
     reverb_on_core2_once_per_block();
     splits_block_at_events();
     cores_get_their_voices();

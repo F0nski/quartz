@@ -55,3 +55,98 @@ tapkey b1
 expect keys 135
 expect msg_copy 26
 release GLO
+# playing: track 1 POLY 4, SPLIT on (C major from C3); white keys 1-7 chords, 8-16 the melody
+turn ALGO -1
+expect track 1
+tap GLO
+turn K2 -1
+turn K2 1
+turn K3 -9
+expect keys 7
+tap EDIT
+turn SELECT 1
+turn K4 3
+expect poly 4
+# lit: white keys 1-7 (the chords), and the melody's C, 8 and 15
+expect keyleds 16784085
+key 2 down
+wait 50
+expect chord_0 50
+expect chord_1 53
+expect chord_2 57
+expect chord_3 0
+key 2 up
+# black key 1 held: 7; black keys 1 and 4: 7 and ADD9, the fifth makes room
+key 1 down
+key 7 down
+wait 50
+expect chord_0 55
+expect chord_1 59
+expect chord_2 62
+expect chord_3 65
+key 7 up
+key 8 down
+key 7 down
+wait 50
+expect chord_0 55
+expect chord_1 59
+expect chord_2 65
+expect chord_3 69
+key 7 up
+key 8 up
+key 1 up
+# black key 5 held: INV
+key 10 down
+key 0 down
+wait 50
+expect chord_0 52
+expect chord_1 55
+expect chord_2 60
+key 0 up
+key 10 up
+# white key 8: the melody, one note
+key 12 down
+wait 50
+expect chord_0 60
+expect chord_1 0
+key 12 up
+wait 3000
+expect active 0
+# OCT changed while a chord is held: its own notes let go
+key 0 down
+wait 50
+expect active 3
+tap OCT+
+key 0 up
+tap OCT-
+wait 3000
+expect active 0
+# another track selected while a chord is held: its note-offs go to track 1
+key 0 down
+wait 50
+turn ALGO 1
+expect track 2
+key 0 up
+turn ALGO -1
+wait 3000
+expect active 0
+# SPLIT off: white key 2 plays one note
+press GLO
+wait 100
+tapkey b1
+release GLO
+expect keys 5
+key 2 down
+wait 50
+expect chord_0 50
+expect chord_1 0
+key 2 up
+# a KIT with its SPLIT bit on (track 2): its pads, one note a key
+turn ALGO 1
+expect track 2
+expect model 24
+key 2 down
+wait 50
+expect chord_1 0
+expect pad 2
+key 2 up
