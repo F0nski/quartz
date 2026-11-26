@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QUARTZ: CIPHER</title>
+<meta name="description" content="CIPHER for QUARTZ, a firmware for the M-VAVE FM-1.">
+<style>
+/* paper and ink: warm white paper, ink-blue type, vermilion for what is played, mustard for asides; a shade of the
+   paper for code and callouts (CTL-1's; a firmware may restyle its site) */
+:root {
+  --paper: #fbf8f1; --sheet: #efe9dc; --rule: #ddd4c2; --ink: #1e2b5a; --muted: #5d6585;
+  --hot: #e5482e; --hot-t: #f8d3c9; --cool: #d9a21b; --cool-t: #f5e4b8;
+  --hot-ink: #c23a22;                                 /* the vermilion as text: 4.5:1 on the paper */
+  color-scheme: light;
+}
+body {
+  background: var(--paper); color: var(--ink); margin: 0;
+  font: 400 17px/1.6 "Helvetica Neue", Helvetica, Arial, sans-serif;
+  padding-inline: 16px; padding-block: 32px 64px;
+}
+main { max-width: 46rem; margin: 0 auto; }
+.page > .site { max-width: 46rem; margin-inline: auto; }
+main:focus { outline: none; }
+h1, h2, h3 { font-family: inherit; text-wrap: balance; line-height: 1.2; }
+h1 { font-size: 2.2rem; font-weight: 700; margin: 0 0 .4rem; letter-spacing: .02em; }
+h2 { font-size: 1.3rem; font-weight: 700; margin: 3rem 0 .8rem; padding-top: .8rem; border-top: 2px solid var(--ink); }
+h2 .num { color: var(--hot); margin-right: .5em; font-variant-numeric: tabular-nums; }
+h3 { font-size: 1.1rem; font-weight: 700; margin: 2rem 0 .5rem; }
+p, li { max-width: 65ch; }
+p { margin: 0 0 1rem; }
+ul, ol { padding-left: 1.3rem; margin: 0 0 1rem; }
+li { margin: .2rem 0; }
+li::marker { color: var(--hot); }
+strong { font-weight: 700; }
+a { color: var(--ink); text-decoration-color: var(--hot); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+a:hover { background: var(--hot-t); }
+:focus-visible { outline: 3px solid var(--hot-ink); outline-offset: 2px; }
+.skip { position: absolute; left: 16px; top: -100px; background: var(--ink); color: var(--paper); padding: 8px 14px; border-radius: 0 0 6px 6px; z-index: 1; }
+.skip:focus { top: 0; }
+code, pre { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .86em; }
+code { background: var(--sheet); padding: .08em .35em; border-radius: 3px; }
+pre { background: var(--sheet); border-radius: 6px; padding: 14px 16px; overflow-x: auto; line-height: 1.45; margin: 0 0 1.2rem; }
+pre code { background: none; padding: 0; font-size: inherit; }
+hr { display: none; }
+.table { overflow-x: auto; margin: 0 0 1.3rem; }
+table { border-collapse: collapse; width: 100%; font-size: .95rem; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; vertical-align: top; padding: .45rem .7rem .45rem 0; border-bottom: 1px solid var(--rule); }
+th { font-weight: 700; text-transform: uppercase; letter-spacing: .06em; font-size: .78rem; color: var(--muted); border-bottom: 2px solid var(--ink); }
+td:first-child { white-space: nowrap; }
+.lede { margin-bottom: 1.6rem; }
+.status { background: var(--sheet); border-radius: 6px; padding: 12px 16px; }
+.status p { margin: 0; }
+.site { display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem 1.2rem; margin: 0 0 1.6rem; padding-bottom: .5rem; border-bottom: 2px solid var(--ink); }
+.site .home { font-size: 1.1rem; font-weight: 700; letter-spacing: .04em; color: var(--ink); text-decoration: none; }
+.site .home:hover { color: var(--hot-ink); background: none; }
+.site nav { margin-left: auto; display: flex; flex-wrap: wrap; gap: .2rem 1rem; font-size: .92rem; }
+.site nav a { color: var(--ink); text-underline-offset: 3px; }
+.site nav a[aria-current] { text-decoration: none; color: var(--hot-ink); }
+a.home { color: inherit; text-decoration: none; }
+a.home:hover { background: none; color: var(--hot-ink); }
+main > a.home { display: inline-block; font-size: .9rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 .4rem; }
+.callout { border-left: 4px solid var(--cool); background: var(--cool-t); padding: 10px 16px; margin: 0 0 1.2rem; max-width: 65ch; border-radius: 0 6px 6px 0; }
+.callout p { margin: 0; }
+details { background: var(--sheet); border-radius: 6px; padding: 0 16px; margin: 0 0 1.2rem; }
+details > summary { cursor: pointer; padding: 10px 0; }
+details[open] > summary { margin-bottom: .4rem; }
+details > :last-child { margin-bottom: 1rem; }
+.swatch { display: inline-block; width: .7em; height: .7em; margin-right: .4em; vertical-align: .02em; }
+nav.contents ol { columns: 2 14rem; column-gap: 2rem; padding-left: 1.3rem; }
+.figs { display: flex; flex-wrap: wrap; gap: 20px; margin: .4rem 0 1.6rem; }
+figure { margin: 0; flex: 0 1 auto; }
+figure img { display: block; max-width: 100%; height: auto; }
+figure.shot img { width: 300px; image-rendering: pixelated; border-radius: 4px; box-shadow: 0 0 0 1px var(--rule); }
+figure.wide { flex-basis: 100%; }
+figure.wide img { width: 100%; }
+figcaption { color: var(--muted); font-size: .88rem; margin-top: .4rem; max-width: 300px; }
+figure.wide figcaption { max-width: none; }
+nav.contents li { break-inside: avoid; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<div class="page">
+<main id="content" tabindex="-1">
+<a class="home" href="../">QUARTZ</a>
+<h1>CIPHER</h1>
+<p><a href="index.html#s9">← Manual</a> · <a href="index.html#pages">All pages</a></p>
+<p>CIPHER plays bytebeat: music from one line of arithmetic on time. At each step a formula turns a time <code>t</code> into a byte, 0 to 255, and the byte decides everything about the step: whether it plays, its note (or its pad on a kit) and its accent. The lines and beats it makes are mechanical and strange, with symmetries that come back over long stretches. Pick a formula with PRESET, then move along its time with START and SPEED.</p>
+<h2 id="pages-and-knobs">Pages and knobs</h2>
+<div class="table" tabindex="0" role="region" aria-label="Table: Pages and knobs (Page, K1, K2, K3, K4)"><table><thead><tr><th>Page</th><th>K1</th><th>K2</th><th>K3</th><th>K4</th></tr></thead><tbody><tr><td>CIPHER</td><td>DIV</td><td>FORMULA, by name</td><td>NOTE (a kit: none)</td><td>SOURCE</td></tr><tr><td>PARAM</td><td>A, 0–15</td><td>B, 0–15</td><td>C, 0–15</td><td>DENS, 0–127</td></tr><tr><td>TIME</td><td>LEN: FREE, 1–64</td><td>START, 0–127</td><td>SPEED, 1–255</td><td>RANGE, 1–4 octaves</td></tr></tbody></table></div>
+<p>At each step <code>n</code> of the loop, <code>t = START × 256 + n × SPEED</code>, and the formula of <code>t</code> gives the byte <code>v</code>. Its bits each have a job:</p>
+<div class="table" tabindex="0" role="region" aria-label="Table: Pages and knobs (Bits, Job)"><table><thead><tr><th>Bits</th><th>Job</th></tr></thead><tbody><tr><td>5–7, the top three</td><td>The rhythm: the step plays when they are below DENS's level.</td></tr><tr><td>4</td><td>The accent: the step plays at full velocity.</td></tr><tr><td>0–3, the bottom four</td><td>The note: a degree of GLO's scale, up to RANGE octaves above NOTE. On a kit, the pad, 1–16.</td></tr></tbody></table></div>
+<p>The numbers below were counted in the simulator at 120 BPM with DIV 1/16 (8 steps a second), on CLASSIC.</p>
+<div class="table" tabindex="0" role="region" aria-label="Table: Pages and knobs (Knob, At its start, Middle, At its end)"><table><thead><tr><th>Knob</th><th>At its start</th><th>Middle</th><th>At its end</th></tr></thead><tbody><tr><td>DENS</td><td>0: silence</td><td>64: about 4.5 notes a second</td><td>127: a note on every step</td></tr><tr><td>A, B, C</td><td>The formula's numbers: each changes the pattern its own way (often a shift: <code>t&gt;&gt;A</code>). PARAM shows only those the formula has: C on 12 formulas, B on all but SIERPIN</td><td>—</td><td>—</td></tr><tr><td>LEN</td><td>FREE: the loop never comes back, <code>t</code> runs on</td><td>16: a bar that repeats</td><td>64: four bars</td></tr><tr><td>START</td><td>0: the formula from <code>t</code> = 0</td><td>—</td><td>127: from <code>t</code> = 32 512, another stretch of it</td></tr><tr><td>SPEED</td><td>1: <code>t</code> creeps, neighbouring steps are close</td><td>—</td><td>255: big jumps of <code>t</code>, steps far apart</td></tr><tr><td>RANGE</td><td>1: the notes within an octave</td><td>—</td><td>4: over four octaves</td></tr></tbody></table></div>
+<ul><li>Within the same formula, START and SPEED change the pattern as much as A, B and C: most formulas have stretches where they go flat, or only climb.</li></ul>
+<h2 id="the-scene">The scene</h2>
+<div class="figs"><figure class="shot"><img src="img/source-cipher.png" alt="CIPHER: the formula t*(t&gt;&gt;5|t&gt;&gt;8) and t on top, the byte&#x27;s 8 bits on the left, a wire cube of points in the middle, RHY, ACC and the note on the right" width="240" height="240" loading="lazy"><figcaption>CIPHER</figcaption></figure></div>
+<p>Each step of the loop is a point whose coordinates are three bytes in a row, <code>v[n]</code>, <code>v[n+1]</code> and <code>v[n+2]</code>, in a wire cube that sways. A regular formula draws a neat lattice, a chaotic one a cloud: the formula's structure, seen. Cyan points play, violet ones are silenced by DENS; the step playing is framed, pink when it plays, with a trail of the last six. On top, the formula with its values and <code>t</code>. On the left, the step's byte as its 8 bits, in the colour of their job; on the right, what it plays: RHY, its rhythm level against DENS's line, ACC, and the note.</p>
+<div class="figs"><figure class="shot"><img src="img/source-cipher-param.png" alt="CIPHER&#x27;s PARAM page on CLASSIC: A 5, B 8, no C, DENS 96" width="240" height="240" loading="lazy"><figcaption>PARAM</figcaption></figure><figure class="shot"><img src="img/source-cipher-time.png" alt="CIPHER&#x27;s TIME page: LEN 16, START 38, SPEED 28, RANGE 2" width="240" height="240" loading="lazy"><figcaption>TIME</figcaption></figure></div>
+<h2 id="on-a-kit">On a kit</h2>
+<p>The bottom four bits pick the pad, so one formula makes a whole beat; NOTE is gone and the scene shows the pad.</p>
+<div class="figs"><figure class="shot"><img src="img/source-cipher-kit.png" alt="CIPHER on a kit: the same formula, PAD P9 on the right" width="240" height="240" loading="lazy"><figcaption>CIPHER on a kit</figcaption></figure></div>
+<h2 id="preset">PRESET</h2>
+<p>PRESET steps through the 32 formulas, on any of the three pages. Each comes with its own A, B, C, START and SPEED, chosen so that it plays a living pattern; DENS, LEN, NOTE and RANGE stay as they are. When A, B, C, START or SPEED of your own go flat, PRESET once forward and once back brings the formula's back. PRESET leaves DENS alone: below 8, no step plays, whatever the formula.</p>
+<h2 id="recipes">Recipes</h2>
+<div class="table" tabindex="0" role="region" aria-label="Table: Recipes (Effect, Settings)"><table><thead><tr><th>Effect</th><th>Settings</th></tr></thead><tbody><tr><td>A busy riff on every step</td><td>MELODY (PRESET 7 times from CLASSIC): a note on every step, already at DENS 96</td></tr><tr><td>A sparse line</td><td>WEAVE, DENS 40: about 3.5 notes a second</td></tr><tr><td>A beat from one formula</td><td>On a kit, CHIME: pads and accents from the same byte, about 4.5 hits a second</td></tr><tr><td>A line that never repeats</td><td>Any formula, LEN FREE</td></tr></tbody></table></div>
+<h2 id="the-formulas">The formulas</h2>
+<p><code>A</code>, <code>B</code> and <code>C</code> are the PARAM page's values; the formulas follow C's precedence (<code>*</code> and <code>%</code>, then <code>+</code> and <code>-</code>, then the shifts, then <code>&amp;</code>, <code>^</code>, <code>|</code>).</p>
+<div class="table" tabindex="0" role="region" aria-label="Table: The formulas (Family, Name, Formula)"><table><thead><tr><th>Family</th><th>Name</th><th>Formula</th></tr></thead><tbody><tr><td>Pulse</td><td>CLASSIC</td><td>`t*(t&gt;&gt;A\</td><td>t&gt;&gt;B)`</td></tr><tr><td>Pulse</td><td>SIERPIN</td><td><code>t&amp;t&gt;&gt;A</code></td></tr><tr><td>Pulse</td><td>FORTY2</td><td><code>t*((A*4+2)&amp;t&gt;&gt;B)</code></td></tr><tr><td>Pulse</td><td>LACE</td><td>`(t&amp;t&gt;&gt;A)\</td><td>t&gt;&gt;B`</td></tr><tr><td>Pulse</td><td>KNOT</td><td><code>t*(t&gt;&gt;A&amp;t&gt;&gt;B)</code></td></tr><tr><td>Pulse</td><td>GEAR</td><td><code>t*A&amp;t&gt;&gt;B</code></td></tr><tr><td>Pulse</td><td>BEACON</td><td>`t*A\</td><td>t&gt;&gt;B`</td></tr><tr><td>Pulse</td><td>MELODY</td><td>`t*(0xCA98&gt;&gt;(t&gt;&gt;A&amp;14)&amp;15)\</td><td>t&gt;&gt;B`</td></tr><tr><td>Drift</td><td>DRIFT</td><td>`(t*A&amp;t&gt;&gt;B)\</td><td>(t*3&amp;t&gt;&gt;C)`</td></tr><tr><td>Drift</td><td>TIDE</td><td>`t*((t&gt;&gt;A\</td><td>t&gt;&gt;B)&amp;63&amp;t&gt;&gt;C)`</td></tr><tr><td>Drift</td><td>MOTOR</td><td>`(t&gt;&gt;A\</td><td>t\</td><td>t&gt;&gt;(t&gt;&gt;B))*C+(t&gt;&gt;11&amp;7)`</td></tr><tr><td>Drift</td><td>STORM</td><td>`t*(t^t+(t&gt;&gt;A\</td><td>1)^(t-1280^t)&gt;&gt;B)`</td></tr><tr><td>Drift</td><td>MESH</td><td>`t*A&amp;t&gt;&gt;B\</td><td>t&gt;&gt;C`</td></tr><tr><td>Drift</td><td>DIG</td><td><code>(t&amp;t&gt;&gt;A)-(t&gt;&gt;B)</code></td></tr><tr><td>Drift</td><td>FLIP</td><td><code>t&gt;&gt;A^t&lt;&lt;(B&amp;7)</code></td></tr><tr><td>Drift</td><td>SWELL</td><td><code>(t*(t&gt;&gt;A&amp;(B*4+3)))&gt;&gt;(t&gt;&gt;C&amp;3)</code></td></tr><tr><td>Stairs</td><td>STAIRS 1</td><td>`t*((t&gt;&gt;A\</td><td>t&gt;&gt;B)&amp;25&amp;t&gt;&gt;C)`</td></tr><tr><td>Stairs</td><td>STAIRS 2</td><td>`(t&amp;t&gt;&gt;A)*(t&gt;&gt;B\</td><td>t&gt;&gt;C)`</td></tr><tr><td>Stairs</td><td>LADDER</td><td><code>t*(t&gt;&gt;A&amp;t&gt;&gt;B&amp;123&amp;t&gt;&gt;C)</code></td></tr><tr><td>Stairs</td><td>TERRACE</td><td>`t*((t&gt;&gt;A\</td><td>t&gt;&gt;B)&amp;82&amp;t&gt;&gt;C)`</td></tr><tr><td>Stairs</td><td>WEAVE</td><td><code>(t&gt;&gt;A)*(t&gt;&gt;B)</code></td></tr><tr><td>Stairs</td><td>CHIME</td><td>`t*9&amp;t&gt;&gt;A\</td><td>t*5&amp;t&gt;&gt;B\</td><td>t*3&amp;t&gt;&gt;C`</td></tr><tr><td>Stairs</td><td>SPIRAL</td><td><code>t*(t&gt;&gt;A&amp;15)&gt;&gt;(t&gt;&gt;B&amp;3)</code></td></tr><tr><td>Stairs</td><td>COIL</td><td><code>t*(t&gt;&gt;A)&amp;t&gt;&gt;B</code></td></tr><tr><td>Chaos</td><td>CHAOS</td><td>`t\</td><td>t%(A*17+1)\</td><td>t%(B*17+2)`</td></tr><tr><td>Chaos</td><td>SPARK</td><td><code>t*(t&gt;&gt;A)^t&gt;&gt;B</code></td></tr><tr><td>Chaos</td><td>FLINT</td><td><code>(t^t&gt;&gt;A)*(t&gt;&gt;B)</code></td></tr><tr><td>Chaos</td><td>QUAD</td><td><code>(t*t&gt;&gt;A)&amp;t&gt;&gt;B</code></td></tr><tr><td>Chaos</td><td>MODULO</td><td><code>t*(t&gt;&gt;A)%(B*16+1)</code></td></tr><tr><td>Chaos</td><td>XOR</td><td><code>t&gt;&gt;A^t*B</code></td></tr><tr><td>Chaos</td><td>FRACTAL</td><td>`(t*(t&gt;&gt;A)\</td><td>t&gt;&gt;B)^t&gt;&gt;C`</td></tr><tr><td>Chaos</td><td>GLITCH</td><td><code>t*(t&gt;&gt;A^t&gt;&gt;B)&amp;(C*16+15)</code></td></tr></tbody></table></div>
+<p><strong>Inspired by</strong> viznut's <a href="http://countercomplex.blogspot.com/2011/10/algorithmic-symphonies-from-one-line-of.html">Algorithmic symphonies from one line of code</a> (2011), where bytebeat began, and by the Viznutcracker, sweet! app of <a href="https://ornament-and-cri.me/user-manual-v1_3/">Ornament &amp; Crime</a>, which steps its byte beats as a sequencer. Most formulas here come from the collections that followed viznut's post, given numbers to turn.</p>
+<hr>
+<p><a href="source-improv.html">← IMPROV</a></p>
+</main>
+</div>
+</body>
+</html>

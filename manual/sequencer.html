@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QUARTZ: Sequencer</title>
+<meta name="description" content="Sequencer for QUARTZ, a firmware for the M-VAVE FM-1.">
+<style>
+/* paper and ink: warm white paper, ink-blue type, vermilion for what is played, mustard for asides; a shade of the
+   paper for code and callouts (CTL-1's; a firmware may restyle its site) */
+:root {
+  --paper: #fbf8f1; --sheet: #efe9dc; --rule: #ddd4c2; --ink: #1e2b5a; --muted: #5d6585;
+  --hot: #e5482e; --hot-t: #f8d3c9; --cool: #d9a21b; --cool-t: #f5e4b8;
+  --hot-ink: #c23a22;                                 /* the vermilion as text: 4.5:1 on the paper */
+  color-scheme: light;
+}
+body {
+  background: var(--paper); color: var(--ink); margin: 0;
+  font: 400 17px/1.6 "Helvetica Neue", Helvetica, Arial, sans-serif;
+  padding-inline: 16px; padding-block: 32px 64px;
+}
+main { max-width: 46rem; margin: 0 auto; }
+.page > .site { max-width: 46rem; margin-inline: auto; }
+main:focus { outline: none; }
+h1, h2, h3 { font-family: inherit; text-wrap: balance; line-height: 1.2; }
+h1 { font-size: 2.2rem; font-weight: 700; margin: 0 0 .4rem; letter-spacing: .02em; }
+h2 { font-size: 1.3rem; font-weight: 700; margin: 3rem 0 .8rem; padding-top: .8rem; border-top: 2px solid var(--ink); }
+h2 .num { color: var(--hot); margin-right: .5em; font-variant-numeric: tabular-nums; }
+h3 { font-size: 1.1rem; font-weight: 700; margin: 2rem 0 .5rem; }
+p, li { max-width: 65ch; }
+p { margin: 0 0 1rem; }
+ul, ol { padding-left: 1.3rem; margin: 0 0 1rem; }
+li { margin: .2rem 0; }
+li::marker { color: var(--hot); }
+strong { font-weight: 700; }
+a { color: var(--ink); text-decoration-color: var(--hot); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+a:hover { background: var(--hot-t); }
+:focus-visible { outline: 3px solid var(--hot-ink); outline-offset: 2px; }
+.skip { position: absolute; left: 16px; top: -100px; background: var(--ink); color: var(--paper); padding: 8px 14px; border-radius: 0 0 6px 6px; z-index: 1; }
+.skip:focus { top: 0; }
+code, pre { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .86em; }
+code { background: var(--sheet); padding: .08em .35em; border-radius: 3px; }
+pre { background: var(--sheet); border-radius: 6px; padding: 14px 16px; overflow-x: auto; line-height: 1.45; margin: 0 0 1.2rem; }
+pre code { background: none; padding: 0; font-size: inherit; }
+hr { display: none; }
+.table { overflow-x: auto; margin: 0 0 1.3rem; }
+table { border-collapse: collapse; width: 100%; font-size: .95rem; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; vertical-align: top; padding: .45rem .7rem .45rem 0; border-bottom: 1px solid var(--rule); }
+th { font-weight: 700; text-transform: uppercase; letter-spacing: .06em; font-size: .78rem; color: var(--muted); border-bottom: 2px solid var(--ink); }
+td:first-child { white-space: nowrap; }
+.lede { margin-bottom: 1.6rem; }
+.status { background: var(--sheet); border-radius: 6px; padding: 12px 16px; }
+.status p { margin: 0; }
+.site { display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem 1.2rem; margin: 0 0 1.6rem; padding-bottom: .5rem; border-bottom: 2px solid var(--ink); }
+.site .home { font-size: 1.1rem; font-weight: 700; letter-spacing: .04em; color: var(--ink); text-decoration: none; }
+.site .home:hover { color: var(--hot-ink); background: none; }
+.site nav { margin-left: auto; display: flex; flex-wrap: wrap; gap: .2rem 1rem; font-size: .92rem; }
+.site nav a { color: var(--ink); text-underline-offset: 3px; }
+.site nav a[aria-current] { text-decoration: none; color: var(--hot-ink); }
+a.home { color: inherit; text-decoration: none; }
+a.home:hover { background: none; color: var(--hot-ink); }
+main > a.home { display: inline-block; font-size: .9rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 .4rem; }
+.callout { border-left: 4px solid var(--cool); background: var(--cool-t); padding: 10px 16px; margin: 0 0 1.2rem; max-width: 65ch; border-radius: 0 6px 6px 0; }
+.callout p { margin: 0; }
+details { background: var(--sheet); border-radius: 6px; padding: 0 16px; margin: 0 0 1.2rem; }
+details > summary { cursor: pointer; padding: 10px 0; }
+details[open] > summary { margin-bottom: .4rem; }
+details > :last-child { margin-bottom: 1rem; }
+.swatch { display: inline-block; width: .7em; height: .7em; margin-right: .4em; vertical-align: .02em; }
+nav.contents ol { columns: 2 14rem; column-gap: 2rem; padding-left: 1.3rem; }
+.figs { display: flex; flex-wrap: wrap; gap: 20px; margin: .4rem 0 1.6rem; }
+figure { margin: 0; flex: 0 1 auto; }
+figure img { display: block; max-width: 100%; height: auto; }
+figure.shot img { width: 300px; image-rendering: pixelated; border-radius: 4px; box-shadow: 0 0 0 1px var(--rule); }
+figure.wide { flex-basis: 100%; }
+figure.wide img { width: 100%; }
+figcaption { color: var(--muted); font-size: .88rem; margin-top: .4rem; max-width: 300px; }
+figure.wide figcaption { max-width: none; }
+nav.contents li { break-inside: avoid; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<div class="page">
+<main id="content" tabindex="-1">
+<a class="home" href="../">QUARTZ</a>
+<h1>Sequencer</h1>
+<p><a href="index.html#s8">← Manual</a> · <a href="index.html#pages">All pages</a></p>
+<p>This page is about STEP patterns, the ones you write yourself. Press SEQ: the STEPS page shows the pattern's current page of 16 steps as blocks on a 4 x 4 plateau, each with its note on top and as high as its velocity.</p>
+<div class="table" tabindex="0" role="region" aria-label="Table (Page, K1, K2, K3, K4)"><table><thead><tr><th>Page</th><th>K1</th><th>K2</th><th>K3</th><th>K4</th></tr></thead><tbody><tr><td>STEPS</td><td>LEN, 1–64 steps</td><td>DIV, 1/32 to 1/1</td><td>PATH</td><td>SOURCE</td></tr><tr><td>XY (PATH XY only)</td><td>X LEN, 1–4</td><td>X DIV</td><td>Y LEN, 1–4</td><td>Y DIV</td></tr></tbody></table></div>
+<ul><li><strong>LEN</strong> is the pattern's length, <strong>DIV</strong> the length of a step. The DIVs are 1/32, 1/16T, 1/16, 1/8T, 1/8, 1/4T, 1/4, 1/2 and 1/1; T is a triplet. The steps count from PLAY (<a href="index.html#patterns">Patterns</a>): a LEN changed while playing, then put back, finds the track in step with the others again.</li><li><strong>SOURCE</strong> changes where the pattern's notes come from (<a href="index.html#s9">Sources</a>). Each pattern keeps its own steps whatever its source.</li><li><strong>PATH</strong> is the order the steps play in. A path draws itself on the plateau as arrows. With a LEN under 16, a path takes its first LEN places: SNAKE, COLUMNS and SPIRAL can reach a step beyond LEN, and the plateau lights the steps the path plays.</li></ul>
+<div class="table" tabindex="0" role="region" aria-label="Table (PATH, Order)"><table><thead><tr><th>PATH</th><th>Order</th></tr></thead><tbody><tr><td>FWD</td><td>1 to LEN.</td></tr><tr><td>REV</td><td>LEN back to 1.</td></tr><tr><td>PING-PONG</td><td>Forwards then backwards, without repeating the ends.</td></tr><tr><td>SNAKE</td><td>Each page's rows of four, every other row backwards.</td></tr><tr><td>COLUMNS</td><td>Each page's 4 x 4 grid, column by column.</td></tr><tr><td>SPIRAL</td><td>Each page's 4 x 4 grid, in a spiral from the corner to the centre.</td></tr><tr><td>RANDOM</td><td>A random step each time.</td></tr><tr><td>XY</td><td>Two clocks on the 4 x 4 grid: X walks along a row at X DIV, over X LEN steps; Y moves to the next row at Y DIV, over Y LEN rows.</td></tr></tbody></table></div>
+<div class="figs"><figure class="shot"><img src="img/seq-steps.png" alt="The STEPS page: five blocks marked C, LEN 16, DIV 1/16, PATH FWD, SOURCE STEP, GRID in the header" width="240" height="240" loading="lazy"><figcaption>STEPS, on the grid</figcaption></figure><figure class="shot"><img src="img/seq-path.png" alt="PATH PING-PONG while playing: the step playing in pink, STEP 13 above the plateau" width="240" height="240" loading="lazy"><figcaption>A path, playing</figcaption></figure><figure class="shot"><img src="img/seq-xy.png" alt="The XY page: X LEN 4, X DIV 1/16, Y LEN 4, Y DIV 1/4" width="240" height="240" loading="lazy"><figcaption>XY</figcaption></figure></div>
+<p><strong>Inspired by</strong> <a href="https://www.makenoisemusic.com/modules/rene">René</a> by Make Noise: a 4 x 4 grid of notes walked by two clocks, one along X and one along Y.</p>
+<h2 id="playing-writing-recording">Playing, writing, recording</h2>
+<p>Without REC, the keys play the track, in SEQ too: you can look for an idea while the pattern plays. REC makes them write, in one of three ways. Short presses on REC go round:</p>
+<div class="table" tabindex="0" role="region" aria-label="Table: Playing, writing, recording (Where, Short presses on REC)"><table><thead><tr><th>Where</th><th>Short presses on REC</th></tr></thead><tbody><tr><td>SEQ, a STEP pattern</td><td>off, GRID, NOTES, off</td></tr><tr><td>Other domains</td><td>off, NOTES (LIVE while playing), off</td></tr></tbody></table></div>
+<ul><li><strong>GRID</strong>: the 16 white keys are the 16 steps of the page.</li><li><strong>NOTES</strong>: a cursor walks through the pattern; the keys write the notes of the step under it.</li><li><strong>LIVE</strong>: what you play is recorded where it falls, while the pattern plays. Hold REC and press PLAY.</li></ul>
+<p>PLAY starts and stops. In GRID and NOTES there is no count-in, and stopping keeps the mode; stopping ends LIVE.</p>
+<p>The keys play at a fixed velocity of 100; set a step's velocity afterwards. The last note or chord you played without REC (keys held together) goes to the <em>clipboard</em>, ready to paste on a step. The clipboard is shared by the four tracks; at the start it holds C4, and on a kit a pasted note becomes pad 1.</p>
+<h2 id="grid">GRID</h2>
+<p>In SEQ, press REC once. The white keys are the steps of the page shown; OCT- and OCT+ turn the page (1–16, 17–32…). It works stopped or playing. A short press is a press released with nothing turned meanwhile.</p>
+<ul><li>A short press on an empty step pastes the clipboard on it.</li><li>A short press on a lit step cuts it: its content goes to the clipboard and the step is emptied.</li><li>To move a step, cut it, then press where it goes. To copy it, cut it, then paste it back and on every other step.</li></ul>
+<p>The clipboard holds a whole step: notes, velocity, length, functions and p-locks.</p>
+<h2 id="a-held-step">A held step</h2>
+<div class="table" tabindex="0" role="region" aria-label="Table: A held step (While a step is held, Effect)"><table><thead><tr><th>While a step is held</th><th>Effect</th></tr></thead><tbody><tr><td>nothing (stopped)</td><td>The step sounds.</td></tr><tr><td>white keys</td><td>Write its notes, a chord up to POLY (the natural notes; for sharps, use NOTES). On a kit, they add or remove pads, four at most.</td></tr><tr><td>black keys</td><td>Pick a function (below); 6 and 7 switch SLIDE and ACCENT.</td></tr><tr><td>PRESET</td><td>Sets the function picked (VEL first).</td></tr><tr><td>OCT+ / OCT-</td><td>Its length: one step more or less, up to 8 steps. A step written by hand lasts half a step, so the first notch ties it to the next one.</td></tr><tr><td>K1–K4</td><td>P-locks of the page shown (below).</td></tr><tr><td>SELECT</td><td>Turns the p-lock pages.</td></tr></tbody></table></div>
+<p>The plateau lifts the held step and shows its functions beside it. A long note draws a green band on the floor towards the steps it covers, filled in pink while it sounds.</p>
+<div class="figs"><figure class="shot"><img src="img/seq-held.png" alt="A held step: the functions RATCHET, VEL, PROB, COND, NOTE, LEN, MICRO, SLIDE, ACCENT listed, VEL picked" width="240" height="240" loading="lazy"><figcaption>A held step</figcaption></figure></div>
+<h2 id="step-functions">Step functions</h2>
+<p>Each black key carries a family of functions: a press picks its first function, another press the next one. PRESET sets it. Black keys 6 and 7 are different: they switch SLIDE and ACCENT on or off at once, and PRESET goes on setting the function picked before.</p>
+<div class="table" tabindex="0" role="region" aria-label="Table: Step functions (Black key, Function, Values)"><table><thead><tr><th>Black key</th><th>Function</th><th>Values</th></tr></thead><tbody><tr><td>1</td><td>RATCHET</td><td>1–4: the step's notes repeated within the step.</td></tr><tr><td>2</td><td>VEL</td><td>1–127.</td></tr><tr><td>3</td><td>PROB, then COND</td><td>PROB: 0–100 %, by 5 %. COND: below.</td></tr><tr><td>4</td><td>NOTE</td><td>The step's note, the whole chord moving with it.</td></tr><tr><td>5</td><td>LEN, then MICRO</td><td>LEN: in eighths of a step, up to 8 steps. MICRO: −11 to +11, in 24ths of a step, early or late.</td></tr><tr><td>6</td><td>SLIDE</td><td>On or off: the note is tied to the next step's, which plays without a new attack (and glides to it with GLIDE).</td></tr><tr><td>7</td><td>ACCENT</td><td>On or off: the velocity goes up by 32 and the envelope moves the filter 1.5 times as far.</td></tr><tr><td>8–11</td><td>—</td><td>Kept for later.</td></tr></tbody></table></div>
+<p>COND decides on which loops the step plays, before PROB:</p>
+<div class="table" tabindex="0" role="region" aria-label="Table: Step functions (COND, The step plays…)"><table><thead><tr><th>COND</th><th>The step plays…</th></tr></thead><tbody><tr><td>NONE</td><td>Always (then PROB decides).</td></tr><tr><td>FIRST</td><td>On the first loop only, after PLAY or a pattern change.</td></tr><tr><td>!FIRST</td><td>On every loop but the first.</td></tr><tr><td>PRE</td><td>If the last step with a condition or a PROB on this track played.</td></tr><tr><td>!PRE</td><td>If it did not.</td></tr><tr><td>FILL</td><td>Only while FILL is held: FX held and black key 1 held.</td></tr><tr><td>!FILL</td><td>Except while FILL is held.</td></tr><tr><td>A:B</td><td>On loop A of every B: 1:2 every other loop from the first, 2:4 the second loop of four… B goes from 2 to 8.</td></tr></tbody></table></div>
+<p>For example: hold a step, press black key 3 for PROB, press it again for COND, turn PRESET to 1:2.</p>
+<div class="figs"><figure class="shot"><img src="img/seq-held-prob.png" alt="The held step with PROB at 50 %" width="240" height="240" loading="lazy"><figcaption>PROB 50 %</figcaption></figure></div>
+<h2 id="p-locks">P-locks</h2>
+<p>While a step is held, K1–K4 lock the knobs of a sound page to that step only: the step plays with its own value, the others with the page's. SELECT turns the pages: ENGINE, SOUND, ADSR, FILTER, LFO, LFO 2, INSERT, MIX, ARP (a kit: PAD, ADSR, FILTER, LFO, LFO 2, INSERT, MIX). A pattern holds up to 128 p-locks; past that, the header says <code>LOCKS FULL</code>.</p>
+<p>On a kit, PAD locks TUNE, HARM, TIMB and DECAY for every pad of the step: a hat more open on one step, a tom higher. Its knobs start from the step's first pad. Two pads on the step take the same values. In LIVE, a PAD knob turned in EDIT locks only the steps that play the pad it sets.</p>
+<h2 id="several-steps-at-once">Several steps at once</h2>
+<p>Hold SEL and press steps: each press adds the step to the selection or takes it out, without switching it on or off. The first one is the reference, whose functions are shown. Still holding SEL:</p>
+<ul><li>a black key and PRESET: every step takes the reference's value, as you turn it (all at PROB 50 %, say);</li><li>black key 4 (NOTE) and PRESET: every step's notes move by as much, a melody transposed: in semitones, or with GLO's IN SCALE ON in degrees of the scale (the notes stay in it). The selection holds the page shown: a pattern of 64 steps moves a page at a time;</li><li>black key 6 or 7: SLIDE or ACCENT switches on the reference, and every step takes its new value;</li><li>K1–K4: the same p-lock on every step;</li><li>OCT+ / OCT-: each step one step longer or shorter.</li></ul>
+<p>Letting go of SEL clears the selection.</p>
+<div class="figs"><figure class="shot"><img src="img/seq-select.png" alt="SEL held: steps 1 and 4 selected, in orange" width="240" height="240" loading="lazy"><figcaption>A selection</figcaption></figure></div>
+<h2 id="notes">NOTES</h2>
+<p>In SEQ, press REC twice (once in other domains). Every key is a note, black keys included, and the header shows <code>NOTES</code> with the cursor's step. The keys light the notes already on that step.</p>
+<ul><li><strong>Move the cursor</strong> with PRESET, across the whole pattern; the plateau turns its page by itself. Hold SEL and press white key <em>n</em> to jump to step <em>n</em> of the page.</li><li><strong>Play a note or a chord</strong> to write it. On an empty step, the step is made (velocity 100, half a step long). On a lit step, only the notes change: velocity, length, functions and p-locks stay.</li><li>The cursor moves on by the step's length when you let go of the last key. To fix a mistake, PRESET one notch back and play again.</li><li><strong>A long note</strong>: hold the key and turn PRESET, one step a notch.</li><li><strong>A rest</strong>: turn PRESET one notch without a key.</li><li><strong>Set the step under the cursor</strong> with K1–K4 directly, on three pages before STEPS (SELECT turns them). Turning a knob on an empty step makes it.</li><li>Its p-locks: hold SEL and turn K1–K4; SEL and SELECT for the p-lock page.</li></ul>
+<div class="table" tabindex="0" role="region" aria-label="Table: NOTES (NOTES page, K1, K2, K3, K4)"><table><thead><tr><th>NOTES page</th><th>K1</th><th>K2</th><th>K3</th><th>K4</th></tr></thead><tbody><tr><td>1</td><td>NOTE, the whole chord</td><td>LEN</td><td>VEL</td><td>PROB</td></tr><tr><td>2</td><td>RATCHET</td><td>COND</td><td>MICRO</td><td>—</td></tr><tr><td>3</td><td>SLIDE</td><td>ACCENT</td><td>—</td><td>—</td></tr></tbody></table></div>
+<p>SLIDE and ACCENT: right is on, left is off. In SEQ, NOTES works while playing too, and stopping keeps it. Out of SEQ, it works stopped; PLAY then switches to LIVE (with the count-in if CLICK has one). While NOTES is on, PRESET moves the cursor and changes neither the pattern, the model nor the insert.</p>
+<div class="figs"><figure class="shot"><img src="img/seq-notes.png" alt="NOTES: the cursor&#x27;s sight on step 1, NOTE C4, LEN 4, VEL 100, PROB 100 %" width="240" height="240" loading="lazy"><figcaption>NOTES</figcaption></figure></div>
+<h2 id="live">LIVE</h2>
+<ul><li><strong>Playing</strong>: hold REC and press PLAY; the pattern keeps playing. Out of SEQ, arming REC while playing is enough.</li><li><strong>Stopped, with a count-in</strong> (GLO SCALE, CLICK at COUNT or BOTH): hold REC and press PLAY. A bar of count-in, then the recording.</li><li><strong>Stopped, without</strong>: hold REC and press PLAY to arm (<code>ARM</code>). The first note starts the pattern on step 1.</li></ul>
+<p>Notes are recorded with GLO's QUANT (OFF, 50 %, 100 %: how far they are pulled to the step), the knobs you turn become p-locks, and the punch-ins you hold are written on the steps they cross.</p>
+<p>To erase while playing:</p>
+<ul><li>hold REC and press keys: they don't sound, and their notes are taken off the steps the pattern crosses;</li><li>hold REC and OCT-: every step crossed is cleared.</li></ul>
+<p>REC (short) disarms and the pattern keeps playing. PLAY stops and disarms.</p>
+<h2 id="rec-held">REC held</h2>
+<div class="figs"><figure class="shot"><img src="img/seq-rec-map.png" alt="REC held: #1 CLEAR, #2 CLEAR LOCKS on the pattern shown, #3 UNDO, #5 EUCLID, #6 RND PAGE, #7 RND ALL, OCT NUDGE THE STEPS, + PLAY for LIVE, TAP for GRID &gt; NOTES &gt; OFF" width="240" height="240" loading="lazy"><figcaption>REC's map</figcaption></figure></div>
+<div class="table" tabindex="0" role="region" aria-label="Table: REC held (REC held +, Not in LIVE or ARM, In LIVE)"><table><thead><tr><th>REC held +</th><th>Not in LIVE or ARM</th><th>In LIVE</th></tr></thead><tbody><tr><td>PLAY</td><td>LIVE, with the count-in or armed</td><td>—</td></tr><tr><td>black key 1</td><td>CLEAR: empties the pattern shown</td><td>—</td></tr><tr><td>black key 2</td><td>CLEAR LOCKS: removes its p-locks</td><td>—</td></tr><tr><td>black key 3</td><td>UNDO: the last CLEAR, CLEAR LOCKS, draw or paste put back; again, done again</td><td>—</td></tr><tr><td>black key 5</td><td>EUCLID on a STEP pattern; then PRESET, REC still held: more or fewer hits</td><td>—</td></tr><tr><td>keys</td><td>—</td><td>erase their notes as the pattern crosses them</td></tr><tr><td>OCT-</td><td>NUDGE: steps 1 to LEN one step left (step 1 goes last)</td><td>clears every step crossed</td></tr><tr><td>OCT+</td><td>NUDGE: steps 1 to LEN one step right (the last goes first)</td><td>—</td></tr></tbody></table></div>
+<p>EUCLID spreads hits as evenly as it can over steps 1 to LEN, from a place drawn at random: 3 hits in 8 make the tresillo, 5 in 16 a bossa-like line. It draws a quarter to a half of LEN; turn PRESET while still holding REC for more or fewer, from 1 to LEN (<code>EUCLID 5/16</code>). A step that was on stays as written, a new one plays the tonic (in the octave OCT gives the keys), and a step turned off keeps its notes for the next draw. REC held and black key 3 gives the pattern back.</p>
+<p>On a kit, EUCLID writes one pad only, the last one played (<code>PAD 3</code> in EDIT's header): tap it first. The pad goes in the hits' steps (a step holds 4 pads at most) and out of the others; the other pads stay where they are. Draw the kick, then tap the hat and draw it, then the clap: three rhythms on one pattern.</p>
+<p><strong>Inspired by</strong> Godfried Toussaint's <a href="http://cgm.cs.mcgill.ca/~godfried/publications/banff.pdf">The Euclidean Algorithm Generates Traditional Musical Rhythms</a>: Bjorklund's even spreading of hits over steps.</p>
+<p>NUDGE moves a STEP pattern's steps with their p-locks, <code>STEPS LEFT</code> or <code>STEPS RIGHT</code>: a hat line onto the offbeat, a LIVE take played a step late put back on the beat.</p>
+<p>UNDO puts back what the last CLEAR, CLEAR LOCKS, NUDGE, EUCLID, draw (black keys 6–8), paste (SEQ held, black keys 2 and 4), x2 or PRINT changed: the pattern, the track's sound and pads, or GLO's settings, as they were just before. The header says <code>UNDONE</code>; press again for <code>REDONE</code>, and so on. It keeps one action only, the last, and what you changed by hand since that action goes back with it. A SAVE ends it: then the header says <code>NOTHING TO UNDO</code>.</p>
+<h2 id="random">Random</h2>
+<div class="figs"><figure class="shot"><img src="img/seq-random.png" alt="REC held on EDIT: #6 RND PAGE, #7 RND ALL and #8 RND MODEL lit beside CLEAR; RANDOM PAGE in the header" width="240" height="240" loading="lazy"><figcaption>REC's map on EDIT, after black key 6</figcaption></figure></div>
+<p>Hold REC and press a black key of the second group of three to draw values at random, on any page:</p>
+<div class="table" tabindex="0" role="region" aria-label="Table: Random (REC held +, Draws)"><table><thead><tr><th>REC held +</th><th>Draws</th></tr></thead><tbody><tr><td>black key 6 (RND PAGE)</td><td>the knobs of the page shown; on CHORD, STEP (LATTICE) and MOON, the item under PRESET's cursor too; on a STEP pattern, the 16 steps of the grid's page shown (OCT- / OCT+), nothing else</td></tr><tr><td>black key 7 (RND ALL)</td><td>the knobs of every page of the domain shown; in SEQ, the source's content too (below)</td></tr><tr><td>black key 8 (RND MODEL)</td><td>another model, on EDIT only (a synth may become a KIT, and back)</td></tr></tbody></table></div>
+<p>Each knob is drawn anywhere in its range; a knob that picks (a preset, a chord, an arpeggio) lands on a whole choice. The header shows <code>RANDOM PAGE</code>, <code>RANDOM ALL</code> or <code>RANDOM MODEL</code>. To try another model with new settings: black key 8, then black key 7.</p>
+<p>Never drawn, so that a draw never silences the track nor changes what it is:</p>
+<div class="table" tabindex="0" role="region" aria-label="Table: Random (Knob, Why)"><table><thead><tr><th>Knob</th><th>Why</th></tr></thead><tbody><tr><td>SOURCE</td><td>it would change the source, and so the pages being drawn</td></tr><tr><td>MODEL</td><td>black key 8 draws it</td></tr><tr><td>SOUND's POLY</td><td>the number of voices</td></tr><tr><td>MIX's and KIT's LEVEL</td><td>the track could go silent or clip</td></tr><tr><td>TEMPO</td><td>the whole project's speed</td></tr><tr><td>STEPS' LEN and PATH, the XY page</td><td>LEN comes with black key 7's new pattern; an XY path could hold the pattern on one step</td></tr><tr><td>ATLAS's LEN</td><td>a length drawn would break the bar</td></tr><tr><td>HOME (TRACKS, SONG)</td><td>the mix and the arrangement, not the sound</td></tr></tbody></table></div>
+<p>In SEQ, black key 7 also draws the source's content:</p>
+<ul><li>STEP: a new pattern, DIV drawn and LEN 16, 32, 48 or 64 (whole pages of the grid); PATH and the XY page are kept. The steps and their p-locks are cleared, then each step is lit at a density drawn between 25 and 75 %, as a step made by hand, with a note of the project's scale between C3 and C5 and a velocity from 60 to 127. Black key 6 does the same on the grid's page shown only: keep the pages you like, draw the others again.</li><li>STEP on a kit: only the last pad played (<code>PAD 3</code> in EDIT's header) is drawn, as EUCLID does: it leaves the steps and comes back on some at a density drawn (4 pads a step at most); the other pads and LEN stay. Tap the pad first, draw it, then the next one.</li><li>CADENCE: the 8 chords. LATTICE: the 8 steps. MOONS: every moon. LOOM: every cell of every lane.</li></ul>
+<p>The other sources have only their knobs. The keys do nothing (unlit on the map) in LIVE, where REC held erases notes; with a step, a selection or a cell held, where the knobs set those; on HOME. Black key 3, REC still held, undoes a draw (<a href="#rec-held">REC held</a>).</p>
+<h2 id="recipes">Recipes</h2>
+<div class="table" tabindex="0" role="region" aria-label="Table: Recipes (I want to…, I do…)"><table><thead><tr><th>I want to…</th><th>I do…</th></tr></thead><tbody><tr><td>put a kick on the four beats</td><td>Play the kick pad without REC, then SEQ, REC (GRID), and press steps 1, 5, 9, 13.</td></tr><tr><td>enter a melody note by note</td><td>SEQ, REC twice (NOTES), play; PRESET for a rest, a key held + PRESET for a long note.</td></tr><tr><td>write a chord with sharps</td><td>NOTES, cursor on the step, play the chord.</td></tr><tr><td>change a step's notes, keep its settings</td><td>NOTES, cursor on the step, play the new notes.</td></tr><tr><td>move a step</td><td>GRID: press it (cut), then press where it goes.</td></tr><tr><td>hold a note three steps</td><td>GRID: hold the step, OCT+ twice.</td></tr><tr><td>push a note late by 1/24</td><td>Hold the step, black key 5 twice (MICRO), PRESET.</td></tr><tr><td>set four steps to 50 %</td><td>GRID, hold SEL, press the four steps, black key 3 (PROB), PRESET.</td></tr><tr><td>record as I play, no count-in</td><td>Stopped: hold REC, press PLAY, then play: the pattern starts with the first note.</td></tr><tr><td>remove a wrong hi-hat while playing</td><td>In LIVE, hold REC and the hi-hat's key while the pattern passes it.</td></tr><tr><td>empty the pattern</td><td>Hold REC, press black key 1.</td></tr><tr><td>find a shortcut</td><td>Hold the button: its map shows.</td></tr></tbody></table></div>
+<p><strong>Inspired by</strong> Elektron's sequencers (<a href="https://www.elektron.se/support-downloads/digitakt">Digitakt manual</a>): the 16 keys as the steps, parameter locks, trig conditions (A:B, 1ST, PRE and their negations) and micro timing. QUARTZ's COND has no NEI, and its PROB is a function of its own beside COND. The gestures around the clipboard (paste the last note, cut to move, hold to hear) and SEL as a shift come from the <a href="https://teenage.engineering/guides/op-z">OP-Z</a>.</p>
+</main>
+</div>
+</body>
+</html>
