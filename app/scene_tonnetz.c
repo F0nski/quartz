@@ -135,7 +135,7 @@ void tonnetz_band(const q_tzview *v, int32_t oy)
             if (in) {                               /* a chord note: its octave, lit as it sounds, the bass marked */
                 for (int q = 0; q < v->n; q++)
                     if (v->notes[q] % 12 == pc) k = q;
-                uint32_t at = tzv.hit_ms + (uint32_t)(k < 0 ? 0 : k) * v->tz.strum * v->step_ms / 24u;
+                uint32_t at = tzv.hit_ms + (uint32_t)(k < 0 ? 0 : k) * STRUM_TICKS[v->tz.strum] * v->step_ms / 4800u;
                 int lit = v->playing && k >= 0 && (int32_t)(tzv.ms - at) >= 0 && tzv.ms - at < TZV_HIT_MS, r = lit ? 6 : 4;
                 uint16_t c = lit ? MB_WHITE[0] : MB_WHITE[1];
                 cv_rect(x - 1, oy + y - r, 3, 2 * r + 1, c);

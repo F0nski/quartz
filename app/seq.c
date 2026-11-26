@@ -489,7 +489,7 @@ static void plan_notes(q_seq *s, const q_project *p, int t, const q_step *st, in
     q_queue *q = &s->q[t];
     int r = STEP_RATCHET(st), g = r > 1 && st->len > 8 ? 8 : st->len, hold = 0;
     int64_t f = 200 * st->micro + (tr->k & 1 ? 96 * (p->swing - 50) : 0), from = tie_date(q);
-    int strum = 200 * SF_STRUM(st);     /* a generator's notes one after the other (a STEP's: printed from one) */
+    int strum = STRUM_TICKS[SF_STRUM(st)];     /* the notes one after the other (a STEP's: printed or recorded) */
     if (st->flags & SF_ACCENT) acc = 15;
     for (int j = 0; j < r; j++) {
         for (int i = 0; i < 4; i++) {

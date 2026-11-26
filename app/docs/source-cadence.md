@@ -24,7 +24,7 @@ The numbers below were counted in the simulator on a new pattern, POLY 3, at 120
 | --- | --- | --- | --- |
 | RATE | 1/BAR: one chord held through the bar (1.5 notes a second) | 4/BAR: a chord a beat (6 notes a second) | 16/BAR: a chord every step (about 24 notes a second) |
 | LEN | 1: one chord, a drone | — | 8: eight chords, eight bars |
-| STRUM | 0: the notes together | — | 7: the widest spread, from the lowest note up, by 24ths of a step |
+| STRUM | 0: the notes together | 1–4: 1/24, 1/12, 1/8, 1/6 of a step between notes, from the lowest up | 7: half a step between notes (5: 1/4, 6: 3/8) |
 | VOICE | ROOT: each chord in root position on NOTE, jumps between chords | — | SMOOTH: the inversion closest to the chord before, never far from the root position: a smooth line |
 
 ## The scene

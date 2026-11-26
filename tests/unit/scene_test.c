@@ -2085,7 +2085,7 @@ static void chords_strum_order(void)
     wkey(48, &x48), wkey(55, &x55);
     chords_frame(&CV, 1005); cvfull();
     assert(cwhite(x48 + 1, x48 + 10, 155, 162) > 0 && cwhite(x55 + 1, x55 + 10, 155, 162) == 0);
-    chords_frame(&CV, 1080); cvfull();
+    chords_frame(&CV, 1130); cvfull();                /* STRUM 7: the third note half a step x 2 = 125 ms on */
     assert(cwhite(x55 + 1, x55 + 10, 155, 162) > 0);
 }
 
@@ -2205,7 +2205,7 @@ static void tonnetz_strum_nodes(void)
     tvnode(0, 0, &xc, &yc), tvnode(1, 0, &xg, &yg);
     tonnetz_frame(&TV, 1005); tvfull();
     assert(gcount(MB_WHITE[0], xc - 6, xc + 7, yc - 6, yc + 7) > gcount(MB_WHITE[0], xg - 6, xg + 7, yg - 6, yg + 7));
-    tonnetz_frame(&TV, 1080); tvfull();
+    tonnetz_frame(&TV, 1130); tvfull();              /* STRUM 7: the third note 125 ms on */
     assert(gcount(MB_WHITE[0], xg - 6, xg + 7, yg - 6, yg + 7) > 0);
 }
 static void tonnetz_scale_dims(void)

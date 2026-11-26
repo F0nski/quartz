@@ -131,7 +131,7 @@ void chords_band(const q_chview *v, int32_t oy)
             if (black && pass == 0) continue;
             for (int j = 0; j < v->n; j++)
                 if (v->notes[j] == m) k = j;
-            uint32_t at = chv.hit_ms + (uint32_t)k * v->chords.strum * v->step_ms / 24u;
+            uint32_t at = chv.hit_ms + (uint32_t)k * STRUM_TICKS[v->chords.strum] * v->step_ms / 4800u;
             int lit = k >= 0 && v->held < 0 && chv.ms - at < CHV_HIT_MS && (int32_t)(chv.ms - at) >= 0;
             if (!black) {
                 cv_rect(wx, oy + CHV_KY, 11, 22, k < 0 ? CHV_KEY : v->held >= 0 ? MB_WHITE[1] : lit ? MB_WHITE[0] : PINK3[1]);

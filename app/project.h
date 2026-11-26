@@ -17,7 +17,9 @@
 enum { DIV_32, DIV_16T, DIV_16, DIV_8T, DIV_8, DIV_4T, DIV_4, DIV_2, DIV_1, DIV_N };
 
 enum { SF_ON = 1, SF_SLIDE = 2, SF_ACCENT = 4 };          /* q_step.flags; bits 3-4: ratchet - 1; bits 5-7: STRUM */
-#define SF_STRUM(s) ((s)->flags >> 5 & 7)                  /* a generator's step: its notes 1/24 step apart, lowest first */
+#define SF_STRUM(s) ((s)->flags >> 5 & 7)                  /* a step's notes STRUM_TICKS apart, lowest first */
+/* STRUM 0..7: the time between a chord's notes, in 1/4800 of a step; fine steps first, up to half a step */
+static const uint16_t STRUM_TICKS[8] = { 0, 200, 400, 600, 800, 1200, 1800, 2400 };
 #define STEP_RATCHET(s) ((((s)->flags >> 3) & 3) + 1)
 enum { CD_NONE, CD_FIRST, CD_NFIRST, CD_PRE, CD_NPRE, CD_FILL, CD_NFILL };   /* q_step.cond < 16; else A:B: A = cond & 15, B = cond >> 4 */
 enum { LK_HARM, LK_TIMB, LK_MORPH, LK_DECAY, LK_TUNE, LK_GLIDE,

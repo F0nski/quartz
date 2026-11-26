@@ -401,6 +401,22 @@ static void poly_step_plays_all_notes(void)
     }
 }
 
+/* STRUM: the step's notes STRUM_TICKS apart, lowest first, each gate as long */
+static void strum_curve(void)
+{
+    static const uint8_t notes[4] = { 60, 64, 67, 0 };
+    static const int ticks[2][2] = { { 7, 2400 }, { 1, 200 } };
+    for (int c = 0; c < 2; c++) {
+        setup();
+        only_step(0, 0);
+        memcpy(P.pat[0][0].steps[0].note, notes, 4);
+        P.pat[0][0].steps[0].flags |= (uint8_t)(ticks[c][0] << 5);
+        run(80);
+        for (int i = 0; i < 3; i++)
+            assert(nth(0, 1, i) == at16(0, ticks[c][1] * i));
+    }
+}
+
 static void same_note_retrigger_not_cut(void)
 {
     setup();
@@ -1580,9 +1596,9 @@ static void chords_strum_zero(void)
 static void chords_strum_overlaps(void)
 {
     chords_setup_seq(4, 7);
-    run(40);
+    run(60);                                    /* the second chord's last note 1.5 steps on */
     for (int k = 0; k < 2; k++)
-        for (int i = 0; i < 3; i++) assert(nth(0, 1, 3 * k + i) == at16(k, 1400 * i));
+        for (int i = 0; i < 3; i++) assert(nth(0, 1, 3 * k + i) == at16(k, STRUM_TICKS[7] * i));
 }
 /* the live transposition: semitones, or degrees of the scale (C major: E up 2 degrees is G); a KIT stays */
 static void transpose_moves_notes(void)
@@ -1723,6 +1739,7 @@ int main(void)
     ratchet_repeats();
     repeat_flag_on_ratchet_repeats();
     poly_step_plays_all_notes();
+    strum_curve();
     same_note_retrigger_not_cut();
     tempo_change_with_queue();
     pattern_switch_at_wrap();
