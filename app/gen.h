@@ -50,6 +50,10 @@ int gen_grids_level(const q_grids *g, int step, int voice);  /* a step's level 0
 uint16_t gen_kept(uint16_t allowed, int tonic, int steps);  /* the pitch classes STEPS keeps, the strongest from the tonic */
 int gen_quantize(int note, uint16_t allowed, int tonic, int steps);  /* 1..127, in the notes STEPS keeps */
 int gen_degrees(int note, uint16_t scale, int d);   /* note moved d notes of the scale up (down: d < 0), within 1..127 */
+enum { KM_7 = 1, KM_SUS2 = 2, KM_SUS4 = 4, KM_ADD9 = 8, KM_INV = 16 };   /* KEYS SPLIT's modifiers: black keys 1-5 */
+/* the chord of the scale's note root (scale: absolute pitch classes) with the modifiers mods: its notes low to high in
+   out, those past 127 left out; returns their number (4 at most) */
+int gen_keys_chord(uint16_t scale, int root, int mods, uint8_t out[4]);
 
 void gen_reset(q_gen *g, uint32_t *rng);   /* rng fills the deja vu loops */
 void gen_marbles_draw(q_gen *g, uint32_t *rng);   /* MARBLES: its deja vu loops drawn again (PRESET) */

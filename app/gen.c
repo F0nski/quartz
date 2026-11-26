@@ -45,6 +45,35 @@ int gen_degrees(int note, uint16_t scale, int d)
     return note;
 }
 
+/* note moved d notes of the scale up, unbounded (gen_keys_chord leaves out what passes 127) */
+static int scale_up(int note, uint16_t scale, int d)
+{
+    while (d-- > 0)
+        do note++; while (!(scale >> note % 12 & 1));
+    return note;
+}
+
+int gen_keys_chord(uint16_t scale, int root, int mods, uint8_t out[4])
+{
+    int n[4], k = 0, i, j;
+    n[k++] = mods & KM_INV ? root + 12 : root;
+    n[k++] = scale_up(root, scale, mods & KM_SUS4 ? 3 : mods & KM_SUS2 ? 1 : 2);
+    if ((mods & (KM_7 | KM_ADD9)) != (KM_7 | KM_ADD9))   /* both: the fifth makes room */
+        n[k++] = scale_up(root, scale, 4);
+    if (mods & KM_7)
+        n[k++] = scale_up(root, scale, 6);
+    if (mods & KM_ADD9)
+        n[k++] = scale_up(root, scale, 8);
+    for (i = 1; i < k; i++)                 /* low to high (INV puts the root on top) */
+        for (j = i; j > 0 && n[j] < n[j - 1]; j--) {
+            int x = n[j]; n[j] = n[j - 1]; n[j - 1] = x;
+        }
+    for (i = j = 0; i < k; i++)
+        if (n[i] <= 127)
+            out[j++] = (uint8_t)n[i];
+    return j;
+}
+
 int gen_loop(const q_pattern *pt)
 {
     return pt->src == SRC_MARBLES ? pt->marbles.len : pt->src == SRC_LIFE || pt->src == SRC_LANES || pt->src == SRC_CHORDS || pt->src == SRC_TONNETZ || pt->src == SRC_ORBITS || pt->src == SRC_MIMIC ? LIFE_W

@@ -1797,8 +1797,36 @@ static void cipher_np_matches(void)
     }
 }
 
+/* KEYS SPLIT's chords: the scale's notes stacked from the root (ranks r, r+2, r+4), the black keys' modifiers */
+static void chord_is(uint16_t sc, int root, int mods, const int *want, int n)
+{
+    uint8_t out[4];
+    int got = gen_keys_chord(sc, root, mods, out);
+    assert(got == n);
+    for (int i = 0; i < n; i++) assert(out[i] == want[i]);
+}
+static void keys_chord(void)
+{
+    const uint16_t maj = SCALE_MASK[1], penta = SCALE_MASK[9], chrom = SCALE_MASK[0];
+    chord_is(maj, 60, 0, (const int[]){ 60, 64, 67 }, 3);
+    chord_is(maj, 62, 0, (const int[]){ 62, 65, 69 }, 3);
+    chord_is(maj, 71, 0, (const int[]){ 71, 74, 77 }, 3);
+    chord_is(maj, 60, KM_7, (const int[]){ 60, 64, 67, 71 }, 4);
+    chord_is(maj, 60, KM_SUS2, (const int[]){ 60, 62, 67 }, 3);
+    chord_is(maj, 60, KM_SUS4, (const int[]){ 60, 65, 67 }, 3);
+    chord_is(maj, 60, KM_SUS2 | KM_SUS4, (const int[]){ 60, 65, 67 }, 3);
+    chord_is(maj, 60, KM_ADD9, (const int[]){ 60, 64, 67, 74 }, 4);
+    chord_is(maj, 60, KM_7 | KM_ADD9, (const int[]){ 60, 64, 71, 74 }, 4);
+    chord_is(maj, 60, KM_INV, (const int[]){ 64, 67, 72 }, 3);
+    chord_is(maj, 60, KM_7 | KM_INV, (const int[]){ 64, 67, 71, 72 }, 4);
+    chord_is(penta, 60, 0, (const int[]){ 60, 64, 69 }, 3);
+    chord_is(chrom, 60, 0, (const int[]){ 60, 62, 64 }, 3);
+    chord_is(maj, 124, 0, (const int[]){ 124, 127 }, 2);
+}
+
 int main(void)
 {
+    keys_chord();
     cipher_matches_search();
     cipher_extremes_safe();
     cipher_alive();
